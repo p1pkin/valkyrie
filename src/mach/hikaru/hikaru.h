@@ -1,0 +1,91 @@
+/* 
+ * Valkyrie
+ * Copyright (C) 2011, Stefano Teso
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ */
+
+#ifndef __VK_HIKARU_H__
+#define __VK_HIKARU_H__
+
+#include "vk/mmap.h"
+#include "vk/cpu.h"
+#include "vk/machine.h"
+
+typedef struct {
+	vk_machine_t base;
+
+	/* CPU (master) */
+	vk_cpu_t *sh_m;
+	vk_mmap_t *mmap_m;
+
+	/* CPU (slave) */
+	vk_cpu_t *sh_s;
+	vk_mmap_t *mmap_s;
+
+	vk_cpu_t *sh_current;
+
+	/* Devices */
+	vk_device_t *memctl_m;
+	vk_device_t *memctl_s;
+	vk_device_t *mscomm;
+	vk_device_t *mie;
+	vk_device_t *gpu;
+
+	vk_device_t *mainbd_eeprom;
+	vk_device_t *rombd_eeprom;
+
+	/* Port A (master and slave) */
+	uint16_t porta_m;
+	unsigned porta_m_bit0_buffer;
+
+	uint16_t porta_s;
+	unsigned porta_s_bit1_buffer;
+
+	/* Unknown Hardware (master) */
+	uint32_t unk00400000_m;
+	uint32_t unk01000000_m;
+	uint32_t unk01000100_m;
+
+	/* Unknown Hardware (Slave) */
+	uint32_t unk1A800008_s;
+	uint32_t unk1B000100_s;
+
+	/* RAM areas */
+	vk_buffer_t *ram_m, *ram_s;
+	vk_buffer_t *cmdram, *texram;
+	vk_buffer_t *unkram[2];
+	vk_buffer_t *aica_ram[2];
+	vk_buffer_t *mie_ram;
+	vk_buffer_t *bram;
+
+	/* ROM data */
+	vk_buffer_t *bootrom;
+	vk_buffer_t *eprom;
+	vk_buffer_t *maskrom;
+
+	/* ROMBD configuration */
+	bool has_rom;
+	unsigned eprom_bank[2];
+	unsigned maskrom_bank[2];
+	unsigned eeprom_bank;
+
+} hikaru_t;
+
+vk_machine_t	*hikaru_new (vk_game_t *game);
+void		 hikaru_raise_irq (vk_machine_t *mach, unsigned num, uint16_t porta);
+
+#endif /* __VK_HIKARU_H__ */
