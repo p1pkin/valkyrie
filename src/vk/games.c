@@ -95,7 +95,7 @@ load_section (json_t *root, vk_game_section_t *section, const char *path, const 
 	json_t *name, *type, *endn, *data;
 	const char *name_value, *type_value, *endn_value;
 	unsigned mode, ndata, i;
-	uint32_t total_size;
+	uint32_t total_size, base;
 
 	name = json_object_get (root, "name");
 	type = json_object_get (root, "type");
@@ -173,6 +173,7 @@ load_section (json_t *root, vk_game_section_t *section, const char *path, const 
 		section->buffer = vk_buffer_new (total_size, 0);
 		if (!section->buffer)
 			return -1;
+		base = 0;
 		for (i = 0; i < ndata; i++) {
 			json_t *datum = json_array_get (data, i);
 			vk_buffer_t *buffer = load_datum (datum, path, game_name);
@@ -181,8 +182,9 @@ load_section (json_t *root, vk_game_section_t *section, const char *path, const 
 				return -1;
 			for (j = 0; j < vk_buffer_get_size (buffer); j += 1) {
 				uint8_t byte = vk_buffer_get (buffer, 1, j);
-				vk_buffer_put (section->buffer, 1, j, byte);
+				vk_buffer_put (section->buffer, 1, j+base, byte);
 			}
+			base += vk_buffer_get_size (buffer);
 			vk_buffer_delete (&buffer);
 		}
 		break;
