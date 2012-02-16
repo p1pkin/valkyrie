@@ -124,9 +124,42 @@ typedef enum {
 #define SH4_IRQ_SOURCE_IRL(n) \
 	(SH4_IRQ_SOURCE_IRQ0 +
 
-typedef struct {
-	uint32_t regs[0x11];
-} sh4_dmac_t;
+typedef union {
+	struct {
+		uint32_t de	: 1;
+		uint32_t te	: 1;
+		uint32_t ie	: 1;
+		uint32_t	: 1;
+		uint32_t ts	: 3;
+		uint32_t tm	: 1;
+		uint32_t rs	: 4;
+		uint32_t sm	: 2;
+		uint32_t dm	: 2;
+		uint32_t al	: 1;
+		uint32_t am	: 1;
+		uint32_t rl	: 1;
+		uint32_t ds	: 1;
+		uint32_t	: 4;
+		uint32_t dtc	: 1;
+		uint32_t dsa	: 3;
+		uint32_t src	: 1;
+		uint32_t ssa	: 3;
+	} bit;
+	uint32_t full;
+} sh4_chcr_t;
+
+typedef union {
+	struct {
+		uint32_t dme	: 1;
+		uint32_t nmif	: 1;
+		uint32_t ae	: 1;
+		uint32_t	: 5;
+		uint32_t pr	: 2;
+		uint32_t	: 5;
+		uint32_t ddt	: 1;
+	} bit;
+	uint32_t full;
+} sh4_dmaor_t;
 
 typedef struct sh4_t sh4_t;
 
@@ -174,6 +207,11 @@ struct sh4_t {
 	/* On-Chip Modules */
 	vk_buffer_t	*iregs;
 
+	/* DMA Controller (DMAC) */
+	sh4_chcr_t	chcr[4];
+	sh4_dmaor_t	dmaor;
+
+	/* Port A */
 	int		(* porta_get)(sh4_t *ctx, uint16_t *val);
 	int		(* porta_put)(sh4_t *ctx, uint16_t val);
 

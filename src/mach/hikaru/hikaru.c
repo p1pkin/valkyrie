@@ -130,6 +130,20 @@
  * An 76X100 secure EEPROM.
  */
 
+/*
+ * TODO
+ * ====
+ *
+ * - bootrom 0.86	untested
+ * - bootrom 0.92	mostly okay
+ * - bootrom 0.96	untested
+ * - airtrix		fix MASKROM and MEMCTL DMA/GPU IDMA
+ * - braveff		implement SH-4 DMAC for EPROM->RAM transfer
+ * - pharrier		implement MEMCTL DMA for EPROM->RAM transfer
+ * - podrace		missing MASKROMS, untested
+ * - sgnascar		doesn't boot, bad EPROM?
+ */
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -706,7 +720,7 @@ setup_master_mmap (hikaru_t *hikaru)
 	vk_mmap_set_region (mmap, region, i++);
 
 	region = vk_region_ram_new (0x00C00000, 0x00C0FFFF, 0xFFFF,
-	                            VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
+	                            VK_REGION_SIZE_ALL,
 	                            hikaru->bram, "BRAM/M");
 	vk_mmap_set_region (mmap, region, i++);
 
@@ -716,7 +730,7 @@ setup_master_mmap (hikaru_t *hikaru)
 	vk_mmap_set_region (mmap, region, i++);
 
 	region = vk_region_mmio_new (0x02000000, 0x03FFFFFF, 0x01FFFFFF,
-	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
+	                             VK_REGION_RW | VK_REGION_SIZE_ALL /* | VK_REGION_LOG_RW */,
 	                             hikaru->memctl_m, "APERTURE02/M");
 	vk_mmap_set_region (mmap, region, i++);
 
@@ -730,7 +744,7 @@ setup_master_mmap (hikaru_t *hikaru)
 	                             hikaru->mscomm, "MSCOMM/M");
 	vk_mmap_set_region (mmap, region, i++);
 
-	region = vk_region_ram_new (0x14000100, 0x143FFFFF, 0x3FFFFF, 0 | VK_REGION_LOG_RW,
+	region = vk_region_ram_new (0x14000100, 0x143FFFFF, 0x3FFFFF, 0,
 	                            hikaru->cmdram, "CMDRAM/M");
 	vk_mmap_set_region (mmap, region, i++);
 
@@ -740,7 +754,7 @@ setup_master_mmap (hikaru_t *hikaru)
 	vk_mmap_set_region (mmap, region, i++);
 
 	region = vk_region_mmio_new (0x16000000, 0x17FFFFFF, 0x01FFFFFF,
-	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
+	                             VK_REGION_RW | VK_REGION_SIZE_ALL,
 	                             hikaru->memctl_m, "APERTURE16/M");
 	vk_mmap_set_region (mmap, region, i++);
 
@@ -754,7 +768,7 @@ setup_master_mmap (hikaru_t *hikaru)
 	                             hikaru->gpu, "GPU/M");
 	vk_mmap_set_region (mmap, region, i++);
 
-	region = vk_region_ram_new (0x1B000000, 0x1B7FFFFF, 0x7FFFFF, 0 | VK_REGION_LOG_RW,
+	region = vk_region_ram_new (0x1B000000, 0x1B7FFFFF, 0x7FFFFF, 0,
 	                            hikaru->texram, "TEXRAM/M");
 	vk_mmap_set_region (mmap, region, i++);
 
@@ -805,7 +819,7 @@ setup_slave_mmap (hikaru_t *hikaru)
 	                             hikaru->mscomm, "MSCOMM/S");
 	vk_mmap_set_region (mmap, region, i++);
 
-	region = vk_region_ram_new (0x10000100, 0x103FFFFF, 0x3FFFFF, 0 | VK_REGION_LOG_RW,
+	region = vk_region_ram_new (0x10000100, 0x103FFFFF, 0x3FFFFF, 0,
 	                            hikaru->cmdram, "CMDRAM/S");
 	vk_mmap_set_region (mmap, region, i++);
 
