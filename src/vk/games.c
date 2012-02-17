@@ -150,6 +150,7 @@ load_section (json_t *root, vk_game_section_t *section, const char *path, const 
 		section->buffer = vk_buffer_new (total_size, 0);
 		if (!section->buffer)
 			return -1;
+		base = 0;
 		for (i = 0; i < ndata; i++) {
 			json_t *datum = json_array_get (data, i);
 			json_t *amnt = json_object_get (root, "amnt");
@@ -162,10 +163,12 @@ load_section (json_t *root, vk_game_section_t *section, const char *path, const 
 			if (!buf)
 				return -1;
 			for (j = 0; j < vk_buffer_get_size (buf); j += nbytes) {
-				unsigned k = (i + j) * nbytes;
+				unsigned k = base + ((i & 1) + j) * nbytes;
 				uint64_t bytes = vk_buffer_get (buf, nbytes, j);
 				vk_buffer_put (section->buffer, nbytes, k, bytes);
 			}
+			if (i & 1)
+				base += vk_buffer_get_size (buf) * 2;
 			vk_buffer_delete (&buf);
 		}
 		break;
