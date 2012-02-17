@@ -783,6 +783,15 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C03116E:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: unknown_crasher (%X, %X, %X)", R(4), R(5), R(6));
 		break;
+
+	/* PHARRIER */
+	case 0x0C01483E:
+		VK_CPU_LOG (ctx, " ### PHARRIER: memcpylike (%X, %X, %X)", R(4), R(5), R(6));
+		break;
+	case 0x0C01C766:
+		/* XXX patches a JSR into a NOP, avoids the crasher here ^^^ */
+		inst = 0x0009;
+		break;
 	}
 
 	insns[inst] (ctx, inst);

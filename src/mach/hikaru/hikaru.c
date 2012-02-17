@@ -135,20 +135,25 @@
  * ====                                                                        
  *
  * - bootrom 0.96
- *	- test it
+ *	- just like bootrom 0.92
  * - bootrom 0.92
  *	- fix texture upload (may require emulating GPU IDMA to TEXRAM)
  *	- implement a 640x480 screen in GL
  *	- implement ASCII texture upload properly
  *	- implement GPU IDMA texture uploading to TEXRAM
  * - bootrom 0.96
- *	- test it
+ *	- just like bootrom 0.92
  * - airtrix:
  *	- find out why things go wrong
  * - braveff:
  *	- implement SH-4 DMAC for EPROM->RAM transfer
  * - pharrier:
- *	- find out why things go wrong
+ *	- it writes 64-bit words to 14000030, which doesn't make much sense, 
+ *	  see PH:@0C01C700; the address is a hard-coded constant, so there's
+ *	  something missing in my understanding of the MSCOMM box or of how
+ *	  CMDRAM is accessed in 64-bit mode. It could be a bug in the code
+ *	  as well.
+ *	- patching the above function, the code proceeds at querying the TMU
  * - podrace:
  *	- missing MASKROMS, untested
  * - sgnascar
