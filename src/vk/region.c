@@ -27,12 +27,9 @@ static const char * const flag_str[] = {
 static const char *
 region_flags_to_str (vk_region_t *region)
 {
-	static char out[256];
+	static char out[256] = "TODO";
 	unsigned i;
-	for (i = VK_REGION_SIZE_8; i <= VK_REGION_SIZE_64; i++) {
-		if (region->flags & (1 << i))
-			strcat (out, flag_str[i]);
-	}
+	/* XXX TODO */
 	return out;
 }
 
