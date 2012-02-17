@@ -133,15 +133,27 @@
 /*                                                                             
  * TODO                                                                        
  * ====                                                                        
- *                                                                             
- * - bootrom 0.86      untested                                                
- * - bootrom 0.92      mostly okay                                             
- * - bootrom 0.96      untested                                                
- * - airtrix           fix MASKROM and MEMCTL DMA/GPU IDMA                     
- * - braveff           implement SH-4 DMAC for EPROM->RAM transfer             
- * - pharrier          implement MEMCTL DMA for EPROM->RAM transfer            
- * - podrace           missing MASKROMS, untested                              
- * - sgnascar          doesn't boot, bad EPROM?                                
+ *
+ * - bootrom 0.96
+ *	- test it
+ * - bootrom 0.92
+ *	- fix texture upload (may require emulating GPU IDMA to TEXRAM)
+ *	- implement a 640x480 screen in GL
+ *	- implement ASCII texture upload properly
+ *	- implement GPU IDMA texture uploading to TEXRAM
+ * - bootrom 0.96
+ *	- test it
+ * - airtrix:
+ *	- find out why things go wrong
+ * - braveff:
+ *	- implement SH-4 DMAC for EPROM->RAM transfer
+ * - pharrier:
+ *	- find out why things go wrong
+ * - podrace:
+ *	- missing MASKROMS, untested
+ * - sgnascar
+ *	- doesn't boot, params read from the EPROM are different from the
+ *	  other (working) games
  */ 
 
 #include <stdio.h>

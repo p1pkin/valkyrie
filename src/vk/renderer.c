@@ -253,7 +253,8 @@ vk_renderer_init (vk_renderer_t *renderer)
 	/* Set an orthographic projection matrix */
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
-	gluOrtho2D (0.0, 1.0, 0.0, 1.0);
+	gluOrtho2D (0.0f, renderer->width - 1, /* left, right */
+	            renderer->height - 1, 0.0f); /* bottom, top */
 
 	/* Set an identity modelview matrix */
 	glMatrixMode (GL_MODELVIEW);

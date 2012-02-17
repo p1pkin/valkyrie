@@ -19,6 +19,9 @@ bpp_for_format (GLuint format)
 	return 0;
 }
 
+/* TODO: make subclasses for RGBA4444, RGB565, RGBA5551, RGBA8888 and
+ * make the `put' function a class method. */
+
 vk_surface_t *
 vk_surface_new (unsigned width, unsigned height, GLuint format)
 {
@@ -97,20 +100,6 @@ void
 vk_surface_clear (vk_surface_t *surface)
 {
 	memset (surface->data, 0xFF, surface->height * surface->pitch);
-}
-
-void
-vk_surface_put16 (vk_surface_t *surface, unsigned x, unsigned y, uint16_t val)
-{
-	if (x < surface->width && y < surface->height)
-		*(uint16_t *) &surface->data[y * surface->pitch + x * 2] = val;
-}
-
-void
-vk_surface_put32 (vk_surface_t *surface, unsigned x, unsigned y, uint32_t val)
-{
-	if (x < surface->width && y < surface->height)
-		*(uint32_t *) &surface->data[y * surface->pitch + x * 4] = val;
 }
 
 void

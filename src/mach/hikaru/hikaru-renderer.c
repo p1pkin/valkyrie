@@ -22,12 +22,8 @@
 
 void
 hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
-                          vec3f_t *v0,
-                          vec3f_t *v1,
-                          vec3f_t *v2,
-                          vec2f_t *uv0,
-                          vec2f_t *uv1,
-                          vec2f_t *uv2)
+                          vec3f_t *v0, vec3f_t *v1, vec3f_t *v2,
+                          vec2f_t *uv0, vec2f_t *uv1, vec2f_t *uv2)
 {
 	glBegin (GL_TRIANGLES);
 		glTexCoord2fv (uv0->x);
@@ -39,30 +35,61 @@ hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
 	glEnd ();
 }
 
+static inline uint32_t
+rgba4_to_rgba8 (uint32_t p)
+{
+	return ((p & 0x000F) <<  4) |
+	       ((p & 0x00F0) <<  8) |
+	       ((p & 0x0F00) << 12) |
+	       ((p & 0xF000) << 16);
+}
+
 static void
-bind_ascii_texture (vk_renderer_t *renderer)
+bind_texram (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 	unsigned x, y;
 
-	/* Upload the RGBA444 data in the bootrom defined ASCII texture */
-	for (y = 0; y < 64; y++)
-		for (x = 0; x < 128; x++) {
-			/* XXX should be 8192 instead of 4096? */
-			uint32_t i = x*2 + y*0x1000 + 0xF00;
-			uint16_t c = vk_buffer_get (hr->texram, 2, i);
-			vk_surface_put32 (hr->texture, x, y, c);
+	/* Upload the RGBA4444 data in the bootrom defined ASCII texture */
+	for (y = 0; y < 2048; y++) {
+		/* Each row is 2048 16bpp texels */
+		uint32_t yoffs = y * 2048 * 2;
+		for (x = 0; x < 2048; x++) {
+			uint32_t offs = yoffs + x * 2;
+			uint32_t texel = rgba4_to_rgba8 (vk_buffer_get (hr->texram, 2, offs));
+			/* Note: the xor here is needed; is the GPU a big
+			 * endian device? */
+			vk_surface_put32 (hr->texture, x ^ 1, y, texel);
 		}
+	}
 
-	vk_surface_clear (hr->texture);
 	vk_surface_commit (hr->texture);
+
+	glBegin (GL_TRIANGLE_STRIP);
+
+		glTexCoord2f (1920.0f, 0.0f);
+		glVertex3f (0.0f, 0.0f, 0.0f);
+
+		glTexCoord2f (2047.0f, 0.0f);
+		glVertex3f (639.0f, 0.0f, 0.0f);
+
+		glTexCoord2f (1920.0f, 64.0f);
+		glVertex3f (0.0f, 479.0f, 0.0f);
+
+		glTexCoord2f (2047.0f, 64.0f);
+		glVertex3f (639.0f, 479.0f, 0.0f);
+
+	glEnd ();
 }
 
 static void
 hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 {
 	glEnable (GL_TEXTURE_2D);
-	bind_ascii_texture (renderer);
+	glMatrixMode (GL_TEXTURE);
+	glLoadIdentity ();
+	glScalef (1.0f/2048, 1.0f/2048, 1.0f);
+	bind_texram (renderer);
 }
 
 static void
@@ -104,7 +131,7 @@ hikaru_renderer_new (vk_buffer_t *texram)
 		hr->texram = texram;
 
 		/* XXX handle the return value */
-		hr->texture = vk_surface_new (128, 64, GL_RGBA4);
+		hr->texture = vk_surface_new (2048, 2048, GL_RGBA8);
 	}
 	return (vk_renderer_t *) hr;
 }

@@ -456,9 +456,9 @@ hikaru_memctl_exec (vk_device_t *dev, int cycles)
 			while (count--) {
 				uint32_t tmp;
 				tmp = vk_buffer_get (srcbuf, 4, src & 0x0FFFFFFF);
-				if (!(count & 0xFF))
-					VK_LOG (" ### MEMCTL DMA: %08X --[%08X]--> %08X, still %X",
-					        src, tmp, dst, count);
+			//	if (!(count & 0xFF))
+			//		VK_LOG (" ### MEMCTL DMA: %08X --[%08X]--> %08X, still %X",
+			//		        src, tmp, dst, count);
 				vk_buffer_put (dstbuf, 4, dst & 0x0FFFFFFF, tmp);
 				src += 4;
 				dst += 4;

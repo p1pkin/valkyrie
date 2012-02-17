@@ -694,7 +694,10 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 
 	/* XXX note that the code assumes that the IDMA may stop even if
 	 * there are still unprocessed entries. This probably means that
-	 * the IDMA somehow stops processing the any other GPU IRQ fires */
+	 * the IDMA somehow stops processing when any other GPU IRQ fires */
+
+	VK_LOG (" ### GPU 15 IDMA status became = [ %08X %08X %08X ]",
+	        REG15 (0x0C), REG15 (0x10), REG15 (0x14));
 
 	/* If there are no more entries, stop */
 	if (REG15 (0x10) == 0) {
@@ -703,9 +706,6 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 		/* REG15 (0x14) = 0; */
 		hikaru_gpu_raise_irq (gpu, _15_IRQ_IDMA, 0);
 	}
-
-	VK_LOG (" ### GPU 15 IDMA status became = [ %08X %08X %08X ]",
-	        REG15 (0x0C), REG15 (0x10), REG15 (0x14));
 }
 
 /*
