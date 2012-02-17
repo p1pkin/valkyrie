@@ -189,8 +189,12 @@
  * 40000000-41FFFFFF	Slave RAM
  * 48000000-483FFFFF	GPU CMDRAM
  * 70000000-71FFFFFF	Master RAM
- * 90000000-91FFFFFF	EPROM (?)
- * A0000000-A1FFFFFF	MASKROM (?)
+ *
+ * 90000000-91FFFFFF = 10000000-11FFFFFF	EPROM (?)
+ * A0000000-A1FFFFFF = 20000000-21FFFFFF	MASKROM (?)
+ *
+ * Apparently addresses are 31 bits wide; the MSB is used in mysterious ways
+ * (auto-increment the address on access like something I read about naomi?)
  *
  *
  * Rom Board (ROMBD)
@@ -284,7 +288,7 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 		return 0;
 	}
 
-	bank = get_bank_for_addr (memctl, addr);
+	bank = get_bank_for_addr (memctl, addr) & 0x7F;
 	if (!bank)
 		return -1;
 
@@ -298,7 +302,7 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 	} else if (bus_addr >= 0x06000000 && bus_addr <= 0x063FFFFF) {
 		/* Unknown B */
 		set_ptr (val, size, vk_buffer_get (hikaru->unkram[1], size, offs));
-	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0A00FFFF) {
+	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
 		/* Unknown */
 	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
 		/* AICA 1 */
@@ -335,7 +339,8 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 			/* XXX probably wrong, reads wrong data in AIRTRIX;
 			 * note that get_SAMURAI_params () handles address bit
 			 * 25 in a special way. */
-			set_ptr (val, size, vk_buffer_get (hikaru->maskrom, size, offs));
+			set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, offs));
+			//set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, offs / 2)); /* XXX check this */
 		}
 		return 0;
 
@@ -382,7 +387,7 @@ hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 		return 0;
 	}
 
-	bank = get_bank_for_addr (memctl, addr);
+	bank = get_bank_for_addr (memctl, addr) & 0x7F;
 	if (!bank)
 		return -1;
 
@@ -395,7 +400,7 @@ hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 	} else if (bus_addr >= 0x06000000 && bus_addr <= 0x063FFFFF) {
 		/* Unknown, B */
 		vk_buffer_put (hikaru->unkram[1], size, offs, val);
-	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0A00FFFF) {
+	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
 		/* Unknown */
 	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
 		/* AICA 1 */
@@ -432,6 +437,8 @@ hikaru_memctl_exec (vk_device_t *dev, int cycles)
 		vk_buffer_t *srcbuf;
 		vk_buffer_t *dstbuf;
 		int count;
+
+		/* XXX mask bit 31 */
 
 		VK_LOG (" ### MEMCTL DMA: %08X -> %08X x %08X", src, dst, len);
 
