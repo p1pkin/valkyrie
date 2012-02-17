@@ -1352,8 +1352,9 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 				uv[i].x[0] += 1920;
 			}
 
-			VK_LOG ("%08X: Tex Coord <%u %u> <%u %u> <%u %u>",
+			VK_LOG ("%08X: Tex Coord [%08X %08X %08X %08X] <%u %u> <%u %u> <%u %u>",
 			        gpu->pc,
+			        inst[0], inst[1], inst[2], inst[3],
 			        uv[0].x[0], uv[0].x[1],
 			        uv[1].x[0], uv[1].x[1],
 			        uv[2].x[0], uv[2].x[1]);
