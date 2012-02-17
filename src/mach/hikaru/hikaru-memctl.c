@@ -460,10 +460,12 @@ hikaru_memctl_exec (vk_device_t *dev, int cycles)
 					VK_LOG (" ### MEMCTL DMA: %08X --[%08X]--> %08X, still %X",
 					        src, tmp, dst, count);
 				vk_buffer_put (dstbuf, 4, dst & 0x0FFFFFFF, tmp);
+				src += 4;
+				dst += 4;
 			}
 		} else {
-			dst += count * 4;
 			src += count * 4;
+			dst += count * 4;
 		}
 
 		/* Transfer completed */
