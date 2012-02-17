@@ -771,7 +771,8 @@ draw_tri (hikaru_gpu_t *gpu, vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2)
 	                          &uv[0], &uv[1], &uv[2]);
 }
 
-static cp_is_valid_addr (uint32_t addr)
+static bool
+cp_is_valid_addr (uint32_t addr)
 {
 	return (addr >= 0x48000000 && addr <= 0x483FFFFF) ||
 	       (addr >= 0x4C000000 && addr <= 0x4C3FFFFF);
