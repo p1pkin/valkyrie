@@ -786,7 +786,7 @@ cp_push_pc (hikaru_gpu_t *gpu)
 	gpu->sp[i] -= 4;
 }
 
-static uint32_t
+static void
 cp_pop_pc (hikaru_gpu_t *gpu)
 {
 	unsigned i = gpu->frame_type;
