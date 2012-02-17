@@ -130,6 +130,20 @@
  * An 76X100 secure EEPROM.
  */
 
+/*                                                                             
+ * TODO                                                                        
+ * ====                                                                        
+ *                                                                             
+ * - bootrom 0.86      untested                                                
+ * - bootrom 0.92      mostly okay                                             
+ * - bootrom 0.96      untested                                                
+ * - airtrix           fix MASKROM and MEMCTL DMA/GPU IDMA                     
+ * - braveff           implement SH-4 DMAC for EPROM->RAM transfer             
+ * - pharrier          implement MEMCTL DMA for EPROM->RAM transfer            
+ * - podrace           missing MASKROMS, untested                              
+ * - sgnascar          doesn't boot, bad EPROM?                                
+ */ 
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
