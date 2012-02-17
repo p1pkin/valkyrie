@@ -292,14 +292,6 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 	offs = addr & 0xFFFFFF;
 	bus_addr = (bank << 24) | offs;
 
-#if 0
-	VK_LOG ("addr:%08X bank=%02X bus_addr=%08X [eprom=%08X-%08X maskrom=%08X-%08X eeprom=%08X]",
-	        addr, bank, bus_addr,
-	        hikaru->eprom_bank[0], hikaru->eprom_bank[1],
-	        hikaru->maskrom_bank[0], hikaru->maskrom_bank[1],
-	        hikaru->eeprom_bank);
-#endif
-
 	set_ptr (val, size, 0);
 	if (bus_addr >= 0x04000000 && bus_addr <= 0x043FFFFF) {
 		/* Unknown A */
@@ -397,14 +389,6 @@ hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 
 	offs = addr & 0xFFFFFF;
 	bus_addr = (bank << 24) | offs;
-
-#if 0
-	VK_LOG ("addr:%08X bank=%02X bus_addr=%08X [eprom=%08X-%08X maskrom=%08X-%08X eeprom=%08X]",
-	        addr, bank, bus_addr,
-	        hikaru->eprom_bank[0], hikaru->eprom_bank[1],
-	        hikaru->maskrom_bank[0], hikaru->maskrom_bank[1],
-	        hikaru->eeprom_bank);
-#endif
 
 	if (bus_addr >= 0x04000000 && bus_addr <= 0x043FFFFF) {
 		/* Unknown, A */
