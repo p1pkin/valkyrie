@@ -139,11 +139,13 @@
  * different boards (ROMBD, SNDBD, SNDBD2, NETBD). The address space however
  * is different from that of the SH-4 CPUs, and is still largely unknown.
  *
- * 0x70000000-0x72000000	RAM [m]
+ * 0x70000000-0x72000000	RAM [m]	Note 0x70 - 0x60 = 0x10, makes no sense
  *
- * Setting c to 1 initiates the DMA operation. After completion, the DMA
- * raises IRL 1 on the master SH-4, sets bit 0x1000 of 04000004 and its
- * corresponding error field.
+ * The addresses here may be related to the addresses computed in @0C006608.
+ *
+ * Setting c to 1 initiates the DMA operation. +0x04 is set to 0xFFFF, other
+ * DMA  registers to 0; the DMA takes time to execute, and raises an IRL upon
+ * completion.
  *
  * See @0C008640 for more details XXX
  *
@@ -187,8 +189,8 @@
  * 40000000-41FFFFFF	Slave RAM
  * 48000000-483FFFFF	GPU CMDRAM
  * 70000000-71FFFFFF	Master RAM
- * 90000000-91FFFFFF	Likely EPROM
- * A0000000-A1FFFFFF	Likely MASKROM
+ * 90000000-91FFFFFF	Unknown
+ * A0000000-A1FFFFFF	Unknown
  *
  *
  * Rom Board (ROMBD)
@@ -224,6 +226,8 @@
  *  The ROMs are also checked for masking (I think) at offset +4MB, possibly to
  *  check whether the EPROMs are 2MB+2MB (as for braveff.)
  *
+ * It looks like 
+ *
  * Bit 25 of the bus address may be some kind of magic 'this address space is
  * actually half the width you thought and every real byte is mirrored in a
  * 16-bitword' bit. See @0C00B938.
@@ -235,6 +239,7 @@ typedef struct {
 	vk_device_t base;
 
 	vk_buffer_t *regs;
+	bool dma_is_running;
 	bool master;
 } hikaru_memctl_t;
 
@@ -287,6 +292,14 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 
 	offs = addr & 0xFFFFFF;
 	bus_addr = (bank << 24) | offs;
+
+#if 0
+	VK_LOG ("addr:%08X bank=%02X bus_addr=%08X [eprom=%08X-%08X maskrom=%08X-%08X eeprom=%08X]",
+	        addr, bank, bus_addr,
+	        hikaru->eprom_bank[0], hikaru->eprom_bank[1],
+	        hikaru->maskrom_bank[0], hikaru->maskrom_bank[1],
+	        hikaru->eeprom_bank);
+#endif
 
 	set_ptr (val, size, 0);
 	if (bus_addr >= 0x04000000 && bus_addr <= 0x043FFFFF) {
@@ -386,6 +399,14 @@ hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 	offs = addr & 0xFFFFFF;
 	bus_addr = (bank << 24) | offs;
 
+#if 0
+	VK_LOG ("addr:%08X bank=%02X bus_addr=%08X [eprom=%08X-%08X maskrom=%08X-%08X eeprom=%08X]",
+	        addr, bank, bus_addr,
+	        hikaru->eprom_bank[0], hikaru->eprom_bank[1],
+	        hikaru->maskrom_bank[0], hikaru->maskrom_bank[1],
+	        hikaru->eeprom_bank);
+#endif
+
 	if (bus_addr >= 0x04000000 && bus_addr <= 0x043FFFFF) {
 		/* Unknown, A */
 		vk_buffer_put (hikaru->unkram[0], size, offs, val);
@@ -416,52 +437,24 @@ static int
 hikaru_memctl_exec (vk_device_t *dev, int cycles)
 {
 	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
-	hikaru_t *hikaru = (hikaru_t *) dev->mach;
 	uint32_t src, dst, len;
 
-	src = vk_buffer_get (memctl->regs, 4, 0x30);
-	dst = vk_buffer_get (memctl->regs, 4, 0x34);
+	dst = vk_buffer_get (memctl->regs, 4, 0x30);
+	src = vk_buffer_get (memctl->regs, 4, 0x34);
 	len = vk_buffer_get (memctl->regs, 4, 0x38);
 
 	if (len & 0x01000000) {
 		len &= 0xFFFFFF;
 
-		VK_LOG (" *** MEMCTL DMA [ %08X --> %08X * %X 4B ] ***",
-		        src, dst, len);
+		VK_LOG (" *** MEMCTL DMA [ %08X %08X %X ] ***",
+		        dst, src, len);
 
-		if ((src >= 0x90000000 && src <= 0x90FFFFFF) &&
-		    ((dst >= 0x70000000 && dst <= 0x71FFFFFF) ||
-		     (dst >= 0x40000000 && dst <= 0x41FFFFFF))) {
-			vk_buffer_t *dstbuf;
-
-			dstbuf = (dst >> 24) == 0x70 ? hikaru->ram_m :
-			                               hikaru->ram_s;
-
-			/* EPROM to RAM */
-
-			uint32_t count, temp;
-			src = src & 0x00FFFFFF; /* XXX use a few aux variables */
-			dst = dst & 0x01FFFFFF;
-
-			for (count = 0; count < len; count++) {
-				temp = vk_buffer_get (hikaru->eprom, 4, src);
-				if (!(count & 0xFF)) {
-					VK_LOG (" ### MEMCTL DMA: %08X --[%08X]--> %08X",
-					        src, temp, dst);
-				}
-				vk_buffer_put (dstbuf, 4, dst, temp);
-				src += 4;
-				dst += 4;
-			}
-		} else {
-			/* TODO */
-			src = src + len * 4;
-			dst = dst + len * 4;
-		}
+		dst = dst + len * 4;
+		src = src + len * 4;
 
 		/* Write back the values */
-		vk_buffer_put (memctl->regs, 4, 0x30, src);
-		vk_buffer_put (memctl->regs, 4, 0x34, dst);
+		vk_buffer_put (memctl->regs, 4, 0x30, dst);
+		vk_buffer_put (memctl->regs, 4, 0x34, src);
 		vk_buffer_put (memctl->regs, 4, 0x38, 0);
 
 		/* Set DMA done, clear error flags */
