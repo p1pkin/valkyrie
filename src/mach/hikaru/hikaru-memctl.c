@@ -439,7 +439,7 @@ hikaru_memctl_exec (vk_device_t *dev, int cycles)
 		if (src >= 0x90000000 && src <= 0x9FFFFFFF)
 			srcbuf = hikaru->eprom;
 		else if (src >= 0xA0000000 && src <= 0xAFFFFFFF)
-			dstbuf = hikaru->maskrom;
+			srcbuf = hikaru->maskrom;
 
 		dstbuf = NULL;
 		if (dst >= 0x40000000 && dst <= 0x41FFFFFF)
