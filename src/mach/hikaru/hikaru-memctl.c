@@ -482,6 +482,7 @@ hikaru_memctl_exec (vk_device_t *dev, int cycles)
 			vk_buffer_put (memctl->regs, 2, 0x04, 0x1000);
 			/* Raise IRL1 */
 			hikaru_raise_irq (memctl->base.mach, 1, 0);
+			VK_LOG (" ### MEMCTL DMA DONE!");
 		}
 
 		/* Write the values back */
