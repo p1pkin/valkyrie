@@ -39,6 +39,6 @@ typedef struct {
 vk_renderer_t	*hikaru_renderer_new (vk_buffer_t *texram);
 void		 hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
 		                           vec3f_t *v0, vec3f_t *v1, vec3f_t *v2,
-		                           vec2f_t *uv0, vec2f_t *uv1, vec2f_t *uv2);
+		                           vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2);
 
 #endif /* __VK_HIKARU_RENDERER_H__ */

@@ -23,14 +23,14 @@
 void
 hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
                           vec3f_t *v0, vec3f_t *v1, vec3f_t *v2,
-                          vec2f_t *uv0, vec2f_t *uv1, vec2f_t *uv2)
+                          vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2)
 {
 	glBegin (GL_TRIANGLES);
-		glTexCoord2fv (uv0->x);
+		glTexCoord2s (uv0->x[0], uv0->x[1]);
 		glVertex3fv (v0->x);
-		glTexCoord2fv (uv1->x);
+		glTexCoord2s (uv1->x[0], uv1->x[1]);
 		glVertex3fv (v1->x);
-		glTexCoord2fv (uv2->x);
+		glTexCoord2s (uv2->x[0], uv2->x[1]);
 		glVertex3fv (v2->x);
 	glEnd ();
 }
@@ -65,21 +65,20 @@ bind_texram (vk_renderer_t *renderer)
 
 	vk_surface_commit (hr->texture);
 
+	/* The ASCII texture is at [1920,2048)x[0,64) in TEXRAM */
+	/* A character is 8x8 pixels; the entire ASCII table is 16x8 tiles */
+#if 0
 	glBegin (GL_TRIANGLE_STRIP);
-
-		glTexCoord2f (1920.0f, 0.0f);
-		glVertex3f (0.0f, 0.0f, 0.0f);
-
-		glTexCoord2f (2047.0f, 0.0f);
-		glVertex3f (639.0f, 0.0f, 0.0f);
-
-		glTexCoord2f (1920.0f, 64.0f);
-		glVertex3f (0.0f, 479.0f, 0.0f);
-
-		glTexCoord2f (2047.0f, 64.0f);
-		glVertex3f (639.0f, 479.0f, 0.0f);
-
+		glTexCoord2s (1920, 0);
+		glVertex3f (0.0f, 0.0f, 0.1f);
+		glTexCoord2s (2048, 0);
+		glVertex3f (639.0f, 0.0f, 0.1f);
+		glTexCoord2s (1920, 64);
+		glVertex3f (0.0f, 479.0f, 0.1f);
+		glTexCoord2s (2048, 64);
+		glVertex3f (639.0f, 479.0f, 0.1f);
 	glEnd ();
+#endif
 }
 
 static void

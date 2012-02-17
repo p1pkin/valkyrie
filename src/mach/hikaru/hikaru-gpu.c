@@ -725,11 +725,8 @@ print_vertex_buffer (hikaru_gpu_t *gpu)
 static void
 append_vertex (hikaru_gpu_t *gpu, vec3f_t *src)
 {
-	vec3f_t *dst = &gpu->vertex_buffer[gpu->vertex_index];
-	*dst = *src;
-	dst->x[0] /= 640.0f;
-	dst->x[1] /= 480.0f;
-	dst->x[1] += 1.0f;
+	gpu->vertex_buffer[gpu->vertex_index] = *src;
+	gpu->vertex_buffer[gpu->vertex_index].x[1] += 480.0f; /* XXX hack */
 	gpu->vertex_index = (gpu->vertex_index + 1) % 3;
 }
 
@@ -739,34 +736,20 @@ get_vertex_index (int i)
 	return (i < 0) ? (i + 3) : i;
 }
 
-static vec2f_t
-uv_hack (vec2s_t *in)
-{
-	vec2f_t out;
-	out.x[0] = in->x[0] / 256.0f;
-	out.x[1] = in->x[1] / 256.0f;
-	return out;
-}
-
 static void
 draw_tri (hikaru_gpu_t *gpu, vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) gpu->base.mach->renderer;
-	vec2f_t uv[3];
 
 	int i0 = get_vertex_index (gpu->vertex_index - 1);
 	int i1 = get_vertex_index (gpu->vertex_index - 2);
 	int i2 = get_vertex_index (gpu->vertex_index - 3);
 
-	uv[0] = uv_hack (uv0);
-	uv[1] = uv_hack (uv1);
-	uv[2] = uv_hack (uv2);
-
 	hikaru_renderer_draw_tri (hr,
 	                          &gpu->vertex_buffer[i0],
 	                          &gpu->vertex_buffer[i1],
 	                          &gpu->vertex_buffer[i2],
-	                          &uv[0], &uv[1], &uv[2]);
+	                          uv0, uv1, uv2);
 }
 
 static bool
@@ -1293,7 +1276,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned m = (inst[0] >> 12) & 1;
 			VK_LOG ("%08X: Commit Tex Params [%08X] num=%u %u",
 			        gpu->pc, inst[0], n, m);
-			VK_ASSERT (!(inst[0] & 0xFFFEE000));
+			VK_ASSERT (!(inst[0] & 0xFFF0E000));
 			gpu->pc += 4;
 		}
 		break;
@@ -1350,19 +1333,37 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0xEE8:
 	case 0xEE9:
 		/* EE8	Tex Coord 3 */
-		/* EE9	Tex Coord 3 */
+		/* EE9	Tex Coord 3
+		 *
+		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
+		 *	yyyy yyyy yyyy ---- xxxx xxxx xxxx ----		y,x = Coords for Vertex 0
+		 *	yyyy yyyy yyyy ---- xxxx xxxx xxxx ----		y,x = Coords for Vertex 1
+		 *	yyyy yyyy yyyy ---- xxxx xxxx xxxx ----		y,x = Coords for Vertex 2
+		 *
+		 * Note: 12.4 fixed point?
+		 */
 		{
-			vec2s_t *uv0 = (vec2s_t *) &inst[1];
-			vec2s_t *uv1 = (vec2s_t *) &inst[2];
-			vec2s_t *uv2 = (vec2s_t *) &inst[3];
+			vec2s_t uv[3];
+			unsigned i;
+
+			for (i = 0; i < 3; i++) {
+				uv[i].x[0] = (inst[i+1] & 0xFFFF) >> 4;
+				uv[i].x[1] = inst[i+1] >> 21;
+				uv[i].x[0] += 1920;
+			}
 
 			VK_LOG ("%08X: Tex Coord <%u %u> <%u %u> <%u %u>",
 			        gpu->pc,
-			        uv0->x[0], uv0->x[1],
-			        uv1->x[0], uv2->x[1],
-			        uv1->x[0], uv2->x[1]);
+			        uv[0].x[0], uv[0].x[1],
+			        uv[1].x[0], uv[1].x[1],
+			        uv[2].x[0], uv[2].x[1]);
 
-			draw_tri (gpu, uv0, uv1, uv2);
+			VK_ASSERT (!(inst[0] & 0xFFFFF000));
+			VK_ASSERT (!(inst[1] & 0xF000F000));
+			VK_ASSERT (!(inst[2] & 0xF000F000));
+			VK_ASSERT (!(inst[3] & 0xF000F000));
+
+			draw_tri (gpu, &uv[0], &uv[1], &uv[2]);
 			gpu->pc += 16;
 		}
 		break;
