@@ -671,8 +671,9 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 	if (!REG15 (0x10))
 		return;
 
-	VK_LOG (" ### GPU 15 IDMA status is = [ %08X %08X %08X ]",
-	        REG15 (0x0C), REG15 (0x10), REG15 (0x14));
+	VK_LOG (" ## GPU 15 IDMA entry = [ %08X %08x %08X %08X <%u %u %X> ]",                                                                                                                 
+	        entry[0], entry[1], entry[2], entry[3],                         
+	        entry[2] & 0xFF, (entry[2] >> 8) & 0xFF, entry[2] >> 16);
 
 	VK_ASSERT ((REG15 (0x0C) >> 24) == 0x48);
 
