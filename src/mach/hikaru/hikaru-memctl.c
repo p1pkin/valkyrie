@@ -143,9 +143,9 @@
  *
  * The addresses here may be related to the addresses computed in @0C006608.
  *
- * Setting c to 1 initiates the DMA operation. +0x04 is set to 0xFFFF, other
- * DMA  registers to 0; the DMA takes time to execute, and raises an IRL upon
- * completion.
+ * Setting c to 1 initiates the DMA operation. After completion, the MEMCTL
+ * raises IRL 1 on the master SH-4, and sets bit 0x1000 in 04000004 and its
+ * corresponding error field.
  *
  * See @0C008640 for more details XXX
  *
@@ -189,8 +189,8 @@
  * 40000000-41FFFFFF	Slave RAM
  * 48000000-483FFFFF	GPU CMDRAM
  * 70000000-71FFFFFF	Master RAM
- * 90000000-91FFFFFF	Unknown
- * A0000000-A1FFFFFF	Unknown
+ * 90000000-91FFFFFF	EPROM (?)
+ * A0000000-A1FFFFFF	MASKROM (?)
  *
  *
  * Rom Board (ROMBD)
@@ -226,11 +226,10 @@
  *  The ROMs are also checked for masking (I think) at offset +4MB, possibly to
  *  check whether the EPROMs are 2MB+2MB (as for braveff.)
  *
- * It looks like 
- *
  * Bit 25 of the bus address may be some kind of magic 'this address space is
  * actually half the width you thought and every real byte is mirrored in a
- * 16-bitword' bit. See @0C00B938.
+ * 16-bitword' bit. See @0C00B938. This may also be related to the fact that
+ * MASKROMs are (likely) hosted at bank 0x20+ of the bus.
  *
  * For a lot of interesting details, see @0C004ED2 (rombd_test)
  */
