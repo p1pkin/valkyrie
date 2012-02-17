@@ -671,10 +671,6 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 	if (!REG15 (0x10))
 		return;
 
-	VK_LOG (" ## GPU 15 IDMA entry = [ %08X %08x %08X %08X <%u %u %X> ]",                                                                                                                 
-	        entry[0], entry[1], entry[2], entry[3],                         
-	        entry[2] & 0xFF, (entry[2] >> 8) & 0xFF, entry[2] >> 16);
-
 	VK_ASSERT ((REG15 (0x0C) >> 24) == 0x48);
 
 	/* Read the IDMA table address in CMDRAM */
@@ -685,8 +681,9 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 	entry[2] = vk_buffer_get (gpu->cmdram, 4, addr+0x8); // two words
 	entry[3] = vk_buffer_get (gpu->cmdram, 4, addr+0xC); // byte, unknown
 
-	VK_LOG (" ## GPU 15 IDMA entry = [ %08X %08x %08X %08X ]",
-	        entry[0], entry[1], entry[2], entry[3]);
+	VK_LOG (" ## GPU 15 IDMA entry = [ %08X %08x %08X %08X <%u %u %X> ]",
+	        entry[0], entry[1], entry[2], entry[3],
+	        entry[2] & 0xFF, (entry[2] >> 8) & 0xFF, entry[2] >> 16);
 
 	/* If the entry supplies a positive lenght, process it */
 	if (entry[1]) {
