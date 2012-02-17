@@ -370,7 +370,6 @@ static int
 sh4_sq_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 {
 	uint32_t sq_addr = get_sq_addr (ctx, addr) | (addr & 0x1F);
-	VK_CPU_LOG (ctx, "SQ W%u %08X = %llX", size * 8, addr, val);
 	return sh4_put (ctx, size, sq_addr, val);
 }
 
