@@ -263,6 +263,10 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 
 	/* See Table A.1, "Address List" */
 	switch (addr & 0xFFFFFF) {
+	case TMU_TSTR:
+		/* XXX pharrier */
+		VK_ASSERT (size == 1);
+		break;
 	case BSC_RFCR:
 	case CPG_WTCSR:
 	case INTC_IPRA:
@@ -297,6 +301,7 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case 0x940000 ... 0x94FFFF: /* BSC_SDRM3 */
 	case CPG_STBCR:
 	case TMU_TOCR:
+	case TMU_TSTR: /* XXX pharrier */
 		VK_ASSERT (size == 1);
 		break;
 	case BSC_BCR2:
@@ -338,6 +343,8 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case DMAC_CHCR2:
 	case DMAC_CHCR3:
 	case DMAC_DMAOR:
+	case TMU_TCOR0:
+	case TMU_TCNT0:
 		VK_ASSERT (size == 4);
 		break;
 	default:
