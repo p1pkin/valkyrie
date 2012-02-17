@@ -154,6 +154,7 @@
  *	  CMDRAM is accessed in 64-bit mode. It could be a bug in the code
  *	  as well.
  *	- patching the above function, the code proceeds at querying the TMU
+ *	- check what the heck the slave is doing
  * - podrace:
  *	- missing MASKROMS, untested
  * - sgnascar
@@ -168,8 +169,6 @@
 #include <string.h>
 #include <assert.h>
 #include <getopt.h>
-
-#include <SDL/SDL.h>
 
 #include "vk/core.h"
 #include "vk/games.h"
