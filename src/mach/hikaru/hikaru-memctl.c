@@ -238,7 +238,6 @@ typedef struct {
 	vk_device_t base;
 
 	vk_buffer_t *regs;
-	bool dma_is_running;
 	bool master;
 } hikaru_memctl_t;
 
@@ -420,31 +419,66 @@ static int
 hikaru_memctl_exec (vk_device_t *dev, int cycles)
 {
 	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
-	uint32_t src, dst, len;
+	hikaru_t *hikaru = (hikaru_t *) dev->mach;
+	uint32_t src, dst, len, ctl;
 
-	dst = vk_buffer_get (memctl->regs, 4, 0x30);
-	src = vk_buffer_get (memctl->regs, 4, 0x34);
-	len = vk_buffer_get (memctl->regs, 4, 0x38);
+	src = vk_buffer_get (memctl->regs, 4, 0x30);
+	dst = vk_buffer_get (memctl->regs, 4, 0x34);
+	len = vk_buffer_get (memctl->regs, 4, 0x38) & 0xFFFFFF;
+	ctl = vk_buffer_get (memctl->regs, 4, 0x38) >> 24;
 
-	if (len & 0x01000000) {
-		len &= 0xFFFFFF;
+	/* DMA is running */
+	if (ctl & 1) {
+		vk_buffer_t *srcbuf;
+		vk_buffer_t *dstbuf;
+		int count;
 
-		VK_LOG (" *** MEMCTL DMA [ %08X %08X %X ] ***",
-		        dst, src, len);
+		VK_LOG (" ### MEMCTL DMA: %08X -> %08X x %08X", src, dst, len);
 
-		dst = dst + len * 4;
-		src = src + len * 4;
+		srcbuf = NULL;
+		if (src >= 0x90000000 && src <= 0x9FFFFFFF)
+			srcbuf = hikaru->eprom;
+		else if (src >= 0xA0000000 && src <= 0xAFFFFFFF)
+			dstbuf = hikaru->maskrom;
 
-		/* Write back the values */
-		vk_buffer_put (memctl->regs, 4, 0x30, dst);
-		vk_buffer_put (memctl->regs, 4, 0x34, src);
-		vk_buffer_put (memctl->regs, 4, 0x38, 0);
+		dstbuf = NULL;
+		if (dst >= 0x40000000 && dst <= 0x41FFFFFF)
+			dstbuf = hikaru->ram_s;
+		else if (dst >= 0x70000000 && dst <= 0x71FFFFFF)
+			dstbuf = hikaru->ram_m;
 
-		/* Set DMA done, clear error flags */
-		vk_buffer_put (memctl->regs, 2, 0x04, 0x1000);
+		count = MIN2 ((int) len, cycles);
+		len -= count;
 
-		/* Raise IRL1 */
-		hikaru_raise_irq (memctl->base.mach, 1, 0);
+		VK_ASSERT ((len & 0xFF000000) == 0);
+
+		if (srcbuf && dstbuf) {
+			while (count--) {
+				uint32_t tmp;
+				tmp = vk_buffer_get (srcbuf, 4, src & 0x0FFFFFFF);
+				if (!(count & 0xFF))
+					VK_LOG (" ### MEMCTL DMA: %08X --[%08X]--> %08X, still %X",
+					        src, tmp, dst, count);
+				vk_buffer_put (dstbuf, 4, dst & 0x0FFFFFFF, tmp);
+			}
+		} else {
+			dst += count * 4;
+			src += count * 4;
+		}
+
+		/* Transfer completed */
+		if (len == 0) {
+			ctl = 0;
+			/* Set DMA done, clear error flags */
+			vk_buffer_put (memctl->regs, 2, 0x04, 0x1000);
+			/* Raise IRL1 */
+			hikaru_raise_irq (memctl->base.mach, 1, 0);
+		}
+
+		/* Write the values back */
+		vk_buffer_put (memctl->regs, 4, 0x30, src);
+		vk_buffer_put (memctl->regs, 4, 0x34, dst);
+		vk_buffer_put (memctl->regs, 4, 0x38, (ctl << 24) | len);
 	}
 	return 0;
 }
