@@ -1,4 +1,4 @@
-/* 
+/*
  * Valkyrie
  * Copyright (C) 2011, Stefano Teso
  * 
@@ -372,6 +372,8 @@
  * 1A0A1600             l  W    1 [seems related to 15040E00, see pharrier]
  */
 
+/* Viewport State */
+
 typedef struct {
 	vec3s_t unk;
 } _811_params_t;
@@ -417,6 +419,46 @@ typedef struct {
 	_621_params_t _621_params; /* Unknown Params */
 } viewport_state_t;
 
+/* Color/Material State */
+
+typedef struct {
+	uint8_t unk;
+} _881_params_t; /* Intensity? */
+
+typedef struct {
+	vec2f_t color; /* RGBA8 */
+} _291_params_t;
+
+typedef struct {
+	_881_params_t _881_params;
+	_291_params_t _291_params;
+} color_state_t;
+
+/* Texture State */
+
+typedef struct {
+	uint8_t unk_n : 4;
+	uint8_t unk_m : 4;
+}_0C1_params_t;
+
+typedef struct {
+	uint8_t unk_a;
+	uint8_t unk_b;
+	uint8_t unk_u : 4;
+}_2C1_params_t;
+
+typedef struct {
+	uint8_t unk_n;
+	uint8_t unk_m;
+	uint8_t unk_p : 4;
+}_4C1_params_t;
+
+typedef struct {
+	_0C1_params_t _0C1_params;
+	_2C1_params_t _2C1_params;
+	_4C1_params_t _4C1_params;
+} tex_state_t;
+
 typedef struct {
 	vk_device_t base;
 
@@ -437,14 +479,19 @@ typedef struct {
 	uint32_t sp[2];
 	int cycles;
 
-	viewport_state_t	vp_scratch;
-	viewport_state_t	vp[8];
-
-	/* TODO: color state */
-	/* TODO: texture state */
-
 	mtx4x3f_t mtx_scratch;
 	mtx4x3f_t mtx[8];
+
+	viewport_state_t vp_scratch;
+	viewport_state_t vp[8], *current_vp;
+
+	color_state_t cs_scratch;
+	color_state_t cs[16], *current_cs;
+	bool cs_enabled;
+
+	tex_state_t ts_scratch;
+	tex_state_t ts[4], *current_ts;
+	bool ts_enabled;
 
 	vec3f_t vertex_buffer[3];
 	int vertex_index;
@@ -800,7 +847,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 * +00	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 */
-		VK_LOG ("%08X: Nop [%08X]", gpu->pc, inst[0]);
+		VK_LOG ("GPU CMD %08X: Nop [%08X]", gpu->pc, inst[0]);
 		VK_ASSERT (inst[0] == 0);
 		gpu->pc += 4;
 		break;
@@ -812,7 +859,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 */
 		{
 			uint32_t addr = inst[1] * 4;
-			VK_LOG ("%08X: Jump [%08X] %08X",
+			VK_LOG ("GPU CMD %08X: Jump [%08X] %08X",
 			        gpu->pc, inst[0], addr);
 			VK_ASSERT ((inst[0] & ~0xFFF) == 0);
 			VK_ASSERT ((addr >= 0x48000000) &&
@@ -829,7 +876,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		{
 			uint32_t addr = inst[1] * 4;
 
-			VK_LOG ("%08X: Call [%08X] %08X",
+			VK_LOG ("GPU CMD %08X: Call [%08X] %08X",
 			        gpu->pc, inst[0], addr);
 
 			VK_ASSERT ((inst[0] & ~0xFFF) == 0);
@@ -845,7 +892,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 */
-		VK_LOG ("%08X: Return [%08X]",
+		VK_LOG ("GPU CMD %08X: Return [%08X]",
 		        gpu->pc, inst[0]);
 		VK_ASSERT ((inst[0] & ~0xFFF) == 0);
 		cp_pop_pc (gpu);
@@ -855,7 +902,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 */
-		VK_LOG ("%08X: Kill [%08X]",
+		VK_LOG ("GPU CMD %08X: Kill [%08X]",
 		        gpu->pc, inst[0]);
 		VK_ASSERT (!(inst[0] & 0xFFFFF000));
 		gpu->is_running = false;
@@ -878,7 +925,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			m = (inst[0] >> 18) & 3;
 			n = (inst[0] >> 16) & 3;
 
-			VK_LOG ("%08X: Sync [%08X] <%u %u %u %u>",
+			VK_LOG ("GPU CMD %08X: Sync [%08X] <%u %u %u %u>",
 			        gpu->pc, inst[0], a, b, n, m);
 
 			VK_ASSERT ((inst[0] & 0xF0F0F000) == 0);
@@ -898,7 +945,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			b = (inst[1] >> 8) & 0xFF;
 			c = (inst[1] >> 16) & 0xFF;
 			d = (inst[1] >> 24) & 0xFF;
-			VK_LOG ("%08X: Clear Unknown A [%08X %08X] %u <%X %X %X %X>",
+			VK_LOG ("GPU CMD %08X: Clear Unknown A [%08X %08X] %u <%X %X %X %X>",
 			        gpu->pc, inst[0], inst[1], n, a, b, c, d);
 			gpu->pc += 8;
 		}
@@ -911,7 +958,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			m = (inst[0] >> 24) & 0xFF;
 			a = inst[1] & 0xFFFF;
 			b = inst[1] >> 16;
-			VK_LOG ("%08X: Clear Unknown B [%08X %08X] %u %u <%X %X>",
+			VK_LOG ("GPU CMD %08X: Clear Unknown B [%08X %08X] %u %u <%X %X>",
 			        gpu->pc, inst[0], inst[1], n, m, a, b);
 			gpu->pc += 8;
 		}
@@ -931,7 +978,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unk.x[1] = inst[1] & 0xFFFF;
 			unk.x[2] = inst[1] >> 16;
 
-			VK_LOG ("%08X: Viewport: Unknown 811 [ unk = <%u %u %u> ]",
+			VK_LOG ("GPU CMD %08X: Viewport: Unknown 811 [ unk = <%u %u %u> ]",
 			        gpu->pc, unk.x[0], unk.x[1], unk.x[2]);
 
 			VK_ASSERT (!(inst[0] & 0x0000F000));
@@ -950,12 +997,12 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		{
 			_991_params_t params;
 
-			params.sign	= (inst[1] >> 24) & 1;
+			params.sign	= (inst[1] >> 24) & 1; /* Disabled? */
 			params.unk.x[0]	= (inst[1] >> 16) & 0xFF;
 			params.unk.x[1]	= (inst[1] >> 8) & 0xFF;
 			params.unk.x[2]	= inst[1] & 0xFF;
 
-			VK_LOG ("%08X: Viewport: Unknown 991 [ sign=%u unk=<%u %u %u> ]",
+			VK_LOG ("GPU CMD %08X: Viewport: Unknown 991 [ sign=%u unk=<%u %u %u> ]",
 			        gpu->pc, params.sign, params.unk.x[0], params.unk.x[1], params.unk.x[2]);
 
 			VK_ASSERT (!(inst[0] & 0xFFFFF000));
@@ -981,7 +1028,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			params.persp_y	= *(float *) &inst[2];
 			params.unk	= *(float *) &inst[3];
 
-			VK_LOG ("%08X: Viewport: Set Projection [ px=%f py=%f unk=%f ]",
+			VK_LOG ("GPU CMD %08X: Viewport: Set Projection [ px=%f py=%f unk=%f ]",
 			        gpu->pc, params.persp_x, params.persp_y, params.unk);
 
 			VK_ASSERT (!(inst[0] & 0xFFFFF000));
@@ -1009,7 +1056,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			params.extents_y.x[0]	= (inst[2] >> 16) & 0x3FFF;
 			params.extents_y.x[1]	= (inst[3] >> 16) & 0x3FFF;
 
-			VK_LOG ("%08X: Viewport: Set Extents [ center=<%u,%u> x=<%u,%u> y=<%u,%u> ]",
+			VK_LOG ("GPU CMD %08X: Viewport: Set Extents [ center=<%u,%u> x=<%u,%u> y=<%u,%u> ]",
 			        gpu->pc,
 			        params.center.x[0], params.center.x[1],
 			        params.extents_x.x[0], params.extents_x.x[1],
@@ -1039,7 +1086,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			params.depth_far	= *(float *) &inst[2];
 			params.depth_func	= inst[3] >> 29;
 
-			VK_LOG ("%08X: Viewport: Set Depth [ near=%f far=%f func=%u ]",
+			VK_LOG ("GPU CMD %08X: Viewport: Set Depth [ near=%f far=%f func=%u ]",
 			        gpu->pc, params.depth_near, params.depth_far, params.depth_func);
 			        
 			VK_ASSERT (!(inst[0] & 0xFFFFF000));
@@ -1068,7 +1115,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			params.inv_delta = *(float *) &inst[2];
 			params.inv_max	 = *(float *) &inst[3];
 
-			VK_LOG ("%08X: Viewport: Set Shade Model [ enabled=%u n=%u b=%u color=<%X %X %X %X> inv_delta=%f inv_max=%f ]",
+			VK_LOG ("GPU CMD %08X: Viewport: Set Shade Model [ enabled=%u n=%u b=%u color=<%X %X %X %X> inv_delta=%f inv_max=%f ]",
 			        gpu->pc,
 			        params.enabled, params.unk_n, params.unk_b,
 			        params.color.x[0], params.color.x[1], params.color.x[2], params.color.x[3],
@@ -1092,7 +1139,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		{
 			unsigned n = (inst[0] >> 16) & 7;
 
-			VK_LOG ("%08X: Commit Viewport [%08X] %u",
+			VK_LOG ("GPU CMD %08X: Commit Viewport [%08X] %u",
 			        gpu->pc, inst[0], n);
 
 			VK_ASSERT (!(inst[0] & 0xFFF8F000));
@@ -1114,7 +1161,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned p = (inst[0] >> 14) & 1;
 			unsigned q = (inst[0] >> 13) & 1;
 
-			VK_LOG ("%08X: Recall Viewport [%08X] <%u %u %u>",
+			VK_LOG ("GPU CMD %08X: Recall Viewport [%08X] <%u %u %u>",
 			        gpu->pc, inst[0], n, p, q);
 
 			VK_ASSERT (!(inst[0] & 0xFFFC9000));
@@ -1126,7 +1173,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	/* Color Operations */
 
 	case 0x081:
-	case 0x381:
 		/* 081	Set Y Property 0
 		 *
 		 *	---- ---- ---- mmmm ---n oooo oooo oooo */
@@ -1134,28 +1180,41 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned n, m;
 			n = (inst[0] >> 12) & 1;
 			m = (inst[0] >> 16) & 0xF;
-			VK_LOG ("%08X: Color: Set Y 0 [%08X] %u %u",
+			VK_LOG ("GPU CMD %08X: Color: Set Y 0 [%08X] %u %u",
 			        gpu->pc, inst[0], n, m);
 			gpu->pc += 4;
 		}
 		break;
 	case 0x881:
-		/* 881	Set Y Property 8 */
-		VK_LOG ("%08X: Color: Set Y 8 [%08X]", gpu->pc, inst[0]);
-		gpu->pc += 4;
+		/* 881	Set Y Property 8
+		 *
+		 *	---- ---- iiii iiii ---- oooo oooo oooo		o = Opcode, i = Intensity?
+		 *
+		 * This is used along with the 291 command to construct the
+		 * VGA palette in the bootrom CRT test screen.
+		 */
+		{
+			unsigned i = (inst[0] >> 16) & 0xFF;
+
+			VK_LOG ("GPU CMD %08X: Color: Set Y 8 [%08X]", gpu->pc, inst[0]);
+
+			VK_ASSERT (!(inst[0] & 0xFF00F000));
+
+			gpu->cs_scratch._881_params.unk = i;
+			gpu->pc += 4;
+		}
 		break;
 	case 0xA81:
 		/* 881	Set Y Property A */
-		VK_LOG ("%08X: Color: Set Y A [%08X]", gpu->pc, inst[0]);
+		VK_LOG ("GPU CMD %08X: Color: Set Y A [%08X]", gpu->pc, inst[0]);
 		gpu->pc += 4;
 		break;
 	case 0xC81:
 		/* 881	Set Y Property C */
-		VK_LOG ("%08X: Color: Set Y C [%08X]", gpu->pc, inst[0]);
+		VK_LOG ("GPU CMD %08X: Color: Set Y C [%08X]", gpu->pc, inst[0]);
 		gpu->pc += 4;
 
 		break;
-
 	case 0x091:
 		/* 091	Set Color Property 0 */
 		{
@@ -1164,21 +1223,31 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned b = (inst[1] >> 8) & 0xFF;
 			unsigned c = (inst[1] >> 16) & 0xFF;
 			unsigned d = (inst[1] >> 24) & 0xFF;
-			VK_LOG ("%08X: Color: Set 0 [%08X %08X] %u <%u %u %u %u>",
+			VK_LOG ("GPU CMD %08X: Color: Set 0 [%08X %08X] %u <%u %u %u %u>",
 			        gpu->pc, inst[0], inst[1], x, a, b, c, d);
 			gpu->pc += 8;
 		}
 		break;
 	case 0x291:
-		/* 291	Set Color Property 2 */
+		/* 291	Set Color Property 2
+		 *
+		 *	---- ---- xxxx xxxx ---- oooo oooo oooo
+		 *	aaaa aaaa bbbb bbbb gggg gggg rrrr rrr
+		 */
 		{
 			unsigned x = (inst[0] >> 16) & 0xFF;
 			unsigned a = inst[1] & 0xFF;
 			unsigned b = (inst[1] >> 8) & 0xFF;
-			unsigned c = (inst[1] >> 16) & 0xFF;
-			unsigned d = (inst[1] >> 24) & 0xFF;
-			VK_LOG ("%08X: Color: Set 2 [%08X %08X] %u <%u %u %u %u>",
-			        gpu->pc, inst[0], inst[1], x, a, b, c, d);
+			unsigned g = (inst[1] >> 16) & 0xFF;
+			unsigned r = (inst[1] >> 24) & 0xFF;
+
+			VK_LOG ("GPU CMD %08X: Color: Set 2 [%08X %08X] %u <%u %u %u %u>",
+			        gpu->pc, inst[0], inst[1], x, a, b, b, r);
+
+			gpu->cs_scratch._291_params.color.x[0] = r;
+			gpu->cs_scratch._291_params.color.x[1] = g;
+			gpu->cs_scratch._291_params.color.x[2] = b;
+			gpu->cs_scratch._291_params.color.x[3] = a;
 			gpu->pc += 8;
 		}
 		break;
@@ -1190,7 +1259,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned b = (inst[1] >> 8) & 0xFF;
 			unsigned c = (inst[1] >> 16) & 0xFF;
 			unsigned d = (inst[1] >> 24) & 0xFF;
-			VK_LOG ("%08X: Color: Set 4 [%08X %08X] %u <%u %u %u %u>",
+			VK_LOG ("GPU CMD %08X: Color: Set 4 [%08X %08X] %u <%u %u %u %u>",
 			        gpu->pc, inst[0], inst[1], x, a, b, c, d);
 			gpu->pc += 8;
 		}
@@ -1204,7 +1273,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned a = inst[0] >> 16;
 			unsigned b = inst[1] & 0xFFFF;
 			unsigned c = inst[1] >> 16;
-			VK_LOG ("%08X: Color: Set 6 [%08X %08X] <%u %u %u>",
+			VK_LOG ("GPU CMD %08X: Color: Set 6 [%08X %08X] <%u %u %u>",
 			        gpu->pc, inst[0], inst[1], a, b, c);
 			gpu->pc += 8;
 		}
@@ -1216,26 +1285,35 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 * See PH:@0C0153D4 */
 		{
-			unsigned n = (inst[0] >> 16) & 0xF;
-			unsigned m = (inst[0] >> 12) & 1;
-			VK_LOG ("%08X: Commit Color  [%08X] %u %u",
-			        gpu->pc, inst[0], n, m);
+			unsigned num = (inst[0] >> 16) & 0xF;
+			unsigned unk = (inst[0] >> 12) & 1;
+
+			VK_LOG ("GPU CMD %08X: Commit Color [%08X] num=%u unk=%u",
+			        gpu->pc, inst[0], num, unk);
+
 			VK_ASSERT (!(inst[0] & 0xFFF0E000));
+
+			gpu->cs[num] = gpu->cs_scratch;
 			gpu->pc += 4;
 		}
 		break;
 	case 0x083:
 		/* 083	Recall Color 
 		 *
-		 *	---- ---- nnnn nnnn ---m oooo oooo oooo		o = Opcode, m = Modifier, n = Unknown
+		 *	---- ---- nnnn nnnn ---m oooo oooo oooo		o = Opcode, m = Enable Color, n = Unknown
 		 *
 		 * See @0C00657C */
 		{
-			unsigned n = (inst[0] >> 16) & 0xF;
-			unsigned m = (inst[0] >> 12) & 1;
-			VK_LOG ("%08X: Recall Color  [%08X] %u %u",
-			        gpu->pc, inst[0], n, m);
+			unsigned num = (inst[0] >> 16) & 0xF;
+			unsigned ena = (inst[0] >> 12) & 1;
+
+			VK_LOG ("GPU CMD %08X: Recall Color [%08X] num=%u ena=%u",
+			        gpu->pc, inst[0], num, ena);
+
 			VK_ASSERT (!(inst[0] & 0xFF00E000));
+
+			gpu->current_cs = &gpu->cs[num];
+			gpu->cs_enabled = ena;
 			gpu->pc += 4;
 		}
 		break;
@@ -1248,15 +1326,37 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	---- ---- mmmm nnnn ---- oooo oooo oooo		o = Opcode, n, m = Unknown
 		 *
 		 * See PH:@0C015B7A */
-		VK_LOG ("%08X: Set Tex Param 0 [%08X]", gpu->pc, inst[0]);
-		gpu->pc += 4;
+		{
+			unsigned n = (inst[0] >> 16) & 0xF;
+			unsigned m = (inst[0] >> 20) & 0xF;
+
+			VK_LOG ("GPU CMD %08X: Set Tex Param 0 [%08X] n=%u m=%u",
+			        gpu->pc, inst[0], n, m);
+
+			VK_ASSERT (!(inst[0] & 0xFF00F000));
+
+			gpu->ts_scratch._0C1_params.unk_n = n;
+			gpu->ts_scratch._0C1_params.unk_m = m;
+			gpu->pc += 4;
+		}
 		break;
 	case 0x2C1:
 		/* 2C1	Set Tex Param 2
 		 *
-		 *	nnnn nnnn mmmm mmmm pppp oooo oooo oooo		o = Opcode, n, m, p = Unknown */
-		VK_LOG ("%08X: Set Tex Param 2 [%08X]", gpu->pc, inst[0]);
-		gpu->pc += 4;
+		 *	aaaa aaaa bbbb bbbb uuuu oooo oooo oooo		o = Opcode, a, b, u = Unknown */
+		{
+			unsigned a = (inst[0] >> 24) & 0xFF;
+			unsigned b = (inst[0] >> 16) & 0xFF;
+			unsigned u = (inst[0] >> 12) & 0xF;
+
+			VK_LOG ("GPU CMD %08X: Set Tex Param 2 [%08X]",
+			        gpu->pc, inst[0]);
+
+			gpu->ts_scratch._2C1_params.unk_a = a;
+			gpu->ts_scratch._2C1_params.unk_b = b;
+			gpu->ts_scratch._2C1_params.unk_u = u;
+			gpu->pc += 4;
+		}
 		break;
 	case 0x4C1:
 		/* 4C1	Set Tex Param 4
@@ -1264,32 +1364,54 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	nnnn nnnn mmmm mmmm pppp oooo oooo oooo		o = Opcode, n, m, p = Unknown
 		 *
 		 * See PH:@0C015BA0 */
-		VK_LOG ("%08X: Set Tex Param 4 [%08X]", gpu->pc, inst[0]);
-		gpu->pc += 4;
+		{
+			unsigned n = (inst[0] >> 24) & 0xFF;
+			unsigned m = (inst[0] >> 16) & 0xFF;
+			unsigned p = (inst[0] >> 12) & 0xF;
+
+			VK_LOG ("GPU CMD %08X: Set Tex Param 4 [%08X]",
+			        gpu->pc, inst[0]);
+
+			gpu->ts_scratch._4C1_params.unk_n = n;
+			gpu->ts_scratch._4C1_params.unk_m = m;
+			gpu->ts_scratch._4C1_params.unk_p = p;
+			gpu->pc += 4;
+		}
 		break;
 	case 0x0C4:
 		/* 0C4	Commit Tex Params
 		 *
-		 *	---- ---- ---- nnnn ---m oooo oooo oooo		o = Opcode, m = Unknown, n = Number */
+		 *	---- ---- ---- --nn ---m oooo oooo oooo		o = Opcode, m = Unknown, n = Number
+		 */
 		{
-			unsigned n = (inst[0] >> 16) & 0xF;
-			unsigned m = (inst[0] >> 12) & 1;
-			VK_LOG ("%08X: Commit Tex Params [%08X] num=%u %u",
-			        gpu->pc, inst[0], n, m);
+			unsigned num = (inst[0] >> 16) & 7;
+			unsigned unk = (inst[0] >> 12) & 1;
+
+			VK_LOG ("GPU CMD %08X: Commit Tex Params [%08X] num=%u unk=%u",
+			        gpu->pc, inst[0], num, unk);
+
 			VK_ASSERT (!(inst[0] & 0xFFF0E000));
+
+			gpu->ts[num] = gpu->ts_scratch;
 			gpu->pc += 4;
 		}
 		break;
 	case 0x0C3:
 		/* 0C3	Recall Tex Params
 		 *
-		 *	---- ---- ---- nnnn ---m oooo oooo oooo		o = Opcode, m = Unknown, n = Number */
+		 *	---- ---- ---- --nn ---m oooo oooo oooo		o = Opcode, m = Enable Texturing, n = Number
+		 */
 		{
-			unsigned n = (inst[0] >> 16) & 0xF;
-			unsigned m = (inst[0] >> 12) & 1;
-			VK_LOG ("%08X: Recall Tex Params [%08X] num=%u %u",
-			        gpu->pc, inst[0], n, m);
+			unsigned num = (inst[0] >> 16) & 3;
+			unsigned ena = (inst[0] >> 12) & 1;
+
+			VK_LOG ("GPU CMD %08X: Recall Tex Params [%08X] num=%u ena=%u",
+			        gpu->pc, inst[0], num, ena);
+
 			VK_ASSERT (!(inst[0] & 0xFF00E000));
+
+			gpu->current_ts = &gpu->ts[num];
+			gpu->ts_enabled = ena;
 			gpu->pc += 4;
 		}
 		break;
@@ -1318,7 +1440,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned i = (inst[0] >> 18) & 3;
 			vec3f_t *v = (vec3f_t *) &inst[1];
 
-			VK_LOG ("%08X: Set Matrix Vector [%08X %08X %08X %08X] %u %u %u <%f %f %f>",
+			VK_LOG ("GPU CMD %08X: Set Matrix Vector [%08X %08X %08X %08X] %u %u %u <%f %f %f>",
 			        gpu->pc,
 			        inst[0], inst[1], inst[2], inst[3],
 			        n, m, i,
@@ -1352,14 +1474,14 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 				uv[i].x[0] += 1920;
 			}
 
-			VK_LOG ("%08X: Tex Coord [%08X %08X %08X %08X] <%u %u> <%u %u> <%u %u>",
+			VK_LOG ("GPU CMD %08X: Tex Coord [%08X %08X %08X %08X] <%u %u> <%u %u> <%u %u>",
 			        gpu->pc,
 			        inst[0], inst[1], inst[2], inst[3],
 			        uv[0].x[0], uv[0].x[1],
 			        uv[1].x[0], uv[1].x[1],
 			        uv[2].x[0], uv[2].x[1]);
 
-			VK_ASSERT (!(inst[0] & 0xFFFFF000));
+			VK_ASSERT (!(inst[0] & 0x00000000));
 			VK_ASSERT (!(inst[1] & 0xF000F000));
 			VK_ASSERT (!(inst[2] & 0xF000F000));
 			VK_ASSERT (!(inst[3] & 0xF000F000));
@@ -1382,7 +1504,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		{
 			vec3f_t *v = (vec3f_t *) &inst[1];
 
-			VK_LOG ("%08X: Vertex { %f %f %f }",
+			VK_LOG ("GPU CMD %08X: Vertex { %f %f %f }",
 			        gpu->pc,
 			        v->x[0], v->x[1], v->x[2]);
 
@@ -1405,7 +1527,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned q = inst[4];
 			vec3f_t *v = (vec3f_t *) &inst[1];
 			vec3f_t *n = (vec3f_t *) &inst[5];
-			VK_LOG ("%08X: Vertex Normal %u %u <%f %f %f> <%f %f %f>",
+			VK_LOG ("GPU CMD %08X: Vertex Normal %u %u <%f %f %f> <%f %f %f>",
 			        gpu->pc, p, q,
 			        v->x[0], v->x[1], v->x[2],
 			        n->x[0], n->x[1], n->x[2]);
@@ -1416,7 +1538,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0xE88:
 		/* E88	Unknown [Flush Vertices?] */
 		{
-			VK_LOG ("%08X: Unknown %03X [%08X]",
+			VK_LOG ("GPU CMD %08X: Unknown %03X [%08X]",
 			        gpu->pc, inst[0] & 0xFFF, inst[0]);
 			gpu->pc += 4;
 		}
@@ -1433,7 +1555,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * See @0C008040, PH:@0C016418, PH:@0C016446 */
 		{
 			unsigned u = (inst[0] >> 24) & 1;
-			VK_LOG ("%08X: Unknown 101 [%08X] %u",
+			VK_LOG ("GPU CMD %08X: Unknown 101 [%08X] %u",
 			        gpu->pc, inst[0], u);
 			VK_ASSERT (!(inst[0] & 0xFEFFF000));
 			gpu->pc += 4;
@@ -1442,7 +1564,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x301:
 		/* 301	Unknown */
 		{
-			VK_LOG ("%08X: Unknown 301 [%08X]", gpu->pc, inst[0]);
+			VK_LOG ("GPU CMD %08X: Unknown 301 [%08X]", gpu->pc, inst[0]);
 			VK_ASSERT (!(inst[0] & 0xFFFFF000));
 			gpu->pc += 4;
 		}
@@ -1450,7 +1572,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x501:
 		/* 501	Unknown */
 		{
-			VK_LOG ("%08X: Unknown 501 [%08X]", gpu->pc, inst[0]);
+			VK_LOG ("GPU CMD %08X: Unknown 501 [%08X]", gpu->pc, inst[0]);
 			VK_ASSERT (!(inst[0] & 0xFFFFF000));
 			gpu->pc += 4;
 		}
@@ -1459,7 +1581,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		/* 043	Unknown [Reset All Color Entries?] */
 		{
 			unsigned u = (inst[0] >> 24) & 0xF;
-			VK_LOG ("%08X: Recall Unknown 043 [%08X] %u",
+			VK_LOG ("GPU CMD %08X: Recall Unknown 043 [%08X] %u",
 			        gpu->pc, inst[0], u);
 			VK_ASSERT (!(inst[0] & 0xF0FFF000));
 			gpu->pc += 4;
@@ -1472,7 +1594,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * */
 		{
 			unsigned n = (inst[0] >> 16) & 0x7F;
-			VK_LOG ("%08X: Unknown 901 [%08X] %u",
+			VK_LOG ("GPU CMD %08X: Unknown 901 [%08X] %u",
 			        gpu->pc, inst[0], n);
 			VK_ASSERT (!(inst[0] & 0xFF80F000));
 			gpu->pc += 4;
@@ -1490,7 +1612,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		{
 			//uint32_t l1 = inst[1];
 			//uint32_t l2 = inst[2];
-			VK_LOG ("%08X: Set Lo Addresses [%08X %08X %08X %08X]",
+			VK_LOG ("GPU CMD %08X: Set Lo Addresses [%08X %08X %08X %08X]",
 			        gpu->pc, inst[0], inst[1], inst[2], inst[3]);
 			VK_ASSERT (!(inst[0] & 0xFFFFF000));
 			VK_ASSERT (!inst[3]);
@@ -1509,7 +1631,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		{
 			//uint32_t u1 = inst[1];
 			//uint32_t u2 = inst[2];
-			VK_LOG ("%08X: Set Hi Addresses [%08X %08X %08X %08X]",
+			VK_LOG ("GPU CMD %08X: Set Hi Addresses [%08X %08X %08X %08X]",
 			        gpu->pc, inst[0], inst[1], inst[2], inst[3]);
 			VK_ASSERT (!(inst[0] & 0xFFFFF000));
 			VK_ASSERT (!inst[3]);
@@ -1527,7 +1649,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned a = inst[0] >> 16;
 			unsigned b = inst[1] & 0xFFFF;
 			unsigned c = inst[1] >> 16;
-			VK_LOG ("%08X: Unknown 6D1 [%08X %08X] <%u %u %u>",
+			VK_LOG ("GPU CMD %08X: Unknown 6D1 [%08X %08X] <%u %u %u>",
 			        gpu->pc, inst[0], inst[1], a, b, c);
 			VK_ASSERT (!(inst[0] & 0x0000F000));
 			gpu->pc += 8;
@@ -1542,7 +1664,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		{
 			unsigned b = (inst[0] >> 24) & 1;
 			unsigned n = (inst[0] >> 16) & 0xFF;
-			VK_LOG ("%08X: Unknown 181 [%08X] <%u %u>",
+			VK_LOG ("GPU CMD %08X: Unknown 181 [%08X] <%u %u>",
 			        gpu->pc, inst[0], b, n);
 			VK_ASSERT (!(inst[0] & 0xFE00F000));
 			gpu->pc += 4;
@@ -1555,7 +1677,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	uuuu ---- ---- ---- ---- oooo oooo oooo		o = Opcode, u = Unknown */
 		{
 			unsigned u = inst[0] >> 24;
-			VK_LOG ("%08X: Unknown 303 [%08X] %u",
+			VK_LOG ("GPU CMD %08X: Unknown 303 [%08X] %u",
 			        gpu->pc, inst[0], u);
 			VK_ASSERT (!(inst[0] & 0x00FFF000));
 			gpu->pc += 4;
@@ -1565,7 +1687,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		/* 104	Unknown */
 		{
 			unsigned n = (inst[0] >> 16) & 7;
-			VK_LOG ("%08X: Commit Matrix [%08X] %u",
+			VK_LOG ("GPU CMD %08X: Commit Matrix [%08X] %u",
 			        gpu->pc, inst[0], n);
 			gpu->pc += 4;
 		}
@@ -1574,7 +1696,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		/* 051	Unknown Vertex-related */
 		{
 			vec4b_t *unk = (vec4b_t *) &inst[1];
-			VK_LOG ("%08X: Vertex: Unknown [%08X %08X] <%u %u %u %u>",
+			VK_LOG ("GPU CMD %08X: Vertex: Unknown [%08X %08X] <%u %u %u %u>",
 			        gpu->pc, inst[0], inst[1],
 			        unk->x[0], unk->x[1], unk->x[2], unk->x[3]);
 			gpu->pc += 8;
@@ -1584,13 +1706,13 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		/* 006	Unknown */
 	case 0x046:
 		/* 046	Unknown */
-		VK_LOG ("%08X: Unknown %03X [%08X]",
+		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X]",
 		        gpu->pc, inst[0] & 0xFFF, inst[0]);
 		gpu->pc += 4;
 		break;
 	case 0x451:
 		/* 451	Unknown */
-		VK_LOG ("%08X: Unknown %03X [%08X %08X]",
+		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X %08X]",
 		        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1]);
 		gpu->pc += 8;
 		break;
@@ -1598,7 +1720,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		/* 064	Unknown */
 	case 0x561:
 		/* 561	Unknown */
-		VK_LOG ("%08X: Unknown %03X [%08X %08X %08X %08X]",
+		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X %08X %08X %08X]",
 		        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1], inst[2], inst[3]);
 		gpu->pc += 16;
 		break;
