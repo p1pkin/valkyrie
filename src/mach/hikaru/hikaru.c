@@ -130,9 +130,9 @@
  * An 76X100 secure EEPROM.
  */
 
-/*                                                                             
- * TODO                                                                        
- * ====                                                                        
+/*
+ * TODO
+ * ====
  *
  * - bootrom 0.96
  *	- just like bootrom 0.92
@@ -160,7 +160,7 @@
  * - sgnascar
  *	- doesn't boot, params read from the EPROM are different from the
  *	  other (working) games
- */ 
+ */
 
 #include <stdio.h>
 #include <stdint.h>
