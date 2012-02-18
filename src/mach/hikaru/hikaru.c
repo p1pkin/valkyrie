@@ -757,12 +757,12 @@ setup_master_mmap (hikaru_t *hikaru)
 	                             hikaru->memctl_m, "MEMCTL/M");
 	vk_mmap_set_region (mmap, region, i++);
 
-	region = vk_region_mmio_new (0x14000000, 0x140000FF, 0xFF,
-	                             VK_REGION_RW | VK_REGION_SIZE_16 | VK_REGION_SIZE_32 | VK_REGION_LOG_RW,
+	region = vk_region_mmio_new (0x14000000, 0x1400002F, 0x3F,
+	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
 	                             hikaru->mscomm, "MSCOMM/M");
 	vk_mmap_set_region (mmap, region, i++);
 
-	region = vk_region_ram_new (0x14000100, 0x143FFFFF, 0x3FFFFF, 0,
+	region = vk_region_ram_new (0x14000030, 0x143FFFFF, 0x3FFFFF, 0,
 	                            hikaru->cmdram, "CMDRAM/M");
 	vk_mmap_set_region (mmap, region, i++);
 
@@ -837,7 +837,7 @@ setup_slave_mmap (hikaru_t *hikaru)
 	                             hikaru->mscomm, "MSCOMM/S");
 	vk_mmap_set_region (mmap, region, i++);
 
-	region = vk_region_ram_new (0x10000100, 0x103FFFFF, 0x3FFFFF, 0,
+	region = vk_region_ram_new (0x10000100, 0x103FFFFF, 0x3FFFFF, VK_REGION_LOG_WRITE,
 	                            hikaru->cmdram, "CMDRAM/S");
 	vk_mmap_set_region (mmap, region, i++);
 

@@ -792,11 +792,8 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		break;
 
 	/* PHARRIER */
-	case 0x0C01483E:
-		VK_CPU_LOG (ctx, " ### PHARRIER: memcpylike (%X, %X, %X)", R(4), R(5), R(6));
-		break;
-	case 0x0C01C766:
-		/* XXX patches a JSR into a NOP, avoids the crasher here ^^^ */
+	case 0x0C01C322:
+		/* XXX patches an AICA-related while (1) into a NOP */
 		inst = 0x0009;
 		break;
 	}
