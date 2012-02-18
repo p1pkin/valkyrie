@@ -141,6 +141,9 @@
  *	- implement a 640x480 screen in GL
  *	- implement ASCII texture upload properly
  *	- implement GPU IDMA texture uploading to TEXRAM
+ *	- CRT screen requires storing triangles in display lists because
+ *	  there are no 'EE8' commands after the color bands vertices are
+ *	  pushed to the hardware.
  * - bootrom 0.96
  *	- just like bootrom 0.92
  * - airtrix:
