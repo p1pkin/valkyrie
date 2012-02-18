@@ -426,8 +426,10 @@ typedef struct {
 } _881_params_t; /* Intensity? */
 
 typedef struct {
-	vec2f_t color; /* RGBA8 */
+	vec4b_t color; /* RGBA8 */
 } _291_params_t;
+
+/* TODO: find out if and where the tex/color combiner mode is selected */
 
 typedef struct {
 	_881_params_t _881_params;
@@ -524,13 +526,13 @@ hikaru_gpu_print_state (hikaru_gpu_t *gpu)
 	unsigned i;
 	printf (" ==== GPU ====\n");
 	for (i = 0; i < 0x9C; i += 4)
-		printf ("%08X = %08X\n", 0x15000000 + i, REG15(i));
+		printf ("GPU STATE: %08X = %08X\n", 0x15000000 + i, REG15(i));
 	for (i = 0; i < 0x104; i+= 4)
-		printf ("%08X = %08X\n", 0x1A000000 + i, REG1A(i));
+		printf ("GPU STATE: %08X = %08X\n", 0x1A000000 + i, REG1A(i));
 	for (i = 0; i < 0x40; i+= 4)
-		printf ("%08X = %08X\n", 0x1A000180 + i, REG1AUNIT(0,i));
+		printf ("GPU STATE: %08X = %08X\n", 0x1A000180 + i, REG1AUNIT(0,i));
 	for (i = 0; i < 0x40; i+= 4)
-		printf ("%08X = %08X\n", 0x1A000200 + i, REG1AUNIT(1,i));
+		printf ("GPU STATE: %08X = %08X\n", 0x1A000200 + i, REG1AUNIT(1,i));
 	printf ("\n");
 }
 
@@ -796,6 +798,9 @@ draw_tri (hikaru_gpu_t *gpu, vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2)
 	                          &gpu->vertex_buffer[i0],
 	                          &gpu->vertex_buffer[i1],
 	                          &gpu->vertex_buffer[i2],
+	                          gpu->cs_enabled,
+	                          gpu->current_cs->_291_params.color,
+	                          gpu->ts_enabled,
 	                          uv0, uv1, uv2);
 }
 

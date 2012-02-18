@@ -23,8 +23,20 @@
 void
 hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
                           vec3f_t *v0, vec3f_t *v1, vec3f_t *v2,
+                          bool has_color,
+                          vec4b_t color,
+                          bool has_texture,
                           vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2)
 {
+	VK_LOG ("TRI: CE=%u TE=%u", has_color, has_texture);
+#if 0
+	if (has_color) {
+		glDisable (GL_TEXTURE_2D);
+		glColor3b (color.x[0], color.x[1], color.x[2]); // color.x[3]);
+	} else {
+		glEnable (GL_TEXTURE_2D);
+	}
+#endif
 	glBegin (GL_TRIANGLES);
 		glTexCoord2s (uv0->x[0], uv0->x[1]);
 		glVertex3fv (v0->x);
