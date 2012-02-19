@@ -252,7 +252,137 @@ get_porta (sh4_t *ctx)
 	return pdtra;
 }
 
-/* On-chip Modules */
+/* DMA Controller */
+
+static void
+sh4_dmac_raise_irq (sh4_t *ctx, unsigned cause)
+{
+	VK_ASSERT (0);
+}
+
+/* TODO: DTR mode specifies SAR and DAR */
+/* TODO: DMAC Address error on:
+ * - DAR is in Area 7
+ * - non-existant on-chip address */
+
+static void
+sh4_dmac_tick_channel (sh4_t *ctx, unsigned ch)
+{
+	static const uint32_t ts_mask[8] = { 7, 0, 1, 3, 3, ~0, ~0, ~0 };
+	static const uint32_t ts_incr[8] = { 16, 1, 2, 4, 8, 0, 0, 0 };
+	uint32_t offs = ch * 0x10;
+	uint32_t dmaor = IREG_GET (4, DMAC_DMAOR);
+	uint32_t sar  = IREG_GET (4, DMAC_SAR0 + offs);
+	uint32_t dar  = IREG_GET (4, DMAC_DAR0 + offs);
+	uint32_t tcr  = IREG_GET (4, DMAC_TCR0 + offs);
+	uint32_t chcr = IREG_GET (4, DMAC_CHCR0 + offs);
+
+	/* Check that both DME and DE are set */
+	if (dmaor & chcr & 1) {
+		uint32_t ts = (chcr >> 4) & 7;
+		uint32_t sm = (chcr >> 12) & 3;
+		uint32_t dm = (chcr >> 14) & 3;
+		uint64_t tmp;
+
+		VK_ASSERT (ts < 5);
+		VK_ASSERT (sm != 3);
+		VK_ASSERT (dm != 3);
+
+		/* Check address and update AE if needed; bailing out and
+		 * sending IRQ */
+		if ((sar | dar) & ts_mask[ts]) {
+			/* TODO: Address Error: set AE, send IRQ, update
+			 * channel state */
+			VK_ASSERT (0);
+		}
+
+		/* Check if NMIF, AE or TE have been set */
+		if ((dmaor & 6) || (chcr & 2))
+			return;
+
+		/* RS != 0 is not supported  */
+		VK_ASSERT ((chcr & 0xF00) == 0);
+
+		/* "Transfer request issued?" is automatically satisfied
+		 * if the code reaches this point. I hope. */
+
+		VK_LOG (" ### DMAC: %08X ----> %08X", sar, dar);
+
+		switch (ts) {
+		case 0: /* 8 bytes */
+			sh4_get (ctx, 8, sar, &tmp);
+			sh4_put (ctx, 8, dar, tmp);
+			break;
+		case 1: /* 1 byte */
+			sh4_get (ctx, 1, sar, &tmp);
+			sh4_put (ctx, 1, dar, tmp);
+			break;
+		case 2: /* 2 bytes */
+			sh4_get (ctx, 2, sar, &tmp);
+			sh4_put (ctx, 2, dar, tmp);
+			break;
+		case 3: /* 4 bytes */
+			sh4_get (ctx, 4, sar, &tmp);
+			sh4_put (ctx, 4, dar, tmp);
+			break;
+		case 4: /* 32 bytes */
+			VK_ASSERT (0);
+			break;
+		}
+
+		sar = (sm == 1) ? (sar + ts_incr[ts]) :
+		      (sm == 2) ? (sar - ts_incr[ts]) : sar;
+
+		dar = (dm == 1) ? (dar + ts_incr[ts]) :
+		      (dm == 2) ? (dar - ts_incr[ts]) : dar;
+
+		if (--tcr) {
+			chcr |= 2; /* TE */
+			VK_ASSERT (!(chcr & 4)); /* IE */
+		}
+
+		IREG_PUT (4, DMAC_SAR0 + offs, sar);
+		IREG_PUT (4, DMAC_DAR0 + offs, dar);
+		IREG_PUT (4, DMAC_TCR0 + offs, tcr);
+		IREG_PUT (4, DMAC_CHCR0 + offs, chcr);
+		IREG_PUT (4, DMAC_DMAOR, dmaor);
+	}
+}
+
+static void
+sh4_dmac_tick (sh4_t *ctx)
+{
+	/* TODO: priorities (DMAOR.PR). Are they really that important? */
+
+	sh4_dmac_tick_channel (ctx, 0);
+	sh4_dmac_tick_channel (ctx, 1);
+	sh4_dmac_tick_channel (ctx, 2);
+	sh4_dmac_tick_channel (ctx, 3);
+}
+
+static void
+sh4_dmac_update_channel_state (sh4_t *ctx, unsigned ch)
+{
+	/* no-op */
+}
+
+static void
+sh4_dmac_update_state (sh4_t *ctx)
+{
+	sh4_dmac_update_channel_state (ctx, 0);
+	sh4_dmac_update_channel_state (ctx, 1);
+	sh4_dmac_update_channel_state (ctx, 2);
+	sh4_dmac_update_channel_state (ctx, 3);
+}
+
+void
+sh4_request_ddt (sh4_t *ctx, unsigned ch)
+{
+	VK_ASSERT (0);
+}
+
+/* On-chip Modules
+ * See Table A.1, "Address List" */
 
 static int
 sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
@@ -261,7 +391,6 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 
 	set_ptr (val, size, IREG_GET (size, addr));
 
-	/* See Table A.1, "Address List" */
 	switch (addr & 0xFFFFFF) {
 	case TMU_TSTR:
 		/* XXX pharrier */
@@ -281,7 +410,7 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 	case CCN_CCR:
 	case CCN_INTEVT:
 	case BSC_PCTRA:
-	case DMAC_DMAOR:
+	case DMAC_SAR0 ... DMAC_DMAOR:
 		VK_ASSERT (size == 4);
 		break;
 	default:
@@ -295,7 +424,6 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 {
 	VK_CPU_LOG (ctx, "IREG W%u %08X = %llX", size * 8, addr, val);
 
-	/* See Table A.1, "Address List" */
 	switch (addr & 0xFFFFFF) {
 	case 0x900000 ... 0x90FFFF: /* BSC_SDRM2 */
 	case 0x940000 ... 0x94FFFF: /* BSC_SDRM3 */
@@ -334,15 +462,7 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case BSC_WCR3:
 	case BSC_MCR:
 	case BSC_PCTRA:
-	case DMAC_TCR0:
-	case DMAC_TCR1:
-	case DMAC_TCR2:
-	case DMAC_TCR3:
-	case DMAC_CHCR0:
-	case DMAC_CHCR1:
-	case DMAC_CHCR2:
-	case DMAC_CHCR3:
-	case DMAC_DMAOR:
+	case DMAC_SAR0 ... DMAC_DMAOR:
 	case TMU_TCOR0:
 	case TMU_TCNT0:
 		VK_ASSERT (size == 4);
@@ -498,7 +618,7 @@ sh4_update_irqs (sh4_t *ctx)
 	unsigned level;
 	ctx->irq_pending = false;
 	/* NMI is accepted even if BL is set when:
-	 *  - the CPU is in SLEEP or STANDBY state
+	 *  - the CPU is in SLEEP or STANDBY state (not emulated)
 	 *  - ICR.NMIB is set
 	 */
 	if (ctx->irqs[16].state == VK_IRQ_STATE_RAISED) {
@@ -535,10 +655,13 @@ sh4_set_irq_state (vk_cpu_t *cpu, vk_irq_state_t state, unsigned level, uint32_t
 	ctx->irqs[level].state = state;
 	ctx->irqs[level].vector = vector;
 
+	/* Handle NMI */
 	if (level == 16) {
-		/* NMI, set ICR bit 15 */
-		uint16_t icr = IREG_GET (2, INTC_ICR) | 0x8000;
-		IREG_PUT (2, INTC_ICR, icr);
+		/* Set ICR bit 15 */
+		IREG_PUT (2, INTC_ICR, IREG_GET (2, INTC_ICR) | 0x8000);
+		/* Set DMAOR bit 2*/
+		IREG_PUT (4, DMAC_DMAOR, IREG_GET (4, DMAC_DMAOR) | 2);
+		sh4_dmac_update_state (ctx);
 	}
 
 	sh4_update_irqs (ctx);
@@ -721,7 +844,7 @@ tick (sh4_t *ctx)
 {
 	//sh4_bsc_tick (ctx);
 	//sh4_tmu_tick (ctx);
-	//sh4_dmac_tick (ctx);
+	sh4_dmac_tick (ctx);
 }
 
 static void
