@@ -337,7 +337,6 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 			/* XXX no idea if mirroring should occur within 4MB
 			 * sub-buffers */
 			set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, offs));
-			//set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, offs / 2)); /* XXX check this */
 		} else if (bank >= hikaru->maskrom_bank[0] &&
 		           bank <= hikaru->maskrom_bank[1]) {
 			/* ROMBD MASKROM */
