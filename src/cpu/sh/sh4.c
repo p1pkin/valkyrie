@@ -736,7 +736,10 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 
 	/* BOOTROM 0.92 */
 	case 0x0C0010A4:
-		VK_CPU_LOG (ctx, " ### IRQ: about to jump to hanlder @%08X", R(5))
+		VK_CPU_LOG (ctx, " ### IRQ: about to jump to handler @%08X", R(5))
+		break;
+	case 0x0C00BD18:
+		VK_CPU_LOG (ctx, " ### set_errno_and_init_machine_extended (%X)", R(4));
 		break;
 	case 0x0C00B938:
 		VK_CPU_LOG (ctx, " ### get_SAMURAI_params (%X, %X)", R(4), R(8));
