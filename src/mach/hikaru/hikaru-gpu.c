@@ -203,6 +203,8 @@
  * 15002844 32-bit  R	Unknown
  * 15002848 32-bit  R	Unknown
  *
+ * See PH:@0C0127B8
+ *
  * 1502C100 32-bit W	Unknown, = 9
  * 1502C104 32-bit W	Unknown, = 6
  *
@@ -828,6 +830,14 @@ cp_pop_pc (hikaru_gpu_t *gpu)
 }
 
 static int
+exp16 (int x)
+{
+	if (x == 0)
+		return 1;
+	return 0x10 << x;
+}
+
+static int
 hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 {
 	uint32_t inst[8];
@@ -1348,18 +1358,33 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x2C1:
 		/* 2C1	Set Tex Param 2
 		 *
-		 *	aaaa aaaa bbbb bbbb uuuu oooo oooo oooo		o = Opcode, a, b, u = Unknown */
+		 *	8887 77ll ll66 6555 uu-- oooo oooo oooo
+		 *
+		 * 8 = argument on stack
+		 * 7 = argument R7
+		 * 6 = log16 of argument R6
+		 * l = lower four bits of argument R4
+		 * 5 = log16 of argument R5
+		 * u = Upper two bits of argument R4
+		 *
+		 * See PH:@0C015BCC */
 		{
-			unsigned a = (inst[0] >> 24) & 0xFF;
-			unsigned b = (inst[0] >> 16) & 0xFF;
-			unsigned u = (inst[0] >> 12) & 0xF;
+			unsigned unk4 = ((inst[0] >> 22) & 0xF) |
+			                ((inst[0] >> 14) & 3) << 4;
+			unsigned unk5 = exp16 ((inst[0] >> 16) & 7);
+			unsigned unk6 = exp16 ((inst[0] >> 19) & 7);
+			unsigned unk7 = (inst[0] >> 26) & 7;
+			unsigned unk8 = (inst[0] >> 29) & 7;
 
-			VK_LOG ("GPU CMD %08X: Set Tex Param 2 [%08X]",
-			        gpu->pc, inst[0]);
+			VK_LOG ("GPU CMD %08X: Set Tex Param 2 [%08X] %u %u %u %u %u",
+			        gpu->pc, inst[0], unk4, unk5, unk6, unk7, unk8);
 
+			VK_ASSERT (!(inst[0] & 0x00003000));
+#if 0
 			gpu->ts_scratch._2C1_params.unk_a = a;
 			gpu->ts_scratch._2C1_params.unk_b = b;
 			gpu->ts_scratch._2C1_params.unk_u = u;
+#endif
 			gpu->pc += 4;
 		}
 		break;
@@ -1509,8 +1534,8 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		{
 			vec3f_t *v = (vec3f_t *) &inst[1];
 
-			VK_LOG ("GPU CMD %08X: Vertex { %f %f %f }",
-			        gpu->pc,
+			VK_LOG ("GPU CMD %08X: Vertex [%08X] { %f %f %f }",
+			        gpu->pc, inst[0],
 			        v->x[0], v->x[1], v->x[2]);
 
 			append_vertex (gpu, v);
