@@ -304,13 +304,17 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 		set_ptr (val, size, vk_buffer_get (hikaru->unkram[1], size, offs));
 	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
 		/* Unknown */
+		VK_CPU_LOG (hikaru->sh_current, "BANK 0A: R%u %08X %08X", size * 8, addr, bus_addr);
 	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
 		/* AICA 1 */
+		VK_CPU_LOG (hikaru->sh_current, "BANK 0C: R%u %08X %08X", size * 8, addr, bus_addr);
 	} else if (bus_addr >= 0x0D000000 && bus_addr <= 0x0DFFFFFF) {
 		/* AICA 2 */
+		VK_CPU_LOG (hikaru->sh_current, "BANK 0D: R%u %08X %08X", size * 8, addr, bus_addr);
 	} else if (bus_addr >= 0x0E000000 && bus_addr <= 0x0E00FFFF) {
 		/* Network Board */
 		/* XXX likely m68k code */
+		VK_CPU_LOG (hikaru->sh_current, "BANK 0E: R%u %08X %08X", size * 8, addr, bus_addr);
 	} else if (bus_addr >= 0x10000000 && bus_addr <= 0x3FFFFFFF) {
 		/* ROMBD */
 
@@ -333,14 +337,14 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 			/* XXX no idea if mirroring should occur within 4MB
 			 * sub-buffers */
 			set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, offs));
+			//set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, offs / 2)); /* XXX check this */
 		} else if (bank >= hikaru->maskrom_bank[0] &&
 		           bank <= hikaru->maskrom_bank[1]) {
 			/* ROMBD MASKROM */
 			/* XXX probably wrong, reads wrong data in AIRTRIX;
 			 * note that get_SAMURAI_params () handles address bit
 			 * 25 in a special way. */
-			set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, offs));
-			//set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, offs / 2)); /* XXX check this */
+			set_ptr (val, size, vk_buffer_get (hikaru->maskrom, size, offs));
 		}
 		return 0;
 
@@ -402,12 +406,16 @@ hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 		vk_buffer_put (hikaru->unkram[1], size, offs, val);
 	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
 		/* Unknown */
+		VK_CPU_LOG (hikaru->sh_current, "BANK 0A: W%u %08X %08X = %X", size * 8, addr, bus_addr, val);
 	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
 		/* AICA 1 */
+		VK_CPU_LOG (hikaru->sh_current, "BANK 0C: W%u %08X %08X = %X", size * 8, addr, bus_addr, val);
 	} else if (bus_addr >= 0x0D000000 && bus_addr <= 0x0DFFFFFF) {
 		/* AICA 2 */
+		VK_CPU_LOG (hikaru->sh_current, "BANK 0D: W%u %08X %08X = %X", size * 8, addr, bus_addr, val);
 	} else if (bus_addr >= 0x0E000000 && bus_addr <= 0x0E00FFFF) {
 		/* Network board */
+		VK_CPU_LOG (hikaru->sh_current, "BANK 0E: W%u %08X %08X = %X", size * 8, addr, bus_addr, val);
 	} else if (bus_addr >= 0x40000000 && bus_addr <= 0x41FFFFFF) {
 		/* Slave RAM */
 		vk_buffer_put (hikaru->ram_s, size, offs, val);
@@ -438,8 +446,6 @@ hikaru_memctl_exec (vk_device_t *dev, int cycles)
 		vk_buffer_t *dstbuf;
 		int count;
 
-		/* XXX mask bit 31 */
-
 		VK_LOG (" ### MEMCTL DMA: %08X -> %08X x %08X", src, dst, len);
 
 		srcbuf = NULL;
@@ -463,9 +469,6 @@ hikaru_memctl_exec (vk_device_t *dev, int cycles)
 			while (count--) {
 				uint32_t tmp;
 				tmp = vk_buffer_get (srcbuf, 4, src & 0x0FFFFFFF);
-			//	if (!(count & 0xFF))
-			//		VK_LOG (" ### MEMCTL DMA: %08X --[%08X]--> %08X, still %X",
-			//		        src, tmp, dst, count);
 				vk_buffer_put (dstbuf, 4, dst & 0x0FFFFFFF, tmp);
 				src += 4;
 				dst += 4;
