@@ -410,9 +410,11 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 	case CCN_CCR:
 	case CCN_INTEVT:
 	case BSC_PCTRA:
+	/* DMAC */
 	case DMAC_SAR0 ... DMAC_DMAOR:
 		VK_ASSERT (size == 4);
 		break;
+	/* Invalid/Unhandled */
 	default:
 		return -1;
 	}
@@ -462,11 +464,52 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case BSC_WCR3:
 	case BSC_MCR:
 	case BSC_PCTRA:
-	case DMAC_SAR0 ... DMAC_DMAOR:
 	case TMU_TCOR0:
 	case TMU_TCNT0:
 		VK_ASSERT (size == 4);
 		break;
+	/* DMAC */
+	case DMAC_SAR0:
+	case DMAC_SAR1:
+	case DMAC_SAR2:
+	case DMAC_SAR3:
+	case DMAC_DAR0:
+	case DMAC_DAR1:
+	case DMAC_DAR2:
+	case DMAC_DAR3:
+		VK_ASSERT (size == 4);
+		break;
+	case DMAC_TCR0:
+	case DMAC_TCR1:
+	case DMAC_TCR2:
+	case DMAC_TCR3:
+		VK_ASSERT (size == 4);
+		VK_ASSERT (!(val & 0xFF000000));
+		break;
+	case DMAC_CHCR0:
+	case DMAC_CHCR1:
+	case DMAC_CHCR2:
+	case DMAC_CHCR3:
+		{
+			unsigned ch = (addr >> 4) & 3;
+			uint32_t old = IREG_GET (size, addr);
+			VK_ASSERT (size == 4);
+			VK_ASSERT (!(val & 0x00F00008));
+			VK_ASSERT ((ch < 2) || !(val & 0x00050000));
+			/* Make sure that TE doesn't get set */
+			IREG_PUT (size, addr, (val & ~2) | (old & val & 2));
+		}
+		return 0;
+	case DMAC_DMAOR:
+		{
+			uint32_t old = IREG_GET (size, addr);
+			VK_ASSERT (size == 4);
+			VK_ASSERT (!(val & 0xFFFF7CF8));
+			/* Make sure that AE and NMIF don't get set */
+			IREG_PUT (size, addr, (val & ~6) | (old & val & 6));
+		}
+		return 0;
+	/* Invalid/Unhandled */
 	default:
 		return -1;
 	}
