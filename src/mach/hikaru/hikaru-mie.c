@@ -95,7 +95,9 @@ hikaru_mie_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 			/* no-op */
 			break;
 		case 0x08:
-			REG(0x08) ^= 0xF; /* XXX hack */
+			/* XXX hack: passes the check at @0C00B860 in all the
+			 * BOOTROM versions */
+			REG(0x08) ^= 0xF;
 			break;
 		case 0x0C:
 			REG(0x0C) = 0xFFFF & ~get_mainbd_switches (); /* active low */
