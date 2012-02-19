@@ -441,10 +441,6 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case BSC_RTCOR:
 	case BSC_RFCR:
 	case CPG_WTCSR:
-	case INTC_ICR:
-	case INTC_IPRA:
-	case INTC_IPRB:
-	case INTC_IPRC:
 	case TMU_TCR0:
 	case TMU_TCR1:
 	case TMU_TCR2:
@@ -467,6 +463,14 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case TMU_TCOR0:
 	case TMU_TCNT0:
 		VK_ASSERT (size == 4);
+		break;
+	/* INTC */
+	case INTC_ICR:
+	case INTC_IPRA:
+	case INTC_IPRB:
+	case INTC_IPRC:
+		/* TODO: update IRQ priorities */
+		VK_ASSERT (size == 2);
 		break;
 	/* DMAC */
 	case DMAC_SAR0:
