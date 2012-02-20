@@ -89,6 +89,7 @@
  */
 
 /* TODO: figure out what is 4Cxxxxxx */
+/* TODO: handle slave access */
 
 /*
  * GPU MMIOs at 15000000
@@ -689,13 +690,13 @@ get_texel32 (hikaru_gpu_t *gpu, unsigned x, unsigned y)
  * Register 1500000C points to a table in GPU CMDRAM, defaulting to
  * 483FC000. Each entry has this format:
  *	
- *	3FC000: 48300000	data address
- *	3FC004: 00002000	lenght (in bytes)
- *	3FC008: 0812C080	unknown (bitfield)
- *	3FC00C: 00000000	unknown	(byte)
+ *	3FC000: 48300000	Source address
+ *	3FC004: 00002000	Lenght (in bytes)
+ *	3FC008: 0812C080	Unknown (bitfield)
+ *	3FC00C: 00000000	Unknown	(byte)
  *
  * Data can be located (at least) at 48xxxxxx (CMDRAM) or at 41xxxxxx
- * (slave RAM?).
+ * (slave RAM).
  *
  * During the bootrom life-cycle, the data address to texture-like data (the
  * not-yet-converted ASCII texture.) However, the bootrom uploads this
@@ -718,8 +719,7 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 	/* Step the GPU 15 indirect DMA thing */
 	uint32_t entry[4], addr;
 
-	/* If there's no entries still to do, return */
-	if (!REG15 (0x10))
+	if (!(REG15 (0x14) & 1) || !REG15 (0x10))
 		return;
 
 	VK_ASSERT ((REG15 (0x0C) >> 24) == 0x48);
@@ -727,10 +727,10 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 	/* Read the IDMA table address in CMDRAM */
 	addr = (REG15 (0x0C) & 0xFFFFFF);
 
-	entry[0] = vk_buffer_get (gpu->cmdram, 4, addr+0x0); // address
-	entry[1] = vk_buffer_get (gpu->cmdram, 4, addr+0x4); // length
-	entry[2] = vk_buffer_get (gpu->cmdram, 4, addr+0x8); // two words
-	entry[3] = vk_buffer_get (gpu->cmdram, 4, addr+0xC); // byte, unknown
+	entry[0] = vk_buffer_get (gpu->cmdram, 4, addr+0x0);
+	entry[1] = vk_buffer_get (gpu->cmdram, 4, addr+0x4);
+	entry[2] = vk_buffer_get (gpu->cmdram, 4, addr+0x8);
+	entry[3] = vk_buffer_get (gpu->cmdram, 4, addr+0xC);
 
 	VK_LOG (" ## GPU 15 IDMA entry = [ %08X %08x %08X %08X <%u %u %X> ]",
 	        entry[0], entry[1], entry[2], entry[3],
@@ -743,8 +743,8 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 		REG15 (0x10) --;
 	}
 
-	/* XXX note that the code assumes that the IDMA may stop even if
-	 * there are still unprocessed entries. This probably means that
+	/* XXX note that the bootrom code assumes that the IDMA may stop even
+	 * if there are still unprocessed entries. This probably means that
 	 * the IDMA somehow stops processing when any other GPU IRQ fires */
 
 	VK_LOG (" ### GPU 15 IDMA status became = [ %08X %08X %08X ]",
@@ -754,7 +754,7 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 	if (REG15 (0x10) == 0) {
 		/* XXX I don't think it actually gets overwritten considering
 		 * that the IRL2 handler does it itself */
-		/* REG15 (0x14) = 0; */
+		REG15 (0x14) = 0;
 		hikaru_gpu_raise_irq (gpu, _15_IRQ_IDMA, 0);
 	}
 }
@@ -1853,17 +1853,13 @@ hikaru_gpu_end_processing (hikaru_gpu_t *gpu)
 	hikaru_gpu_raise_irq (gpu, _15_IRQ_DONE, _1A_IRQ_DONE);
 }
 
-/* FIXME check 15:10 and 15:14 role in IDMA and IRQ generation; this is
- * actually broken */
-
 static int
 hikaru_gpu_exec (vk_device_t *dev, int cycles)
 {
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
 
 	/* Step the GPU 15 indirect DMA thing */
-	if (REG15 (0x14) & 1)
-		hikaru_gpu_step_idma (gpu);
+	hikaru_gpu_step_idma (gpu);
 
 	/* Step the GPU 1A texture FIFO thing */
 	/* TODO */
@@ -1954,8 +1950,6 @@ hikaru_gpu_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 		case 0x88:
 			break;
 		case 0x14:
-			/* XXX hack, indirect DMA is always done */
-			REG15 (0x14) &= ~1;
 			break;
 		default:
 			return -1;
