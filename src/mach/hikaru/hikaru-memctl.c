@@ -181,7 +181,7 @@
  *
  * 04000000-043FFFFF	Unknown; GPU-related 4MB Area; Frame Buffer 1?
  * 06000000-063FFFFF	Unknown; GPU-related 4MB Area; Frame Buffer 2?
- * 0A000000-0A00FFFF	Unknown; IO-related?
+ * 0A000000-0A00FFFF	Unknown; ROMBD-related: determines the MASKROM offsets
  * 0C000000-0CFFFFFF	Sound Board 1
  * 0D000000-0DFFFFFF	Sound Board 2
  * 0E000000-0E00FFFF	Network Board
@@ -281,6 +281,7 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
 	hikaru_t *hikaru = (hikaru_t *) dev->mach;
 	uint32_t bank, offs, bus_addr;
+	bool log = false;
 
 	if (addr >= 0x04000000 && addr <= 0x0400003F) {
 		/* MMIOs */
@@ -304,17 +305,35 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 		set_ptr (val, size, vk_buffer_get (hikaru->unkram[1], size, offs));
 	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
 		/* Unknown */
-		VK_CPU_LOG (hikaru->sh_current, "BANK 0A: R%u %08X %08X", size * 8, addr, bus_addr);
+		log = true;
+		VK_ASSERT (size == 4);
+		/* Here's the thing: the value of bits 2 and 3 of 0C00F01C
+		 * (which is GBR 28), depends on whether these two ports
+		 * retain the value '0x19620217'.
+		 * 
+		 * If the value of the upper two bits is 4, then the EPROM
+		 * start at IC 29; they start at 35 otherwise. See
+		 * @0C004BF8.
+		 *
+		 * If the value is 8, then the MASKROM placement in the bus
+		 * address space is non-linear. See @0C004F82 for details.
+		 *
+		 * Judging by the ROM file extensions, we want these bits
+		 * to be 4 for everything except SGNASCAR, and 8 for
+		 * SGNASCAR (?). PHARRIER should be '4' type, but the ROM
+		 * zip contains two IC35's, one EPROM and one MASKROM.
+		 */
+		if (offs == 8)
+			set_ptr (val, size, 0x19620217);
 	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
 		/* AICA 1 */
-		VK_CPU_LOG (hikaru->sh_current, "BANK 0C: R%u %08X %08X", size * 8, addr, bus_addr);
+		log = true;
 	} else if (bus_addr >= 0x0D000000 && bus_addr <= 0x0DFFFFFF) {
 		/* AICA 2 */
-		VK_CPU_LOG (hikaru->sh_current, "BANK 0D: R%u %08X %08X", size * 8, addr, bus_addr);
+		log = true;
 	} else if (bus_addr >= 0x0E000000 && bus_addr <= 0x0E00FFFF) {
 		/* Network Board */
-		/* XXX likely m68k code */
-		VK_CPU_LOG (hikaru->sh_current, "BANK 0E: R%u %08X %08X", size * 8, addr, bus_addr);
+		log = true;
 	} else if (bus_addr >= 0x10000000 && bus_addr <= 0x3FFFFFFF) {
 		/* ROMBD */
 
@@ -328,24 +347,27 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 
 		if (bank == hikaru->eeprom_bank && offs == 0) {
 			/* ROMBD EEPROM */
-			set_ptr (val, size, 0);
+			set_ptr (val, size, 0xFFFFFFFF);
+			log = true;
 		} else if (!hikaru->has_rom) {
 			return 0;
 		} else if (bank >= hikaru->eprom_bank[0] &&
 		           bank <= hikaru->eprom_bank[1]) {
 			/* ROMBD EPROM */
-			/* XXX no idea if mirroring should occur within 4MB
-			 * sub-buffers */
-			set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, offs));
+			if (offs >= vk_buffer_get_size (hikaru->eprom)) {
+				set_ptr (val, size, 0);
+				log = true;
+			} else
+				set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, offs));
 		} else if (bank >= hikaru->maskrom_bank[0] &&
 		           bank <= hikaru->maskrom_bank[1]) {
 			/* ROMBD MASKROM */
-			/* XXX probably wrong, reads wrong data in AIRTRIX;
-			 * note that get_SAMURAI_params () handles address bit
-			 * 25 in a special way. */
-			set_ptr (val, size, vk_buffer_get (hikaru->maskrom, size, offs));
+			if (offs >= vk_buffer_get_size (hikaru->maskrom)) {
+				set_ptr (val, size, 0);
+				log = true;
+			} else
+				set_ptr (val, size, vk_buffer_get (hikaru->maskrom, size, offs));
 		}
-		return 0;
 
 	} else if (bus_addr >= 0x40000000 && bus_addr <= 0x41FFFFFF) {
 		/* Slave RAM */
@@ -354,6 +376,8 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 		VK_LOG (" addr=%X bus_addr=%X bank=%X eprom_bank=%X ", addr, bus_addr, bank, hikaru->eeprom_bank);
 		VK_ASSERT (0);
 	}
+	if (log)
+		VK_CPU_LOG (hikaru->sh_current, "MEMCTL R%u %08X [%08X]", size * 8, addr, bus_addr);
 	return 0;
 }
 
@@ -363,6 +387,7 @@ hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
 	hikaru_t *hikaru = (hikaru_t *) dev->mach;
 	uint32_t bank, offs, bus_addr;
+	bool log = false;
 
 	if (addr >= 0x04000000 && addr <= 0x0400003F) {
 		/* MEMCTL MMIOs */
@@ -405,16 +430,16 @@ hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 		vk_buffer_put (hikaru->unkram[1], size, offs, val);
 	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
 		/* Unknown */
-		VK_CPU_LOG (hikaru->sh_current, "BANK 0A: W%u %08X %08X = %X", size * 8, addr, bus_addr, val);
+		log = true;
 	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
 		/* AICA 1 */
-		VK_CPU_LOG (hikaru->sh_current, "BANK 0C: W%u %08X %08X = %X", size * 8, addr, bus_addr, val);
+		log = true;
 	} else if (bus_addr >= 0x0D000000 && bus_addr <= 0x0DFFFFFF) {
 		/* AICA 2 */
-		VK_CPU_LOG (hikaru->sh_current, "BANK 0D: W%u %08X %08X = %X", size * 8, addr, bus_addr, val);
+		log = true;
 	} else if (bus_addr >= 0x0E000000 && bus_addr <= 0x0E00FFFF) {
 		/* Network board */
-		VK_CPU_LOG (hikaru->sh_current, "BANK 0E: W%u %08X %08X = %X", size * 8, addr, bus_addr, val);
+		log = true;
 	} else if (bus_addr >= 0x40000000 && bus_addr <= 0x41FFFFFF) {
 		/* Slave RAM */
 		vk_buffer_put (hikaru->ram_s, size, offs, val);
@@ -424,6 +449,8 @@ hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 		VK_LOG (" addr=%X bus_addr=%X bank=%X eprom_bank=%X ", addr, bus_addr, bank, hikaru->eeprom_bank);
 		VK_ASSERT (0);
 	}
+	if (log)
+		VK_CPU_LOG (hikaru->sh_current, "MEMCTL W%u %08X [%08X] = %X", size * 8, addr, bus_addr, val);
 	return 0;
 }
 
