@@ -23,15 +23,43 @@
 #include "mach/hikaru/hikaru.h"
 #include "mach/hikaru/hikaru-memctl.h"
 
-/* TODO: handle the memctl apertures with manipulating the hikaur's mmaps
+/* TODO: handle the memctl apertures with manipulating the hikaru's mmaps
  * directly. */
 
 /*
  * Memory Controller
  * =================
  *
- * TODO.
+ * The Hikaru mainboard is connected to a number of external boards: the
+ * ROM board (ROMBD), the primary sound board, an optional sound board, an
+ * optional network board.
  *
+ * Access to these devices is performed through an 'external BUS'. The
+ * memory controller decides which external device is mapped to what
+ * part of the SH-4 address space.
+ *
+ * There are (very likely) two of these memory controllers, one for each
+ * SH-4 CPU. They are likely the two xxx-xxxxx SEGA ICs conveniently placed
+ * in the proximity of the two CPUs.
+ *
+ * Aside from memory device mapping, they also provide a DMA facility to
+ * transfer data directly from different devices on the external BUS.
+ *
+ * Mapping
+ * =======
+ *
+ * Direct access to these extenral devices is possible by mapping them in
+ * the SH-4 with the memory controller: in particular, they get mapped within
+ * a couple of apertures: one is located at 02000000-03FFFFFF, the other
+ * at 16000000-17FFFFFF. Other portions of the SH-4 address space (possibly
+ * all of it) may be managed in a similar way, but apparently their emulation
+ * is not critical (the mapping don't seem to change.)
+ *
+ * What is mapped to the apertures is determined by the  MMIOs. See
+ * get_bank_for_addr () for the details. Each byte in the MMIOs (+10, +14,
+ * and +18 are confirmed) controls a 16 MB aperture. See @0C006688.
+ *
+
  * MMIO Ports
  * ==========
  *
@@ -115,127 +143,245 @@
  *		    A2 to access the SNDBD2:027028BC
  *		    See @0C001748
  *
- * Note: other interesting evidence is at PH:@0C0124B8, which translates all
- * addresses which are set to banks:
- *
- *  0x18 = YYxxxxxx  --->  returns 0xA0xxxxxx
- *  0x19 = YYxxxxxx  --->  returns 0xA1xxxxxx
- *  0x1A = YYxxxxxx  --->  returns 0xA2xxxxxx
- *  0x1B = YYxxxxxx  --->  returns 0xA3xxxxxx
- *
- * Which makes perfect sense as far as A2 and A3 go (the ROMBD area).
+ * Note: other interesting evidence is at PH:@0C0124B8.
  *
  * Note: accessing 3C may alter other registers; for instance, the code at
  * @0C001748  saves/restores 04000018 before accessing 0400003C.
  *
- * Accessing the bus (apertures) may give rise to errors, both during DMA
- * operation and during normal access; these errors get reported in E and F.
+ * Note: accessing the bus (apertures) may give rise to errors, both during
+ * DMA operation and during normal access; these errors get reported in
+ * fields E and F.
  *
  *
  * DMA Operation
  * =============
  *
  * The DMA is likely used to transfer data from the main RAM to devices on
- * different boards (ROMBD, SNDBD, SNDBD2, NETBD). The address space however
- * is different from that of the SH-4 CPUs, and is still largely unknown.
- *
- * 0x70000000-0x72000000	RAM [m]	Note 0x70 - 0x60 = 0x10, makes no sense
- *
- * The addresses here may be related to the addresses computed in @0C006608.
- *
- * Setting c to 1 initiates the DMA operation. After completion, the MEMCTL
- * raises IRL 1 on the master SH-4, and sets bit 0x1000 in 04000004 and its
- * corresponding error field.
+ * different boards (ROMBD, SNDBD, SNDBD2, NETBD). DMA operation is initiated
+ * by setting bit 24 of +38. Upon termination, the MEMCTL raises IRL 1 on
+ * the master SH-4, and sets bit 12 of +04 and its corresponding error field.
  *
  * See @0C008640 for more details XXX
  *
- *
- * External Boards
- * ===============
- *
- * The hikaru mainboard is connected to a number of external boards:
- *  - the ROM board (ROMBD)
- *  - the sound board
- *  - an optional sound board
- *  - an optional network board
- *
- * Access to these boards is performed through the region at 02000000-03FFFFFF,
- * a 32 MB aperture. What hardware is currently mapped at the aperture is
- * decided by the memory controller at 04000000. The two 16MB halves are
- * mapped independently of each other. There may be more than one aperture
- * in the memory map.
- *
- * Known mapping registers are: 04000010, 04000014, 04000018. Each byte maps
- * a whole 16MB range.
- *
- * See @0C006608 for more information on the mapping between the bank and the
- * affected memory range. Apparently when setting:
- *
- *	[0400001n + aperture & 3] = (addr_to_be_mapped >> 24)
- *
- * the resulting address is ((aperture - 0x60) << 24) | offset
+ * Note: it may be the case that bit 12 and the error field are mutually
+ * exclusive.
  *
  *
- * External Bus Memory Map
- * =======================
+ * External BUS Address Space
+ * ==========================
  *
- * 04000000-043FFFFF	Unknown; GPU-related 4MB Area; Frame Buffer 1?
- * 06000000-063FFFFF	Unknown; GPU-related 4MB Area; Frame Buffer 2?
- * 0A000000-0A00FFFF	Unknown; ROMBD-related: determines the MASKROM offsets
+ * The address space of the external BUS is as follows:
+ *
+ * 04000000-043FFFFF	Unknown; GPU-related Area (Frame Buffer?)
+ * 06000000-063FFFFF	Unknown; GPU-related Area (Frame Buffer?)
+ * 0A000000-0A00FFFF	Unknown; ROMBD-related
  * 0C000000-0CFFFFFF	Sound Board 1
- * 0D000000-0DFFFFFF	Sound Board 2
- * 0E000000-0E00FFFF	Network Board
+ * 0D000000-0DFFFFFF	Sound Board 2 [Optional]
+ * 0E000000-0E00FFFF	Network Board [Optional]
  * 10000000-3FFFFFFF	ROMBD (EPROM, MASKROM, EEPROM get mapped here)
  * 40000000-41FFFFFF	Slave RAM
  * 48000000-483FFFFF	GPU CMDRAM
+ * 4C000000-4C3FFFFF	GPU Unknown
  * 70000000-71FFFFFF	Master RAM
  *
- * 90000000-91FFFFFF = 10000000-11FFFFFF	EPROM (?)
- * A0000000-A1FFFFFF = 20000000-21FFFFFF	MASKROM (?)
+ * Note: apparently the external bus is 31 bits wide or less. The MSB is
+ * used in mysterious ways. For instance, the code uses the MEMCTL DMA to
+ * read ROM data, but accesses the following ranges:
  *
- * Apparently addresses are 31 bits wide; the MSB is used in mysterious ways
- * (auto-increment the address on access like something I read about naomi?)
+ * 90000000-9FFFFFFF - 80000000 = 10000000-1FFFFFFF	EPROM
+ * A0000000-AFFFFFFF - 80000000 = 20000000-2FFFFFFF	MASKROM
  *
  *
  * Rom Board (ROMBD)
  * =================
  *
- * The ROMBD EPROMs and Mask ROMs are accessible through the memctl bus, at
- * the 02xxxxxx and 03xxxxxx apertures.
+ * There are two known types of ROM board (which are neatly documented in
+ * the MAME hikaru driver.) The EPROM/MASKROM external BUS address can be
+ * recovered from information at offset +13C of the EPROM data.
  *
- * The bootrom tries to figure out whether the EPROM is a 16MB one (up to 4
- * x 4MB EPROMs). The actual position of the ROMBD EEPROM serial device
- * depends on the address of the EPROMs and MASKROMs. The bootrom looks for
- * the 'SAMURA' ASCII string at both 03000000 and 0340000x.
+ * This is what this data looks like:
  *
- *  The EPROMs can be mapped in banks 0x10-0x13 or 0x18-0x1B. The BootROM checks
- *  whether the 'SAMURAI' string appears at offset +0 at any of these locations
- *  (mapped at 0x2xxxxxxx and 0x3xxxxxxx through the memory controller.)
- * 
- *  If the 'SAMURAI' tag is not found, then:
- *   - the EEPROM is found at bank 0x14
- * 
- *  If the 'SAMURAI' tag is found in bank 0x10, then:
- *   - the EEPROM is found at bank 0x14
- *   - the MaskROMs are found at bank 0x20 onwards
- * 
- *  If the 'SAMURAI' tag is found in bank 0x10, then:
- *   - the EEPROM is found at bank 0x1C
- *   - the MaskROMs are found at bank 0x30 onwards
- * 
- *  Other banks seem not to be affected by the presence/offset of the ROMBD (which
- *  makes sense, since the HW mapped to those banks is not _physically_ on the
- *  ROMBD.)
- * 
- *  The ROMs are also checked for masking (I think) at offset +4MB, possibly to
- *  check whether the EPROMs are 2MB+2MB (as for braveff.)
+ *	AIRTRIX (Type 1)		ICs	Size	
+ *	================		===	====	
+ *	
+ *	0003 fee8 c889 97c2 620c	29,30	2 x 4MB	= 8, OK
+ *	ffff 0000 0000 0000 0000	 		
+ *	ffff 0000 0000 0000 0000	 		
+ *	ffff 0000 0000 0000 0000	 		
+ *	0005 b9a5 9e67 a52a bce0	37,38	2 x 16MB = 32, OK
+ *	ffff 0000 0000 0000 0000	 
+ *	0005 dabb b621 4bd4 5e6b	41,42	2 x 16MB = 32, OK
+ *	ffff 0000 0000 0000 0000	 
+ *	0005 0d06 ad63 790f a27e	45,46	2 x 16MB = 32, OK
+ *	ffff 0000 0000 0000 0000	 
+ *	0005 bdbb 4f01 14a7 6a4e	49,50	2 x 16MB = 32, OK
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	
+ *	BRAVEFF (Type ?)		ICs	Size	
+ *	================		===	====	
+ *	
+ *	0002 0000 0000 0000 0000 	29,30	2 x 2MB = 4, OK
+ *	0002 be43 7023 7077 f161	31,32	2 x 2MB = 4, OK
+ *	0002 c60d d4f0 b533 8f66	33,34	2 x 2MB = 4, OK
+ *	ffff 0000 0000 0000 0000 
+ *	0004 8613 2876 3700 2f6d 		2 x 4MB = 8, OK
+ *	0004 f545 a454 b97e bb4c 
+ *	0004 d6ff 6fe3 df40 f343 
+ *	0004 e3b6 2f23 b2b6 61c7 
+ *	0004 4792 7015 853b faf1 
+ *	0004 c44b 7a18 24dc e336 
+ *	0004 e3b0 e492 17bb e589 
+ *	0004 cd9f 08f3 3183 cd5c 
+ *	0004 8fb6 3fa8 ebbb 9ed9 
+ *	0004 2316 c644 66cc b590 
+ *	0004 47d0 320d e677 85ad 
+ *	0004 d76d cf62 4d9e 8564 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	
+ *	PHARRIER			ICs	Size	
+ *	========			===	====	
+ *	
+ *	0003 0000 0000 0000 0000	29,30	2 x 4MB 
+ *	0003 388c 13b5 d289 5910	31,32	2 x 4MB
+ *	0003 09a8 578f 73e5 94f7	33,34	2 x 4MB
+ *	0003 b1de 6dad 9019 6dd5	35,36	2 x 4MB
+ *	0005 7f16 2c37 1f9f aae5	37,38	2 x 16MB
+ *	ffff 0000 0000 0000 0000	
+ *	0005 986c 8d7a bd1d 5304	41,42	2 x 16MB
+ *	ffff 0000 0000 0000 0000	
+ *	0005 9784 b33d cb75 b08b	45,46	2 x 16MB
+ *	ffff 0000 0000 0000 0000	
+ *	0005 5056 b3a9 cbde be85	49,50	2 x 16MB
+ *	ffff 0000 0000 0000 0000	
+ *	0005 3d36 05bf d629 8ed6	53,54	2 x 16MB
+ *	ffff 0000 0000 0000 0000	
+ *	0005 b9f5 0082 5875 8163	57,58	2 x 16MB
+ *	ffff 0000 0000 0000 0000	
+ *	0005 b19d e7cc 158c d180	61,62	2 x 16MB
+ *	ffff 0000 0000 0000 0000	
+ *	0005 34bc 677b 5524 349e	65,66	2 x 16MB
+ *	ffff 0000 0000 0000 0000	
+ *	
+ *	PODRACE (Type 2)		ICs	Size	
+ *	================		===	====	
+ *	
+ *	0003 0000 0000 0000 0000	29,30	2 x 4MB
+ *	0003 5f01 4174 3594 38b3	31,32	2 x 4MB
+ *	ffff 0000 0000 0000 0000	
+ *	ffff 0000 0000 0000 0000	
+ *	0004 7993 8e18 4d44 d239	37,38	2 x 16MB
+ *	0004 4135 beab f0c8 04e2	39,40	2 x 16MB
+ *	0004 9532 4c1c 925d 02fb	41,42	2 x 16MB
+ *	0004 0809 7050 72bc 9311	43,44	2 x 16MB
+ *	0004 de84 9d8a 7a5c e7fc	45,46	2 x 16MB
+ *	0004 6806 1392 edf1 7bd1	47,48	2 x 16MB
+ *	0004 b82d e114 5792 e5e5	49,50	2 x 16MB
+ *	0004 3af3 a97c a8cc 721d	51,52	2 x 16MB
+ *	0004 ced7 d3cf 6b67 fc76	53,54	2 x 16MB
+ *	0004 586c 6954 13a0 db38	55,56	2 x 16MB
+ *	0004 4f03 42bf 8ea6 adb6	57,58	2 x 16MB
+ *	0004 8645 fc30 3847 ca6b	59,60	2 x 16MB
+ *	0004 4140 01c4 ebe6 8085	61,62	2 x 16MB
+ *	0004 b68b 7467 4715 4787	63,64	2 x 16MB
+ *	0004 3cd6 144a e5d3 ba35	65,66	2 x 16MB
+ *	0004 e668 08ed 1fe8 c4a1	67,68	2 x 16MB
+ *	
+ *	SGNASCAR (Type 2)		ICs	Size	
+ *	=================		===	====	
+ *	
+ *	0003 0000 0000 0000 0000	35,36	2 x 4MB
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	0005 0352 d263 49fd 4ad3	19,20	2 x 16MB 
+ *	0005 e717 d635 3637 0e8e	21,22
+ *	0005 4001 8dab c65d bde3	23,24
+ *	0005 615c 293d 7507 1d85	25,26
+ *	0005 90a2 eccc 2b1e 2f9b	27,28
+ *	0005 c98b 3ffb 51e3 701b	29,30
+ *	0005 523f 2979 953c 2e5c	31,32
+ *	0005 28cf 283f f17b 74fb	33,34	2 x 16MB 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
+ *	ffff 0000 0000 0000 0000 
  *
- * Bit 25 of the bus address may be some kind of magic 'this address space is
- * actually half the width you thought and every real byte is mirrored in a
- * 16-bitword' bit. See @0C00B938. This may also be related to the fact that
- * MASKROMs are (likely) hosted at bank 0x20+ of the bus.
+ * The mapping from IC numbers to entries has been determined by matching
+ * the CRCs in the entries and the CRC values reported in the MAME driver.
  *
- * For a lot of interesting details, see @0C004ED2 (rombd_test)
+ * Each entry (10 bytes) can be defined like this:
+ *
+ *	struct {
+ *		uint16_t log_size;
+ *		uint16_t bytesum_lo;
+ *		uint16_t wordsum_lo;
+ *		uint16_t bytesum_hi;
+ *		uint16_t wordsum_hi;
+ *	} rom_layout[4+16];
+ *
+ * and describes the size and CRC for an IC pair: the first four entries
+ * describe the 
+ *
+ * Given the i'th entry, the size and location of an IC (pair) can be
+ * computed as follows (see @0C004ED2):
+ *
+ *	base = samurai_tag_at (0x18000000) ? 8 :
+ *	       samurai_tag_at (0x10000000) ? 0 : 0;
+ *	
+ *	size = 1*MB << rom_layout[i].log_size
+ *	
+ *	if (i < 4)
+ *		///////////////////////////////////////////
+ *		// EPROM
+ *		// SAMURAI at 10000000 -> base = 0 -> EPROM at 10,11,12,13
+ *		// SAMURAI at 18000000 -> base = 8 -> EPROM at 18,19,1A,1B
+ *		// each section is 4 or 8 MB (2 ICs)
+ *		///////////////////////////////////////////
+ *		bank = base + 0x10 + i
+ *
+ *	else if ((_0C00F01C & C) != 8)
+ *		///////////////////////////////////////////
+ *		// MASKROM, type 1
+ *		// SAMURAI at 10000000 -> base = 0 -> MASKROM at 20,21,22,23,...
+ *		// SAMURAI at 18000000 -> base = 8 -> MASKROM at 30,31,32,33,...
+ *		// each section is 16 or 32 MB (2 ICs)
+ *		///////////////////////////////////////////
+ *		bank = base * 2 + 0x1C + i 
+ *
+ *	else
+ *		///////////////////////////////////////////
+ *		// MASKROM, type 2
+ *		// SAMURAI at 10000000 -> base = 0 -> MASKROM at 20,22,24,26,...
+ *		// SAMURAI at 18000000 -> base = 8 -> MASKROM at 30,32,34,36,...
+ *		// each section is 16 or 32 MB (2 ICs)
+ *		///////////////////////////////////////////
+ *		bank = base * 2 + 0x20 + (i - 4) * 2
+ *	
+ *	bus_addr = bank >> 24
+ *	if (size < 8*MB)
+ *		bus_addr += 4*MB
+ *
+ * Here base is determined by the bootrom (see @0C00B834) by looking for
+ * the 'SAMURAI' string at both BUS addresses 18000000 and 10000000. If
+ * the string is found at bank 18, then the base is 8; it's 0 otherwise.
+ *
+ * What IC is mapped to what entry is determined by bits 2 and 3 of 0C00F01C.
+ * See memctl_get () and @0C004B32. 
  */
 
 typedef struct {
