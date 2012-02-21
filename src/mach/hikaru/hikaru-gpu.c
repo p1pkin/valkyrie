@@ -255,12 +255,17 @@
  * Unknown
  * -------
  *
- * 1A00001C	32-bit	RO	Unknown status
- *				 bits 23, 24 affect the argument of command 0781 
- *				 affects how much stuff is sent to the TEX FIFO in pharrier           \ both get written to the same GBR (0C00F070.w)
- *				Note: bits may be related to 48xxxxxx and 4Cxxxxxx
+ * 1A00001C	32-bit	RO	Unknown Counter
+ *				 - Mask used in PH is 003FF800
+ *				 - Bits 23,24 affect the argument of command 781
+ *				 - Affects how much stuff is sent to the 1A04
+ *				   FIFO in PH.
+ *				 - Gets stored into [0C00F070].w
+ *				See PH:@0C01C158.
+ *
  * 1A000020	32-bit	RO	Unknown status
- *				 bit 0 = frame type; See @0C008130, selects the GPRs used for GPU upload /
+ *				 - Gets stored into [0C00F070].w
+ *				 bit 0 = frame type; See @0C008130, selects the GPRs used for GPU upload
  *
  * 1A000024	32-bit	RO	b0 is related to:
  *				 - 15000058 bits 0,1 and GPU jump instructions, see @0C0018B4
