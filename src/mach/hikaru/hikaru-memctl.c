@@ -335,7 +335,8 @@
  *	} rom_layout[4+16];
  *
  * and describes the size and CRC for an IC pair: the first four entries
- * describe the 
+ * describe the EPROMs, the remaining 16 the MASKROMs. If the first word
+ * is FFFF, those ICs are not populated.
  *
  * Given the i'th entry, the size and location of an IC (pair) can be
  * computed as follows (see @0C004ED2):
