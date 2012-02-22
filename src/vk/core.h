@@ -318,7 +318,7 @@ signext_n_64 (const uint64_t in, const unsigned sign_bit)
 	do { \
 		fprintf (stderr, "ERROR: %s:%d %s(): "fmt_"\n", \
 		         __FILE__, __LINE__, __FUNCTION__, ##args_); \
-		exit (1); \
+		assert (0); \
 	} while (0);
 
 /** If the condition fails, prints a formatted message, prefixed by 'ERROR',
