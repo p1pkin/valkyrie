@@ -65,14 +65,14 @@ I (movi)
 I (movwi)
 {
 	/* TODO: only add 2 in a delay slot */
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 	RN = (int32_t)(int16_t) R16 (ctx, (PC + 4) + (_UIMM8 << 1));
 }
 
 I (movli)
 {
 	/* TODO: only add 2 in a delay slot */
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 	RN = R32 (ctx, ((PC + 4) & ~3) + (_UIMM8 << 2));
 }
 
