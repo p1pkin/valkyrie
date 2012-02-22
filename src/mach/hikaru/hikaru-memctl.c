@@ -453,7 +453,6 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
 		/* Unknown */
 		log = true;
-		VK_ASSERT (size == 4);
 		/* Here's the thing: the value of bits 2 and 3 of 0C00F01C
 		 * (which is GBR 28), depends on whether these two ports
 		 * retain the value '0x19620217'.
