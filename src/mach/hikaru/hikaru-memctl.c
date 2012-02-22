@@ -392,56 +392,17 @@ typedef struct {
 	bool master;
 } hikaru_memctl_t;
 
-static uint32_t
-get_bank_for_addr (hikaru_memctl_t *memctl, uint32_t addr)
-{
-	uint32_t reg;
-	switch (addr >> 24) {
-	case 0x02:
-		reg = 0x1A;
-		break;
-	case 0x03:
-		reg = 0x1B;
-		break;
-	case 0x16:
-		reg = 0x12;
-		break;
-	case 0x17:
-		reg = 0x13;
-		break;
-	case 0x18:
-		reg = 0x1C;
-		break;
-	default:
-		return 0;
-	}
-	return vk_buffer_get (memctl->regs, 1, reg);
-}
-
 /* TODO modify the hikaru->mmap_[ms] instead */
 
 /* TODO raise m/s bus error on bad access */
 
 static int
-hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
+memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void *val)
 {
-	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
-	hikaru_t *hikaru = (hikaru_t *) dev->mach;
-	uint32_t bank, offs, bus_addr;
+	hikaru_t *hikaru = (hikaru_t *) memctl->base.mach;
+	uint32_t bank = bus_addr >> 24;
+	uint32_t offs = bus_addr & 0xFFFFFF;
 	bool log = false;
-
-	if (addr >= 0x04000000 && addr <= 0x0400003F) {
-		/* MMIOs */
-		set_ptr (val, size, vk_buffer_get (memctl->regs, size, addr & 0x3F));
-		return 0;
-	}
-
-	bank = get_bank_for_addr (memctl, addr) & 0x7F;
-	if (!bank)
-		return -1;
-
-	offs = addr & 0xFFFFFF;
-	bus_addr = (bank << 24) | offs;
 
 	set_ptr (val, size, 0);
 	if (bus_addr >= 0x04000000 && bus_addr <= 0x043FFFFF) {
@@ -500,11 +461,10 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 		} else if (bank >= hikaru->eprom_bank[0] &&
 		           bank <= hikaru->eprom_bank[1]) {
 			/* ROMBD EPROM */
-			if (offs >= vk_buffer_get_size (hikaru->eprom)) {
-				set_ptr (val, size, 0);
-				log = true;
-			} else
-				set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, offs));
+			uint32_t num = bank - hikaru->eprom_bank[0]; /* 0 ... 3 */
+			uint64_t tmp;
+			tmp = vk_buffer_get (hikaru->eprom, size, (offs & 0x7FFFFF) + (num * 8*MB));
+			set_ptr (val, size, tmp);
 		} else if (bank >= hikaru->maskrom_bank[0] &&
 		           bank <= hikaru->maskrom_bank[1]) {
 			/* ROMBD MASKROM */
@@ -519,21 +479,104 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 		/* Slave RAM */
 		set_ptr (val, size, vk_buffer_get (hikaru->ram_s, size, offs));
 	} else {
-		VK_LOG (" addr=%X bus_addr=%X bank=%X eprom_bank=%X ", addr, bus_addr, bank, hikaru->eeprom_bank);
+		VK_LOG (" bus_addr=%X bank=%X eprom_bank=%X ", bus_addr, bank, hikaru->eeprom_bank);
 		VK_ASSERT (0);
 	}
 	if (log)
-		VK_CPU_LOG (hikaru->sh_current, "MEMCTL R%u %08X [%08X]", size * 8, addr, bus_addr);
+		VK_CPU_LOG (hikaru->sh_current, "MEMCTL R%u %08X", size * 8, bus_addr);
+}
+
+static int
+memctl_bus_put (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, uint64_t val)
+{
+	hikaru_t *hikaru = (hikaru_t *) memctl->base.mach;
+	uint32_t bank = bus_addr >> 24;
+	uint32_t offs = bus_addr & 0xFFFFFF;
+	bool log = false;
+
+	if (bus_addr >= 0x04000000 && bus_addr <= 0x043FFFFF) {
+		/* Unknown, A */
+		vk_buffer_put (hikaru->unkram[0], size, offs, val);
+	} else if (bus_addr >= 0x06000000 && bus_addr <= 0x063FFFFF) {
+		/* Unknown, B */
+		vk_buffer_put (hikaru->unkram[1], size, offs, val);
+	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
+		/* Unknown */
+		log = true;
+	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
+		/* AICA 1 */
+		log = true;
+	} else if (bus_addr >= 0x0D000000 && bus_addr <= 0x0DFFFFFF) {
+		/* AICA 2 */
+		log = true;
+	} else if (bus_addr >= 0x0E000000 && bus_addr <= 0x0E00FFFF) {
+		/* Network board */
+		log = true;
+	} else if (bus_addr >= 0x40000000 && bus_addr <= 0x41FFFFFF) {
+		/* Slave RAM */
+		vk_buffer_put (hikaru->ram_s, size, offs, val);
+	} else if (bank == hikaru->eeprom_bank) {
+		/* ROMBD EEPROM */
+	} else {
+		VK_LOG (" bus_addr=%X bank=%X eprom_bank=%X ", bus_addr, bank, hikaru->eeprom_bank);
+		VK_ASSERT (0);
+	}
+	if (log)
+		VK_CPU_LOG (hikaru->sh_current, "MEMCTL W%u %08X = %X", size * 8, bus_addr, val);
 	return 0;
+}
+
+static uint32_t
+get_bank_for_addr (hikaru_memctl_t *memctl, uint32_t addr)
+{
+	uint32_t reg;
+	switch (addr >> 24) {
+	case 0x02:
+		reg = 0x1A;
+		break;
+	case 0x03:
+		reg = 0x1B;
+		break;
+	case 0x16:
+		reg = 0x12;
+		break;
+	case 0x17:
+		reg = 0x13;
+		break;
+	case 0x18:
+		reg = 0x1C;
+		break;
+	default:
+		return 0;
+	}
+	return vk_buffer_get (memctl->regs, 1, reg);
+}
+
+static int
+hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
+{
+	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
+	uint32_t bank, bus_addr;
+
+	if (addr >= 0x04000000 && addr <= 0x0400003F) {
+		/* MMIOs */
+		set_ptr (val, size, vk_buffer_get (memctl->regs, size, addr & 0x3F));
+		return 0;
+	}
+
+	bank = get_bank_for_addr (memctl, addr) & 0x7F;
+	if (!bank)
+		return -1;
+
+	bus_addr = (bank << 24) | (addr & 0xFFFFFF);
+	return memctl_bus_get (memctl, size, bus_addr, val);
 }
 
 static int
 hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 {
 	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
-	hikaru_t *hikaru = (hikaru_t *) dev->mach;
-	uint32_t bank, offs, bus_addr;
-	bool log = false;
+	uint32_t bank, bus_addr;
 
 	if (addr >= 0x04000000 && addr <= 0x0400003F) {
 		/* MEMCTL MMIOs */
@@ -565,39 +608,8 @@ hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 	if (!bank)
 		return -1;
 
-	offs = addr & 0xFFFFFF;
-	bus_addr = (bank << 24) | offs;
-
-	if (bus_addr >= 0x04000000 && bus_addr <= 0x043FFFFF) {
-		/* Unknown, A */
-		vk_buffer_put (hikaru->unkram[0], size, offs, val);
-	} else if (bus_addr >= 0x06000000 && bus_addr <= 0x063FFFFF) {
-		/* Unknown, B */
-		vk_buffer_put (hikaru->unkram[1], size, offs, val);
-	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
-		/* Unknown */
-		log = true;
-	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
-		/* AICA 1 */
-		log = true;
-	} else if (bus_addr >= 0x0D000000 && bus_addr <= 0x0DFFFFFF) {
-		/* AICA 2 */
-		log = true;
-	} else if (bus_addr >= 0x0E000000 && bus_addr <= 0x0E00FFFF) {
-		/* Network board */
-		log = true;
-	} else if (bus_addr >= 0x40000000 && bus_addr <= 0x41FFFFFF) {
-		/* Slave RAM */
-		vk_buffer_put (hikaru->ram_s, size, offs, val);
-	} else if (bank == hikaru->eeprom_bank) {
-		/* ROMBD EEPROM */
-	} else {
-		VK_LOG (" addr=%X bus_addr=%X bank=%X eprom_bank=%X ", addr, bus_addr, bank, hikaru->eeprom_bank);
-		VK_ASSERT (0);
-	}
-	if (log)
-		VK_CPU_LOG (hikaru->sh_current, "MEMCTL W%u %08X [%08X] = %X", size * 8, addr, bus_addr, val);
-	return 0;
+	return memctl_bus_put (memctl, size,
+	                       (bank << 24) | (addr & 0xFFFFFF), val);
 }
 
 static int
