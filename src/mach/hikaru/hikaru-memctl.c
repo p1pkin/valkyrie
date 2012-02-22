@@ -477,10 +477,10 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 
 	} else if (bus_addr >= 0x40000000 && bus_addr <= 0x41FFFFFF) {
 		/* Slave RAM */
-		set_ptr (val, size, vk_buffer_get (hikaru->ram_s, size, offs));
+		set_ptr (val, size, vk_buffer_get (hikaru->ram_s, size, bus_addr & 0x01FFFFFF));
 	} else if (bus_addr >= 0x70000000 && bus_addr <= 0x71FFFFFF) {
 		/* Master RAM */
-		set_ptr (val, size, vk_buffer_get (hikaru->ram_m, size, offs));
+		set_ptr (val, size, vk_buffer_get (hikaru->ram_m, size, bus_addr & 0x01FFFFFF));
 	} else {
 		VK_LOG (" bus_addr=%X bank=%X eprom_bank=%X ", bus_addr, bank, hikaru->eeprom_bank);
 		VK_ASSERT (0);
@@ -518,10 +518,10 @@ memctl_bus_put (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, uint6
 		log = true;
 	} else if (bus_addr >= 0x40000000 && bus_addr <= 0x41FFFFFF) {
 		/* Slave RAM */
-		vk_buffer_put (hikaru->ram_s, size, offs, val);
+		vk_buffer_put (hikaru->ram_s, size, bus_addr & 0x01FFFFFF, val);
 	} else if (bus_addr >= 0x70000000 && bus_addr <= 0x71FFFFFF) {
 		/* Master RAM */
-		vk_buffer_put (hikaru->ram_m, size, offs, val);
+		vk_buffer_put (hikaru->ram_m, size, bus_addr & 0x01FFFFFF, val);
 	} else if (bank == hikaru->eeprom_bank) {
 		/* ROMBD EEPROM */
 	} else {
