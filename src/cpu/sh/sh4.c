@@ -891,7 +891,7 @@ tick (sh4_t *ctx)
 {
 	//sh4_bsc_tick (ctx);
 	//sh4_tmu_tick (ctx);
-	sh4_dmac_tick (ctx);
+	//sh4_dmac_tick (ctx);
 }
 
 static void
@@ -911,15 +911,6 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C00BD18:
 		VK_CPU_LOG (ctx, " ### set_errno_and_init_machine_extended (%X)", R(4));
 		break;
-	case 0x0C00B938:
-		VK_CPU_LOG (ctx, " ### get_SAMURAI_params (%X, %X)", R(4), R(8));
-		break;
-	case 0x0C00BF30:
-		VK_CPU_LOG (ctx, " ### check_SAMURAI_tag (%X, %X)", R(4), R(8));
-		break;
-	case 0x0C00BF52:
-		VK_CPU_LOG (ctx, " ### check_SAMURAI_tag (%X, %X) : %X", R(4), R(8), R(1));
-		break;
 	case 0x0C00BC5C:
 		VK_CPU_LOG (ctx, " ### authenticate_rom (%X, %X %X)", R(6), R(7), R(8));
 		break;
@@ -929,15 +920,6 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		break;
 	case 0x0C004E46:
 		VK_CPU_LOG (ctx, " ### rombd_do_crc (%X, %X, %X)", R(4), R(5), R(6));
-		break;
-	case 0x0C00660A:
-		VK_CPU_LOG (ctx, " ### set_bank (%X %X)", R(4), R(5));
-		break;
-	case 0x0C006654:
-		VK_CPU_LOG (ctx, " ### check_memory_range_1 (addr=%X, len32=%X)", R(4), R(5));
-		break;
-	case 0x0C0066EC:
-		VK_CPU_LOG (ctx, " ### check_memory_range_2 (addr=%X, len32=%X)", R(4), R(5));
 		break;
 	case 0x0C00B90A:
 		VK_CPU_LOG (ctx, " ### JUMPING TO ROM CODE! (%X)", R(11));
@@ -949,20 +931,24 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		R(0) = 0xF;
 		break;
 
+#if 1
 	/* AIRTRIX */
 	case 0x0C69B360:
 		/* XXX skip MIE check */
 		R(0) = R(1) = 0;
 		break;
-	case 0x0C03116E:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: unknown_crasher (%X, %X, %X)", R(4), R(5), R(6));
-		break;
+#endif
 
+#if 0
 	/* PHARRIER */
 	case 0x0C01C322:
 		/* XXX patches an AICA-related while (1) into a NOP */
 		inst = 0x0009;
 		break;
+	case 0x0C0F4280:
+		VK_CPU_LOG (ctx, " ### PHARRIER: upload_textures_in_a_double_loop (%X, %X, %X)", R(4), R(5), R(6));
+		break;
+#endif
 	}
 
 	insns[inst] (ctx, inst);
