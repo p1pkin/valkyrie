@@ -71,7 +71,7 @@
  *  +0x10	dddddddd cccccccc bbbbbbbb aaaaaaaa	Aperture 0 Control
  *  +0x14	hhhhhhhh gggggggg ffffffff eeeeeeee	Aperture 1 Control
  *  +0x18	llllllll kkkkkkkk jjjjjjjj iiiiiiii	Aperture 2 Control
- *  +0x1C	pppppppp oooooooo nnnnnnnn mmmmmmmm	Aperture 3 Control ?
+ *  +0x1C	pppppppp oooooooo nnnnnnnn mmmmmmmm	Unknown
  *  +0x20	tttttttt ssssssss rrrrrrrr qqqqqqqq	Unknown
  *  +0x24	xxxxxxxx wwwwwwww vvvvvvvv uuuuuuuu	Unknown
  *  +0x28	-------- -------- -------- --------
@@ -467,7 +467,7 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 			if (real_offs >= vk_buffer_get_size (hikaru->eprom))
 				tmp = rand ();
 			else
-				tmp = vk_buffer_get (hikaru->eprom, size, offs);
+				tmp = vk_buffer_get (hikaru->eprom, size, real_offs);
 			set_ptr (val, size, tmp);
 		} else if (bank >= hikaru->maskrom_bank[0] &&
 		           bank <= hikaru->maskrom_bank[1]) {
