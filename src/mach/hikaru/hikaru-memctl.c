@@ -626,40 +626,21 @@ hikaru_memctl_exec (vk_device_t *dev, int cycles)
 
 	/* DMA is running */
 	if (ctl & 1) {
-		vk_buffer_t *srcbuf;
-		vk_buffer_t *dstbuf;
 		int count;
 
 		VK_LOG (" ### MEMCTL DMA: %08X -> %08X x %08X", src, dst, len);
-
-		srcbuf = NULL;
-		if (src >= 0x90000000 && src <= 0x9FFFFFFF)
-			srcbuf = hikaru->eprom;
-		else if (src >= 0xA0000000 && src <= 0xAFFFFFFF)
-			srcbuf = hikaru->maskrom;
-
-		dstbuf = NULL;
-		if (dst >= 0x40000000 && dst <= 0x41FFFFFF)
-			dstbuf = hikaru->ram_s;
-		else if (dst >= 0x70000000 && dst <= 0x71FFFFFF)
-			dstbuf = hikaru->ram_m;
 
 		count = MIN2 ((int) len, cycles);
 		len -= count;
 
 		VK_ASSERT ((len & 0xFF000000) == 0);
 
-		if (srcbuf && dstbuf) {
-			while (count--) {
-				uint32_t tmp;
-				tmp = vk_buffer_get (srcbuf, 4, src & 0x0FFFFFFF);
-				vk_buffer_put (dstbuf, 4, dst & 0x0FFFFFFF, tmp);
-				src += 4;
-				dst += 4;
-			}
-		} else {
-			src += count * 4;
-			dst += count * 4;
+		while (count--) {
+			uint32_t tmp;
+			memctl_bus_get (memctl, 4, src, &tmp);
+			memctl_bus_put (memctl, 4, dst, tmp);
+			src += 4;
+			dst += 4;
 		}
 
 		/* Transfer completed */
