@@ -1908,12 +1908,12 @@ hikaru_gpu_vblank_out (vk_device_t *dev)
  *
  * Transfers textures to TEXRAM?
  *
- * See PH:@0C0CD320, SN-ROM:@0C070C9C
+ * See PH:@0C0CD320.
  *
  * 1A040000  32-bit  W	Source Address?
  * 1A040004  32-bit  W  Destination Address?
  * 1A040008  32-bit  W	Texture size as a pair of 16-bit values
- * 1A04000C  32-bit  W	FIFO Control
+ * 1A04000C  32-bit  W	Control
  *
  * Access to this thing is illegal (likely) while 1A000024 bit 0 is set.
  *
@@ -1926,18 +1926,17 @@ hikaru_gpu_begin_fifo_operation (hikaru_gpu_t *gpu)
 {
 	uint32_t *fifo = (uint32_t *) gpu->regs_1A_fifo;
 
-	VK_ASSERT (!(REG1A (0x24) & 1));
-
-	VK_LOG ("GPU 1A FIFO exec: %08X ---> %08X, %u x %u, control = %08X",
-		fifo[0] * 2, fifo[1] * 2,
-		(fifo[3] & 0xFFFF) / 2, fifo[3] >> 16,
-		fifo[4]);
+	VK_LOG ("GPU 1A FIFO exec: [%08X %08X %08X %08X] %08X ---> %08X, %u x %u, control = %08X",
+	        fifo[0], fifo[1], fifo[2], fifo[3],
+		fifo[0] * 2,
+		fifo[1] * 2,
+		(fifo[2] & 0xFFFF), /* maybe / 2 */
+		fifo[2] >> 16,
+		fifo[3]);
 
 	gpu->fifo_is_running = true;
 
 	REG1A (0x24) |= 1; /* XXX where does this come from? */
-
-	VK_ASSERT (0);
 }
 
 static int
