@@ -1,0 +1,220 @@
+{
+	"version" : 1,
+	"roms" : [
+		{
+			"name" : "bootrom",
+			"mach" : "hikaru",
+			"sections" : [
+				{
+					"name" : "bootrom",
+					"type" : "alternative",
+					"endn" : "le32",
+					"data" : [
+						{ "name" : "hikaru_0.84.bin", "size" : 2097152 },
+						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
+						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
+					]
+				}
+			]
+		},
+		{
+			"name" : "airtrix",
+			"mach" : "hikaru",
+			"sections" : [
+				{
+					"name" : "bootrom",
+					"type" : "alternative",
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
+						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
+					]
+				},
+				{
+					"name" : "eprom",
+					"type" : "interleave",
+					"amnt" : 2,
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "epr23601a.ic29", "size" : 4194304 },
+						{ "name" : "epr23602a.ic30", "size" : 4194304 }
+					]
+				},
+				{
+					"name" : "maskrom",
+					"type" : "concatenate",
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "mpr-23573.ic37", "size" : 16777216 },
+						{ "name" : "mpr-23577.ic38", "size" : 16777216 },
+						{ "name" : "mpr-23574.ic41", "size" : 16777216 },
+						{ "name" : "mpr-23578.ic42", "size" : 16777216 },
+						{ "name" : "mpr-23575.ic45", "size" : 16777216 },
+						{ "name" : "mpr-23579.ic46", "size" : 16777216 },
+						{ "name" : "mpr-23576.ic49", "size" : 16777216 },
+						{ "name" : "mpr-23580.ic50", "size" : 16777216 }
+					]
+				}
+			]
+		},
+		{
+			"name" : "braveff",
+			"mach" : "hikaru",
+			"sections" : [
+				{
+					"name" : "bootrom",
+					"type" : "alternative",
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
+						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
+					]
+				},
+				{
+					"name" : "eprom",
+					"type" : "interleave",
+					"amnt" : 2,
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "epr-21994.ic29", "size" : 2097152 },
+						{ "name" : "epr-21995.ic30", "size" : 2097152 },
+						{ "name" : "epr-21996.ic31", "size" : 2097152 },
+						{ "name" : "epr-21997.ic32", "size" : 2097152 },
+						{ "name" : "epr-21998.ic33", "size" : 2097152 },
+						{ "name" : "epr-21999.ic34", "size" : 2097152 }
+					]
+				}
+			]
+		},
+		{
+			"name" : "pharrier",
+			"mach" : "hikaru",
+			"sections" : [
+				{
+					"name" : "bootrom",
+					"type" : "alternative",
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
+						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
+					]
+				},
+				{
+					"name" : "eprom",
+					"type" : "interleave",
+					"amnt" : 2,
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "epr23565a.ic29", "size" : 4194304 },
+						{ "name" : "epr23566a.ic30", "size" : 4194304 },
+						{ "name" : "epr23567.ic31", "size" : 4194304 },
+						{ "name" : "epr23568.ic32", "size" : 4194304 },
+						{ "name" : "epr23569.ic33", "size" : 4194304 },
+						{ "name" : "epr23570.ic34", "size" : 4194304 },
+						{ "name" : "epr23571.ic35", "size" : 4194304 },
+						{ "name" : "epr23572.ic36", "size" : 4194304 }
+					]
+				},
+				{
+					"name" : "maskrom",
+					"type" : "interleave",
+					"amnt" : 2,
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "mpr-23549.ic37", "size" : 16777216 },
+						{ "name" : "mpr-23553.ic38", "size" : 16777216 },
+						{ "name" : "mpr-23550.ic41", "size" : 16777216 },
+						{ "name" : "mpr-23554.ic42", "size" : 16777216 },
+						{ "name" : "mpr-23551.ic45", "size" : 16777216 },
+						{ "name" : "mpr-23555.ic46", "size" : 16777216 },
+						{ "name" : "mpr-23552.ic49", "size" : 16777216 },
+						{ "name" : "mpr-23556.ic50", "size" : 16777216 },
+						{ "name" : "mpr-23557.ic53", "size" : 16777216 },
+						{ "name" : "mpr-23561.ic54", "size" : 16777216 },
+						{ "name" : "mpr-23558.ic57", "size" : 16777216 },
+						{ "name" : "mpr-23562.ic58", "size" : 16777216 },
+						{ "name" : "mpr-23559.ic61", "size" : 16777216 },
+						{ "name" : "mpr-23563.ic62", "size" : 16777216 },
+						{ "name" : "mpr-23560.ic65", "size" : 16777216 },
+						{ "name" : "mpr-23564.ic66", "size" : 16777216 }
+					]
+				}
+			]
+		},
+		{
+			"name" : "podrace",
+			"mach" : "hikaru",
+			"sections" : [
+				{
+					"name" : "bootrom",
+					"type" : "alternative",
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
+						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
+					]
+				},
+				{
+					"name" : "eprom",
+					"type" : "interleave",
+					"amnt" : 2,
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "epr-23174.ic29", "size" : 4194304 },
+						{ "name" : "epr-23175.ic30", "size" : 4194304 },
+						{ "name" : "epr-23176.ic31", "size" : 4194304 },
+						{ "name" : "epr-23177.ic32", "size" : 4194304 }
+					]
+				}
+			]
+		},
+		{
+			"name" : "sgnascar",
+			"mach" : "hikaru",
+			"sections" : [
+				{
+					"name" : "bootrom",
+					"type" : "alternative",
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
+						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
+					]
+				},
+				{
+					"name" : "eprom",
+					"type" : "interleave",
+					"amnt" : 2,
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "epr-23485a.ic35", "size" : 4194304 },
+						{ "name" : "epr-23486a.ic36", "size" : 4194304 }
+					]
+				},
+				{
+					"name" : "maskrom",
+					"type" : "concatenate",
+					"endn" : "swap16",
+					"data" : [
+						{ "name" : "mpr-23469.ic19", "size" : 16777216 },
+						{ "name" : "mpr-23473.ic20", "size" : 16777216 },
+						{ "name" : "mpr-23470.ic21", "size" : 16777216 },
+						{ "name" : "mpr-23474.ic22", "size" : 16777216 },
+						{ "name" : "mpr-23471.ic23", "size" : 16777216 },
+						{ "name" : "mpr-23475.ic24", "size" : 16777216 },
+						{ "name" : "mpr-23472.ic25", "size" : 16777216 },
+						{ "name" : "mpr-23476.ic26", "size" : 16777216 },
+						{ "name" : "mpr-23477.ic27", "size" : 16777216 },
+						{ "name" : "mpr-23481.ic28", "size" : 16777216 },
+						{ "name" : "mpr-23478.ic29", "size" : 16777216 },
+						{ "name" : "mpr-23482.ic30", "size" : 16777216 },
+						{ "name" : "mpr-23479.ic31", "size" : 16777216 },
+						{ "name" : "mpr-23483.ic32", "size" : 16777216 },
+						{ "name" : "mpr-23480.ic33", "size" : 16777216 },
+						{ "name" : "mpr-23484.ic34", "size" : 16777216 }
+					]
+				}
+			]
+		}
+	]
+}
