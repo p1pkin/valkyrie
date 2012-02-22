@@ -487,6 +487,7 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 	}
 	if (log)
 		VK_CPU_LOG (hikaru->sh_current, "MEMCTL R%u %08X", size * 8, bus_addr);
+	return 0;
 }
 
 static int
@@ -562,7 +563,7 @@ static int
 hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 {
 	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
-	uint32_t bank, bus_addr;
+	uint32_t bank;
 
 	if (addr >= 0x04000000 && addr <= 0x0400003F) {
 		/* MMIOs */
@@ -574,15 +575,14 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 	if (!bank)
 		return -1;
 
-	bus_addr = (bank << 24) | (addr & 0xFFFFFF);
-	return memctl_bus_get (memctl, size, bus_addr, val);
+	return memctl_bus_get (memctl, size, (bank << 24) | (addr & 0xFFFFFF), val);
 }
 
 static int
 hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 {
 	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
-	uint32_t bank, bus_addr;
+	uint32_t bank;
 
 	if (addr >= 0x04000000 && addr <= 0x0400003F) {
 		/* MEMCTL MMIOs */
@@ -622,7 +622,6 @@ static int
 hikaru_memctl_exec (vk_device_t *dev, int cycles)
 {
 	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
-	hikaru_t *hikaru = (hikaru_t *) dev->mach;
 	uint32_t src, dst, len, ctl;
 
 	src = vk_buffer_get (memctl->regs, 4, 0x30);
