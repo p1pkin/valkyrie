@@ -220,7 +220,7 @@ vk_file_delete (struct vk_file **file_)
 			free (file->path);
 			file->path = NULL;
 		}
-		free (file_);
+		free (file);
 		*file_ = NULL;
 	}
 }
