@@ -942,12 +942,6 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C00B90A:
 		VK_CPU_LOG (ctx, " ### JUMPING TO ROM CODE! (%X)", R(11));
 		break;
-#if 0
-	case 0x0C00204E:
-		/* Allows slave to bypass check for DMAC IRQ of unknown source */
-		T = 0;
-		break;
-#endif
 
 	/* All games */
 	case 0x0C00BFB2:
