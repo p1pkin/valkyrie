@@ -882,8 +882,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			VK_LOG ("GPU CMD %08X: Jump [%08X] %08X",
 			        gpu->pc, inst[0], addr);
 			VK_ASSERT ((inst[0] & ~0xFFF) == 0);
-			VK_ASSERT ((addr >= 0x48000000) &&
-			           (addr <= 0x483FFFFF));
 			gpu->pc = addr;
 		}
 		break;
@@ -900,8 +898,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			        gpu->pc, inst[0], addr);
 
 			VK_ASSERT ((inst[0] & ~0xFFF) == 0);
-			VK_ASSERT ((addr >= 0x4C000000) &&
-			           (addr <= 0x4C3FFFFF));
 			cp_push_pc (gpu);
 			gpu->pc = addr;
 
