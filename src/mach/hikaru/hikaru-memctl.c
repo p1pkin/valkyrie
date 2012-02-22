@@ -637,8 +637,8 @@ hikaru_memctl_exec (vk_device_t *dev, int cycles)
 
 		while (count--) {
 			uint32_t tmp;
-			memctl_bus_get (memctl, 4, src, &tmp);
-			memctl_bus_put (memctl, 4, dst, tmp);
+			memctl_bus_get (memctl, 4, src & 0x7FFFFFFF, &tmp);
+			memctl_bus_put (memctl, 4, dst & 0x7FFFFFFF, tmp);
 			src += 4;
 			dst += 4;
 		}
