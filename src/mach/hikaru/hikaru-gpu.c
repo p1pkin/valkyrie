@@ -1297,36 +1297,38 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x084:
 		/* 084	Commit Color 
 		 *
-		 *	---- ---- ---- nnnn ---m oooo oooo oooo		o = Opcode, n = Number
+		 *	---- ---- uuuu nnnn ---m oooo oooo oooo		o = Opcode, n = Number
 		 *
 		 * See PH:@0C0153D4 */
 		{
-			unsigned num = (inst[0] >> 16) & 0xF;
-			unsigned unk = (inst[0] >> 12) & 1;
+			unsigned u = (inst[0] >> 20) & 0xF;
+			unsigned n = (inst[0] >> 16) & 0xF;
+			unsigned m = (inst[0] >> 12) & 1;
 
-			VK_LOG ("GPU CMD %08X: Commit Color [%08X] num=%u unk=%u",
-			        gpu->pc, inst[0], num, unk);
+			VK_LOG ("GPU CMD %08X: Commit Color [%08X] u=%X n=%u m=%u",
+			        gpu->pc, inst[0], u, n, m);
 
-			VK_ASSERT (!(inst[0] & 0xFFF0E000));
+			VK_ASSERT (!(inst[0] & 0x0000E000));
 
-			gpu->cs[num] = gpu->cs_scratch;
+			gpu->cs[n] = gpu->cs_scratch;
 			gpu->pc += 4;
 		}
 		break;
 	case 0x083:
 		/* 083	Recall Color 
 		 *
-		 *	---- ---- nnnn nnnn ---m oooo oooo oooo		o = Opcode, m = Enable Color, n = Unknown
+		 *	uuuu uuuu nnnn nnnn ---m oooo oooo oooo		o = Opcode, u = Unknown, m = Enable Color, n = Unknown
 		 *
 		 * See @0C00657C */
 		{
+			unsigned unk = (inst[0] >> 24) & 0xFF;
 			unsigned num = (inst[0] >> 16) & 0xF;
 			unsigned ena = (inst[0] >> 12) & 1;
 
-			VK_LOG ("GPU CMD %08X: Recall Color [%08X] num=%u ena=%u",
+			VK_LOG ("GPU CMD %08X: Recall Color [%08X] unk=%u num=%u ena=%u",
 			        gpu->pc, inst[0], num, ena);
 
-			VK_ASSERT (!(inst[0] & 0xFF00E000));
+			VK_ASSERT (!(inst[0] & 0x0000E000));
 
 			gpu->current_cs = &gpu->cs[num];
 			gpu->cs_enabled = ena;
@@ -1339,17 +1341,18 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x0C1:
 		/* 0C1	Set Tex Param 0
 		 *
-		 *	---- ---- mmmm nnnn ---- oooo oooo oooo		o = Opcode, n, m = Unknown
+		 *	---- uuuu mmmm nnnn ---- oooo oooo oooo		u = Unknown, o = Opcode, n, m = Unknown
 		 *
 		 * See PH:@0C015B7A */
 		{
+			unsigned u = (inst[0] >> 24) & 0xF;
 			unsigned n = (inst[0] >> 16) & 0xF;
 			unsigned m = (inst[0] >> 20) & 0xF;
 
-			VK_LOG ("GPU CMD %08X: Set Tex Param 0 [%08X] n=%u m=%u",
-			        gpu->pc, inst[0], n, m);
+			VK_LOG ("GPU CMD %08X: Set Tex Param 0 [%08X] u=%u n=%u m=%u",
+			        gpu->pc, inst[0], u, n, m);
 
-			VK_ASSERT (!(inst[0] & 0xFF00F000));
+			VK_ASSERT (!(inst[0] & 0xF000F000));
 
 			gpu->ts_scratch._0C1_params.unk_n = n;
 			gpu->ts_scratch._0C1_params.unk_m = m;
@@ -1421,7 +1424,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			VK_LOG ("GPU CMD %08X: Commit Tex Params [%08X] num=%u unk=%u",
 			        gpu->pc, inst[0], num, unk);
 
-			VK_ASSERT (!(inst[0] & 0xFFF0E000));
+			VK_ASSERT (!(inst[0] & 0x0000E000));
 
 			gpu->ts[num] = gpu->ts_scratch;
 			gpu->pc += 4;
@@ -1430,16 +1433,17 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x0C3:
 		/* 0C3	Recall Tex Params
 		 *
-		 *	---- ---- ---- --nn ---m oooo oooo oooo		o = Opcode, m = Enable Texturing, n = Number
+		 *	uuuu uuuu ---- --nn ---m oooo oooo oooo		o = Opcode, m = Enable Texturing, n = Number, u = Unknown
 		 */
 		{
+			unsigned unk = (inst[0] >> 24) & 0xFF;
 			unsigned num = (inst[0] >> 16) & 3;
 			unsigned ena = (inst[0] >> 12) & 1;
 
-			VK_LOG ("GPU CMD %08X: Recall Tex Params [%08X] num=%u ena=%u",
-			        gpu->pc, inst[0], num, ena);
+			VK_LOG ("GPU CMD %08X: Recall Tex Params [%08X] unk=%u num=%u ena=%u",
+			        gpu->pc, inst[0], unk, num, ena);
 
-			VK_ASSERT (!(inst[0] & 0xFF00E000));
+			VK_ASSERT (!(inst[0] & 0x0000E000));
 
 			gpu->current_ts = &gpu->ts[num];
 			gpu->ts_enabled = ena;
