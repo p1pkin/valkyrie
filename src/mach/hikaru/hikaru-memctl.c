@@ -462,8 +462,12 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 		           bank <= hikaru->eprom_bank[1]) {
 			/* ROMBD EPROM */
 			uint32_t num = bank - hikaru->eprom_bank[0]; /* 0 ... 3 */
+			uint32_t real_offs = (offs & 0x7FFFFF) + num * 8*MB;
 			uint64_t tmp;
-			tmp = vk_buffer_get (hikaru->eprom, size, (offs & 0x7FFFFF) + (num * 8*MB));
+			if (real_offs >= vk_buffer_get_size (hikaru->eprom))
+				tmp = rand ();
+			else
+				tmp = vk_buffer_get (hikaru->eprom, size, offs);
 			set_ptr (val, size, tmp);
 		} else if (bank >= hikaru->maskrom_bank[0] &&
 		           bank <= hikaru->maskrom_bank[1]) {
