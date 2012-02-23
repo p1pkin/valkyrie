@@ -1,0 +1,58 @@
+TODO
+====
+
+BEFORE UPLOADING THE TREE
+-------------------------
+
+Rewrite the JSON file to be more flexible (just like MAME.)
+
+Move the JSON location to '$HOME/.local/share/valkyrie' or something.
+
+I'll add more here later.
+
+BOOTROM
+-------
+
+All three bootroms are pretty similar.
+
+Fix texture coordinates for rendering. There's something creepingly odd
+about them.
+
+Fix texture commands.
+
+The BOOTROM is a good testcase to implement the GPU IDMA.
+
+Fix rendering to handle the CRT screen (basically store triangles and let
+the EE8 [texcoord] command apply to the latest pushed triangle.)
+
+AIRTRIX
+-------
+
+Fix GPU IRQs so that sync () returns 0 and the game moves out of the loop at
+0C010EDE.
+
+BRAVEFF
+-------
+
+Fix ROM layout for small EPROMS/MASKROMS, then check with the ROMBD test.
+
+Implement SH-4 DMAC IRQ.
+
+PHARRIER
+--------
+
+The ROMBD test says that the EPROMs are okay. It queries the TMU and
+AICA clock. Crashes because of bad MASKROM mapping?
+
+PODRACE
+-------
+
+Missing MASKROMS. Won't work.
+
+SGNASCAR
+--------
+
+The game just doesn't boot. EPROM/MASKROM layout is wrong, and/or ROMBD
+parameters read from the EPROM (in authenticate_rom () or late __init ())
+simply don't work. To find out what is wrong, just look at the PR of
+set_errno_and_init_machine ().

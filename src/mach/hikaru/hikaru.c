@@ -130,41 +130,6 @@
  * An 76X100 secure EEPROM.
  */
 
-/*
- * TODO
- * ====
- *
- * - bootrom 0.96
- *	- just like bootrom 0.92
- * - bootrom 0.92
- *	- fix texture upload (may require emulating GPU IDMA to TEXRAM)
- *	- implement a 640x480 screen in GL
- *	- implement ASCII texture upload properly
- *	- implement GPU IDMA texture uploading to TEXRAM
- *	- CRT screen requires storing triangles in display lists because
- *	  there are no 'EE8' commands after the color bands vertices are
- *	  pushed to the hardware.
- * - bootrom 0.96
- *	- just like bootrom 0.92
- * - airtrix:
- *	- find out why things go wrong
- * - braveff:
- *	- implement SH-4 DMAC for EPROM->RAM transfer
- * - pharrier:
- *	- it writes 64-bit words to 14000030, which doesn't make much sense, 
- *	  see PH:@0C01C700; the address is a hard-coded constant, so there's
- *	  something missing in my understanding of the MSCOMM box or of how
- *	  CMDRAM is accessed in 64-bit mode. It could be a bug in the code
- *	  as well.
- *	- patching the above function, the code proceeds at querying the TMU
- *	- check what the heck the slave is doing
- * - podrace:
- *	- missing MASKROMS, untested
- * - sgnascar
- *	- doesn't boot, params read from the EPROM are different from the
- *	  other (working) games
- */
-
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
