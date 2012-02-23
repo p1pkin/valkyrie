@@ -435,9 +435,31 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
 		/* AICA 1 */
 		log = true;
+		switch (bus_addr & 0xFFFFFF) {
+		case 0x0080005C: {
+				static uint32_t hack = 0;
+				hack ^= 1;
+				set_ptr (val, size, hack);
+			}
+			break;
+		case 0x00800060 ... 0x0080007F:
+			set_ptr (val, size, 0xFFFFFFFF);
+			break;
+		}
 	} else if (bus_addr >= 0x0D000000 && bus_addr <= 0x0DFFFFFF) {
 		/* AICA 2 */
 		log = true;
+		switch (bus_addr & 0xFFFFFF) {
+		case 0x0080005C: {
+				static uint32_t hack = 0;
+				hack ^= 1;
+				set_ptr (val, size, hack);
+			}
+			break;
+		case 0x00800060 ... 0x0080007F:
+			set_ptr (val, size, 0xFFFFFFFF);
+			break;
+		}
 	} else if (bus_addr >= 0x0E000000 && bus_addr <= 0x0E00FFFF) {
 		/* Network Board */
 		log = true;
