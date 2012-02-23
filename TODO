@@ -28,8 +28,12 @@ the EE8 [texcoord] command apply to the latest pushed triangle.)
 AIRTRIX
 -------
 
-Fix GPU IRQs so that sync () returns 0 and the game moves out of the loop at
-0C010EDE.
+The game is stuck in a loop, because a previously called routine fails.
+
+The loop at 0C010EDE is just waiting for the test switch to be pressed.
+
+When the switch is pressed, the game requires better-than-completely-dummy
+AICA 0C/0D emulation.
 
 BRAVEFF
 -------
