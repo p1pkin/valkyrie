@@ -1605,8 +1605,9 @@ I (fsca)
 
 I (fsrra)
 {
-	/* this isn't documented anywhere... */
-	VK_ASSERT (0);
+	if (FRN.f < 0)
+		return;
+	FRN.f = 1.0f / sqrtf (FRN.f);
 }
 
 I (fsqrt)
