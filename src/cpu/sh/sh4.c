@@ -938,10 +938,32 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		R(0) = R(1) = 0;
 		break;
 	case 0x0C697A40:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: sync (%X, %X, %X)", R(4));
+		VK_CPU_LOG (ctx, " ### AIRTRIX: sync (%X)", R(4));
 		break;
-	case 0x0C697B42:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: sync : return_zero_branch");
+	case 0x0C6996A0:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: print_warning (%X)", R(4));
+		break;
+	case 0x0C699580:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: upload_texture (%X,%X,%X)", R(4),R(5),R(6));
+		break;
+	case 0x0C699140:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: clear_texture (%X,%X)", R(4),R(5));
+		break;
+	case 0x0C010EA2:
+		/* Fool the code into thinking that the AICAs are working */
+		R(0) = 0;
+		break;
+	case 0x0C010F74:
+		/* Fool the code into thinking that the IO board is working */
+		R(3) = 1;
+		break;
+	case 0x0C0110C2:
+		/* Move past the 'WARNING' screen */
+		R(3) = R(2);
+		break;
+	case 0x0C0111D0:
+		/* Fool the code into thinking that the IO board is working */
+		R(2) = 1;
 		break;
 #endif
 
