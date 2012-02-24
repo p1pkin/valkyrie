@@ -943,12 +943,22 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C6996A0:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: print_warning (%X)", R(4));
 		break;
+	case 0x0C697CDC:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: flush_list_to_15000010_idma ()");
+		break;
+	case 0x0C697D48:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: flush_list_to_1A040000_fifo ()");
+		break;
 	case 0x0C699580:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: upload_texture (%X,%X,%X)", R(4),R(5),R(6));
 		break;
 	case 0x0C699140:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: clear_texture (%X,%X)", R(4),R(5));
 		break;
+	case 0x0C6998A0:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: init_tex_machinery ()");
+		break;
+#if 0
 	case 0x0C010EA2:
 		/* Fool the code into thinking that the AICAs are working */
 		R(0) = 0;
@@ -965,6 +975,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		/* Fool the code into thinking that the IO board is working */
 		R(2) = 1;
 		break;
+#endif
 #endif
 
 #if 0
