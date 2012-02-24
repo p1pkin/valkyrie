@@ -1906,37 +1906,62 @@ hikaru_gpu_vblank_out (vk_device_t *dev)
  * FIFO at 1A040000
  * ================
  *
- * Transfers textures to TEXRAM?
+ * Copies texture data from TEXRAM to the framebuffer(s)
  *
- * See PH:@0C0CD320.
+ * See AT:@0C697D48, PH:@0C0CD320.
  *
- * 1A040000  32-bit  W	Source Address?
- * 1A040004  32-bit  W  Destination Address?
- * 1A040008  32-bit  W	Texture size as a pair of 16-bit values
+ * 1A040000  32-bit  W	Source
+ * 1A040004  32-bit  W  Destination
+ * 1A040008  32-bit  W	Texture size in pixels.
  * 1A04000C  32-bit  W	Control
  *
- * Access to this thing is illegal (likely) while 1A000024 bit 0 is set.
+ * Both source and destination are encoded as TEXRAM coordinates; both
+ * x and y are defined as 11-bit integers (range is 0 ... 2047); pixel
+ * size is 16-bit, fixed.
  *
- * FIFO busy is signalled in 1A000024 bit 0. When operation ends, and IRQ is
- * raised? Unlikely, unless programmed?
+ * 1A000024 bit 0 signals when the FIFO is processing: set means busy.
+ * The AIRTRIX 'WARNING' screen uses this thing to raster text on the
+ * framebuffer.
  */
 
 static void
 hikaru_gpu_begin_fifo_operation (hikaru_gpu_t *gpu)
 {
 	uint32_t *fifo = (uint32_t *) gpu->regs_1A_fifo;
+	uint32_t src_x, src_y, dst_x, dst_y, w, h, i, j;
 
-	VK_LOG ("GPU 1A FIFO exec: [%08X %08X %08X %08X] %08X ---> %08X, %u x %u, control = %08X",
+	src_x = fifo[0] & 0x7FF;
+	src_y = fifo[0] >> 11;
+
+	dst_x = fifo[1] & 0x7FF;
+	dst_y = fifo[1] >> 11;
+
+	w = fifo[2] & 0xFFFF;
+	h = fifo[2] >> 16;
+
+	VK_LOG ("GPU 1A FIFO exec: [%08X %08X %08X %08X] { %u %u } --> { %u %u }, %ux%u",
 	        fifo[0], fifo[1], fifo[2], fifo[3],
-		fifo[0] * 2,
-		fifo[1] * 2,
-		(fifo[2] & 0xFFFF), /* maybe / 2 */
-		fifo[2] >> 16,
-		fifo[3]);
+		src_x, src_y, dst_x, dst_y, w, h);
+
+	for (i = 0; i < h; i++) {
+		for (j = 0; j < w; j++) {
+			uint32_t src_offs = (src_y + i) * 0x1000 + (src_x + j) * 2;
+			uint32_t dst_offs = (dst_y + i) * 0x1000 + (dst_x + j) * 2;
+			uint16_t pixel;
+			pixel = vk_buffer_get (gpu->texram, 2, src_offs);
+			vk_buffer_put (gpu->texram, 2, dst_offs, pixel);
+		}
+	}
 
 	gpu->fifo_is_running = true;
+	REG1A (0x24) |= 1;
+}
 
-	REG1A (0x24) |= 1; /* XXX where does this come from? */
+static void
+hiakru_gpu_end_fifo_operation (hikaru_gpu_t *gpu)
+{
+	gpu->fifo_is_running = false;
+	REG1A (0x24) &= ~1;
 }
 
 static int
