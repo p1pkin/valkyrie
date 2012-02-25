@@ -68,12 +68,12 @@
  *  +0x04	---u---- -------- ---sEEEE EEFFFFFF	DMA Status
  *  +0x08	-------- -------- -------- --------
  *  +0x0C	-------- -------- -------- --------
- *  +0x10	dddddddd cccccccc bbbbbbbb aaaaaaaa	Aperture 0 Control
- *  +0x14	hhhhhhhh gggggggg ffffffff eeeeeeee	Aperture 1 Control
- *  +0x18	llllllll kkkkkkkk jjjjjjjj iiiiiiii	Aperture 2 Control
- *  +0x1C	pppppppp oooooooo nnnnnnnn mmmmmmmm	Unknown
- *  +0x20	tttttttt ssssssss rrrrrrrr qqqqqqqq	Unknown
- *  +0x24	xxxxxxxx wwwwwwww vvvvvvvv uuuuuuuu	Unknown
+ *  +0x10	dddddddd cccccccc bbbbbbbb aaaaaaaa	Aperture 0 Address
+ *  +0x14	hhhhhhhh gggggggg ffffffff eeeeeeee	Aperture 1 Address
+ *  +0x18	llllllll kkkkkkkk jjjjjjjj iiiiiiii	Aperture 2 Address
+ *  +0x1C	pppppppp oooooooo nnnnnnnn mmmmmmmm	Aperture 0 Control
+ *  +0x20	tttttttt ssssssss rrrrrrrr qqqqqqqq	Aperture 1 Control
+ *  +0x24	xxxxxxxx wwwwwwww vvvvvvvv uuuuuuuu	Aperture 2 Control
  *  +0x28	-------- -------- -------- --------
  *  +0x2C	-------- -------- -------- --------
  *  +0x30	DDDDDDDD DDDDDDDD DDDDDDDD DDD-----	DMA Destination Address
@@ -487,7 +487,7 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 			uint32_t real_offs = (offs & 0x7FFFFF) + num * 8*MB;
 			uint64_t tmp;
 			if (real_offs >= vk_buffer_get_size (hikaru->eprom))
-				tmp = rand ();
+				tmp = 0xFFFFFFFF;
 			else
 				tmp = vk_buffer_get (hikaru->eprom, size, real_offs);
 			set_ptr (val, size, tmp);
