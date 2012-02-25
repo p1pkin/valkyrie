@@ -752,7 +752,7 @@ setup_master_mmap (hikaru_t *hikaru)
 	                             hikaru->gpu, "GPU/M");
 	vk_mmap_set_region (mmap, region, i++);
 
-	region = vk_region_ram_new (0x1B000000, 0x1B7FFFFF, 0x7FFFFF, 0 | VK_REGION_LOG_RW,
+	region = vk_region_ram_new (0x1B000000, 0x1B7FFFFF, 0x7FFFFF, 0,
 	                            hikaru->texram, "TEXRAM/M");
 	vk_mmap_set_region (mmap, region, i++);
 
