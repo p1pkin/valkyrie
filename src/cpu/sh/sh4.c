@@ -912,7 +912,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		VK_CPU_LOG (ctx, " ### set_errno_and_init_machine_extended (%X)", R(4));
 		break;
 	case 0x0C00BC5C:
-		VK_CPU_LOG (ctx, " ### authenticate_rom (%X, %X %X)", R(6), R(7), R(8));
+		VK_CPU_LOG (ctx, " ### authenticate_rom (%X, %X, %X)", R(6), R(7), R(8));
 		break;
 	case 0x0C00BC9E:
 		VK_CPU_LOG (ctx, " ### authenticate_rom () : values read from EPROM %X: %X %X",
@@ -927,10 +927,9 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 
 	/* All games */
 	case 0x0C00BFB2:
-		/* XXX makes the EEPROM check pass */
+		/* Makes the EEPROM check pass */
 		R(0) = 0xF;
 		break;
-
 #if 1
 	/* AIRTRIX */
 	case 0x0C69B360:
@@ -953,10 +952,16 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		VK_CPU_LOG (ctx, " ### AIRTRIX: upload_texture (%X,%X,%X)", R(4),R(5),R(6));
 		break;
 	case 0x0C699140:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: clear_texture (%X,%X)", R(4),R(5));
+		VK_CPU_LOG (ctx, " ### AIRTRIX: clear_texture_rectangle (%X,%X)", R(4),R(5));
 		break;
 	case 0x0C6998A0:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: init_tex_machinery ()");
+		break;
+	case 0x0C0310CC:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: upload_textures_from_table_with_dma_and_idma (%X)", R(4));
+		break;
+	case 0x0C699A60:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: do_memctl_dma_and_idma (%X,%X,%X,%X)", R(4),R(5),R(6),R(7));
 		break;
 #if 0
 	case 0x0C010EA2:
@@ -967,25 +972,27 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		/* Fool the code into thinking that the IO board is working */
 		R(3) = 1;
 		break;
-	case 0x0C0110C2:
-		/* Move past the 'WARNING' screen */
-		R(3) = R(2);
-		break;
-	case 0x0C0111D0:
-		/* Fool the code into thinking that the IO board is working */
-		R(2) = 1;
+	case 0x0C010F9A:
+		/* Make the 'WARNING' screen faster (well, 656 frames faster) */
+		R(2) = 0x290;
 		break;
 #endif
 #endif
 
 #if 0
 	/* PHARRIER */
-	case 0x0C01C322:
-		/* XXX patches an AICA-related while (1) into a NOP */
-		inst = 0x0009;
+	case 0x0C0125C0:
+		VK_CPU_LOG (ctx, " ### PHARRIER: sync (%X)", R(4));
 		break;
 	case 0x0C0F4280:
 		VK_CPU_LOG (ctx, " ### PHARRIER: upload_textures_in_a_double_loop (%X, %X, %X)", R(4), R(5), R(6));
+		break;
+	case 0x0C01C322:
+		/* Patches an AICA-related while (1) into a NOP */
+		inst = 0x0009;
+		break;
+		/* Patches out a few calls to upload_textures_in_a_double_loop */
+		inst = 0x0009;
 		break;
 #endif
 	}
