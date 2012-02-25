@@ -27,33 +27,30 @@
  * Apparently SNDBD and SNDBD2 are identical, except that the latter is
  * optional.
  *
- *  800060	Unknown		   See @0C0060D8
- *  800090	5D800000 | address \
- *  800094	5D800000 | address | See @0C006000
- *  800098	Length             /
- *  8000B0
- *  800400
- *  800500
+ * 700000-701FFF AICA Channels 0-63. Each slot is 128 bytes long.
+ * 702000-7027FF AICA ESF (?)
+ * 702800-7028BD AICA Global (?)
+ * 702C00        ARM Reset
+ * 702D00        AICA IRQ L
+ * 702D04        AICA IRQ R
+ * 703000-7031FF COEF
+ * 703200-7033FF MADRS
+ * 703400-703BFF MPRO; 3BFE --> AICA DSP start
+ *
+ * 710000 RTC Lo
+ * 710004 RTC Hi
+ * 710008 RTC Write Enable
+ *
+ * 800000-FFFFFF RAM
+ *
+ * Note: this documentation comes from the following sources: MAME,
+ * lxdream, nullDC. Kudos to the original authors.
  */
-
-#if 0
-		log = true;
-		switch (bus_addr & 0xFFFFFF) {
-		case 0x0080005C: {
-				static uint32_t hack = 0;
-				hack ^= 1;
-				set_ptr (val, size, hack);
-			}
-			break;
-		case 0x00800060 ... 0x0080007F:
-			set_ptr (val, size, 0xFFFFFFFF);
-			break;
-		}
-#endif
 
 typedef struct {
 	vk_device_t base;
 	vk_buffer_t *ram;
+	uint32_t rtc[4];
 	bool master;
 } hikaru_aica_t;
 
@@ -61,7 +58,24 @@ static int
 hikaru_aica_get (vk_device_t *device, unsigned size, uint32_t addr, void *val)
 {
 	hikaru_aica_t *aica = (hikaru_aica_t *) device;
-	(void) aica;
+	uint32_t *val32 = (uint32_t *) val;
+	uint32_t offs = addr & 0xFFFFFF;
+
+	VK_MACH_LOG (device->mach, "AICA/%c R%u @%08X",
+	             aica->master ? 'M' : 'S', 8*size, offs);
+
+	switch (offs) {
+	case 0x702C00:
+		/* ARM Reset */
+		return 0;
+	case 0x710000:
+	case 0x710004:
+	case 0x710008:
+		/* AICA RTC */
+		VK_ASSERT (size == 4);
+		*val32 = aica->rtc[(offs & 0xF) / 4];
+		return 0;
+	}
 	return -1;
 }
 
@@ -69,7 +83,24 @@ static int
 hikaru_aica_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val)
 {
 	hikaru_aica_t *aica = (hikaru_aica_t *) device;
-	(void) aica;
+	uint32_t offs = addr & 0xFFFFFF;
+
+	VK_MACH_LOG (device->mach, "AICA/%c W%u @%08X = %X",
+	             aica->master ? 'M' : 'S', 8*size, offs, val);
+
+	switch (offs) {
+	case 0x702800:
+		/* Master Volume */
+	case 0x702C00:
+		/* ARM Reset */
+		return 0;
+	case 0x710000:
+	case 0x710004:
+	case 0x710008:
+		/* AICA RTC */
+		VK_ASSERT (size == 4);
+		return 0;
+	}
 	return -1;
 }
 
