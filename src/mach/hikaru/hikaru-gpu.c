@@ -23,6 +23,9 @@
 #include "mach/hikaru/hikaru-gpu.h"
 #include "mach/hikaru/hikaru-renderer.h"
 
+/* TODO: figure out what is 4Cxxxxxx */
+/* TODO: handle slave access */
+
 /*
  * Overview
  * ========
@@ -32,13 +35,12 @@
  * and water effects quite well, but it's unlikely to be equipped with more
  * than a fixed-function pipeline (it was developed in 1998-1999 after all.)
  *
- * The GPU includes two distinct PCI IDs: 17C7:11DB and 17C3:11DB
- * The former is visible from the master SH-4 side, the latter from the slave
- * side.
+ * The GPU includes two distinct PCI IDs: 17C7:11DB and 17C3:11DB. The former
+ * is visible from the master SH-4 side, the latter from the slave side.
  *
- * There are likely two different hardware revisions, the bootrom checks for
+ * There are likely two different hardware revisions: the bootrom checks for
  * them by checking the reaction of the hardware (register 15002000) after
- * poking a few registers.
+ * poking a few registers. See @0C001AC4.
  *
  * The GPU(s) include at least:
  *
@@ -52,7 +54,7 @@
  *
  *    The device is likely controlled by the MMIOs at 1500007x. The code
  *    is held in CMDRAM, which is at 14300000-143FFFFF in the master SH-4
- *    address space, and 480000-483FFFFF in bus address space.
+ *    address space, and 48000000-483FFFFF in bus address space.
  *
  *  - An indirect DMA-like device which is likely used to move texture
  *    data to/from TEXRAM, and is able to decode between texture formats on
@@ -60,26 +62,11 @@
  *
  *    The device can be accessed thru the MMIOs at 150000(0C|10|14).
  *
- *  - A FIFO-like device, yet to be figured out. The device is accessed
- *    through
+ *  - A FIFO-like device, used to move textures around in TEXRAM. In
+ *    particular, it is used to transfer bitmap data directly to the
+ *    framebuffer(s).
  *
  *    The device can be accessed thru the MMIOs at 1A0400xx.
- *
- * Current Status
- * ==============
- *
- * Reversed stuff:
- *  + Preliminary memory map
- *  + Preliminary instruction execution
- *  + Very basic vertex information
- *  + Very basic texture information
- *  + A few IRQ and texturing related ports
- *
- * Missing stuff:
- *  - Matrix stack and proper viewport projection
- *	- translation is 
- *  - Does this thing make use of stack space? (See @0C0080E0)
- *  - Pretty much everything else (lighting, blending, etc.)
  *
  * Matrices
  * ========
@@ -88,121 +75,124 @@
  * vector specifying translation.
  */
 
-/* TODO: figure out what is 4Cxxxxxx */
-/* TODO: handle slave access */
-
 /*
  * GPU MMIOs at 15000000
  * =====================
  *
- * Display Config
- * --------------
+ * Note: all ports are 32-bit wide, unless otherwise noted.
  *
- * 15000000 32-bit  W	UNK_15_00	= 0
- * 15000004 32-bit  W	DISP_MODE	Display mode
- *					 0 = hi-res (640x480)
- *					 1 = lo-res (496x384)
- *					See @0C001AD8, @0C00792C)
- * 15000008 32-bit  W	UNK_15_08	= 0
+ * Display Config (Likely)
+ * -----------------------
+ *
+ * 15000000   W		Unknown; = 0
+ * 15000004   W		Display mode
+ *			 0 = hi-res (640x480, 31 KHz)
+ *			 1 = lo-res (496x384, 24 KHz)
+ *			See @0C001AD8, @0C00792C.
+ * 15000008   W		Unknown; = 0
  *
  * Indirect DMA/Texture Conversion MMIOs
  * -------------------------------------
  *
- * 1500000C  32-bit  W	IDMA_ADDR	GPU 15 IDMA table address in CMDRAM
- * 15000010  32-bit RW	IDMA_DIFF	GPU 15 IDMA # of entries to process
- * 15000014  32-bit RW	IDMA_CTL	GPU 15 IDMA exec/busy (bit 0)
+ * 1500000C   W		Indirect DMA table address (in CMDRAM)
+ * 15000010  RW		Indirect DMA # of entries to process
+ * 15000014  RW		Indirect DMA Control
+ *			 Bit 0: exec when set, busy when read
  *
  * GPU 15 Unknown Config A
  * -----------------------
  *
- * 15000018  32-bit  W	CONFIG_15_UNK	= 0         
- * 1500001C  32-bit  W	CONFIG_15_UNK	= 0x00040000
- * 15000020  32-bit  W	CONFIG_15_UNK	= 0x00048000
- * 15000024  32-bit  W	CONFIG_15_UNK	= 0x00058000
- * 15000028  32-bit  W	CONFIG_15_UNK	= 0x00007800
- * 1500002C  32-bit  W	CONFIG_15_UNK	= 0x0007FE00
- * 15000030  32-bit  W	CONFIG_15_UNK	= 0         
- * 15000034  32-bit  W	CONFIG_15_UNK	= 0x00005000
+ * 15000018   W		Unknown; = 0         
+ * 1500001C   W		Unknown; = 0x00040000
+ * 15000020   W		Unknown; = 0x00048000
+ * 15000024   W		Unknown; = 0x00058000
+ * 15000028   W		Unknown; = 0x00007800
+ * 1500002C   W		Unknown; = 0x0007FE00
+ * 15000030   W		Unknown; = 0         
+ * 15000034   W		Unknown; = 0x00005000
  *
  * GPU 15 Unknown Config B
  * -----------------------
  *
- * 15000038  32-bit  W	CONFIG_15_UNK	= 0x00080000
- * 1500003C  32-bit  W	CONFIG_15_UNK	= 0x000C0000
- * 15000040  32-bit  W	CONFIG_15_UNK	= 0x000C8000
- * 15000044  32-bit  W	CONFIG_15_UNK	= 0x000D8000
- * 15000048  32-bit  W	CONFIG_15_UNK	= 0x0000F800
- * 1500004C  32-bit  W	CONFIG_15_UNK	= 0x000FFE00
- * 15000050  32-bit  W	CONFIG_15_UNK	= 0x00008000
- * 15000054  32-bit  W	CONFIG_15_UNK	= 0x0000D000
+ * 15000038   W		Unknown; = 0x00080000
+ * 1500003C   W		Unknown; = 0x000C0000
+ * 15000040   W		Unknown; = 0x000C8000
+ * 15000044   W		Unknown; = 0x000D8000
+ * 15000048   W		Unknown; = 0x0000F800
+ * 1500004C   W		Unknown; = 0x000FFE00
+ * 15000050   W		Unknown; = 0x00008000
+ * 15000054   W		Unknown; = 0x0000D000
  *
- * Note: same as Config A, but offset by +80000 or +8000.
+ * Note: same as Config A, plus an offset of +80000 or +8000.
  *
- * Unknown
- * -------
- *
- * 15000058  32-bit  W	GPU_15_CTL_58	= 6; related to 1A000024 b0
- *
- * GPU 15 Program Control
+ * Command Stream Control
  * ----------------------
  *
- * 15000070  32-bit  W	PROGRAM_START	= 48000100
- * 15000074  32-bit  W	PROGRAM_UNK_1	= 483F0100 \ See 15000030, 15000050
- * 15000078  32-bit  W	PROGRAM_UNK_2	= 483F8100 /
- * 1500007C  32-bit  W	UNK_FLAG	Abort execution when flipped 0, 1 are
- *					written? See @0C006AFC
+ * 15000058   W		CS Control; = 3
+ *			If both bits 0 and 1 are set, start CS execution
  *
- * Note: perhaps program execution is to output stuff to the addresses
- * indicated by 15000074 and 15000078 as a side effect? They could also
- * specify the stack for two independent execution threads.
+ * 15000070   W		CS Address; = 48000100
+ * 15000074   W		CS Processor 0 SP; = 483F0100
+ * 15000078   W		CS Processor 1 SP; = 483F8100
+ * 1500007C   W		CS Abort
+ *			 Execution when flipped 0, 1 are written?
+ *			 See @0C006AFC.
  *
  * Unknown
  * -------
  *
- * 15000080  32-bit  W	GPU_15_CTL_80	= 6
+ * 15000080   W		Unknown; Control; = 6	
  *
  * Interrupt Control
  * -----------------
  *
- * 15000084  32-bit   W		GPU IRQ Mask
- * 15000088  32-bit  RW		GPU IRQ Status
- *				 0x80 = GPU 1A IRQ fired
- *				 0x40 = Unknown
- *				 0x20 = Unknown
- *				 0x10 = Unknown
- *				 0x08 = Unknown
- *				 0x04 = GPU 15 finished; see @0C0018B4
- *				 0x02 = Unknown
- *				 0x01 = GPU 15 15000014-related (hblank/vblank?); see @0C006C04
- *				All bits are AND'ed on write
+ * 15000084   W		GPU IRQ Mask
+ * 15000088  RW		GPU IRQ Status
+ *			 0x80 = GPU 1A IRQ fired
+ *			 0x40 = Unknown
+ *			 0x20 = Unknown
+ *			 0x10 = Unknown
+ *			 0x08 = Unknown
+ *			 0x04 = GPU 15 is ready/done; see @0C0018B4
+ *			 0x02 = Unknown; possibly VBLANK
+ *			 0x01 = IDMA done; see @0C006C04
+ *			All bits are AND'ed on write
  *
  * Unknown
  * -------
  *
- * 1500008C             l  W    = 0x02020202 |
- * 15000090             l  W    = 0          | @0C001A82
- * 15000094             l  W    = 0          |
- * 15000098             l  W    = 0x02020202 |
+ * 1500008C  W		Unknown; = 0x02020202
+ * 15000090  W		Unknown; = 0
+ * 15000094  W		Unknown; = 0
+ * 15000098  W		Unknown; = 0x02020202
+ *			See @0C001A82
  *
- * 15002000             l R     b0 is related to 1A00024:b0
- *				Possibly the GPU status regs
- *				Used to determine the HARDWARE VERSION:
+ * Unknown
+ * -------
+ *
+ * 15002000 R		Unknown; Status
+ *			Used to:
+ *			 - determine if the GPU is done doing FOO (together
+ *			   with bit 0 of 1A000024), see @0C0069E0.
+ *			 - determine the HARDWARE VERSION:
  *				 - 0=older
- *				 - 1=newer, see PH:@0C01220C
- *				Probably this bit wasn't present in the older
- *				HW version.
+ *				 - 1=newer
+ *			   See @0C001AC4, PH:@0C01220C
  *
- * 15002800 32-bit  R	Unknown
- * 15002804 32-bit  R	Unknown
- * 15002808 32-bit  R	Unknown
- * 1500280C 32-bit  R	Unknown
- * 15002810 32-bit  R	Unknown
- * 15002814 32-bit  R	Unknown
- * 15002820 32-bit  R	Unknown
- * 15002824 32-bit  R	Unknown
- * 15002840 32-bit  R	Unknown
- * 15002844 32-bit  R	Unknown
- * 15002848 32-bit  R	Unknown
+ * Unknown
+ * -------
+ *
+ * 15002800 R	Unknown
+ * 15002804 R	Unknown
+ * 15002808 R	Unknown
+ * 1500280C R	Unknown
+ * 15002810 R	Unknown
+ * 15002814 R	Unknown
+ * 15002820 R	Unknown
+ * 15002824 R	Unknown
+ * 15002840 R	Unknown
+ * 15002844 R	Unknown
+ * 15002848 R	Unknown
  *
  * See PH:@0C0127B8
  *
@@ -311,15 +301,15 @@
  * Texture RAM Control
  * -------------------
  *
- * 1A000100             l RW    Enables 180-200 Texture RAM Control/Processing/GPU access
- *				See @0C007d00 ,PH:@0C01A0F8, PH@0C01A10C; Texture stuff
- *				Perhaps the controls here decide the texture format/decoding?
+ * 1A000100             l RW    Enable scanout (the framebuffer is displayed
+ *				on-screen.)
+ *				See @0C007D00 ,PH:@0C01A0F8, PH@0C01A10C,
  *
  * Texture RAM Control A & B
  * -------------------------
  *
- * 1A000180-1A0001BF    l RW    REGS A, 16 registers
- * 1A000200-1A00023F    l RW    REGS B, 16 registers
+ * 1A000180-1A0001BF    l RW    Framebuffer A, 16 registers
+ * 1A000200-1A00023F    l RW    Framebuffer B, 16 registers
  *
  *     The UNIT's come in pairs: 9 LSBs + other, see PH:@0C01A860.
  *
@@ -361,16 +351,13 @@
  *
  * 1A020000 32-bit  W	"SEGA" is written here; see @0C001A58
  *
- * Texture FIFO
- * ------------
+ * TEXRAM to TEXRAM Copy Engine
+ * ----------------------------
  *
- * 1A040000 32-bit  W	Texture FIFO
- * 1A040004 32-bit  W	Texture FIFO
- * 1A040008 32-bit  W	Texture FIFO
- * 1A04000C 32-bit  W	Texture FIFO
- *
- * Note: this thing could be not related to texturing, but it's definitely
- * a FIFO.
+ * 1A040000 32-bit  W	Source coords
+ * 1A040004 32-bit  W	Destination coords
+ * 1A040008 32-bit  W	Texture Size
+ * 1A04000C 32-bit  W	Control
  *
  * Unknown
  * -------
@@ -533,14 +520,22 @@ hikaru_gpu_print_state (hikaru_gpu_t *gpu)
 {
 	unsigned i;
 	printf (" ==== GPU ====\n");
-	for (i = 0; i < 0x9C; i += 4)
+	for (i = 0; i < 0x100; i += 4)
 		printf ("GPU STATE: %08X = %08X\n", 0x15000000 + i, REG15(i));
-	for (i = 0; i < 0x104; i+= 4)
+	for (i = 0; i < 0x100; i+= 4)
 		printf ("GPU STATE: %08X = %08X\n", 0x1A000000 + i, REG1A(i));
-	for (i = 0; i < 0x40; i+= 4)
-		printf ("GPU STATE: %08X = %08X\n", 0x1A000180 + i, REG1AUNIT(0,i));
-	for (i = 0; i < 0x40; i+= 4)
-		printf ("GPU STATE: %08X = %08X\n", 0x1A000200 + i, REG1AUNIT(1,i));
+	if (REG1A(0x100) & 1) {
+		for (i = 0; i < 0x40; i+= 4)
+			printf ("GPU STATE: %08X = %08X { %u, %u }\n",
+			        0x1A000180 + i, REG1AUNIT(0,i),
+			        (REG1AUNIT(0,i) >> 10) * 2, /* Y */
+			        (REG1AUNIT(0,i) & 0x3FF) * 2); /* X */
+		for (i = 0; i < 0x40; i+= 4)
+			printf ("GPU STATE: %08X = %08X { %u, %u }\n",
+			        0x1A000200 + i, REG1AUNIT(1,i),
+			        (REG1AUNIT(1,i) >> 10) * 2,
+			        (REG1AUNIT(1,i) & 0x3FF) * 2);
+	}
 	printf ("\n");
 }
 
@@ -548,11 +543,8 @@ hikaru_gpu_print_state (hikaru_gpu_t *gpu)
  * GPU Address Space
  * =================
  *
- * The GPU has an internal memory map. Here is what it looks like:
- *
- * 101C0000-10600000 * 4 ---> 41070000-417FFFFF, 8 MB region (textures?)
- * 12000000-120FFFFF * 4 ---> 48000000-483FFFFF, 4 MB region (commands)
- * 13000000-130FFFFF * 4 ---> 4C000000-4C3FFFFF, 4 MB region (unknown, commands mirror?)
+ * The GPU has access to the whole external BUS address space. See
+ * hikaru-memctl.c for more details.
  *
  * GPU Instructions
  * ================
@@ -1821,7 +1813,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
  * CHECK ALL THIS AGAIN PLEASE
  *  1A00000C bit 0 is set
  *  1A000018 bit 1 is set as a consequence
- *  1A000018 bit 1 is set 
  *  15000088 bit 7 is set as a consequence
  *  15000088 bit 1 is set; a GPU IRQ is raised (if not masked by 15000084)
  *  15002000 bit 0 is set on some HW revisions
@@ -1895,11 +1886,43 @@ hikaru_gpu_vblank_in (vk_device_t *dev)
 	(void) dev;
 }
 
+static void
+parse_coords (vec2f_t *out, uint32_t coords)
+{
+	out->x[0] = (coords & 0x3FF) * 2;
+	out->x[1] = (coords >> 10) * 2;
+}
+
+static void
+hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) gpu->base.mach->renderer;
+
+	if (REG1A (0x100) & 1) {
+		/* 180 --- 190
+		 *  |       |
+		 *  |       |
+		 * 188 --- 198 */
+		vec2f_t layer0[4];
+		vec2f_t layer1[4];
+
+		parse_coords (&layer0[0], REG1AUNIT (0, 0*4));
+		parse_coords (&layer0[1], REG1AUNIT (0, 4*4));
+		parse_coords (&layer0[2], REG1AUNIT (0, 2*4));
+		parse_coords (&layer0[3], REG1AUNIT (0, 6*4));
+
+		hikaru_renderer_draw_layer (hr, layer0);
+		hikaru_renderer_draw_layer (hr, layer1);
+	}
+}
+
 void
 hikaru_gpu_vblank_out (vk_device_t *dev)
 {
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
 	hikaru_gpu_raise_irq (gpu, _15_IRQ_VBLANK, _1A_IRQ_VBLANK);
+
+	hikaru_gpu_render_bitmap_layers (gpu);
 }
 
 /*

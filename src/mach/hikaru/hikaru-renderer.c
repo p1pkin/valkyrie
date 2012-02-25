@@ -47,6 +47,12 @@ hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
 	glEnd ();
 }
 
+void
+hikaru_renderer_draw_layer (hikaru_renderer_t *renderer,
+                            vec2f_t coords[4])
+{
+}
+
 static inline uint32_t
 rgba4_to_rgba8 (uint32_t p)
 {
