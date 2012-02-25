@@ -43,10 +43,9 @@ typedef struct {
 	vk_device_t *memctl_s;
 	vk_device_t *mscomm;
 	vk_device_t *mie;
+	vk_device_t *aica_m;
+	vk_device_t *aica_s;
 	vk_device_t *gpu;
-
-	vk_device_t *mainbd_eeprom;
-	vk_device_t *rombd_eeprom;
 
 	/* Port A (master and slave) */
 	uint16_t porta_m;
@@ -68,7 +67,8 @@ typedef struct {
 	vk_buffer_t *ram_m, *ram_s;
 	vk_buffer_t *cmdram, *texram;
 	vk_buffer_t *unkram[2];
-	vk_buffer_t *aica_ram[2];
+	vk_buffer_t *aica_ram_m;
+	vk_buffer_t *aica_ram_s;
 	vk_buffer_t *mie_ram;
 	vk_buffer_t *bram;
 

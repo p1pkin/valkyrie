@@ -29,7 +29,8 @@ HIKARU_OBJ := \
 	src/mach/hikaru/hikaru-mie.o \
 	src/mach/hikaru/hikaru-memctl.o \
 	src/mach/hikaru/hikaru-renderer.o \
-	src/mach/hikaru/hikaru-gpu.o
+	src/mach/hikaru/hikaru-gpu.o \
+	src/mach/hikaru/hikaru-aica.o
 
 all: bin/valkyrie
 

@@ -434,32 +434,10 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 			set_ptr (val, size, 0x19620217);
 	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
 		/* AICA 1 */
-		log = true;
-		switch (bus_addr & 0xFFFFFF) {
-		case 0x0080005C: {
-				static uint32_t hack = 0;
-				hack ^= 1;
-				set_ptr (val, size, hack);
-			}
-			break;
-		case 0x00800060 ... 0x0080007F:
-			set_ptr (val, size, 0xFFFFFFFF);
-			break;
-		}
+		return vk_device_get (hikaru->aica_m, size, bus_addr, val);
 	} else if (bus_addr >= 0x0D000000 && bus_addr <= 0x0DFFFFFF) {
 		/* AICA 2 */
-		log = true;
-		switch (bus_addr & 0xFFFFFF) {
-		case 0x0080005C: {
-				static uint32_t hack = 0;
-				hack ^= 1;
-				set_ptr (val, size, hack);
-			}
-			break;
-		case 0x00800060 ... 0x0080007F:
-			set_ptr (val, size, 0xFFFFFFFF);
-			break;
-		}
+		return vk_device_get (hikaru->aica_s, size, bus_addr, val);
 	} else if (bus_addr >= 0x0E000000 && bus_addr <= 0x0E00FFFF) {
 		/* Network Board */
 		log = true;
@@ -535,10 +513,10 @@ memctl_bus_put (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, uint6
 		log = true;
 	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
 		/* AICA 1 */
-		log = true;
+		return vk_device_put (hikaru->aica_m, size, bus_addr, val);
 	} else if (bus_addr >= 0x0D000000 && bus_addr <= 0x0DFFFFFF) {
 		/* AICA 2 */
-		log = true;
+		return vk_device_put (hikaru->aica_s, size, bus_addr, val);
 	} else if (bus_addr >= 0x0E000000 && bus_addr <= 0x0E00FFFF) {
 		/* Network board */
 		log = true;

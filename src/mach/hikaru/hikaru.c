@@ -40,7 +40,7 @@
  *			per polygon, 8 window surfaces. 
  * Effects		Phong Shading, Fog, Depth Queueing, Stencil, Shadow [?]
  *			Motion blur
- * Others Capabilties	Bitmap Layer x 2 [Note: this is wrong.]
+ * Others Capabilties	Bitmap Layer x 2
  *			Calendar [Note: AICA RTC]
  *			Dual Monitor (24 kHz)
  * Extensions		communication, 4 channel audio, PCI, MIDI, RS-232C 
@@ -147,6 +147,7 @@
 #include "mach/hikaru/hikaru-memctl.h"
 #include "mach/hikaru/hikaru-mscomm.h"
 #include "mach/hikaru/hikaru-mie.h"
+#include "mach/hikaru/hikaru-aica.h"
 #include "mach/hikaru/hikaru-gpu.h"
 #include "mach/hikaru/hikaru-renderer.h"
 
@@ -484,8 +485,8 @@ hikaru_reset (vk_machine_t *mach, vk_reset_type_t type)
 	vk_buffer_clear (hikaru->texram);
 	vk_buffer_clear (hikaru->unkram[0]);
 	vk_buffer_clear (hikaru->unkram[1]);
-	vk_buffer_clear (hikaru->aica_ram[0]);
-	vk_buffer_clear (hikaru->aica_ram[1]);
+	vk_buffer_clear (hikaru->aica_ram_m);
+	vk_buffer_clear (hikaru->aica_ram_s);
 	vk_buffer_clear (hikaru->mie_ram);
 	vk_buffer_clear (hikaru->bram);
 
@@ -597,8 +598,8 @@ hikaru_dump (vk_machine_t *mach)
 	vk_buffer_dump (hikaru->texram,		"hikaru-gpu-texram.bin");
 	vk_buffer_dump (hikaru->unkram[0],	"hikaru-gpu-unkram-0.bin");
 	vk_buffer_dump (hikaru->unkram[1],	"hikaru-gpu-unkram-1.bin");
-	vk_buffer_dump (hikaru->aica_ram[0],	"hikaru-aica-ram-0.bin");
-	vk_buffer_dump (hikaru->aica_ram[1],	"hikaru-aica-ram-1.bin");
+	vk_buffer_dump (hikaru->aica_ram_m,	"hikaru-aica-ram-m.bin");
+	vk_buffer_dump (hikaru->aica_ram_m,	"hikaru-aica-ram-s.bin");
 	vk_buffer_dump (hikaru->bram,		"hikaru-bram.bin");
 	vk_buffer_dump (hikaru->mie_ram,	"hikaru-mie-ram.bin");
 
@@ -638,8 +639,8 @@ hikaru_delete (vk_machine_t **_mach)
 			vk_buffer_delete (&hikaru->texram);
 			vk_buffer_delete (&hikaru->unkram[0]);
 			vk_buffer_delete (&hikaru->unkram[1]);
-			vk_buffer_delete (&hikaru->aica_ram[0]);
-			vk_buffer_delete (&hikaru->aica_ram[1]);
+			vk_buffer_delete (&hikaru->aica_ram_m);
+			vk_buffer_delete (&hikaru->aica_ram_s);
 			vk_buffer_delete (&hikaru->bram);
 			vk_buffer_delete (&hikaru->mie_ram);
 		}
@@ -751,7 +752,7 @@ setup_master_mmap (hikaru_t *hikaru)
 	                             hikaru->gpu, "GPU/M");
 	vk_mmap_set_region (mmap, region, i++);
 
-	region = vk_region_ram_new (0x1B000000, 0x1B7FFFFF, 0x7FFFFF, 0,
+	region = vk_region_ram_new (0x1B000000, 0x1B7FFFFF, 0x7FFFFF, 0 | VK_REGION_LOG_RW,
 	                            hikaru->texram, "TEXRAM/M");
 	vk_mmap_set_region (mmap, region, i++);
 
@@ -840,15 +841,15 @@ hikaru_init (hikaru_t *hikaru)
 	hikaru->texram		= vk_buffer_le32_new (8*MB, 0);
 	hikaru->unkram[0]	= vk_buffer_le32_new (4*MB, 0);
 	hikaru->unkram[1]	= vk_buffer_le32_new (4*MB, 0);
-	hikaru->aica_ram[0]	= vk_buffer_le32_new (8*MB, 0);
-	hikaru->aica_ram[1]	= vk_buffer_le32_new (8*MB, 0);
+	hikaru->aica_ram_m	= vk_buffer_le32_new (8*MB, 0);
+	hikaru->aica_ram_s	= vk_buffer_le32_new (8*MB, 0);
 	hikaru->mie_ram		= vk_buffer_le32_new (32*KB, 0);
 	hikaru->bram		= vk_buffer_le32_new (64*KB, 0);
 
 	if (!hikaru->ram_m || !hikaru->ram_s ||
 	    !hikaru->cmdram || !hikaru->texram ||
 	    !hikaru->unkram[0] || !hikaru->unkram[1] ||
-	    !hikaru->aica_ram[0] || !hikaru->aica_ram[1] ||
+	    !hikaru->aica_ram_m || !hikaru->aica_ram_s ||
 	    !hikaru->bram || !hikaru->mie_ram)
 		return -1;
 
@@ -879,6 +880,9 @@ hikaru_init (hikaru_t *hikaru)
 
 	hikaru->gpu = hikaru_gpu_new (mach, hikaru->cmdram, hikaru->texram);
 	hikaru->base.renderer = hikaru_renderer_new (hikaru->texram);
+
+	hikaru->aica_m = hikaru_aica_new (mach, hikaru->aica_ram_m, true);
+	hikaru->aica_s = hikaru_aica_new (mach, hikaru->aica_ram_m, false);
 
 	hikaru->mmap_m = setup_master_mmap (hikaru);
 	hikaru->mmap_s = setup_slave_mmap (hikaru);
