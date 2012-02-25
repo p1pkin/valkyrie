@@ -4,6 +4,8 @@ TODO
 BEFORE UPLOADING THE TREE
 -------------------------
 
+Move to CMake.
+
 Rewrite the JSON file to be more flexible (just like MAME.)
 
 Move the JSON location to '$HOME/.local/share/valkyrie' or something.
@@ -13,27 +15,30 @@ I'll add more here later.
 BOOTROM
 -------
 
-All three bootroms are pretty similar.
-
 Fix texture coordinates for rendering. There's something creepingly odd
 about them.
 
-Fix texture commands.
+Implement texture commands (2C1 and the like.)
 
 The BOOTROM is a good testcase to implement the GPU IDMA.
 
 Fix rendering to handle the CRT screen (basically store triangles and let
 the EE8 [texcoord] command apply to the latest pushed triangle.)
 
+Implement EEPROM handling (for all of them: MAINBD, MIE, ROMBD.)
+
+Implement BRAM backup.
+
 AIRTRIX
 -------
 
-The game is stuck in a loop, because a previously called routine fails.
+Implement AICA in its own class, so that the game doesn't fail at the
+"NO OPTIONAL SOUND BOARD" screen.
 
-The loop at 0C010EDE is just waiting for the test switch to be pressed.
+Implement more of the IO BOARD, so that the game doesn't fail at the
+"NO IO BOARD" screen.
 
-When the switch is pressed, the game requires better-than-completely-dummy
-AICA 0C/0D emulation.
+Implement rudimentary bitmap layer rendering.
 
 BRAVEFF
 -------
@@ -41,6 +46,11 @@ BRAVEFF
 Fix ROM layout for small EPROMS/MASKROMS, then check with the ROMBD test.
 
 Implement SH-4 DMAC IRQ.
+
+Cyber Troops Virtual On 4
+-------------------------
+
+Not dumped yet.
 
 PHARRIER
 --------
@@ -60,3 +70,15 @@ The game just doesn't boot. EPROM/MASKROM layout is wrong, and/or ROMBD
 parameters read from the EPROM (in authenticate_rom () or late __init ())
 simply don't work. To find out what is wrong, just look at the PR of
 set_errno_and_init_machine ().
+
+The following patch makes the problematic check pass.
+
+	case 0x0C00BC9A:
+		/* Makes authenticate_rom pass also for SGNASCAR; the problem
+		 * is that the EEPROM contents and the EPROM contents don't
+		 * agree on something (EPROM size maybe?) */
+		R(3) = 0;
+		break;
+
+However . The problem seems to be bad EPROM mapping and/or bad EEPROM values
+influencing the boot process.
