@@ -505,6 +505,8 @@ hikaru_reset (vk_machine_t *mach, vk_reset_type_t type)
 	vk_device_reset (hikaru->memctl_s, type);
 	vk_device_reset (hikaru->mscomm, type);
 	vk_device_reset (hikaru->mie, type);
+	vk_device_reset (hikaru->aica_m, type);
+	vk_device_reset (hikaru->aica_s, type);
 	vk_device_reset (hikaru->gpu, type);
 
 	hikaru->unk00400000_m = 0;
