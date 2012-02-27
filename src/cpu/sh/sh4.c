@@ -939,6 +939,9 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C697A40:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: sync (%X)", R(4));
 		break;
+	case 0x0C010E78:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: main ()");
+		break;
 	case 0x0C6996A0:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: print_warning (%X)", R(4));
 		break;
