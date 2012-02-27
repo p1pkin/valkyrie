@@ -968,7 +968,6 @@ I (ldcsr)
 I (ldcgbr)
 {
 	GBR = RN;
-	assert ((GBR & 0x1FFFFFFF) == 0x0C00F000);
 }
 
 I (ldcvbr)
