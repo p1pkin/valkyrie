@@ -50,6 +50,7 @@
 typedef struct {
 	vk_device_t base;
 	vk_buffer_t *ram;
+	vk_buffer_t *regs;
 	uint32_t rtc[4];
 	bool master;
 } hikaru_aica_t;
@@ -65,18 +66,24 @@ hikaru_aica_get (vk_device_t *device, unsigned size, uint32_t addr, void *val)
 	             aica->master ? 'M' : 'S', 8*size, offs);
 
 	switch (offs) {
-	case 0x702C00:
-		/* ARM Reset */
-		return 0;
+	case 0x700000 ... 0x703BFF:
+		set_ptr (val, size, vk_buffer_get (aica->regs, size, addr & 0x3FFF));
+		break;
 	case 0x710000:
 	case 0x710004:
 	case 0x710008:
 		/* AICA RTC */
 		VK_ASSERT (size == 4);
 		*val32 = aica->rtc[(offs & 0xF) / 4];
-		return 0;
+		break;
+	case 0x800000 ... 0xFFFFFF:
+		/* RAM */
+		set_ptr (val, size, vk_buffer_get (aica->ram, size, addr & 0x7FFFFF));
+		break;
+	default:
+		return -1;
 	}
-	return -1;
+	return 0;
 }
 
 static int
@@ -89,19 +96,27 @@ hikaru_aica_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val
 	             aica->master ? 'M' : 'S', 8*size, offs, val);
 
 	switch (offs) {
-	case 0x702800:
-		/* Master Volume */
+	case 0x700000 ... 0x703BFF:
+		vk_buffer_put (aica->regs, size, addr & 0x3FFF, val);
+		break;
+#if 0
 	case 0x702C00:
 		/* ARM Reset */
-		return 0;
+#endif
 	case 0x710000:
 	case 0x710004:
 	case 0x710008:
 		/* AICA RTC */
 		VK_ASSERT (size == 4);
-		return 0;
+		return -1;
+	case 0x800000 ... 0xFFFFFF:
+		/* RAM */
+		vk_buffer_put (aica->ram, size, addr & 0x7FFFFF, val);
+		break;
+	default:
+		return -1;
 	}
-	return -1;
+	return 0;
 }
 
 static int
@@ -113,6 +128,10 @@ hikaru_aica_exec (vk_device_t *dev)
 static void
 hikaru_aica_reset (vk_device_t *dev, vk_reset_type_t type)
 {
+	hikaru_aica_t *aica = (hikaru_aica_t *) dev;
+	aica->rtc[0] = 0x5BFC;
+	aica->rtc[1] = 0x8900;
+	aica->rtc[2] = 0;
 }
 
 static int
@@ -153,10 +172,8 @@ hikaru_aica_new (vk_machine_t *mach, vk_buffer_t *ram, bool master)
 
 		aica->ram = ram;
 		aica->master = master;
-	}
 
+		aica->regs = vk_buffer_le32_new (0x3C00, 0);
+	}
 	return device;
-fail:
-	hikaru_aica_delete (&device);
-	return NULL;
 }
