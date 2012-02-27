@@ -932,10 +932,6 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		break;
 #if 1
 	/* AIRTRIX */
-	case 0x0C69B360:
-		/* XXX skip MIE check */
-		R(0) = R(1) = 0;
-		break;
 	case 0x0C697A40:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: sync (%X)", R(4));
 		break;
@@ -955,7 +951,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		VK_CPU_LOG (ctx, " ### AIRTRIX: upload_texture (%X,%X,%X)", R(4),R(5),R(6));
 		break;
 	case 0x0C699140:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: clear_texture_rectangle (%X,%X)", R(4),R(5));
+		VK_CPU_LOG (ctx, " ### AIRTRIX: clear_layer (%X,%X)", R(4),R(5));
 		break;
 	case 0x0C6998A0:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: init_tex_machinery ()");
@@ -966,11 +962,15 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C699A60:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: do_memctl_dma_and_idma (%X,%X,%X,%X)", R(4),R(5),R(6),R(7));
 		break;
-#if 0
-	case 0x0C010EA2:
-		/* Fool the code into thinking that the AICAs are working */
-		R(0) = 0;
+	case 0x0C02FA44:
+		/* Fake AICA */
+		R(3) = 1;
 		break;
+	case 0x0C02FA4E:
+		/* Fake AICA */
+		R(1) = 1;
+		break;
+#if 0
 	case 0x0C010F74:
 		/* Fool the code into thinking that the IO board is working */
 		R(3) = 1;
