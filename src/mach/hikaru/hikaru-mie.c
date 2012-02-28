@@ -84,6 +84,7 @@ hikaru_mie_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 {
 	hikaru_mie_t *mie = (hikaru_mie_t *) dev;
 
+	set_ptr (val, size, 0);
 	if (addr >= 0x00800000 && addr <= 0x00800014) {
 		uint16_t *val16 = (uint16_t *) val;
 		if (size != 2)
@@ -106,11 +107,19 @@ hikaru_mie_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 			return -1;
 		}
 		*val16 = REG(addr);
+	} else if (addr == 0x0082F000) {
+		return 0;
 	} else if (addr >= 0x00830000 && addr <= 0x0083FFFF) {
 		/* FIXME handle size != 1 */
-		set_ptr (val, size, vk_buffer_get (((hikaru_t *) dev->mach)->mie_ram, size, (addr / 2) & 0x7FFF));
+		/* HACK: for AIRTRIX, see AT:@0C69B34E */
+		/*set_ptr (val, size, vk_buffer_get (((hikaru_t *) dev->mach)->mie_ram, size, (addr / 2) & 0x7FFF));*/
+		set_ptr (val, size, 0);
+		if (addr == 0x00838004)
+			set_ptr (val, size, 3);
+		else if (addr == 0x00838008)
+			set_ptr (val, size, 6);
 	} else
-		return 0;
+		return -1;
 	return 0;
 }
 
