@@ -79,6 +79,9 @@ hikaru_aica_get (vk_device_t *device, unsigned size, uint32_t addr, void *val)
 	case 0x800000 ... 0xFFFFFF:
 		/* RAM */
 		set_ptr (val, size, vk_buffer_get (aica->ram, size, addr & 0x7FFFFF));
+		if (offs == 0x80005C)
+			/* XXX hack for AIRTRIX */
+			set_ptr (val, size, 1);
 		break;
 	default:
 		return -1;
