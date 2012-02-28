@@ -932,14 +932,11 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		break;
 #if 1
 	/* AIRTRIX */
-	case 0x0C697A40:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: sync (%X)", R(4));
-		break;
 	case 0x0C010E78:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: main ()");
 		break;
-	case 0x0C6996A0:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: print_warning (%X)", R(4));
+	case 0x0C697A40:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: sync (%X)", R(4));
 		break;
 	case 0x0C697CDC:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: flush_list_to_15000010_idma ()");
@@ -947,14 +944,11 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C697D48:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: flush_list_to_1A040000_fifo ()");
 		break;
-	case 0x0C699580:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: upload_texture (%X,%X,%X)", R(4),R(5),R(6));
+	case 0x0C697C3C:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: update_controls ()");
 		break;
-	case 0x0C699140:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: clear_layer (%X,%X)", R(4),R(5));
-		break;
-	case 0x0C6998A0:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: init_tex_machinery ()");
+	case 0x0C6996A0:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: print_warning (%X)", R(4));
 		break;
 	case 0x0C0310CC:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: upload_textures_from_table_with_dma_and_idma (%X)", R(4));
@@ -962,24 +956,19 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C699A60:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: do_memctl_dma_and_idma (%X,%X,%X,%X)", R(4),R(5),R(6),R(7));
 		break;
-	case 0x0C02FA44:
-		/* Fake AICA */
-		R(3) = 1;
+	case 0x0C699580:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: upload_texture (%X,%X,%X)", R(4),R(5),R(6));
 		break;
-	case 0x0C02FA4E:
-		/* Fake AICA */
-		R(1) = 1;
+	case 0x0C699140:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: clear_layer (%X,%X)", R(4),R(5));
 		break;
-#if 0
-	case 0x0C010F74:
-		/* Fool the code into thinking that the IO board is working */
-		R(3) = 1;
+	case 0x0C69B34E:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: wait_00830000_2_clear ()");
 		break;
 	case 0x0C010F9A:
 		/* Make the 'WARNING' screen faster (well, 656 frames faster) */
 		R(2) = 0x290;
 		break;
-#endif
 #endif
 
 #if 0
