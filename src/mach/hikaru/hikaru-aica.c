@@ -123,7 +123,7 @@ hikaru_aica_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val
 }
 
 static int
-hikaru_aica_exec (vk_device_t *dev)
+hikaru_aica_exec (vk_device_t *dev, int cycles)
 {
 	return -1;
 }
