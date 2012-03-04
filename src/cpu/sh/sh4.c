@@ -908,6 +908,10 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C0010A4:
 		VK_CPU_LOG (ctx, " ### IRQ: about to jump to handler @%08X", R(5))
 		break;
+	case 0x0C00B90A:
+		VK_CPU_LOG (ctx, " ### JUMPING TO ROM CODE! (%X)", R(11));
+		break;
+#if 0
 	case 0x0C00BD18:
 		VK_CPU_LOG (ctx, " ### set_errno_and_init_machine_extended (%X)", R(4));
 		break;
@@ -921,9 +925,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C004E46:
 		VK_CPU_LOG (ctx, " ### rombd_do_crc (%X, %X, %X)", R(4), R(5), R(6));
 		break;
-	case 0x0C00B90A:
-		VK_CPU_LOG (ctx, " ### JUMPING TO ROM CODE! (%X)", R(11));
-		break;
+#endif
 
 	/* All games */
 	case 0x0C00BFB2:
@@ -957,17 +959,36 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		VK_CPU_LOG (ctx, " ### AIRTRIX: do_memctl_dma_and_idma (%X,%X,%X,%X)", R(4),R(5),R(6),R(7));
 		break;
 	case 0x0C699580:
+	case 0x0C699760:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: upload_texture (%X,%X,%X)", R(4),R(5),R(6));
 		break;
 	case 0x0C699140:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: clear_layer (%X,%X)", R(4),R(5));
 		break;
-	case 0x0C69B34E:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: wait_00830000_2_clear ()");
-		break;
 	case 0x0C010F9A:
 		/* Make the 'WARNING' screen faster (well, 656 frames faster) */
 		R(2) = 0x290;
+		break;
+
+	case 0x0C014D72:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: huge_shit ()");
+		break;
+	case 0x0C0263EA:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: game_logic_update_A ()");
+		break;
+#endif
+
+#if 0
+	/* BRAVEFF */
+	case 0x0C0D3F00:
+		VK_CPU_LOG (ctx, " ### BRAVEFF: sync (%X)", R(4));
+		break;
+	case 0x0C0D51C0:
+		R(7) = 0;
+		VK_CPU_LOG (ctx, " ### BRAVEFF: do_dmac (%X, %X, %X, %X)", R(4), R(5), R(6), R(7));
+		break;
+	case 0x0C0D522A:
+		T = 1;
 		break;
 #endif
 
@@ -979,13 +1000,15 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C0F4280:
 		VK_CPU_LOG (ctx, " ### PHARRIER: upload_textures_in_a_double_loop (%X, %X, %X)", R(4), R(5), R(6));
 		break;
+	case 0x0C0149CA:
+		VK_CPU_LOG (ctx, " ### PHARRIER: aica_upload (%X, %X, %X)", R(4), R(5), R(6));
+		break;
+#if 1
 	case 0x0C01C322:
 		/* Patches an AICA-related while (1) into a NOP */
 		inst = 0x0009;
 		break;
-		/* Patches out a few calls to upload_textures_in_a_double_loop */
-		inst = 0x0009;
-		break;
+#endif
 #endif
 	}
 
