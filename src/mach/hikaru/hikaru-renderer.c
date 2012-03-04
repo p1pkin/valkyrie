@@ -49,8 +49,18 @@ hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
 
 void
 hikaru_renderer_draw_layer (hikaru_renderer_t *renderer,
-                            vec2f_t coords[4])
+                            vec2i_t coords[4])
 {
+	glBegin (GL_TRIANGLE_STRIP);
+		glTexCoord2s (coords[0].x[0], coords[0].x[1]);
+		glVertex3f (0.0f, 479.0f, 0.1f);
+		glTexCoord2s (coords[1].x[0], coords[1].x[1]);
+		glVertex3f (639.0f, 479.0f, 0.1f);
+		glTexCoord2s (coords[2].x[0], coords[2].x[1]);
+		glVertex3f (0.0f, 0.0f, 0.1f);
+		glTexCoord2s (coords[3].x[0], coords[3].x[1]);
+		glVertex3f (639.0f, 0.0f, 0.1f);
+	glEnd ();
 }
 
 static inline uint32_t
@@ -85,18 +95,6 @@ bind_texram (vk_renderer_t *renderer)
 
 	/* The ASCII texture is at [1920,2048)x[0,64) in TEXRAM */
 	/* A character is 8x8 pixels; the entire ASCII table is 16x8 tiles */
-#if 0
-	glBegin (GL_TRIANGLE_STRIP);
-		glTexCoord2s (1920, 0);
-		glVertex3f (0.0f, 0.0f, 0.1f);
-		glTexCoord2s (2048, 0);
-		glVertex3f (639.0f, 0.0f, 0.1f);
-		glTexCoord2s (1920, 64);
-		glVertex3f (0.0f, 479.0f, 0.1f);
-		glTexCoord2s (2048, 64);
-		glVertex3f (639.0f, 479.0f, 0.1f);
-	glEnd ();
-#endif
 }
 
 static void
@@ -112,7 +110,7 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 static void
 hikaru_renderer_end_frame (vk_renderer_t *renderer)
 {
-	glDisable (GL_TEXTURE_2D);
+	(void) renderer;
 }
 
 static void

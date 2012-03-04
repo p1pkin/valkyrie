@@ -43,6 +43,6 @@ void		 hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
 		                           bool has_texture,
 		                           vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2);
 void		hikaru_renderer_draw_layer (hikaru_renderer_t *renderer,
-		                            vec2f_t coords[4]);
+		                            vec2i_t coords[4]);
 
 #endif /* __VK_HIKARU_RENDERER_H__ */

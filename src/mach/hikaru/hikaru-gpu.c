@@ -515,30 +515,6 @@ hikaru_gpu_get_debug_str (vk_device_t *dev)
 	return out;
 }
 
-static void
-hikaru_gpu_print_state (hikaru_gpu_t *gpu)
-{
-	unsigned i;
-	printf (" ==== GPU ====\n");
-	for (i = 0; i < 0x100; i += 4)
-		printf ("GPU STATE: %08X = %08X\n", 0x15000000 + i, REG15(i));
-	for (i = 0; i < 0x100; i+= 4)
-		printf ("GPU STATE: %08X = %08X\n", 0x1A000000 + i, REG1A(i));
-	if (REG1A(0x100) & 1) {
-		for (i = 0; i < 0x40; i+= 4)
-			printf ("GPU STATE: %08X = %08X { %u, %u }\n",
-			        0x1A000180 + i, REG1AUNIT(0,i),
-			        (REG1AUNIT(0,i) >> 10) * 2, /* Y */
-			        (REG1AUNIT(0,i) & 0x3FF) * 2); /* X */
-		for (i = 0; i < 0x40; i+= 4)
-			printf ("GPU STATE: %08X = %08X { %u, %u }\n",
-			        0x1A000200 + i, REG1AUNIT(1,i),
-			        (REG1AUNIT(1,i) >> 10) * 2,
-			        (REG1AUNIT(1,i) & 0x3FF) * 2);
-	}
-	printf ("\n");
-}
-
 /*
  * GPU Address Space
  * =================
@@ -1863,8 +1839,6 @@ hikaru_gpu_exec (vk_device_t *dev, int cycles)
 	if (!gpu->is_running || REG15 (0x58) != 3)
 		return 0;
 
-	hikaru_gpu_print_state (gpu);
-
 	/* XXX hack, no idea how fast the GPU is or how much time each
 	 * command takes. */
 	gpu->cycles = cycles;
@@ -1887,10 +1861,27 @@ hikaru_gpu_vblank_in (vk_device_t *dev)
 }
 
 static void
-parse_coords (vec2f_t *out, uint32_t coords)
+parse_coords (vec2i_t *out, uint32_t coords)
 {
 	out->x[0] = (coords & 0x3FF) * 2;
-	out->x[1] = (coords >> 10) * 2;
+	out->x[1] = (coords >> 10);
+}
+
+static void
+outline_layer (hikaru_gpu_t *gpu, vec2i_t coords[4])
+{
+	uint32_t x, y;
+
+	VK_LOG ("LAYER { %u %u } { %u %u } { %u %u } { %u %u }",
+	        coords[0].x[0], coords[0].x[1],
+	        coords[1].x[0], coords[1].x[1],
+	        coords[2].x[0], coords[2].x[1],
+	        coords[3].x[0], coords[3].x[1]);
+
+	for (y = coords[0].x[1]; y < coords[3].x[1]; y++)
+		vk_buffer_put (gpu->texram, 2, coords[0].x[0]*2 + y*4096, 0xFFFF);
+	for (y = coords[0].x[1]; y < coords[3].x[1]; y++)
+		vk_buffer_put (gpu->texram, 2, coords[3].x[0]*2 + y*4096, 0xFFFF);
 }
 
 static void
@@ -1899,20 +1890,32 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) gpu->base.mach->renderer;
 
 	if (REG1A (0x100) & 1) {
-		/* 180 --- 190
-		 *  |       |
-		 *  |       |
-		 * 188 --- 198 */
-		vec2f_t layer0[4];
-		vec2f_t layer1[4];
+		vec2i_t layer[4][4];
+		static const vec2i_t hack[4] = {
+			{ .x = { 1280, 0 } },
+			{ .x = { 1280+640, 0 } },
+			{ .x = { 1280, 480 } },
+			{ .x = { 1280+640, 480 } }
+		};
 
-		parse_coords (&layer0[0], REG1AUNIT (0, 0*4));
-		parse_coords (&layer0[1], REG1AUNIT (0, 4*4));
-		parse_coords (&layer0[2], REG1AUNIT (0, 2*4));
-		parse_coords (&layer0[3], REG1AUNIT (0, 6*4));
+		unsigned i;
 
-		hikaru_renderer_draw_layer (hr, layer0);
-		hikaru_renderer_draw_layer (hr, layer1);
+		for (i = 0; i < 0x40; i += 4)
+			VK_LOG ("LAYER 0: %2X %08X", i, REG1AUNIT (0, i));
+		for (i = 0; i < 0x40; i += 4)
+			VK_LOG ("LAYER 1: %2X %08X", i, REG1AUNIT (1, i));
+
+		parse_coords (&layer[0][0], REG1AUNIT (0, 0x00));
+		parse_coords (&layer[0][1], REG1AUNIT (0, 0x10));
+		parse_coords (&layer[0][2], REG1AUNIT (0, 0x08));
+		parse_coords (&layer[0][3], REG1AUNIT (0, 0x18));
+
+		parse_coords (&layer[1][0], REG1AUNIT (0, 0x04));
+		parse_coords (&layer[1][1], REG1AUNIT (0, 0x14));
+		parse_coords (&layer[1][2], REG1AUNIT (0, 0x0C));
+		parse_coords (&layer[1][3], REG1AUNIT (0, 0x1C));
+
+		hikaru_renderer_draw_layer (hr, hack);
 	}
 }
 
