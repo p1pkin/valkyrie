@@ -701,8 +701,8 @@ setup_master_mmap (hikaru_t *hikaru)
 	                            "UNK/M");
 	vk_mmap_set_region (mmap, region, i++);
 
-	region = vk_region_mmio_new (0x00800000, 0x0083FFFF, 0x03FFFF,
-	                             VK_REGION_RW | VK_REGION_SIZE_8 | VK_REGION_SIZE_16 | VK_REGION_LOG_RW,
+	region = vk_region_mmio_new (0x00800000, 0x0083FFFF, 0x3FFFF,
+	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
 	                             hikaru->mie, "MIE/M");
 	vk_mmap_set_region (mmap, region, i++);
 
