@@ -1581,15 +1581,20 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 	case 0x043:
-		/* 043	Unknown [Reset All Color Entries?] */
+		/* 043	Unknown
+		 *
+		 *	uuuu uuuu ---- ---- nnnn oooo oooo oooo
+		 * */
 		{
 			unsigned u = (inst[0] >> 24) & 0xF;
-			VK_LOG ("GPU CMD %08X: Recall Unknown 043 [%08X] %u",
-			        gpu->pc, inst[0], u);
-			VK_ASSERT (!(inst[0] & 0xF0FFF000));
+			unsigned n = (inst[0] >> 12) & 0xF;
+			VK_LOG ("GPU CMD %08X: Recall Unknown 043 [%08X] n=%u u=%u",
+			        gpu->pc, inst[0], n, u);
+			VK_ASSERT (!(inst[0] & 0xF0FF0000));
 			gpu->pc += 4;
 		}
 		break;
+	case 0x903:
 	case 0x901:
 		/* 901	Unknown
 		 *
@@ -1888,15 +1893,17 @@ static void
 hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) gpu->base.mach->renderer;
+	static const vec2i_t hack[4] = {
+		{ .x = { 1280, 0 } },
+		{ .x = { 1280+640, 0 } },
+		{ .x = { 1280, 480 } },
+		{ .x = { 1280+640, 480 } }
+	};
+
+	hikaru_renderer_draw_layer (hr, hack);
 
 	if (REG1A (0x100) & 1) {
 		vec2i_t layer[4][4];
-		static const vec2i_t hack[4] = {
-			{ .x = { 1280, 0 } },
-			{ .x = { 1280+640, 0 } },
-			{ .x = { 1280, 480 } },
-			{ .x = { 1280+640, 480 } }
-		};
 
 		unsigned i;
 
@@ -1914,8 +1921,6 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 		parse_coords (&layer[1][1], REG1AUNIT (0, 0x14));
 		parse_coords (&layer[1][2], REG1AUNIT (0, 0x0C));
 		parse_coords (&layer[1][3], REG1AUNIT (0, 0x1C));
-
-		hikaru_renderer_draw_layer (hr, hack);
 	}
 }
 
