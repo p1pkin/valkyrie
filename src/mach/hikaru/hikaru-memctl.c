@@ -449,6 +449,7 @@ static int
 memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void *val)
 {
 	hikaru_t *hikaru = (hikaru_t *) memctl->base.mach;
+	uint32_t bank = bus_addr >> 24;
 	uint32_t offs = bus_addr & 0xFFFFFF;
 	bool log = false;
 
@@ -506,7 +507,7 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 	} else if (bus_addr >= 0x70000000 && bus_addr <= 0x71FFFFFF) {
 		/* Master RAM */
 		set_ptr (val, size, vk_buffer_get (hikaru->ram_m, size, bus_addr & 0x01FFFFFF));
-	else if (bank == config->eeprom_bank && offs == 0) {
+	} else if (bank == hikaru->rombd_config.eeprom_bank && offs == 0) {
 		/* ROMBD EEPROM */
 		set_ptr (val, size, 0xFFFFFFFF);
 	} else
