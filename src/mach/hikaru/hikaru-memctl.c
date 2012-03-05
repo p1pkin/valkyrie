@@ -423,14 +423,11 @@ rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
 		uint32_t num = bank - config->eprom_bank[0]; /* 0 ... 3 */
 		uint32_t mask = config->eprom_bank_size == 2 ? 0x3FFFFF : 0x7FFFFF;
 		uint32_t real_offs = (offs & mask) + num * 8*MB;
-		uint64_t tmp;
 
-		if (real_offs >= vk_buffer_get_size (hikaru->eprom)) {
-			tmp = 0xFFFFFFFF;
+		if (real_offs < vk_buffer_get_size (hikaru->eprom))
+			set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, real_offs));
+		else
 			log = true;
-		} else
-			tmp = vk_buffer_get (hikaru->eprom, size, real_offs);
-		set_ptr (val, size, tmp);
 
 	} else if (bank >= config->maskrom_bank[0] &&
 	           bank <= config->maskrom_bank[1]) {
@@ -439,14 +436,11 @@ rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
 		uint32_t num = bank - config->maskrom_bank[0]; /* 0 ... 15 */
 		uint32_t mask = config->maskrom_bank_size == 8 ? 0xFFFFFF : 0x1FFFFF;
 		uint32_t real_offs = (offs & mask) + num * 16*MB;
-		uint64_t tmp;
 
-		if (offs >= vk_buffer_get_size (hikaru->maskrom)) {
-			tmp = 0xFFFFFFFF;
+		if (real_offs < vk_buffer_get_size (hikaru->maskrom))
+			set_ptr (val, size, vk_buffer_get (hikaru->maskrom, size, real_offs));
+		else
 			log = true;
-		} else
-			tmp = vk_buffer_get (hikaru->maskrom, size, real_offs);
-		set_ptr (val, size, tmp);
 	}
 	if (log)
 		VK_CPU_LOG (hikaru->sh_current, "ROMBD R%u %08X", size * 8, bus_addr);
