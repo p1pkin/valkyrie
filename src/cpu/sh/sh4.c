@@ -940,7 +940,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		/* Makes the EEPROM check pass */
 		R(0) = 0xF;
 		break;
-#if 0
+#if 1
 	/* AIRTRIX */
 	case 0x0C010E78:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: main ()");
@@ -989,30 +989,6 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 #endif
 
 #if 0
-	/* BRAVEFF */
-	case 0x0C0D3F00:
-		VK_CPU_LOG (ctx, " ### BRAVEFF: sync (%X)", R(4));
-		break;
-	case 0x0C0D51C0:
-		R(7) = 0;
-		VK_CPU_LOG (ctx, " ### BRAVEFF: do_dmac (%X, %X, %X, %X)", R(4), R(5), R(6), R(7));
-		break;
-	case 0x0C0D522A:
-		T = 1;
-		break;
-	case 0x0C05B53E:
-		T = 0;
-		break;
-#if 0
-	case 0x0C04075C:
-		/* Manipulates the main loop stage: 1 is the 'WARNING' screen,
-		 * 2 is the 'ADVERTISE' screen, etc. */
-		R(0) = 6;
-		break;
-#endif
-#endif
-
-#if 1
 	/* PHARRIER */
 	case 0x0C0125C0:
 		VK_CPU_LOG (ctx, " ### PHARRIER: sync (%X)", R(4));
@@ -1027,6 +1003,11 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C01C322:
 		/* Patches an AICA-related while (1) into a NOP */
 		inst = 0x0009;
+		break;
+	case 0x0C014566:
+	case 0x0C014590:
+		/* Patches missing DMA IRQ (?) */
+		T = true;
 		break;
 #endif
 #endif
