@@ -859,10 +859,6 @@ hikaru_init (hikaru_t *hikaru)
 	hikaru->eprom   	= vk_game_get_section_data (hikaru->base.game, "eprom");
 	hikaru->maskrom 	= vk_game_get_section_data (hikaru->base.game, "maskrom");
 
-	VK_LOG ("bootrom = %u bytes", vk_buffer_get_size (hikaru->bootrom));
-	VK_LOG ("eprom   = %u bytes", vk_buffer_get_size (hikaru->eprom));
-	VK_LOG ("maskrom = %u bytes", vk_buffer_get_size (hikaru->maskrom));
-
 	if (!hikaru->bootrom)
 		return -1;
 
