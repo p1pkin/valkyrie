@@ -561,35 +561,6 @@ hikaru_parse_args (vk_machine_t *mach, int argc, char **argv)
 }
 
 static void
-hikaru_set_rombd_config (hikaru_t *hikaru, unsigned config)
-{
-	switch (config) {
-	case 0: /* No ROMBD */
-		hikaru->has_rom = false;
-		hikaru->eeprom_bank = 0x14;
-		break;
-	case 1: /* ROM at bank 0x10 */
-		hikaru->has_rom = true;
-		hikaru->eprom_bank[0] = 0x10;
-		hikaru->eprom_bank[1] = 0x13;
-		hikaru->eeprom_bank = 0x14;
-		hikaru->maskrom_bank[0] = 0x20;
-		hikaru->maskrom_bank[1] = 0x2F;
-		break;
-	case 2: /* ROM at bank 0x18 */
-		hikaru->has_rom = true;
-		hikaru->eprom_bank[0] = 0x18;
-		hikaru->eprom_bank[1] = 0x1B;
-		hikaru->eeprom_bank = 0x1C;
-		hikaru->maskrom_bank[0] = 0x30;
-		hikaru->maskrom_bank[1] = 0x4F;
-		break;
-	default:
-		VK_ASSERT (0);
-	}
-}
-
-static void
 hikaru_dump (vk_machine_t *mach)
 {
 	hikaru_t *hikaru = (hikaru_t *) mach;
@@ -830,9 +801,71 @@ setup_slave_mmap (hikaru_t *hikaru)
 }
 
 static int
+hikaru_set_rombd_config (hikaru_t *hikaru)
+{
+	vk_game_t *game = hikaru->base.game;
+	hikaru_rombd_config_t *config = &hikaru->rombd_config;
+	bool has_rom = true, maskrom_is_stretched = false;
+	uint32_t rombd_offs = 0, eprom_bank_size = 0, maskrom_bank_size = 0;
+
+	/* We require at least the bootrom to be loaded */
+	if (!hikaru->bootrom)
+		return -1;
+
+	/* Determine the layout of ROMBD data within the external bus; see
+	 * hikaru-memctl.c for more details. */
+	if (!strcmp (game->name, "bootrom")) {
+		has_rom = false;
+		hikaru->eprom = NULL;
+		hikaru->maskrom = NULL;
+	} else if (!strcmp (game->name, "airtrix")) {
+		eprom_bank_size = 4;
+		maskrom_bank_size = 16;
+	} else if (!strcmp (game->name, "braveff")) {
+		eprom_bank_size = 2;
+		maskrom_bank_size = 8;
+	} else if (!strcmp (game->name, "pharrier")) {
+		eprom_bank_size = 4;
+		maskrom_bank_size = 16;
+	} else if (!strcmp (game->name, "podrace")) {
+		eprom_bank_size = 4;
+		maskrom_bank_size = 8;
+	} else if (!strcmp (game->name, "sgnascar")) {
+		rombd_offs = 8;
+		eprom_bank_size = 4;
+		maskrom_bank_size = 16;
+		maskrom_is_stretched = true;
+	} else
+		return -1;
+
+	config->has_rom = has_rom;
+
+	/* Set the ROMBD data layout within the external bus */
+	if (has_rom) {
+		/* There are four EPROM banks */
+		config->eprom_bank[0] = rombd_offs + 0x10;
+		config->eprom_bank[1] = rombd_offs + 0x13;
+		/* There are sixteen MASKROM banks */
+		/* XXX how does MASKROM stretching affect this? */
+		config->maskrom_bank[0] = (rombd_offs == 0) ? 0x20 : 0x30;
+		config->maskrom_bank[1] = (rombd_offs == 0) ? 0x2F : 0x3F;
+	}
+	/* The EEPROM bank is constant */
+	config->eeprom_bank = rombd_offs + 0x14;
+
+	/* Set the remaining configuration btis */
+	config->eprom_bank_size = eprom_bank_size;
+	config->maskrom_bank_size = maskrom_bank_size;
+	config->maskrom_is_stretched = maskrom_is_stretched;
+
+	return 0;
+}
+
+static int
 hikaru_init (hikaru_t *hikaru)
 {
 	vk_machine_t *mach = (vk_machine_t *) hikaru;
+	vk_game_t *game = mach->game;
 
 	unk_m.mach = mach;
 	unk_s.mach = mach;
@@ -855,19 +888,12 @@ hikaru_init (hikaru_t *hikaru)
 	    !hikaru->bram || !hikaru->mie_ram)
 		return -1;
 
-	hikaru->bootrom 	= vk_game_get_section_data (hikaru->base.game, "bootrom");
-	hikaru->eprom   	= vk_game_get_section_data (hikaru->base.game, "eprom");
-	hikaru->maskrom 	= vk_game_get_section_data (hikaru->base.game, "maskrom");
+	hikaru->bootrom 	= vk_game_get_section_data (game, "bootrom");
+	hikaru->eprom   	= vk_game_get_section_data (game, "eprom");
+	hikaru->maskrom 	= vk_game_get_section_data (game, "maskrom");
 
-	if (!hikaru->bootrom)
+	if (hikaru_set_rombd_config (hikaru))
 		return -1;
-
-	if (!hikaru->eprom) {
-		hikaru->eprom = NULL;
-		hikaru->maskrom = NULL;
-		hikaru_set_rombd_config (hikaru, 0);
-	} else
-		hikaru_set_rombd_config (hikaru, 1);
 
 	hikaru->memctl_m = hikaru_memctl_new (mach, true);
 	hikaru->memctl_s = hikaru_memctl_new (mach, false);

@@ -26,6 +26,16 @@
 #include "vk/machine.h"
 
 typedef struct {
+	bool has_rom;
+	unsigned eprom_bank[2];
+	unsigned maskrom_bank[2];
+	unsigned eeprom_bank;
+	uint32_t eprom_bank_size;
+	uint32_t maskrom_bank_size;
+	bool maskrom_is_stretched;
+} hikaru_rombd_config_t;
+
+typedef struct {
 	vk_machine_t base;
 
 	/* CPU (master) */
@@ -78,10 +88,7 @@ typedef struct {
 	vk_buffer_t *maskrom;
 
 	/* ROMBD configuration */
-	bool has_rom;
-	unsigned eprom_bank[2];
-	unsigned maskrom_bank[2];
-	unsigned eeprom_bank;
+	hikaru_rombd_config_t rombd_config;
 
 } hikaru_t;
 

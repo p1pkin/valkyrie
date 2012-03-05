@@ -397,10 +397,66 @@ typedef struct {
 /* TODO raise m/s bus error on bad access */
 
 static int
+rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
+{
+	hikaru_rombd_config_t *config = &hikaru->rombd_config;
+	uint32_t bank = bus_addr >> 24;
+	uint32_t offs = bus_addr & 0xFFFFFF;
+	bool log = false;
+
+	/* Access here is valid even if performed on the wrong banks: we set
+	 * the ptr to garbage here because the hikaru bootrom reads
+	 * indiscriminately from banks 10-1B (including the EPROM bank!) to
+	 * figure out the EPROM format. We don't want spurious matchings
+	 * (that is, 0 vs. 0) to affect the computation. */
+	set_ptr (val, size, rand ());
+
+	if (bank == config->eeprom_bank && offs == 0) {
+		/* ROMBD EEPROM */
+		set_ptr (val, size, 0xFFFFFFFF);
+	} else if (!config->has_rom) {
+		/* Nothing else to do if there's not actual ROM data */
+		return 0;
+	} else if (bank >= config->eprom_bank[0] &&
+	           bank <= config->eprom_bank[1]) {
+		/* ROMBD EPROM */
+		uint32_t num = bank - config->eprom_bank[0]; /* 0 ... 3 */
+		uint32_t mask = config->eprom_bank_size == 2 ? 0x3FFFFF : 0x7FFFFF;
+		uint32_t real_offs = (offs & mask) + num * 8*MB;
+		uint64_t tmp;
+
+		if (real_offs >= vk_buffer_get_size (hikaru->eprom)) {
+			tmp = 0xFFFFFFFF;
+			log = true;
+		} else
+			tmp = vk_buffer_get (hikaru->eprom, size, real_offs);
+		set_ptr (val, size, tmp);
+
+	} else if (bank >= config->maskrom_bank[0] &&
+	           bank <= config->maskrom_bank[1]) {
+		/* ROMBD MASKROM */
+		/* XXX take in account MASKROM stretching here */
+		uint32_t num = bank - config->maskrom_bank[0]; /* 0 ... 15 */
+		uint32_t mask = config->maskrom_bank_size == 8 ? 0xFFFFFF : 0x1FFFFF;
+		uint32_t real_offs = (offs & mask) + num * 16*MB;
+		uint64_t tmp;
+
+		if (offs >= vk_buffer_get_size (hikaru->maskrom)) {
+			tmp = 0xFFFFFFFF;
+			log = true;
+		} else
+			tmp = vk_buffer_get (hikaru->maskrom, size, real_offs);
+		set_ptr (val, size, tmp);
+	}
+	if (log)
+		VK_CPU_LOG (hikaru->sh_current, "ROMBD R%u %08X", size * 8, bus_addr);
+	return 0;
+}
+
+static int
 memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void *val)
 {
 	hikaru_t *hikaru = (hikaru_t *) memctl->base.mach;
-	uint32_t bank = bus_addr >> 24;
 	uint32_t offs = bus_addr & 0xFFFFFF;
 	bool log = false;
 
@@ -413,9 +469,8 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 		set_ptr (val, size, vk_buffer_get (hikaru->unkram[1], size, offs));
 	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
 		/* Unknown */
-		log = true;
 		/* Here's the thing: the value of bits 2 and 3 of 0C00F01C
-		 * (which is GBR 28), depends on whether these two ports
+		 * (which is GBR 28) depends on whether these two ports
 		 * retain the value '0x19620217'.
 		 * 
 		 * If the value of the upper two bits is 4, then the EPROM
@@ -430,8 +485,17 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 		 * SGNASCAR (?). PHARRIER should be '4' type, but the ROM
 		 * zip contains two IC35's, one EPROM and one MASKROM.
 		 */
-		if (offs == 8)
-			set_ptr (val, size, 0x19620217);
+		switch (offs) {
+		case 0x8:
+			if (!hikaru->rombd_config.maskrom_is_stretched)
+				set_ptr (val, size, 0x19620217);
+			break;
+		case 0xC:
+			if (hikaru->rombd_config.maskrom_is_stretched)
+				set_ptr (val, size, 0x19620217);
+			break;
+		}
+		VK_CPU_LOG (hikaru->sh_current, "ROMBD CTL R%u %08X", size * 8, bus_addr);
 	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
 		/* AICA 1 */
 		return vk_device_get (hikaru->aica_m, size, bus_addr, val);
@@ -443,52 +507,15 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 		log = true;
 	} else if (bus_addr >= 0x10000000 && bus_addr <= 0x3FFFFFFF) {
 		/* ROMBD */
-
-		/* Access here is valid even if performed on the wrong banks:
-		 * we set the ptr to garbage here because the hikaru bootrom
-		 * reads indiscriminately from banks 10-1B (including the
-		 * EPROM bank!) to infer/compute the EPROM format. We
-		 * don't want spurious matchings of 0 vs 0 to affect the
-		 * computation. */
-		set_ptr (val, size, rand ());
-
-		if (bank == hikaru->eeprom_bank && offs == 0) {
-			/* ROMBD EEPROM */
-			set_ptr (val, size, 0xFFFFFFFF);
-			log = true;
-		} else if (!hikaru->has_rom) {
-			return 0;
-		} else if (bank >= hikaru->eprom_bank[0] &&
-		           bank <= hikaru->eprom_bank[1]) {
-			/* ROMBD EPROM */
-			uint32_t num = bank - hikaru->eprom_bank[0]; /* 0 ... 3 */
-			uint32_t real_offs = (offs & 0x7FFFFF) + num * 8*MB;
-			uint64_t tmp;
-			if (real_offs >= vk_buffer_get_size (hikaru->eprom))
-				tmp = 0xFFFFFFFF;
-			else
-				tmp = vk_buffer_get (hikaru->eprom, size, real_offs);
-			set_ptr (val, size, tmp);
-		} else if (bank >= hikaru->maskrom_bank[0] &&
-		           bank <= hikaru->maskrom_bank[1]) {
-			/* ROMBD MASKROM */
-			if (offs >= vk_buffer_get_size (hikaru->maskrom)) {
-				set_ptr (val, size, 0);
-				log = true;
-			} else
-				set_ptr (val, size, vk_buffer_get (hikaru->maskrom, size, offs));
-		}
-
+		return rombd_get (hikaru, size, bus_addr, val);
 	} else if (bus_addr >= 0x40000000 && bus_addr <= 0x41FFFFFF) {
 		/* Slave RAM */
 		set_ptr (val, size, vk_buffer_get (hikaru->ram_s, size, bus_addr & 0x01FFFFFF));
 	} else if (bus_addr >= 0x70000000 && bus_addr <= 0x71FFFFFF) {
 		/* Master RAM */
 		set_ptr (val, size, vk_buffer_get (hikaru->ram_m, size, bus_addr & 0x01FFFFFF));
-	} else {
-		VK_LOG (" bus_addr=%X bank=%X eprom_bank=%X ", bus_addr, bank, hikaru->eeprom_bank);
-		VK_ASSERT (0);
-	}
+	} else
+		return -1;
 	if (log)
 		VK_CPU_LOG (hikaru->sh_current, "MEMCTL R%u %08X", size * 8, bus_addr);
 	return 0;
@@ -526,12 +553,10 @@ memctl_bus_put (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, uint6
 	} else if (bus_addr >= 0x70000000 && bus_addr <= 0x71FFFFFF) {
 		/* Master RAM */
 		vk_buffer_put (hikaru->ram_m, size, bus_addr & 0x01FFFFFF, val);
-	} else if (bank == hikaru->eeprom_bank) {
+	} else if (bank == hikaru->rombd_config.eeprom_bank) {
 		/* ROMBD EEPROM */
-	} else {
-		VK_LOG (" bus_addr=%X bank=%X eprom_bank=%X ", bus_addr, bank, hikaru->eeprom_bank);
-		VK_ASSERT (0);
-	}
+	} else
+		return -1;
 	if (log)
 		VK_CPU_LOG (hikaru->sh_current, "MEMCTL W%u %08X = %X", size * 8, bus_addr, val);
 	return 0;
