@@ -21,6 +21,8 @@
 /* TODO: move to a scheduler-based system, so that machines register their
  * components and the scheduler executes them. */
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -59,6 +61,38 @@ static vk_game_list_t *game_list;
 static vk_game_t *game;
 static vk_machine_t *mach;
 
+static int
+load_or_save_state (vk_machine_t *mach, bool flag)
+{
+	FILE *fp = NULL;
+	char *path;
+	int ret;
+
+	ret = asprintf (&path, "%s.vkstate", mach->game->name);
+	if (ret <= 0)
+		goto fail;
+
+	fp = fopen (path, flag ? "rb" : "wb");
+	if (!fp) {
+		ret = -1;
+		goto fail;
+	}
+
+	ret = flag ? vk_machine_load_state (mach, fp) :
+	             vk_machine_save_state (mach, fp);
+
+	if (!ret) {
+		VK_LOG ("%s state '%s'", flag ? "loaded" : "saved", path);
+	} else {
+		VK_LOG ("failed to %s state '%s'", flag ? "load" : "save", path);
+	}
+fail:
+	if (fp)
+		fclose (fp);
+	free (path);
+	return ret;
+}
+
 static bool
 process_events (void)
 {
@@ -80,6 +114,10 @@ process_events (void)
 			break;
 		}
 	}
+	if (vk_input_get_key (SDLK_F1))
+		load_or_save_state (mach, true);
+	else if (vk_input_get_key (SDLK_F2))
+		load_or_save_state (mach, false);
 	return quit;
 }
 
