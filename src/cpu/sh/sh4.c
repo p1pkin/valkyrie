@@ -414,6 +414,14 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 	case DMAC_SAR0 ... DMAC_DMAOR:
 		VK_ASSERT (size == 4);
 		break;
+	/* TMU */
+	case TMU_TCNT0: {
+		static uint32_t counter = 0;
+		VK_ASSERT (size == 4);
+		set_ptr (val, size, counter);
+		counter += 4;
+		}
+		break;
 	/* Invalid/Unhandled */
 	default:
 		return -1;
@@ -911,7 +919,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C00B90A:
 		VK_CPU_LOG (ctx, " ### JUMPING TO ROM CODE! (%X)", R(11));
 		break;
-#if 0
+#if 1
 	case 0x0C00BD18:
 		VK_CPU_LOG (ctx, " ### set_errno_and_init_machine_extended (%X)", R(4));
 		break;
@@ -962,6 +970,9 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C699760:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: upload_texture (%X,%X,%X)", R(4),R(5),R(6));
 		break;
+	case 0x0C699200:
+		VK_CPU_LOG (ctx, " ### AIRTRIX: texture_foo (%X,%X,%X,%X,SP,SP+4)", R(4),R(5),R(6),R(7));
+		break;
 	case 0x0C699140:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: clear_layer (%X,%X)", R(4),R(5));
 		break;
@@ -969,7 +980,6 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		/* Make the 'WARNING' screen faster (well, 656 frames faster) */
 		R(2) = 0x290;
 		break;
-
 	case 0x0C014D72:
 		VK_CPU_LOG (ctx, " ### AIRTRIX: huge_shit ()");
 		break;
@@ -978,7 +988,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		break;
 #endif
 
-#if 1
+#if 0
 	/* BRAVEFF */
 	case 0x0C0D3F00:
 		VK_CPU_LOG (ctx, " ### BRAVEFF: sync (%X)", R(4));
@@ -1002,7 +1012,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 #endif
 #endif
 
-#if 0
+#if 1
 	/* PHARRIER */
 	case 0x0C0125C0:
 		VK_CPU_LOG (ctx, " ### PHARRIER: sync (%X)", R(4));
