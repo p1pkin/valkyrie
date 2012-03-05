@@ -419,8 +419,17 @@ rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
 	    bank <= config->eprom_bank[1]) {
 		/* ROMBD EPROM */
 		uint32_t num = bank - config->eprom_bank[0]; /* 0 ... 3 */
-		uint32_t mask = config->eprom_bank_size == 2 ? 0x3FFFFF : 0x7FFFFF;
-		uint32_t real_offs = (offs & mask) + num * 8*MB;
+		uint32_t bank_size = config->eprom_bank_size == 2 ? 4*MB : 8*MB;
+		uint32_t bank_mask = bank_size - 1;
+		uint32_t real_offs = (offs & bank_mask) + num * bank_size;
+
+		/* BRAVEFF
+		 * =======
+		 *
+		 *  10400000-107FFFFF
+		 *  11400000-117FFFFF
+		 *  12400000-127FFFFF
+		 */
 
 		if (real_offs < vk_buffer_get_size (hikaru->eprom))
 			set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, real_offs));
@@ -432,8 +441,9 @@ rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
 		/* ROMBD MASKROM */
 		/* XXX take in account MASKROM stretching here */
 		uint32_t num = bank - config->maskrom_bank[0]; /* 0 ... 15 */
-		uint32_t mask = config->maskrom_bank_size == 8 ? 0xFFFFFF : 0x1FFFFF;
-		uint32_t real_offs = (offs & mask) + num * 16*MB;
+		uint32_t bank_size = config->maskrom_bank_size == 8 ? 16*MB : 32*MB;
+		uint32_t bank_mask = bank_size - 1;
+		uint32_t real_offs = (offs & bank_mask) + num * bank_size;
 
 		if (real_offs < vk_buffer_get_size (hikaru->maskrom))
 			set_ptr (val, size, vk_buffer_get (hikaru->maskrom, size, real_offs));
