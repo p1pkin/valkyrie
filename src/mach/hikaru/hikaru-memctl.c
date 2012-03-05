@@ -411,14 +411,12 @@ rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
 	 * (that is, 0 vs. 0) to affect the computation. */
 	set_ptr (val, size, rand ());
 
-	if (bank == config->eeprom_bank && offs == 0) {
-		/* ROMBD EEPROM */
-		set_ptr (val, size, 0xFFFFFFFF);
-	} else if (!config->has_rom) {
-		/* Nothing else to do if there's not actual ROM data */
+	/* Nothing else to do if there's not actual ROM data */
+	if (!config->has_rom)
 		return 0;
-	} else if (bank >= config->eprom_bank[0] &&
-	           bank <= config->eprom_bank[1]) {
+
+	if (bank >= config->eprom_bank[0] &&
+	    bank <= config->eprom_bank[1]) {
 		/* ROMBD EPROM */
 		uint32_t num = bank - config->eprom_bank[0]; /* 0 ... 3 */
 		uint32_t mask = config->eprom_bank_size == 2 ? 0x3FFFFF : 0x7FFFFF;
@@ -508,6 +506,9 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 	} else if (bus_addr >= 0x70000000 && bus_addr <= 0x71FFFFFF) {
 		/* Master RAM */
 		set_ptr (val, size, vk_buffer_get (hikaru->ram_m, size, bus_addr & 0x01FFFFFF));
+	else if (bank == config->eeprom_bank && offs == 0) {
+		/* ROMBD EEPROM */
+		set_ptr (val, size, 0xFFFFFFFF);
 	} else
 		return -1;
 	if (log)
@@ -547,7 +548,7 @@ memctl_bus_put (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, uint6
 	} else if (bus_addr >= 0x70000000 && bus_addr <= 0x71FFFFFF) {
 		/* Master RAM */
 		vk_buffer_put (hikaru->ram_m, size, bus_addr & 0x01FFFFFF, val);
-	} else if (bank == hikaru->rombd_config.eeprom_bank) {
+	} else if (bank == hikaru->rombd_config.eeprom_bank && offs == 0) {
 		/* ROMBD EEPROM */
 	} else
 		return -1;
