@@ -257,7 +257,6 @@ fail:
 void
 vk_game_delete (vk_game_t **game_)
 {
-#if 0
 	if (game_) {
 		vk_game_t *game = *game_;
 		unsigned i;
@@ -266,7 +265,6 @@ vk_game_delete (vk_game_t **game_)
 		free (game->sections);
 		FREE (game_);
 	}
-#endif
 }
 
 static int
