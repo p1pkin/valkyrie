@@ -28,7 +28,6 @@ static const char *
 region_flags_to_str (vk_region_t *region)
 {
 	static char out[256] = "TODO";
-	unsigned i;
 	/* XXX TODO */
 	return out;
 }
