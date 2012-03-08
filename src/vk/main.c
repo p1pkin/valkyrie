@@ -235,14 +235,6 @@ main (const int argc, char **argv)
 
 	mach->reset (mach, VK_RESET_TYPE_HARD);
 
-#if 0
-	initscr ();
-	printw ("Hello, ncurses worl");
-	refresh ();
-	getch ();
-	endwin ();
-#endif
-
 	VK_LOG ("Running");
 	main_loop (mach);
 
