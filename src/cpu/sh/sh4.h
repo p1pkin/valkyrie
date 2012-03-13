@@ -168,7 +168,7 @@ struct sh4_t {
 	int		(* porta_put)(sh4_t *ctx, uint16_t val);
 
 	struct {
-		bool	is_running[3];
+		bool	is_running[4];
 	} dmac;
 
 	/* Configuration */
