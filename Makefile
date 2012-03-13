@@ -3,7 +3,7 @@ LD := clang
 
 DEFS := -DVK_HAVE_HIKARU
 
-CFLAGS  := -I src -I /usr/include/json -O2 -g $(DEFS) -Wall
+CFLAGS  := -I src -I /usr/include/json -O2 $(DEFS) -Wall
 LDFLAGS := -lm -lSDL -lGLEW -ljansson -lncurses -ltinfo
 
 .PHONY: all clean
