@@ -4,43 +4,71 @@ TODO
 BEFORE UPLOADING THE TREE
 -------------------------
 
-Move to CMake.
+Make SGNASCAR boot.
+
+Move the slave GPU access to hikaru-gpu.c.
 
 Rewrite the JSON file to be more flexible (just like MAME.)
 
 Move the JSON location to '$HOME/.local/share/valkyrie' or something.
 
-I'll add more here later.
+Fix the copyright in the [ch] files (year, and license text.)
 
-BOOTROM
+Send a copy of the source to RBelmont.
+
+HIKARU
 -------
 
-Fix texture coordinates for rendering. There's something creepingly odd
-about them.
+Implement better AICA support (especially the RTC.)
 
-Implement texture commands (2C1 and the like.)
+Implement better MIE support (that is, wrap a Z80 emulator in a
+vk_cpu : z80 class and tape it in the code.)
 
-The BOOTROM is a good testcase to implement the GPU IDMA.
+Implement the three EEPROMs (MAINBD, ROMBD, MIE.)
 
-Fix rendering to handle the CRT screen (basically store triangles and let
-the EE8 [texcoord] command apply to the latest pushed triangle.)
+SH4
+---
 
-Implement EEPROM handling (for all of them: MAINBD, MIE, ROMBD.)
+Gix FTRV, FIPR PR handling; see AIRTRIX/PHARRIER.
 
-Implement BRAM backup.
+Enable DMAC for PHARRIER.
+
+Implement internal IRQs (for DMAC.)
+
+Implement the TMU.
+
+Fix SQ access for PHARRIER.
+
+RENDERING
+---------
+
+Fix triangle rendering: put everything in a vertex buffer object and compute
+the properties of each triangle before rendering it. It's required to
+display the CRT test screen properly.
+
+Fix texturing; decode the coordinates properly. This likely implies finding
+out what the texture commands (2C1, etc.) mean. Considering that the
+tri-strip main menu should look like the braveff menu (which is rendered
+directly using the bitmap layers), the Y coordinates are way off.
+
+Fix GPU IDMA; it likely performs texture decoding. Use the BOOTROM and
+AIRTRIX as test cases. Note that the parameters to the IDMA are the same
+as the texture commands (2C1, etc.)
+
+Fix the bitmap layers. The area cleared in TEXRAM by AIRTRIX doesn't match
+the area where the textures are uploaded (see the SEGA intro screen.) Find
+out why.
 
 AIRTRIX
 -------
 
-Fix FTRV, FIPR against PR.
-
-Fix bitmap layer rendering: the FB clearing routine and layer don't match.
-Probably Y must be doubled.
+Find out why it goes haywire.
 
 BRAVEFF
 -------
 
-Missing MASKROMs. Won't work.
+Missing MASKROMs. Won't work. It works enough to display the test menu
+though.
 
 Cyber Troops Virtual On 4
 -------------------------
@@ -50,14 +78,13 @@ Not dumped yet.
 PHARRIER
 --------
 
-Implement DMAC and TMU.
-
-Crashes because of unknown reasons.
+Find out why it goes haywire.
 
 PODRACE
 -------
 
-Missing MASKROMS. Won't work.
+Missing MASKROMS. Won't work. Useful to test MASKROM shrinkage tho (the
+second problem SGNASCAR has.)
 
 SGNASCAR
 --------
