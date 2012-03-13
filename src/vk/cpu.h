@@ -79,7 +79,12 @@ struct vk_cpu_t {
 	} while (0);
 
 #define VK_CPU_ASSERT(cpu_, cond_) \
-	VK_ASSERT (cond_)
+	do { \
+		if (!(cond_)) { \
+			const char *str = vk_cpu_get_debug_string ((vk_cpu_t *) cpu_); \
+			VK_ABORT ("%s : assertion failed, aborting", str); \
+		} \
+	} while (0);
 
 static inline void
 vk_cpu_delete (vk_cpu_t **cpu_)
