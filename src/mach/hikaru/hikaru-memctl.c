@@ -23,9 +23,6 @@
 #include "mach/hikaru/hikaru.h"
 #include "mach/hikaru/hikaru-memctl.h"
 
-/* TODO: handle the memctl apertures with manipulating the hikaru's mmaps
- * directly. */
-
 /*
  * Memory Controller
  * =================
@@ -385,16 +382,15 @@
  * See memctl_get () and @0C004B32. 
  */
 
+/* TODO modify the hikaru->mmap_[ms] instead */
+/* TODO raise m/s bus error on bad access */
+
 typedef struct {
 	vk_device_t base;
 
 	vk_buffer_t *regs;
 	bool master;
 } hikaru_memctl_t;
-
-/* TODO modify the hikaru->mmap_[ms] instead */
-
-/* TODO raise m/s bus error on bad access */
 
 static int
 rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
@@ -489,7 +485,7 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 				set_ptr (val, size, 0x19620217);
 			break;
 		}
-		VK_CPU_LOG (hikaru->sh_current, "ROMBD CTL R%u %08X", size * 8, bus_addr);
+		log = true;
 	} else if (bus_addr >= 0x0C000000 && bus_addr <= 0x0CFFFFFF) {
 		/* AICA 1 */
 		return vk_device_get (hikaru->aica_m, size, bus_addr, val);
@@ -511,8 +507,10 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 	} else if (bank == hikaru->rombd_config.eeprom_bank && offs == 0) {
 		/* ROMBD EEPROM */
 		set_ptr (val, size, 0xFFFFFFFF);
-	} else
+	} else {
+		VK_CPU_ERROR (hikaru->sh_current, "MEMCTL W%u %08X = %X", size * 8, bus_addr, val);
 		return -1;
+	}
 	if (log)
 		VK_CPU_LOG (hikaru->sh_current, "MEMCTL R%u %08X", size * 8, bus_addr);
 	return 0;
@@ -552,8 +550,10 @@ memctl_bus_put (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, uint6
 		vk_buffer_put (hikaru->ram_m, size, bus_addr & 0x01FFFFFF, val);
 	} else if (bank == hikaru->rombd_config.eeprom_bank && offs == 0) {
 		/* ROMBD EEPROM */
-	} else
+	} else {
+		VK_CPU_ERROR (hikaru->sh_current, "MEMCTL W%u %08X = %X", size * 8, bus_addr, val);
 		return -1;
+	}
 	if (log)
 		VK_CPU_LOG (hikaru->sh_current, "MEMCTL W%u %08X = %X", size * 8, bus_addr, val);
 	return 0;
@@ -589,7 +589,7 @@ static int
 hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 {
 	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
-	uint32_t bank;
+	uint32_t bank, bus_addr;
 
 	if (addr >= 0x04000000 && addr <= 0x0400003F) {
 		/* MMIOs */
@@ -598,17 +598,15 @@ hikaru_memctl_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 	}
 
 	bank = get_bank_for_addr (memctl, addr) & 0x7F;
-	if (!bank)
-		return -1;
-
-	return memctl_bus_get (memctl, size, (bank << 24) | (addr & 0xFFFFFF), val);
+	bus_addr = (bank << 24) | (addr & 0xFFFFFF);
+	return memctl_bus_get (memctl, size, bus_addr, val);
 }
 
 static int
 hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 {
 	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
-	uint32_t bank;
+	uint32_t bank, bus_addr;
 
 	if (addr >= 0x04000000 && addr <= 0x0400003F) {
 		/* MEMCTL MMIOs */
@@ -637,11 +635,8 @@ hikaru_memctl_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 	}
 
 	bank = get_bank_for_addr (memctl, addr) & 0x7F;
-	if (!bank)
-		return -1;
-
-	return memctl_bus_put (memctl, size,
-	                       (bank << 24) | (addr & 0xFFFFFF), val);
+	bus_addr = (bank << 24) | (addr & 0xFFFFFF);
+	return memctl_bus_put (memctl, size, bus_addr, val);
 }
 
 static int
