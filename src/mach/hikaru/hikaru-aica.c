@@ -66,6 +66,10 @@ hikaru_aica_get (vk_device_t *device, unsigned size, uint32_t addr, void *val)
 	             aica->master ? 'M' : 'S', 8*size, offs);
 
 	switch (offs) {
+	case 0x000000:
+		/* XXX required for PHARRER; see PH:@0C0B2884 */
+		set_ptr (val, size, 4);
+		break;
 	case 0x700000 ... 0x703BFF:
 		set_ptr (val, size, vk_buffer_get (aica->regs, size, addr & 0x3FFF));
 		break;
@@ -84,6 +88,7 @@ hikaru_aica_get (vk_device_t *device, unsigned size, uint32_t addr, void *val)
 			set_ptr (val, size, 1);
 		break;
 	default:
+		VK_MACH_ERROR (device->mach, "AICA unhandled R%u %08X", size*8, addr);
 		return -1;
 	}
 	return 0;
@@ -117,6 +122,7 @@ hikaru_aica_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val
 		vk_buffer_put (aica->ram, size, addr & 0x7FFFFF, val);
 		break;
 	default:
+		VK_MACH_ERROR (device->mach, "AICA unhandled W%u %08X = %X", size*8, addr, val);
 		return -1;
 	}
 	return 0;
