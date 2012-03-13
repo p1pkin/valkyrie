@@ -118,16 +118,6 @@ typedef enum {
 	SH4_NUM_IRQS,
 } sh4_irq_source_t;
 
-#define SH4_IRQ_SOURCE_IRQ(n) \
-	(SH4_IRQ_SOURCE_IRQ0 + (n))
-
-#define SH4_IRQ_SOURCE_IRL(n) \
-	(SH4_IRQ_SOURCE_IRQ0 +
-
-typedef struct {
-	uint32_t regs[0x11];
-} sh4_dmac_t;
-
 typedef struct sh4_t sh4_t;
 
 struct sh4_t {
@@ -176,6 +166,10 @@ struct sh4_t {
 
 	int		(* porta_get)(sh4_t *ctx, uint16_t *val);
 	int		(* porta_put)(sh4_t *ctx, uint16_t val);
+
+	struct {
+		bool	is_running[3];
+	} dmac;
 
 	/* Configuration */
 	struct {
