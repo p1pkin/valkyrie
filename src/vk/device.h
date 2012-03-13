@@ -27,6 +27,7 @@ typedef struct vk_device_t vk_device_t;
 
 struct vk_device_t {
 	vk_machine_t *mach;
+	char *name;
 	unsigned flags;
 
 	void	(* delete)(vk_device_t **dev_);
@@ -41,8 +42,10 @@ struct vk_device_t {
 static inline void
 vk_device_delete (vk_device_t **dev_)
 {
-	if (dev_)
+	if (dev_) {
 		(*dev_)->delete (dev_);
+		free ((*dev_)->name);
+	}
 }
 
 static inline void
@@ -95,6 +98,26 @@ vk_device_load_state (vk_device_t *dev, FILE *fp)
 	VK_ASSERT (dev->load_state);
 	VK_ASSERT (fp);
 	return dev->load_state (dev, fp);
+}
+
+static inline void
+vk_device_log (vk_device_t *device, const char *fmt, ...)
+{
+}
+
+static inline void
+vk_device_error (vk_device_t *device, const char *fmt, ...)
+{
+}
+
+static inline void
+vk_device_abort (vk_device_t *device)
+{
+}
+
+static inline void
+vk_device_assert (vk_device_t *device, bool cond)
+{
 }
 
 #endif /* __VK_DEVICE_H__ */
