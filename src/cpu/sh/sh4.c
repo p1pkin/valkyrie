@@ -258,8 +258,8 @@ sh4_dmac_raise_irq (sh4_t *ctx, unsigned cause)
  * - DAR is in Area 7
  * - non-existant on-chip address */
 
-static const uint32_t ts_mask[8] = { 7, 0, 1, 3, 3, ~0, ~0, ~0 };
-static const uint32_t ts_incr[8] = { 8, 1, 2, 4, 8, 0, 0, 0 };
+static const uint32_t ts_mask[8] = { 7, 0, 1, 3, 31, ~0, ~0, ~0 };
+static const uint32_t ts_incr[8] = { 8, 1, 2, 4, 32, 0, 0, 0 };
 
 static void
 sh4_dmac_update_channel_state (sh4_t *ctx, unsigned ch, uint32_t request_type)
@@ -302,8 +302,10 @@ sh4_dmac_update_channel_state (sh4_t *ctx, unsigned ch, uint32_t request_type)
 		VK_CPU_LOG (ctx, "DMAC: RS = %u", rs);
 
 		/* All checks passed; this DMA channel may now run */
-		if ((rs >> 2) == request_type)
+		if ((rs >> 2) == request_type) {
+			VK_CPU_LOG ("DMAC: enabling channel %u", ch);
 			ctx->dmac.is_running[ch] = true;
+		}
 	}
 }
 
@@ -335,7 +337,7 @@ sh4_dmac_tick_channel (sh4_t *ctx, unsigned ch)
 		/* "Transfer request issued?" is automatically satisfied
 		 * if the code reaches this point. I hope. */
 
-		VK_LOG (" ### DMAC: %08X ----> %08X [SM=%u DM=%u TS=%u]",
+		VK_LOG ("DMAC: %08X ----> %08X [SM=%u DM=%u TS=%u]",
 		        sar, dar, sm, dm, ts);
 
 		switch (ts) {
