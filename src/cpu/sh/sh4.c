@@ -247,12 +247,6 @@ get_porta (sh4_t *ctx)
 
 /* DMA Controller */
 
-static void
-sh4_dmac_raise_irq (sh4_t *ctx, unsigned cause)
-{
-	VK_ASSERT (0);
-}
-
 /* TODO: DTR mode specifies SAR and DAR */
 /* TODO: DMAC Address error on:
  * - DAR is in Area 7
@@ -275,7 +269,6 @@ sh4_dmac_update_channel_state (sh4_t *ctx, unsigned ch, uint32_t request_type)
 	if (dmaor & chcr & 1) {
 		uint32_t sar = IREG_GET (4, DMAC_SAR0 + offs);
 		uint32_t dar = IREG_GET (4, DMAC_DAR0 + offs);
-		uint32_t tcr = IREG_GET (4, DMAC_TCR0 + offs);
 		uint32_t ts = (chcr >> 4) & 7;
 		uint32_t rs = (chcr >> 8) & 15;
 		uint32_t sm = (chcr >> 12) & 3;
@@ -298,12 +291,9 @@ sh4_dmac_update_channel_state (sh4_t *ctx, unsigned ch, uint32_t request_type)
 		if ((dmaor & 6) || (chcr & 2))
 			return;
 
-		/* Check the request type */
-		VK_CPU_LOG (ctx, "DMAC: RS = %u", rs);
-
 		/* All checks passed; this DMA channel may now run */
 		if ((rs >> 2) == request_type) {
-			VK_CPU_LOG ("DMAC: enabling channel %u", ch);
+			VK_CPU_LOG (ctx, "DMAC: enabling channel %u", ch);
 			ctx->dmac.is_running[ch] = true;
 		}
 	}
@@ -329,7 +319,6 @@ sh4_dmac_tick_channel (sh4_t *ctx, unsigned ch)
 		uint32_t tcr  = IREG_GET (4, DMAC_TCR0 + offs);
 		uint32_t chcr = IREG_GET (4, DMAC_CHCR0 + offs);
 		uint32_t ts = (chcr >> 4) & 7;
-		uint32_t rs = (chcr >> 8) & 15;
 		uint32_t sm = (chcr >> 12) & 3;
 		uint32_t dm = (chcr >> 14) & 3;
 		uint64_t tmp;
@@ -386,7 +375,6 @@ sh4_dmac_tick_channel (sh4_t *ctx, unsigned ch)
 			chcr |= 2; /* TE */
 			if (chcr & 4) { /* IE */
 				/* TODO */
-				exit (1);
 			}
 			ctx->dmac.is_running[ch] = false;
 		}
@@ -408,22 +396,6 @@ sh4_dmac_tick (sh4_t *ctx)
 	sh4_dmac_tick_channel (ctx, 1);
 	sh4_dmac_tick_channel (ctx, 2);
 	sh4_dmac_tick_channel (ctx, 3);
-}
-
-void
-sh4_request_ddt (sh4_t *ctx, unsigned ch)
-{
-	VK_ASSERT (0);
-}
-
-static void
-sh4_dmac_notify_sci_irq (sh4_t *ctx)
-{
-}
-
-static void
-sh4_dmac_notify_tmu_irq (sh4_t *ctx)
-{
 }
 
 /* On-chip Modules
@@ -809,6 +781,9 @@ sh4_process_irqs (vk_cpu_t *cpu)
 			tmp.bit.md = 1;
 			tmp.bit.rb = 1;
 			set_sr (ctx, tmp.full);
+
+			/* The INTEVT/EXPEVT is 11 bits */
+			VK_ASSERT (!(ctx->irqs[level].vector & ~0x7FF));
 
 			IREG_PUT (4, CCN_INTEVT, ctx->irqs[level].vector);
 
