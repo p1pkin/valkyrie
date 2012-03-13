@@ -1590,7 +1590,7 @@ I (fdiv)
 
 I (fmac)
 {
-	FRN.f += FRM.f * FR0.f;
+	FRN.f += FRM.f * FR(0).f;
 }
 
 I (fsca)
@@ -1623,7 +1623,7 @@ I (fsqrt)
 I (fipr)
 {
 	CHECK_FP
-	if (FPSCR.bit.pr) {
+//	if (FPSCR.bit.pr) {
 		unsigned n = _RN & ~3;
 		unsigned m = _RM & ~3;
 
@@ -1631,15 +1631,15 @@ I (fipr)
 		            FR(n+1).f * FR(m+1).f +
 		            FR(n+2).f * FR(m+2).f +
 		            FR(n+3).f * FR(m+3).f;
-	} else {
-		VK_ASSERT (0);
-	}
+//	} else {
+//		VK_CPU_ASSERT (ctx, 0);
+//	}
 }
 
 I (ftrv)
 {
 	CHECK_FP
-	if (FPSCR.bit.pr) {
+//	if (FPSCR.bit.pr) {
 		unsigned n = _RN & ~3;
 		float res[4];
 
@@ -1664,9 +1664,9 @@ I (ftrv)
 		FR(n+1).f = res[1];
 		FR(n+2).f = res[2];
 		FR(n+3).f = res[3];
-	} else {
-		VK_ASSERT (0);
-	}
+//	} else {
+//		VK_CPU_ASSERT (ctx, 0);
+//	}
 }
 
 I (fcmpeq)
