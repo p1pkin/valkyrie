@@ -430,7 +430,7 @@ hikaru_raise_irq (vk_machine_t *mach, unsigned num, uint16_t porta)
 	vk_cpu_set_irq_state (hikaru->sh_m, VK_IRQ_STATE_RAISED, pri[num], vec[num]);
 }
 
-#define CYCLES_PER_LINE ((200 * MHZ) / (60 * 480))
+#define CYCLES_PER_LINE ((100 * MHZ) / (60 * 480))
 
 static void
 hikaru_run_cycles (vk_machine_t *mach, int cycles)
@@ -830,6 +830,7 @@ hikaru_set_rombd_config (hikaru_t *hikaru)
 	} else if (!strcmp (game->name, "podrace")) {
 		eprom_bank_size = 4;
 		maskrom_bank_size = 8;
+		maskrom_is_stretched = true;
 	} else if (!strcmp (game->name, "sgnascar")) {
 		rombd_offs = 8;
 		eprom_bank_size = 4;
@@ -848,7 +849,7 @@ hikaru_set_rombd_config (hikaru_t *hikaru)
 		/* There are sixteen MASKROM banks */
 		/* XXX how does MASKROM stretching affect this? */
 		config->maskrom_bank[0] = (rombd_offs == 0) ? 0x20 : 0x30;
-		config->maskrom_bank[1] = (rombd_offs == 0) ? 0x2F : 0x3F;
+		config->maskrom_bank[1] = (rombd_offs == 0) ? 0x2F : 0x4F;
 	}
 	/* The EEPROM bank is constant */
 	config->eeprom_bank = rombd_offs + 0x14;
