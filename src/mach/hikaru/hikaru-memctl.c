@@ -546,6 +546,9 @@ memctl_bus_put (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, uint6
 	} else if (bus_addr >= 0x40000000 && bus_addr <= 0x41FFFFFF) {
 		/* Slave RAM */
 		vk_buffer_put (hikaru->ram_s, size, bus_addr & 0x01FFFFFF, val);
+	} else if (bus_addr >= 0x48000000 && bus_addr <= 0x483FFFFF) {
+		/* GPU CMD RAM */
+		vk_buffer_put (hikaru->cmdram, size, bus_addr & 0x3FFFFF, val);
 	} else if (bus_addr >= 0x70000000 && bus_addr <= 0x71FFFFFF) {
 		/* Master RAM */
 		vk_buffer_put (hikaru->ram_m, size, bus_addr & 0x01FFFFFF, val);
