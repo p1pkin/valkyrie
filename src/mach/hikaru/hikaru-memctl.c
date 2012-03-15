@@ -22,6 +22,7 @@
 
 #include "mach/hikaru/hikaru.h"
 #include "mach/hikaru/hikaru-memctl.h"
+#include "cpu/sh/sh4.h"
 
 /*
  * Memory Controller
@@ -675,8 +676,7 @@ hikaru_memctl_exec (vk_device_t *dev, int cycles)
 			/* Set DMA done, clear error flags */
 			vk_buffer_put (memctl->regs, 2, 0x04, 0x1000);
 			/* Raise IRL1 */
-			hikaru_raise_irq (memctl->base.mach, 1, 0);
-			VK_LOG (" ### MEMCTL DMA DONE!");
+			hikaru_raise_irq (memctl->base.mach, SH4_IESOURCE_IRL1, 0);
 		}
 
 		/* Write the values back */

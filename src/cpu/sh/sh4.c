@@ -16,7 +16,28 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  * 02110-1301, USA.
-*/
+ */
+
+/*
+ * IRQs
+ * ====
+ *
+ * IRQ priorities are encoded in sh4.intc.irqs. Whenever an external IRQ
+ * or on-chip IRQ should be raised or cleared, call sh4_set_irq_state.
+ * It will update the sh4.intc.irqs table with the proper state.
+ *
+ * The interrupt priorities are either fixed (for external IRQs an
+ * exceptions) or decided by the INTC settings; sh4_ireg_put will make
+ * sure to update the sh4.intc.irqs priorities according to the INTC
+ * configuration.
+ *
+ * Finally, 
+ */
+
+/* TODO: MMU */
+/* TODO: propagate get/put and instruction errors to the main loop */
+/* TODO: implement exceptions; this is really needed only with an MMU */
+/* TODO: handle FP exceptions and rounding mode */
 
 #include <stdio.h>
 #include <stdint.h>
@@ -30,6 +51,8 @@
 
 #include "sh4.h"
 #include "sh4-ireg.h"
+
+/* Helper Macros */
 
 #define _RN	((inst >> 8) & 15)
 #define _RM	((inst >> 4) & 15)
@@ -87,17 +110,15 @@
 #define IS_FP_ENABLED \
 	(SR.bit.fd == 0)
 
-/* TODO trigger an illegal instruction exception */
 #define CHECK_PM \
 	do { \
-		VK_ASSERT (IS_PRIVILEGED); \
+		VK_CPU_ASSERT (ctx, IS_PRIVILEGED); \
 	} while (0);
 
 #define CHECK_FP \
 	do { \
-		VK_ASSERT (IS_FP_ENABLED); \
+		VK_CPU_ASSERT (ctx, IS_FP_ENABLED); \
 	} while (0);
-
 
 /* Taken from MAME */
 #define SHRINK(addr_) \
@@ -113,7 +134,9 @@
 static int	sh4_get (sh4_t *, unsigned, uint32_t, void *);
 static int	sh4_put (sh4_t *, unsigned, uint32_t, uint64_t);
 static void	sh4_update_irqs (sh4_t *ctx);
-static void	delay_slot (sh4_t *ctx, uint32_t pc);
+static int	sh4_set_irq_state (vk_cpu_t *cpu, unsigned num, vk_irq_state_t state);
+
+/* Generic Helpers */
 
 static void
 swap_r_banks (sh4_t *ctx)
@@ -169,8 +192,6 @@ get_sr (sh4_t *ctx)
 	return SR.full;
 }
 
-/* TODO respect RM setting */
-
 static void
 set_fpscr (sh4_t *ctx, uint32_t val)
 {
@@ -192,6 +213,8 @@ get_fpscr (sh4_t *ctx)
 	return FPSCR.full;
 }
 
+/* Port A */
+
 /* XXX Port A emulation is still very rough; we probably want to notify the
  * external handlers about the directions of all bits; although they already
  * probably know what to do with them. */
@@ -203,7 +226,7 @@ set_porta (sh4_t *ctx, uint16_t data)
 	uint16_t pdtra;
 	unsigned i;
 
-	VK_ASSERT (ctx->porta_put);
+	VK_ASSERT (ctx->porta.put);
 
 	pdtra = IREG_GET (2, BSC_PDTRA);
 	pctra = IREG_GET (4, BSC_PCTRA);
@@ -216,7 +239,7 @@ set_porta (sh4_t *ctx, uint16_t data)
 			pdtra |= data & (1 << i);
 		}
 	}
-	if (ctx->porta_put (ctx, pdtra))
+	if (ctx->porta.put (ctx, pdtra))
 		VK_ASSERT (0);
 }
 
@@ -227,12 +250,12 @@ get_porta (sh4_t *ctx)
 	uint16_t pdtra, data;
 	unsigned i;
 
-	VK_ASSERT (ctx->porta_get);
+	VK_ASSERT (ctx->porta.get);
 
 	pdtra = IREG_GET (2, BSC_PDTRA);
 	pctra = IREG_GET (4, BSC_PCTRA);
 
-	if (ctx->porta_get (ctx, &data))
+	if (ctx->porta.get (ctx, &data))
 		VK_ASSERT (0);
 	for (i = 0; i < 16; i++) {
 		unsigned direction = (pctra >> (i * 2)) & 1;
@@ -245,12 +268,62 @@ get_porta (sh4_t *ctx)
 	return pdtra;
 }
 
+/* Interrupt Controller */
+
+static void
+set_irq_priority (sh4_t *ctx, unsigned num, unsigned priority)
+{
+	/* An IRQ priority can't be lowered while an IRQ is firing */
+	VK_ASSERT ((ctx->intc.irqs[num].state != VK_IRQ_STATE_RAISED) ||
+	           (ctx->intc.irqs[num].priority <= priority));
+	ctx->intc.irqs[num].priority = priority;
+}
+
+static void
+sh4_intc_update_priorities (sh4_t *ctx)
+{
+	uint16_t ipra = IREG_GET (2, INTC_IPRA);
+	uint16_t iprb = IREG_GET (2, INTC_IPRA);
+	uint16_t iprc = IREG_GET (2, INTC_IPRA);
+
+	/* See Table 19.5, "Interrupt Exception Sources and Priority Order" */
+	set_irq_priority (ctx, SH4_IESOURCE_UDI, iprc & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_GPIOI, (iprc >> 12) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_DMTE0, (iprc >> 8) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_DMTE1, (iprc >> 8) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_DMTE2, (iprc >> 8) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_DMTE3, (iprc >> 8) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_DMAE, (iprc >> 8) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_TUNI0, (ipra >> 12) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_TUNI1, (ipra >> 8) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_TUNI2, (ipra >> 4) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_TICPI2, (ipra >> 4) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_ATI, ipra & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_PRI, ipra & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_CUI, ipra & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_ERI, (iprb >> 4) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_RXI, (iprb >> 4) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_TXI, (iprb >> 4) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_TEI, (iprb >> 4) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_ERIF, (iprc >> 4) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_RXIF, (iprc >> 4) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_BRIF, (iprc >> 4) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_TXIF, (iprc >> 4) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_ITI, (iprb >> 12) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_RCMI, (iprb >> 8) & 15);
+	set_irq_priority (ctx, SH4_IESOURCE_ROVI, (iprb >> 8) & 15);
+
+	/* Update the pending flag for the new priorities */
+	sh4_update_irqs (ctx);
+}
+
 /* DMA Controller */
 
-/* TODO: DTR mode specifies SAR and DAR */
+/* TODO: DTR mode */
 /* TODO: DMAC Address error on:
  * - DAR is in Area 7
  * - non-existant on-chip address */
+/* TODO: validate RS settings against SAR and DAR */
 
 static const uint32_t ts_mask[8] = { 7, 0, 1, 3, 31, ~0, ~0, ~0 };
 static const uint32_t ts_incr[8] = { 8, 1, 2, 4, 32, 0, 0, 0 };
@@ -284,7 +357,11 @@ sh4_dmac_update_channel_state (sh4_t *ctx, unsigned ch, uint32_t request_type)
 		 * because tick_channel () can't alter the addresses as to
 		 * raise an AE if they are correct here (by induction.) */
 		if ((sar | dar) & ts_mask[ts]) {
-			VK_ASSERT (0);
+			VK_CPU_LOG (ctx, "DMAC: raising DMA address error");
+			sh4_set_irq_state ((vk_cpu_t *) ctx,
+			                   SH4_IESOURCE_DMAE,
+			                   VK_IRQ_STATE_RAISED);
+			return;
 		}
 
 		/* Check if NMIF, AE or TE have been set */
@@ -323,11 +400,10 @@ sh4_dmac_tick_channel (sh4_t *ctx, unsigned ch)
 		uint32_t dm = (chcr >> 14) & 3;
 		uint64_t tmp;
 
-		/* "Transfer request issued?" is automatically satisfied
-		 * if the code reaches this point. I hope. */
-
 		VK_LOG ("DMAC: %08X ----> %08X [SM=%u DM=%u TS=%u]",
 		        sar, dar, sm, dm, ts);
+
+		/* TODO: raise a DMA AE if any error occurs. */
 
 		switch (ts) {
 		case 0: /* 8 bytes */
@@ -374,7 +450,13 @@ sh4_dmac_tick_channel (sh4_t *ctx, unsigned ch)
 		if (tcr == 0) {
 			chcr |= 2; /* TE */
 			if (chcr & 4) { /* IE */
-				/* TODO */
+				unsigned num;
+				num = (ch == 0) ? SH4_IESOURCE_DMTE0 :
+				      (ch == 1) ? SH4_IESOURCE_DMTE1 :
+				      (ch == 2) ? SH4_IESOURCE_DMTE2 :
+				      SH4_IESOURCE_DMTE3;
+				sh4_set_irq_state ((vk_cpu_t *) ctx, num,
+				                   VK_IRQ_STATE_RAISED);
 			}
 			ctx->dmac.is_running[ch] = false;
 		}
@@ -409,17 +491,8 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 	set_ptr (val, size, IREG_GET (size, addr));
 
 	switch (addr & 0xFFFFFF) {
-	case TMU_TSTR:
-		/* XXX pharrier */
-		VK_ASSERT (size == 1);
-		break;
 	case BSC_RFCR:
 	case CPG_WTCSR:
-	case INTC_IPRA:
-	case INTC_IPRB:
-	case INTC_IPRC:
-		VK_ASSERT (size == 2);
-		break;
 	case BSC_PDTRA:
 		VK_ASSERT (size == 2);
 		set_ptr (val, size, get_porta (ctx));
@@ -427,11 +500,23 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 	case CCN_CCR:
 	case CCN_INTEVT:
 	case BSC_PCTRA:
+		VK_ASSERT (size == 4);
+		break;
+	/* INTC */
+	case INTC_IPRA:
+	case INTC_IPRB:
+	case INTC_IPRC:
+		VK_ASSERT (size == 2);
+		break;
 	/* DMAC */
 	case DMAC_SAR0 ... DMAC_DMAOR:
 		VK_ASSERT (size == 4);
 		break;
 	/* TMU */
+	case TMU_TSTR:
+		/* XXX pharrier */
+		VK_ASSERT (size == 1);
+		break;
 	case TMU_TCNT0: {
 		static uint32_t counter = 0;
 		VK_ASSERT (size == 4);
@@ -445,6 +530,8 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 	}
 	return 0;
 }
+
+/* TODO: mask writes to read-only bits */
 
 static int
 sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
@@ -491,12 +578,29 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 		break;
 	/* INTC */
 	case INTC_ICR:
+		{
+			uint16_t old = IREG_GET (2, addr);
+			VK_ASSERT (size == 2);
+			VK_ASSERT (!(val & ~0xC380));
+			/* ICR.NMIL is read only */
+			IREG_PUT (2, addr, (old & 0x8000) | (val & 0x7FFF));
+			sh4_update_irqs (ctx);
+		}
+		return 0;
 	case INTC_IPRA:
-	case INTC_IPRB:
-	case INTC_IPRC:
-		/* TODO: update IRQ priorities */
 		VK_ASSERT (size == 2);
-		break;
+		IREG_PUT (2, addr, val);
+		sh4_intc_update_priorities (ctx);
+		return 0;
+	case INTC_IPRB:
+		VK_ASSERT (size == 2);
+		VK_ASSERT (!(val & 0xF));
+		sh4_intc_update_priorities (ctx);
+		return 0;
+	case INTC_IPRC:
+		VK_ASSERT (size == 2);
+		sh4_intc_update_priorities (ctx);
+		return 0;
 	/* DMAC */
 	case DMAC_SAR0:
 	case DMAC_SAR1:
@@ -575,8 +679,6 @@ sh4_sq_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 }
 
 /* Bus Access */
-
-/* TODO MMU, cache */
 
 static int
 sh4_fetch (sh4_t *ctx, uint32_t addr, uint16_t *inst)
@@ -681,125 +783,125 @@ W64 (sh4_t *ctx, uint32_t addr, uint64_t val)
 
 /* Interrupt Controller */
 
-/* TODO add on-chip peripheral support */
-/* TODO add exception support */
-
+/**
+ * Updates the intc.pending flag depending on whether an IRQ is pending or
+ * not.
+ */
 static void
 sh4_update_irqs (sh4_t *ctx)
 {
+	unsigned priority, i;
+	int maxi;
 	uint16_t icr = IREG_GET (2, INTC_ICR);
-	unsigned level;
-	ctx->irq_pending = false;
-	/* NMI is accepted even if BL is set when:
-	 *  - the CPU is in SLEEP or STANDBY state
-	 *  - ICR.NMIB is set
-	 */
-	if (ctx->irqs[16].state == VK_IRQ_STATE_RAISED) {
-		ctx->irq_pending = (SR.bit.bl == 0) || ((icr & 0x0200) != 0);
-		if (ctx->irq_pending)
+
+	/* Default state: no IRQ pending */
+	ctx->intc.pending = false;
+	ctx->intc.index = -1;
+
+	/* Handle NMI first. NMI is always accepted when the CPU is in SLEEP
+	 * or STANDBY state, and when ICR.NMIB is set. It is blocked by BL
+	 * only if ICR.NMIB is clear. */
+	if (ctx->intc.irqs[SH4_IESOURCE_NMI].state == VK_IRQ_STATE_RAISED) {
+		ctx->intc.pending = (SR.bit.bl == 0) || ((icr & 0x200) != 0);
+		if (ctx->intc.pending) {
+			ctx->intc.index = SH4_IESOURCE_NMI;
 			return;
+		}
 	}
-	if (((vk_cpu_t *) ctx)->state != VK_CPU_STATE_RUN)
-		return;
+
+	/* TODO: ICR.MIE */
+
+	/* All interrupts are blocked when SR.BL is set */
 	if (SR.bit.bl)
 		return;
-	for (level = 16; level > SR.bit.i; level--) {
-		if (ctx->irqs[level].state == VK_IRQ_STATE_RAISED) {
-			ctx->irq_pending = true;
-			break;
+
+	/* Find the highest priority raised IRQ; note that interrupt source
+	 * numbers are sorted from highest to lowest priority. */
+	priority = 0;
+	for (i = 0; i < SH4_NUM_IESOURCES; i++) {
+		/* TODO: handle ties like the hardware does */
+		if (ctx->intc.irqs[i].state == VK_IRQ_STATE_RAISED &&
+		    ctx->intc.irqs[i].priority > priority) {
+			priority = ctx->intc.irqs[i].priority;
+			maxi = i;
 		}
+	}
+	/* Set the pending flag */
+	if (priority > 0) {
+		ctx->intc.pending = true;
+		ctx->intc.index = maxi;
 	}
 }
 
-static void
-sh4_set_irq_state (vk_cpu_t *cpu, vk_irq_state_t state, unsigned level, uint32_t vector)
+static int
+sh4_set_irq_state (vk_cpu_t *cpu, unsigned num, vk_irq_state_t state)
 {
 	sh4_t *ctx = (sh4_t *) cpu;
+	if (num >= SH4_NUM_IESOURCES)
+		return -1;
 
-	assert (state < VK_NUM_IRQ_STATES);
-	assert (level <= 16);
-	assert (vector);
-
-	if (state == VK_IRQ_STATE_RAISED &&
-	    ctx->irqs[level].state == VK_IRQ_STATE_RAISED &&
-	    ctx->irqs[level].vector != vector) {
-		VK_CPU_LOG (ctx, "overriding IRQ %d with new vector %08X",
-		            level, vector);
-	}
-
-	ctx->irqs[level].state = state;
-	ctx->irqs[level].vector = vector;
+	ctx->intc.irqs[num].state = state;
 
 	/* Handle NMI */
-	if (level == 16) {
-		/* Set ICR bit 15 */
+	if (num == SH4_IESOURCE_NMI) {
+		/* Set ICR.NMIL and DMAOR.NMIF */
 		IREG_PUT (2, INTC_ICR, IREG_GET (2, INTC_ICR) | 0x8000);
-		/* Set DMAOR bit 2*/
 		IREG_PUT (4, DMAC_DMAOR, IREG_GET (4, DMAC_DMAOR) | 2);
 		/* Notify the DMAC that an NMI occurred */
 		sh4_dmac_update_state (ctx, 0);
 	}
 
+	/* Update the pending flag */
 	sh4_update_irqs (ctx);
+	return 0;
 }
 
 void
 sh4_process_irqs (vk_cpu_t *cpu)
 {
 	sh4_t *ctx = (sh4_t *) cpu;
-	unsigned level;
+	int index;
 
-	/* Nothing to process if no IRQs or if BL is set */
-	if (!ctx->irq_pending)
+	/* Check if there's something to do */
+	if (!ctx->intc.pending)
 		return;
 
-	/* Loop over all possible IRQs, highest priority first */
-	for (level = 16; level > SR.bit.i; level--) {
-		if (ctx->irqs[level].state == VK_IRQ_STATE_RAISED) {
-			uint32_t vector, icr = IREG_GET (4, INTC_ICR);
-			sh4_sr_t tmp;
+	index = ctx->intc.index;
+	if (ctx->intc.irqs[index].priority > SR.bit.i) {
+		sh4_sr_t tmp;
 
-			SPC = PC;
-			SSR = SR;
-			SGR = R(15);
+		/* Standard interrupt context switch */
+		SPC = PC;
+		SSR = SR;
+		SGR = R(15);
 
-			/* ICR.IRLM set means that IRL pins are treated
-			 * as four indepentent IRQ lines, with a fixed
-			 * vector. */
-			if (icr & 0x80) {
-				vector = 0x600;
-				PC = VBR + 0x600;
-			} else {
-				VK_CPU_ABORT (cpu, "non-IRL IRQ unhandled: icr = %04X", icr);
-			}
+		PC = VBR + ctx->intc.irqs[index].offset;
 
-			VK_CPU_LOG (ctx, "IRQ taken: mask=%d level=%d vector=%04X:%08X PC=%08X",
-			            SR.bit.i, level, vector, VBR + vector, PC);
+		VK_CPU_LOG (ctx, "IRQ taken: SR.i=%X PRI=%X VBR=%08X offs=%X code=%X; jumping at %08X",
+		            SR.bit.i, ctx->intc.irqs[index].priority,
+		            VBR, ctx->intc.irqs[index].offset,
+		            ctx->intc.irqs[index].code, PC);
 
-			tmp.full    = SR.full;
-			tmp.bit.bl = 1;
-			tmp.bit.md = 1;
-			tmp.bit.rb = 1;
-			set_sr (ctx, tmp.full);
+		tmp.full = SR.full;
+		tmp.bit.bl = 1;
+		tmp.bit.md = 1;
+		tmp.bit.rb = 1;
+		set_sr (ctx, tmp.full);
 
-			/* The INTEVT/EXPEVT is 11 bits */
-			VK_ASSERT (!(ctx->irqs[level].vector & ~0x7FF));
+		IREG_PUT (4, CCN_INTEVT, ctx->intc.irqs[index].code);
 
-			IREG_PUT (4, CCN_INTEVT, ctx->irqs[level].vector);
+		/* Clear the interrupt source; TODO this is not correct, the
+		 * source should be cleared externally! */
+		ctx->intc.irqs[index].state = VK_IRQ_STATE_CLEAR;
 
-			ctx->irqs[level].state  = false;
-			ctx->irqs[level].vector = 0;
-
-			sh4_update_irqs (ctx);
-
-			break;
-		}
+		/* Update the pending flag */
+		sh4_update_irqs (ctx);
 	}
 }
 
 /* Instructions */
 
-/* We need to define: itype, I, IDEF, IS_SH4, CHECK_PM, CHECK_FP */
+static void delay_slot (sh4_t *ctx, uint32_t pc);
 
 typedef void (* itype) (sh4_t *ctx, uint16_t inst);
 
@@ -919,38 +1021,12 @@ setup_insns_handlers (void)
 /* Execution */
 
 static void
-tick (sh4_t *ctx)
-{
-	//sh4_bsc_tick (ctx);
-	//sh4_tmu_tick (ctx);
-	sh4_dmac_tick (ctx);
-}
-
-static void
-do_print_ctx (sh4_t *ctx)
-{
-	unsigned i;
-	VK_LOG (" CTX @%08X [%08X]", PC, PR);
-	for (i = 0; i < 4; i++) {
-		VK_LOG (" CTX R%2d=%08X  R%2d=%08X  R%2d=%08X  R%2d=%08X",
-		        i, R(i),
-		        i+4, R(i+4),
-		        i+8, R(i+8),
-		        i+12, R(i+12));
-	}
-}
-
-static void
 sh4_step (sh4_t *ctx, uint32_t pc)
 {
 	uint16_t inst;
 	uint32_t ppc = pc & 0x1FFFFFFF;
-	static bool print_ctx = false;
 
 	sh4_fetch (ctx, pc, &inst);
-
-	if (print_ctx)
-		do_print_ctx (ctx);
 
 	switch (ppc) {
 
@@ -961,7 +1037,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C00B90A:
 		VK_CPU_LOG (ctx, " ### JUMPING TO ROM CODE! (%X)", R(11));
 		break;
-#if 1
+#if 0
 	case 0x0C00BD18:
 		VK_CPU_LOG (ctx, " ### set_errno_and_init_machine_extended (%X)", R(4));
 		break;
@@ -1073,7 +1149,10 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	}
 
 	insns[inst] (ctx, inst);
-	tick (ctx);
+	//sh4_bsc_tick (ctx);
+	//sh4_tmu_rtc_tick (ctx);
+	//sh4_sci_tick (ctx);
+	sh4_dmac_tick (ctx);
 	ctx->base.remaining --;
 }
 
@@ -1108,10 +1187,76 @@ sh4_set_state (vk_cpu_t *cpu, vk_cpu_state_t state)
 	cpu->state = state;
 }
 
+/* See Table 19.5, "Interrupt Exception Handling Sources and
+ * Priority Orders".
+ *
+ * Note that the indices of this array are ordered from highest priority
+ * to lowest. */
+
+static const sh4_irq_state_t default_irq_state[SH4_NUM_IESOURCES] = {
+	[SH4_IESOURCE_NMI] = { VK_IRQ_STATE_CLEAR, 16, 0x600, 0x1C0 },
+	/* IRQs */
+	[SH4_IESOURCE_IRQ0] = { VK_IRQ_STATE_CLEAR, 15, 0x600, 0x200 },
+	[SH4_IESOURCE_IRQ1] = { VK_IRQ_STATE_CLEAR, 14, 0x600, 0x220 },
+	[SH4_IESOURCE_IRQ2] = { VK_IRQ_STATE_CLEAR, 13, 0x600, 0x240 },
+	[SH4_IESOURCE_IRQ3] = { VK_IRQ_STATE_CLEAR, 12, 0x600, 0x260 },
+	[SH4_IESOURCE_IRQ4] = { VK_IRQ_STATE_CLEAR, 11, 0x600, 0x280 },
+	[SH4_IESOURCE_IRQ5] = { VK_IRQ_STATE_CLEAR, 10, 0x600, 0x2A0 },
+	[SH4_IESOURCE_IRQ6] = { VK_IRQ_STATE_CLEAR,  9, 0x600, 0x2C0 },
+	[SH4_IESOURCE_IRQ7] = { VK_IRQ_STATE_CLEAR,  8, 0x600, 0x2E0 },
+	[SH4_IESOURCE_IRQ8] = { VK_IRQ_STATE_CLEAR,  7, 0x600, 0x300 },
+	[SH4_IESOURCE_IRQ9] = { VK_IRQ_STATE_CLEAR,  6, 0x600, 0x320 },
+	[SH4_IESOURCE_IRQ10] = { VK_IRQ_STATE_CLEAR,  5, 0x600, 0x360 },
+	[SH4_IESOURCE_IRQ11] = { VK_IRQ_STATE_CLEAR,  4, 0x600, 0x360 },
+	[SH4_IESOURCE_IRQ12] = { VK_IRQ_STATE_CLEAR,  3, 0x600, 0x380 },
+	[SH4_IESOURCE_IRQ13] = { VK_IRQ_STATE_CLEAR,  2, 0x600, 0x3A0 },
+	[SH4_IESOURCE_IRQ14] = { VK_IRQ_STATE_CLEAR,  1, 0x600, 0x3C0 },
+	/* IRLs */
+	[SH4_IESOURCE_IRL0] = { VK_IRQ_STATE_CLEAR, 13, 0x600, 0x240 },
+	[SH4_IESOURCE_IRL1] = { VK_IRQ_STATE_CLEAR, 10, 0x600, 0x2A0 },
+	[SH4_IESOURCE_IRL2] = { VK_IRQ_STATE_CLEAR,  7, 0x600, 0x300 },
+	[SH4_IESOURCE_IRL3] = { VK_IRQ_STATE_CLEAR,  4, 0x600, 0x360 },
+	/* UDI */
+	[SH4_IESOURCE_UDI] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x600 },
+	/* GPIO */
+	[SH4_IESOURCE_GPIOI] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x620 },
+	/* DMAC */
+	[SH4_IESOURCE_DMTE0] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x640 },
+	[SH4_IESOURCE_DMTE1] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x660 },
+	[SH4_IESOURCE_DMTE2] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x680 },
+	[SH4_IESOURCE_DMTE3] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x6A0 },
+	[SH4_IESOURCE_DMAE] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x6C0 },
+	/* TMU */
+	[SH4_IESOURCE_TUNI0] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x400 },
+	[SH4_IESOURCE_TUNI1] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x420 },
+	[SH4_IESOURCE_TUNI2] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x440 },
+	[SH4_IESOURCE_TICPI2] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x460 },
+	/* RTC */
+	[SH4_IESOURCE_ATI] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x480 },
+	[SH4_IESOURCE_PRI] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x4A0 },
+	[SH4_IESOURCE_CUI] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x4C0 },
+	/* SCI1 */
+	[SH4_IESOURCE_ERI] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x4E0 },
+	[SH4_IESOURCE_RXI] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x500 },
+	[SH4_IESOURCE_TXI] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x520 },
+	[SH4_IESOURCE_TEI] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x540 },
+	/* SCIF */
+	[SH4_IESOURCE_ERIF] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x700 },
+	[SH4_IESOURCE_RXIF] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x720 },
+	[SH4_IESOURCE_BRIF] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x740 },
+	[SH4_IESOURCE_TXIF] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x760 },
+	/* WDT */
+	[SH4_IESOURCE_ITI] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x560 },
+	/* REF */
+	[SH4_IESOURCE_RCMI] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x580 },
+	[SH4_IESOURCE_ROVI] = { VK_IRQ_STATE_CLEAR, -1, 0x600, 0x5A0 },
+};
+
 static void
 sh4_reset (vk_cpu_t *cpu, vk_reset_type_t type)
 {
 	sh4_t *ctx = (sh4_t *) cpu;
+	uint32_t tmp;
 
 	cpu->state = (ctx->config.master) ?
 	              VK_CPU_STATE_RUN :
@@ -1121,7 +1266,6 @@ sh4_reset (vk_cpu_t *cpu, vk_reset_type_t type)
 	memset (ctx->f.f, 0, sizeof (ctx->f.f));
 	memset (ctx->x.f, 0, sizeof (ctx->x.f));
 	memset (ctx->rbank, 0, sizeof (ctx->rbank));
-	memset (ctx->irqs, 0, sizeof (ctx->irqs));
 
 	vk_buffer_clear (ctx->iregs);
 
@@ -1148,6 +1292,11 @@ sh4_reset (vk_cpu_t *cpu, vk_reset_type_t type)
 	FPUL.u    = 0;
 
 	/* See Table A.1, "Address List" */
+	tmp = (ctx->config.master ? 0x40000000 : 0) |
+	      (ctx->config.little_endian) ? 0x80000000 : 0;
+
+	IREG_PUT (4, CCN_EXPEVT, (type == VK_RESET_TYPE_HARD) ? 0 : 0x20);
+	IREG_PUT (4, BSC_BCR1, tmp);
 	IREG_PUT (2, BSC_BCR2, 0x3FFC);
 	IREG_PUT (4, BSC_WCR1, 0x77777777);
 	IREG_PUT (4, BSC_WCR2, 0xFFFEEFFF);
@@ -1173,7 +1322,11 @@ sh4_reset (vk_cpu_t *cpu, vk_reset_type_t type)
 	/* TODO: master/slave in BSC */
 
 	ctx->in_slot = false;
-	ctx->irq_pending = false;
+
+	ctx->intc.pending = false;
+	ctx->intc.index = -1;
+	VK_ASSERT (sizeof (ctx->intc.irqs) == sizeof (default_irq_state));
+	memcpy (ctx->intc.irqs, default_irq_state, sizeof (default_irq_state));
 }
 
 static const char *
@@ -1193,8 +1346,8 @@ sh4_set_porta_handlers (vk_cpu_t *cpu,
 {
 	sh4_t *ctx = (sh4_t *) cpu;
 
-	ctx->porta_get = get;
-	ctx->porta_put = put;
+	ctx->porta.get = get;
+	ctx->porta.put = put;
 }
 
 static void
@@ -1209,7 +1362,7 @@ sh4_delete (vk_cpu_t **cpu_)
 }
 
 vk_cpu_t *
-sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master)
+sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master, bool le)
 {
 	sh4_t *ctx = ALLOC (sh4_t);
 	if (!ctx)
@@ -1226,6 +1379,7 @@ sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master)
 	ctx->base.delete		= sh4_delete;
 
 	ctx->config.master = master;
+	ctx->config.little_endian = le;
 
 	ctx->iregs = vk_buffer_le32_new (0x10000, 0);
 	if (!ctx->iregs)

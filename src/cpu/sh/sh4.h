@@ -99,29 +99,81 @@ typedef struct {
 #define NUM_UTLB_ENTRIES 64
 #define NUM_SQ_ENTRIES 32
 
-/* Possible IRQ sources include: 16 IRQs from the IRL pins, NMI, TMU, RTC,
- * SCI, SCIF, WDT, DMAC, UDI, GPIO and UDI */
-
 typedef enum {
-	SH4_IRQ_SOURCE_IRQ0,
-	SH4_IRQ_SOURCE_NMI = 16,
-	SH4_IRQ_SOURCE_TMU,
-	SH4_IRQ_SOURCE_RTC,
-	SH4_IRQ_SOURCE_SCI,
-	SH4_IRQ_SOURCE_SCIF,
-	SH4_IRQ_SOURCE_WDT,
-	SH4_IRQ_SOURCE_REF,
-	SH4_IRQ_SOURCE_DMAC,
-	SH4_IRQ_SOURCE_UDI,
-	SH4_IRQ_SOURCE_GPIO,
+	SH4_IESOURCE_NMI,
+	/* IRQs */
+	SH4_IESOURCE_IRQ0,
+	SH4_IESOURCE_IRQ1,
+	SH4_IESOURCE_IRQ2,
+	SH4_IESOURCE_IRQ3,
+	SH4_IESOURCE_IRQ4,
+	SH4_IESOURCE_IRQ5,
+	SH4_IESOURCE_IRQ6,
+	SH4_IESOURCE_IRQ7,
+	SH4_IESOURCE_IRQ8,
+	SH4_IESOURCE_IRQ9,
+	SH4_IESOURCE_IRQ10,
+	SH4_IESOURCE_IRQ11,
+	SH4_IESOURCE_IRQ12,
+	SH4_IESOURCE_IRQ13,
+	SH4_IESOURCE_IRQ14,
+	/* IRLs */
+	SH4_IESOURCE_IRL0,
+	SH4_IESOURCE_IRL1,
+	SH4_IESOURCE_IRL2,
+	SH4_IESOURCE_IRL3,
+	/* UDI */
+	SH4_IESOURCE_UDI,
+	/* GPIO */
+	SH4_IESOURCE_GPIOI,
+	/* DMAC */
+	SH4_IESOURCE_DMTE0,
+	SH4_IESOURCE_DMTE1,
+	SH4_IESOURCE_DMTE2,
+	SH4_IESOURCE_DMTE3,
+	SH4_IESOURCE_DMAE,
+	/* TMU */
+	SH4_IESOURCE_TUNI0,
+	SH4_IESOURCE_TUNI1,
+	SH4_IESOURCE_TUNI2,
+	SH4_IESOURCE_TICPI2,
+	/* RTC */
+	SH4_IESOURCE_ATI,
+	SH4_IESOURCE_PRI,
+	SH4_IESOURCE_CUI,
+	/* SCI1 */
+	SH4_IESOURCE_ERI,
+	SH4_IESOURCE_RXI,
+	SH4_IESOURCE_TXI,
+	SH4_IESOURCE_TEI,
+	/* SCIF */
+	SH4_IESOURCE_ERIF,
+	SH4_IESOURCE_RXIF,
+	SH4_IESOURCE_BRIF,
+	SH4_IESOURCE_TXIF,
+	/* WDT */
+	SH4_IESOURCE_ITI,
+	/* REF */
+	SH4_IESOURCE_RCMI,
+	SH4_IESOURCE_ROVI,
 
-	SH4_NUM_IRQS,
-} sh4_irq_source_t;
+	SH4_NUM_IESOURCES,
+} sh4_iesource_t;
+
+typedef struct {
+	vk_irq_state_t state;
+	unsigned priority;
+	uint32_t offset;
+	uint32_t code;
+} sh4_irq_state_t;
 
 typedef struct sh4_t sh4_t;
 
 struct sh4_t {
 	vk_cpu_t base;
+
+	/* State */
+	bool		in_slot;
 
 	/* Registers */
 	uint32_t	r[16];
@@ -141,48 +193,55 @@ struct sh4_t {
 	union {
 		alias32uf_t f[16];
 		alias64uf_t d[8];
-	} f, x; /* XXX fixme */
+	} f, x;
 	alias32uf_t	fpul;
 	sh4_fpscr_t	fpscr;
-
-	/* State */
-	bool		in_slot;
-	bool		irq_pending;
-	vk_irq_t	irqs[17];
-
-	/* MMU */
-	sh4_itlb_entry_t	itlb[NUM_ITLB_ENTRIES];
-	sh4_utlb_entry_t	utlb[NUM_UTLB_ENTRIES];
-
-	/* Caches */
-	uint8_t		icache[8*KB];
-	uint8_t		ocache[16*KB];
-
-	/* Store Queues */
-	uint32_t	sq[2][NUM_SQ_ENTRIES];
 
 	/* On-Chip Modules */
 	vk_buffer_t	*iregs;
 
-	int		(* porta_get)(sh4_t *ctx, uint16_t *val);
-	int		(* porta_put)(sh4_t *ctx, uint16_t val);
+	struct {
+		/* True if any interrupt is pending */
+		bool pending;
+		/* Index of the highest priority raised interrupt */
+		int index;
+		/* Overall interrupt state object */
+		sh4_irq_state_t irqs[SH4_NUM_IESOURCES];
+	} intc;
 
 	struct {
 		bool	is_running[4];
 	} dmac;
 
+	struct {
+		int	(* get)(sh4_t *ctx, uint16_t *val);
+		int	(* put)(sh4_t *ctx, uint16_t val);
+	} porta;
+
 	/* Configuration */
 	struct {
 		bool	master;
-		bool	enable_mmu;
-		bool	enable_hw_mmu;
-		bool	enable_cache;
-		bool	enable_accurate_dma;
+		bool	little_endian;
+		/* TODO: add MMU and accuracy knobs */
 	} config;
+
+	/* Unused stuff that will be used later */
+#if 0
+	struct {
+		sh4_itlb_entry_t itlb[NUM_ITLB_ENTRIES];
+		sh4_utlb_entry_t utlb[NUM_UTLB_ENTRIES];
+	} mmu;
+
+	/* Store Queues */
+	uint32_t	sq[2][NUM_SQ_ENTRIES];
+
+	/* Caches */
+	vk_buffer_t	*icache;
+	vk_buffer_t	*ocache;
+#endif
 };
 
-/* sh4.c */
-vk_cpu_t	*sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master);
+vk_cpu_t	*sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master, bool le);
 void		 sh4_set_porta_handlers (vk_cpu_t *cpu,
 		                         int (* get)(sh4_t *ctx, uint16_t *val),
 		                         int (* put)(sh4_t *ctx, uint16_t val));

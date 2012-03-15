@@ -38,12 +38,6 @@ typedef enum {
 	VK_NUM_IRQ_STATES,
 } vk_irq_state_t;
 
-typedef struct {
-	vk_irq_state_t state;
-	uint32_t vector;
-	unsigned level;
-} vk_irq_t;
-
 typedef struct vk_cpu_t vk_cpu_t;
 
 struct vk_cpu_t {
@@ -56,7 +50,7 @@ struct vk_cpu_t {
 	void		 (* reset) (vk_cpu_t *cpu, vk_reset_type_t type);
 	int		 (* run) (vk_cpu_t *cpu, int cycles);
 	void		 (* set_state) (vk_cpu_t *cpu, vk_cpu_state_t state);
-	void		 (* set_irq_state) (vk_cpu_t *cpu, vk_irq_state_t state, unsigned line, uint32_t vector);
+	int		 (* set_irq_state) (vk_cpu_t *cpu, unsigned num, vk_irq_state_t state);
 	const char	*(* get_debug_string) (vk_cpu_t *cpu);
 };
 
@@ -89,49 +83,63 @@ struct vk_cpu_t {
 static inline void
 vk_cpu_delete (vk_cpu_t **cpu_)
 {
-	if (cpu_)
-		(*cpu_)->delete (cpu_);
+	if (cpu_) {
+		vk_cpu_t *cpu = *cpu_;
+		if (cpu->delete)
+			(*cpu_)->delete (cpu_);
+	}
 }
 
 static inline void
 vk_cpu_reset (vk_cpu_t *cpu, vk_reset_type_t type)
 {
+	VK_ASSERT (cpu != NULL);
+	VK_ASSERT (cpu->run != NULL);
 	cpu->reset (cpu, type);
 }
 
 static inline int
 vk_cpu_run (vk_cpu_t *cpu, int cycles)
 {
+	VK_ASSERT (cpu != NULL);
+	VK_ASSERT (cpu->run != NULL);
 	return cpu->run (cpu, cycles);
 }
 
 static inline void
 vk_cpu_set_state (vk_cpu_t *cpu, vk_cpu_state_t state)
 {
+	VK_ASSERT (cpu != NULL);
+	VK_ASSERT (state < VK_NUM_CPU_STATES);
 	cpu->set_state (cpu, state);
 }
 
-static inline void
-vk_cpu_set_irq_state (vk_cpu_t *cpu, vk_irq_state_t state, unsigned line, uint32_t vector)
+static inline int
+vk_cpu_set_irq_state (vk_cpu_t *cpu, unsigned num, vk_irq_state_t state)
 {
-	cpu->set_irq_state (cpu, state, line, vector);
+	VK_ASSERT (cpu != NULL);
+	VK_ASSERT (state < VK_NUM_IRQ_STATES);
+	return cpu->set_irq_state (cpu, num, state);
 }
 
 static inline const char *
 vk_cpu_get_debug_string (vk_cpu_t *cpu)
 {
+	VK_ASSERT (cpu != NULL);
 	return cpu->get_debug_string (cpu);
 }
 
 static inline int
 vk_cpu_get (vk_cpu_t *cpu, unsigned size, uint32_t addr, void *val)
 {
+	VK_ASSERT (cpu != NULL);
 	return vk_mmap_get (cpu->mmap, size, addr, val);
 }
 
 static inline int
 vk_cpu_put (vk_cpu_t *cpu, unsigned size, uint32_t addr, uint64_t val)
 {
+	VK_ASSERT (cpu != NULL);
 	return vk_mmap_put (cpu->mmap, size, addr, val);
 }
 

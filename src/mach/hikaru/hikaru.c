@@ -224,7 +224,7 @@ porta_put_m (sh4_t *ctx, uint16_t val)
 	if ((hikaru->porta_m_bit0_buffer & 0x1FFF) == 0x1C7F) {
 		/* Send an IRQ to the slave */
 		VK_CPU_LOG (ctx, " ### PORTA: sending NMI to SLAVE!");
-		vk_cpu_set_irq_state (hikaru->sh_s, VK_IRQ_STATE_RAISED, 16, 0x1C0);
+		vk_cpu_set_irq_state (hikaru->sh_s, SH4_IESOURCE_NMI, VK_IRQ_STATE_RAISED);
 		hikaru->porta_m_bit0_buffer = 0;
 	}
 	return 0;
@@ -417,17 +417,9 @@ static vk_device_t unk_s = {
 void
 hikaru_raise_irq (vk_machine_t *mach, unsigned num, uint16_t porta)
 {
-	static const unsigned pri[4] = { 4, 7, 10, 13 };
-	static const unsigned vec[4] = { 0x240, 0x2A0, 0x300, 0x360 };
 	hikaru_t *hikaru = (hikaru_t *) mach;
-
-	/* XXX move this in the SH-4 core */
-
-	VK_ASSERT (num < 4);
-
+	vk_cpu_set_irq_state (hikaru->sh_m, num, VK_IRQ_STATE_RAISED);
 	hikaru->porta_m &= ~porta;
-
-	vk_cpu_set_irq_state (hikaru->sh_m, VK_IRQ_STATE_RAISED, pri[num], vec[num]);
 }
 
 #define CYCLES_PER_LINE ((100 * MHZ) / (60 * 480))
@@ -912,8 +904,8 @@ hikaru_init (hikaru_t *hikaru)
 	hikaru->mmap_m = setup_master_mmap (hikaru);
 	hikaru->mmap_s = setup_slave_mmap (hikaru);
 
-	hikaru->sh_m = sh4_new (mach, hikaru->mmap_m, true);
-	hikaru->sh_s = sh4_new (mach, hikaru->mmap_s, false);
+	hikaru->sh_m = sh4_new (mach, hikaru->mmap_m, true, true);
+	hikaru->sh_s = sh4_new (mach, hikaru->mmap_s, false, true);
 
 	sh4_set_porta_handlers (hikaru->sh_m, porta_get_m, porta_put_m);
 	sh4_set_porta_handlers (hikaru->sh_s, porta_get_s, porta_put_s);

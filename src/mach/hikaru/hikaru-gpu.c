@@ -22,6 +22,7 @@
 
 #include "mach/hikaru/hikaru-gpu.h"
 #include "mach/hikaru/hikaru-renderer.h"
+#include "cpu/sh/sh4.h"
 
 /* TODO: figure out what is 4Cxxxxxx */
 /* TODO: handle slave access */
@@ -606,7 +607,7 @@ hikaru_gpu_update_irqs (hikaru_gpu_t *gpu)
 	if (REG15 (0x88) & REG15 (0x84)) {
 		VK_CPU_LOG (cpu, " ## sending GPU IRQ to CPU: %02X/%02X",
 		            REG15 (0x84), REG15 (0x88));
-		hikaru_raise_irq (gpu->base.mach, 2, 0x0040);
+		hikaru_raise_irq (gpu->base.mach, SH4_IESOURCE_IRL2, 0x40);
 	}
 }
 
@@ -648,12 +649,12 @@ get_texel16 (hikaru_gpu_t *gpu, unsigned x, unsigned y)
 	return vk_buffer_get (gpu->texram, 2, yoffs + xoffs);
 }
 
-static inline uint32_t
-get_texel32 (hikaru_gpu_t *gpu, unsigned x, unsigned y)
+static inline void
+put_texel16 (hikaru_gpu_t *gpu, unsigned x, unsigned y, uint16_t texel)
 {
 	unsigned yoffs = y * TEXRAM_ROW_PITCH;
-	unsigned xoffs = (x * 4) & (TEXRAM_ROW_PITCH - 1);
-	return vk_buffer_get (gpu->texram, 4, yoffs + xoffs);
+	unsigned xoffs = (x * 2) & (TEXRAM_ROW_PITCH - 1);
+	vk_buffer_put (gpu->texram, 2, yoffs + xoffs, texel);
 }
 
 /*
@@ -816,9 +817,13 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	uint32_t inst[8];
 	unsigned i;
 
-	VK_ASSERT (cp_is_valid_addr (gpu->pc));
 	VK_ASSERT (cp_is_valid_addr (gpu->sp[1]));
 	VK_ASSERT (cp_is_valid_addr (gpu->sp[0]));
+
+	if (!cp_is_valid_addr (gpu->pc)) {
+		VK_ERROR ("invalid GPU address %08X");
+		return 1;
+	}
 
 	/* XXX this is not exactly ideal; change the CMDRAM to an uint32_t
 	 * buffer */
@@ -1873,7 +1878,7 @@ parse_coords (vec2i_t *out, uint32_t coords)
 }
 
 static void
-outline_layer (hikaru_gpu_t *gpu, vec2i_t coords[4])
+outline_layer (hikaru_gpu_t *gpu, vec2i_t coords[4], uint16_t color)
 {
 	uint32_t x, y;
 
@@ -1884,15 +1889,19 @@ outline_layer (hikaru_gpu_t *gpu, vec2i_t coords[4])
 	        coords[3].x[0], coords[3].x[1]);
 
 	for (y = coords[0].x[1]; y < coords[3].x[1]; y++)
-		vk_buffer_put (gpu->texram, 2, coords[0].x[0]*2 + y*4096, 0xFFFF);
+		put_texel16 (gpu, coords[0].x[0]*2, y*2, color);
 	for (y = coords[0].x[1]; y < coords[3].x[1]; y++)
-		vk_buffer_put (gpu->texram, 2, coords[3].x[0]*2 + y*4096, 0xFFFF);
+		put_texel16 (gpu, coords[3].x[0]*2, y*2, color);
 }
 
 static void
 hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) gpu->base.mach->renderer;
+	vec2i_t layer[4][4];
+	unsigned i;
+
+	/* XXX hack */
 	static const vec2i_t hack[4] = {
 		{ .x = { 1280, 0 } },
 		{ .x = { 1280+640, 0 } },
@@ -1902,26 +1911,37 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 
 	hikaru_renderer_draw_layer (hr, hack);
 
-	if (REG1A (0x100) & 1) {
-		vec2i_t layer[4][4];
+	for (i = 0; i < 0x40; i += 4)
+		VK_LOG ("LAYER 0: %2X %08X", i, REG1AUNIT (0, i));
+	for (i = 0; i < 0x40; i += 4)
+		VK_LOG ("LAYER 1: %2X %08X", i, REG1AUNIT (1, i));
 
-		unsigned i;
+#if 0
+	parse_coords (&layer[0][0], REG1AUNIT (0, 0x00));
+	parse_coords (&layer[0][1], REG1AUNIT (0, 0x10));
+	parse_coords (&layer[0][2], REG1AUNIT (0, 0x08));
+	parse_coords (&layer[0][3], REG1AUNIT (0, 0x18));
 
-		for (i = 0; i < 0x40; i += 4)
-			VK_LOG ("LAYER 0: %2X %08X", i, REG1AUNIT (0, i));
-		for (i = 0; i < 0x40; i += 4)
-			VK_LOG ("LAYER 1: %2X %08X", i, REG1AUNIT (1, i));
+	parse_coords (&layer[1][0], REG1AUNIT (0, 0x04));
+	parse_coords (&layer[1][1], REG1AUNIT (0, 0x14));
+	parse_coords (&layer[1][2], REG1AUNIT (0, 0x0C));
+	parse_coords (&layer[1][3], REG1AUNIT (0, 0x1C));
 
-		parse_coords (&layer[0][0], REG1AUNIT (0, 0x00));
-		parse_coords (&layer[0][1], REG1AUNIT (0, 0x10));
-		parse_coords (&layer[0][2], REG1AUNIT (0, 0x08));
-		parse_coords (&layer[0][3], REG1AUNIT (0, 0x18));
+	parse_coords (&layer[2][0], REG1AUNIT (1, 0x00));
+	parse_coords (&layer[2][1], REG1AUNIT (1, 0x10));
+	parse_coords (&layer[2][2], REG1AUNIT (1, 0x08));
+	parse_coords (&layer[2][3], REG1AUNIT (1, 0x18));
 
-		parse_coords (&layer[1][0], REG1AUNIT (0, 0x04));
-		parse_coords (&layer[1][1], REG1AUNIT (0, 0x14));
-		parse_coords (&layer[1][2], REG1AUNIT (0, 0x0C));
-		parse_coords (&layer[1][3], REG1AUNIT (0, 0x1C));
-	}
+	parse_coords (&layer[3][0], REG1AUNIT (1, 0x04));
+	parse_coords (&layer[3][1], REG1AUNIT (1, 0x14));
+	parse_coords (&layer[3][2], REG1AUNIT (1, 0x0C));
+	parse_coords (&layer[3][3], REG1AUNIT (1, 0x1C));
+
+	outline_layer (gpu, layer[0], 0xFFFF);
+	outline_layer (gpu, layer[1], 0xFFF0);
+	outline_layer (gpu, layer[2], 0xFF00);
+	outline_layer (gpu, layer[3], 0xF000);
+#endif
 }
 
 void
@@ -1986,13 +2006,6 @@ hikaru_gpu_begin_fifo_operation (hikaru_gpu_t *gpu)
 
 	gpu->fifo_is_running = true;
 	REG1A (0x24) |= 1;
-}
-
-static void
-hiakru_gpu_end_fifo_operation (hikaru_gpu_t *gpu)
-{
-	gpu->fifo_is_running = false;
-	REG1A (0x24) &= ~1;
 }
 
 static int
