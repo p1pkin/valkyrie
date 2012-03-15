@@ -165,6 +165,7 @@ vk_mmap_delete (vk_mmap_t **mmap_)
 			FREE (mmap->regions);
 			mmap->mach = NULL;
 		}
-		FREE (mmap_);
+		free (mmap);
+		*mmap_ = NULL;
 	}
 }
