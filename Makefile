@@ -1,9 +1,9 @@
-CC := clang
-LD := clang
+CC := gcc
+LD := gcc
 
 DEFS := -DVK_HAVE_HIKARU
 
-CFLAGS  := -I src -I /usr/include/json -O2 $(DEFS) -Wall
+CFLAGS  := -I src -I /usr/include/json -O2 $(DEFS) -Wall -flto
 LDFLAGS := -lm -lSDL -lGLEW -ljansson -lncurses -ltinfo
 
 .PHONY: all clean
