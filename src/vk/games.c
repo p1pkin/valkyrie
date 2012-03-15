@@ -263,7 +263,7 @@ vk_game_delete (vk_game_t **game_)
 		for (i = 0; i < game->nsections; i++)
 			vk_buffer_delete (&game->sections[i].buffer);
 		free (game->sections);
-		FREE (game_);
+		free (game);
 	}
 }
 
