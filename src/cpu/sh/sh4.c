@@ -283,8 +283,8 @@ static void
 sh4_intc_update_priorities (sh4_t *ctx)
 {
 	uint16_t ipra = IREG_GET (2, INTC_IPRA);
-	uint16_t iprb = IREG_GET (2, INTC_IPRA);
-	uint16_t iprc = IREG_GET (2, INTC_IPRA);
+	uint16_t iprb = IREG_GET (2, INTC_IPRB);
+	uint16_t iprc = IREG_GET (2, INTC_IPRC);
 
 	/* See Table 19.5, "Interrupt Exception Sources and Priority Order" */
 	set_irq_priority (ctx, SH4_IESOURCE_UDI, iprc & 15);
@@ -595,10 +595,12 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case INTC_IPRB:
 		VK_ASSERT (size == 2);
 		VK_ASSERT (!(val & 0xF));
+		IREG_PUT (2, addr, val);
 		sh4_intc_update_priorities (ctx);
 		return 0;
 	case INTC_IPRC:
 		VK_ASSERT (size == 2);
+		IREG_PUT (2, addr, val);
 		sh4_intc_update_priorities (ctx);
 		return 0;
 	/* DMAC */
