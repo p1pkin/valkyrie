@@ -400,9 +400,6 @@ sh4_dmac_tick_channel (sh4_t *ctx, unsigned ch)
 		uint32_t dm = (chcr >> 14) & 3;
 		uint64_t tmp;
 
-		VK_LOG ("DMAC: %08X ----> %08X [SM=%u DM=%u TS=%u]",
-		        sar, dar, sm, dm, ts);
-
 		/* TODO: raise a DMA AE if any error occurs. */
 
 		switch (ts) {
@@ -702,7 +699,11 @@ sh4_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 		ret = sh4_ireg_get (ctx, size, addr, val);
 	else if (IS_STORE_QUEUE (addr))
 		ret = sh4_sq_get (ctx, size, addr, val);
-	else
+	else if (addr >= 0xF0000000 && addr < 0xF80000000) {
+		VK_CPU_LOG (ctx, "ONCHIP R%d @%08X", 8*size, addr);
+		set_ptr (val, size, 0);
+		return 0;
+	} else
 		ret = vk_cpu_get ((vk_cpu_t *) ctx, size, addr & ADDR_MASK, val);
 	/* TODO propagate to the caller to allow for memory exceptions */
 	if (ret)
@@ -717,7 +718,10 @@ sh4_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 
 	if (IS_ON_CHIP (addr))
 		ret = sh4_ireg_put (ctx, size, addr, val);
-	else if (IS_STORE_QUEUE (addr))
+	else if (addr >= 0xF0000000 && addr < 0xF80000000) {
+		VK_CPU_ABORT (ctx, "ONCHIP W%d @%08X = %llX", 8*size, addr, val);
+		return 0;
+	} else if (IS_STORE_QUEUE (addr))
 		ret = sh4_sq_put (ctx, size, addr, val);
 	else
 		ret = vk_cpu_put ((vk_cpu_t *) ctx, size, addr & ADDR_MASK, val);
