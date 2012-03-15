@@ -96,7 +96,7 @@
  * -------------------------------------
  *
  * 1500000C   W		Indirect DMA table address (in CMDRAM)
- * 15000010  RW		Indirect DMA # of entries to process
+ * 15000010  RW		Indirect DMA # of entries to process (also 16 bit)
  * 15000014  RW		Indirect DMA Control
  *			 Bit 0: exec when set, busy when read
  *
@@ -2014,12 +2014,16 @@ hikaru_gpu_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
 	uint32_t *val32 = (uint32_t *) val;
 
-	VK_ASSERT (size == 4);
+	VK_ASSERT (size == 4 || (size == 2 && addr == 0x15000010));
 
 	*val32 = 0;
 	if (addr >= 0x15000000 && addr < 0x15000100) {
 		switch (addr & 0xFF) {
 		case 0x10:
+			if (size == 2) {
+				set_ptr (val, 2, REG15 (addr));
+				return 0;
+			}
 		case 0x88:
 			break;
 		case 0x14:
