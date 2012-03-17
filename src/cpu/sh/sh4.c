@@ -1141,6 +1141,9 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C095240:
 		VK_CPU_LOG (ctx, " ### PHARRIER: memctl_dma_and_load_obj (%X)", R(4));
 		break;
+	case 0x0C01C0A0:
+		VK_CPU_LOG (ctx, " ### PHARRIER: gpu_1a_fifo_periodic ()");
+		break;
 #if 1
 	case 0x0C01C322:
 		/* Patches an AICA-related while (1) into a NOP */
