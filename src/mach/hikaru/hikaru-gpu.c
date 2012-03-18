@@ -1846,17 +1846,6 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) gpu->base.mach->renderer;
 	unsigned i, j, offs;
-
-#if 0
-	/* XXX hack */
-	static const vec2i_t hack[4] = {
-		{ .x = { 1280, 0 } },
-		{ .x = { 1280+640, 480 } }
-	};
-
-	hikaru_renderer_draw_layer (hr, hack);
-#endif
-
 	for (i = 0; i < 2; i++)
 		for (j = 0; j < 4; j++) {
 			offs = j*8;
@@ -1867,10 +1856,12 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 				uint32_t hi = REG1AUNIT (i, offs + 4);
 				parse_coords (&rect[0], lo);
 				parse_coords (&rect[1], hi);
+#if 0
 			        VK_LOG ("LAYER %u: [%08X-%08X] { %u, %u } - { %u, %u }",
 			                j, lo, hi,
 				        rect[0].x[0], rect[1].x[0],
 				        rect[0].x[1], rect[1].x[1]);
+#endif
 				hikaru_renderer_draw_layer (hr, rect);
 			}
 		}
