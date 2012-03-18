@@ -49,16 +49,16 @@ hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
 
 void
 hikaru_renderer_draw_layer (hikaru_renderer_t *renderer,
-                            vec2i_t coords[4])
+                            vec2i_t coords[2])
 {
 	glBegin (GL_TRIANGLE_STRIP);
 		glTexCoord2s (coords[0].x[0], coords[0].x[1]);
 		glVertex3f (0.0f, 479.0f, 0.1f);
-		glTexCoord2s (coords[1].x[0], coords[1].x[1]);
+		glTexCoord2s (coords[1].x[0], coords[0].x[1]);
 		glVertex3f (639.0f, 479.0f, 0.1f);
-		glTexCoord2s (coords[2].x[0], coords[2].x[1]);
+		glTexCoord2s (coords[0].x[0], coords[1].x[1]);
 		glVertex3f (0.0f, 0.0f, 0.1f);
-		glTexCoord2s (coords[3].x[0], coords[3].x[1]);
+		glTexCoord2s (coords[1].x[0], coords[1].x[1]);
 		glVertex3f (639.0f, 0.0f, 0.1f);
 	glEnd ();
 }

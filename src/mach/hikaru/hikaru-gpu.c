@@ -1837,75 +1837,43 @@ hikaru_gpu_vblank_in (vk_device_t *dev)
 static void
 parse_coords (vec2i_t *out, uint32_t coords)
 {
-	out->x[0] = (coords & 0x3FF) * 2;
-	out->x[1] = (coords >> 10);
-}
-
-static void
-outline_layer (hikaru_gpu_t *gpu, vec2i_t coords[4], uint16_t color)
-{
-	uint32_t x, y;
-
-	VK_LOG ("LAYER { %u %u } { %u %u } { %u %u } { %u %u }",
-	        coords[0].x[0], coords[0].x[1],
-	        coords[1].x[0], coords[1].x[1],
-	        coords[2].x[0], coords[2].x[1],
-	        coords[3].x[0], coords[3].x[1]);
-
-	for (y = coords[0].x[1]; y < coords[3].x[1]; y++)
-		put_texel16 (gpu, coords[0].x[0]*2, y*2, color);
-	for (y = coords[0].x[1]; y < coords[3].x[1]; y++)
-		put_texel16 (gpu, coords[3].x[0]*2, y*2, color);
+	out->x[0] = (coords & 0x1FF) * 4;
+	out->x[1] = (coords >> 9);
 }
 
 static void
 hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) gpu->base.mach->renderer;
-	vec2i_t layer[4][4];
-	unsigned i;
+	unsigned i, j, offs;
 
+#if 0
 	/* XXX hack */
 	static const vec2i_t hack[4] = {
 		{ .x = { 1280, 0 } },
-		{ .x = { 1280+640, 0 } },
-		{ .x = { 1280, 480 } },
 		{ .x = { 1280+640, 480 } }
 	};
 
 	hikaru_renderer_draw_layer (hr, hack);
-
-	for (i = 0; i < 0x40; i += 4)
-		VK_LOG ("LAYER 0: %2X %08X", i, REG1AUNIT (0, i));
-	for (i = 0; i < 0x40; i += 4)
-		VK_LOG ("LAYER 1: %2X %08X", i, REG1AUNIT (1, i));
-
-#if 0
-	parse_coords (&layer[0][0], REG1AUNIT (0, 0x00));
-	parse_coords (&layer[0][1], REG1AUNIT (0, 0x10));
-	parse_coords (&layer[0][2], REG1AUNIT (0, 0x08));
-	parse_coords (&layer[0][3], REG1AUNIT (0, 0x18));
-
-	parse_coords (&layer[1][0], REG1AUNIT (0, 0x04));
-	parse_coords (&layer[1][1], REG1AUNIT (0, 0x14));
-	parse_coords (&layer[1][2], REG1AUNIT (0, 0x0C));
-	parse_coords (&layer[1][3], REG1AUNIT (0, 0x1C));
-
-	parse_coords (&layer[2][0], REG1AUNIT (1, 0x00));
-	parse_coords (&layer[2][1], REG1AUNIT (1, 0x10));
-	parse_coords (&layer[2][2], REG1AUNIT (1, 0x08));
-	parse_coords (&layer[2][3], REG1AUNIT (1, 0x18));
-
-	parse_coords (&layer[3][0], REG1AUNIT (1, 0x04));
-	parse_coords (&layer[3][1], REG1AUNIT (1, 0x14));
-	parse_coords (&layer[3][2], REG1AUNIT (1, 0x0C));
-	parse_coords (&layer[3][3], REG1AUNIT (1, 0x1C));
-
-	outline_layer (gpu, layer[0], 0xFFFF);
-	outline_layer (gpu, layer[1], 0xFFF0);
-	outline_layer (gpu, layer[2], 0xFF00);
-	outline_layer (gpu, layer[3], 0xF000);
 #endif
+
+	for (i = 0; i < 2; i++)
+		for (j = 0; j < 4; j++) {
+			offs = j*8;
+			if (REG1AUNIT (i, offs + 0x20) ||
+			    REG1AUNIT (i, offs + 0x24)) {
+				vec2i_t rect[2];
+				uint32_t lo = REG1AUNIT (i, offs);
+				uint32_t hi = REG1AUNIT (i, offs + 4);
+				parse_coords (&rect[0], lo);
+				parse_coords (&rect[1], hi);
+			        VK_LOG ("LAYER %u: [%08X-%08X] { %u, %u } - { %u, %u }",
+			                j, lo, hi,
+				        rect[0].x[0], rect[1].x[0],
+				        rect[0].x[1], rect[1].x[1]);
+				hikaru_renderer_draw_layer (hr, rect);
+			}
+		}
 }
 
 void
