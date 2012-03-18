@@ -422,7 +422,7 @@ hikaru_raise_irq (vk_machine_t *mach, unsigned num, uint16_t porta)
 	hikaru->porta_m &= ~porta;
 }
 
-#define CYCLES_PER_LINE ((100 * MHZ) / (60 * 480))
+#define CYCLES_PER_LINE ((50 * MHZ) / (60 * 480))
 
 static void
 hikaru_run_cycles (vk_machine_t *mach, int cycles)
