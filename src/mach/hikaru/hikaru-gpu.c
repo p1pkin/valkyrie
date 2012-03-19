@@ -838,7 +838,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x000:
 		/* 000	Nop
 		 *
-		 * +00	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
+		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 */
 		VK_LOG ("GPU CMD %08X: Nop [%08X]", gpu->pc, inst[0]);
 		VK_ASSERT (inst[0] == 0);
@@ -854,7 +854,21 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			uint32_t addr = inst[1] * 4;
 			VK_LOG ("GPU CMD %08X: Jump [%08X] %08X",
 			        gpu->pc, inst[0], addr);
-			VK_ASSERT ((inst[0] & ~0xFFF) == 0);
+			VK_ASSERT (inst[0] == 0x12);
+			gpu->pc = addr;
+		}
+		break;
+	case 0x812:
+		/* 012	Jump
+		 *
+		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
+		 *	aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa		a = Offset in 32-bit words
+		 */
+		{
+			uint32_t addr = gpu->pc + 8 + inst[1] * 4;
+			VK_LOG ("GPU CMD %08X: Jump Rel [%08X %08X] %08X",
+			        gpu->pc, inst[0], inst[1], addr);
+			VK_ASSERT (inst[0] == 0x812);
 			gpu->pc = addr;
 		}
 		break;
@@ -866,16 +880,28 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 */
 		{
 			uint32_t addr = inst[1] * 4;
-
 			VK_LOG ("GPU CMD %08X: Call [%08X] %08X",
 			        gpu->pc, inst[0], addr);
-
-			VK_ASSERT ((inst[0] & ~0xFFF) == 0);
+			VK_ASSERT (inst[0] == 0x52);
 			cp_push_pc (gpu);
 			gpu->pc = addr;
 
 		}
 		break;
+	case 0x852:
+		/* 052	Call Rel
+		 *
+		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
+		 *	aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa		a = Offset in 32-bit words
+		 */
+		{
+			uint32_t addr = gpu->pc + 8 + inst[1] * 4;
+			VK_LOG ("GPU CMD %08X: Jump Rel [%08X %08X] %08X",
+			        gpu->pc, inst[0], inst[1], addr);
+			VK_ASSERT (inst[0] == 0x852);
+			cp_push_pc (gpu);
+			gpu->pc = addr;
+		}
 	case 0x082:
 		/* 082	Return
 		 *
@@ -883,7 +909,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 */
 		VK_LOG ("GPU CMD %08X: Return [%08X]",
 		        gpu->pc, inst[0]);
-		VK_ASSERT ((inst[0] & ~0xFFF) == 0);
+		VK_ASSERT (inst[0] == 0x82);
 		cp_pop_pc (gpu);
 		break;
 	case 0x1C2:
@@ -893,15 +919,10 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 */
 		VK_LOG ("GPU CMD %08X: Kill [%08X]",
 		        gpu->pc, inst[0]);
-		VK_ASSERT ((inst[0] & !0xFFFF) == 0);
+		VK_ASSERT (inst[0] == 0x1C2);
 		gpu->is_running = false;
 		gpu->pc += 4;
 		return 1;
-	case 0x812:
-	case 0x852:
-		VK_LOG ("GPU CMD %08X: JumpCallRel [%08X %08X]", gpu->pc, inst[0], inst[1]);
-		gpu->pc += 8;
-		break;
 
 	/* Frame Control */
 
