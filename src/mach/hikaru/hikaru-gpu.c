@@ -834,7 +834,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 {
 	vk_device_t *device = (vk_device_t *) gpu;
 	hikaru_t *hikaru = (hikaru_t *) device->mach;
-	uint32_t inst[8];
+	uint32_t inst[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 	ASSERT (cp_is_valid_addr (gpu->pc));
 	ASSERT (cp_is_valid_addr (gpu->sp[0]));
@@ -1020,7 +1020,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 	case 0x991:
-		/* 991	Vireport: Unknown
+		/* 991	Viewport: Unknown
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 *	---- ---s nnnn nnnn mmmm mmmm pppp pppp		s = Sign; n, m, p = Unknown
@@ -1316,7 +1316,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * See @0C00657C */
 		{
 			unsigned unk = (inst[0] >> 24) & 0xFF;
-			unsigned num = (inst[0] >> 16) & 0xF;
+			unsigned num = (inst[0] >> 16) & 0xFF;
 			unsigned ena = (inst[0] >> 12) & 1;
 
 			VK_LOG ("GPU CMD %08X: Recall Color [%08X] unk=%u num=%u ena=%u",
@@ -1540,14 +1540,36 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0xFBD:
 	case 0xFBE:
 	case 0xFBF:
-		/* 1BC	Vertex Normal 3f */
+		/* 1BC	Vertex Normal 3f
+		 *
+		 *	tttt tttt mmmm nnnn ssss oooo oooo oooo o = Opcode, n,m,t = Unknown
+		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx	x,y,z = Coords 
+		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy
+		 *	zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz
+		 *	pppp pppp pppp pppp qqqq qqqq qqqq qqqq p,q = Unknown
+		 *	uuuu uuuu uuuu uuuu uuuu uuuu uuuu uuuu	u,v,w = Normal Coords?
+		 *	vvvv vvvv vvvv vvvv vvvv vvvv vvvv vvvv
+		 *	wwww wwww wwww wwww wwww wwww wwww wwww
+		 */
 		{
-			unsigned p = inst[0] >> 24;
-			unsigned q = inst[4];
-			vec3f_t *v = (vec3f_t *) &inst[1];
-			vec3f_t *n = (vec3f_t *) &inst[5];
-			VK_LOG ("GPU CMD %08X: Vertex Normal %u %u <%f %f %f> <%f %f %f>",
-			        gpu->pc, p, q,
+			unsigned n, m, t, s, p, q;
+			vec3f_t *pos, *nrm;
+
+			t = inst[0] >> 24;
+			n = (inst[0] >> 20) & 15;
+			m = (inst[0] >> 16) & 15;
+			s = (inst[0] >> 12) & 15;
+			p = (inst[4] >> 16);
+			q = inst[4] & 0xFFFF;
+
+			pos = (vec3f_t *) &inst[1];
+			nrm = (vec3f_t *) &inst[5];
+
+			VK_LOG ("GPU CMD %08X: Vertex Normal [%08X %08X %08X %08X %08X %08X %08X %08X] %u %u <%f %f %f> <%f %f %f>",
+			        gpu->pc,
+				inst[0], inst[1], inst[2], inst[3],
+				inst[4], inst[5], inst[6], inst[7],
+				p, q,
 			        v->x[0], v->x[1], v->x[2],
 			        n->x[0], n->x[1], n->x[2]);
 			gpu->pc += 32;
@@ -1720,6 +1742,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		/* 006	Unknown */
 	case 0x046:
 		/* 046	Unknown */
+	case 0x313:
 	case 0xD03:
 	case 0xD13:
 		/* D03 Unknown */
