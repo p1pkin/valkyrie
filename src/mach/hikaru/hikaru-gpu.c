@@ -885,7 +885,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa		a = Offset in 32-bit words
 		 */
 		{
-			uint32_t addr = gpu->pc + 8 + inst[1] * 4;
+			uint32_t addr = gpu->pc + inst[1] * 4;
 			VK_LOG ("GPU CMD %08X: Jump Rel [%08X %08X] %08X",
 			        gpu->pc, inst[0], inst[1], addr);
 			ASSERT (inst[0] == 0x812);
@@ -915,7 +915,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa		a = Offset in 32-bit words
 		 */
 		{
-			uint32_t addr = gpu->pc + 8 + inst[1] * 4;
+			uint32_t addr = gpu->pc + inst[1] * 4;
 			VK_LOG ("GPU CMD %08X: Jump Rel [%08X %08X] %08X",
 			        gpu->pc, inst[0], inst[1], addr);
 			ASSERT (inst[0] == 0x852);
@@ -1212,9 +1212,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 */
 		{
 			unsigned i = (inst[0] >> 16) & 0xFF;
-
 			VK_LOG ("GPU CMD %08X: Color: Set Y 8 [%08X]", gpu->pc, inst[0]);
-
 			gpu->cs_scratch._881_params.unk = i;
 			gpu->pc += 4;
 		}
@@ -1228,7 +1226,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		/* 881	Set Y Property C */
 		VK_LOG ("GPU CMD %08X: Color: Set Y C [%08X]", gpu->pc, inst[0]);
 		gpu->pc += 4;
-
 		break;
 	case 0x091:
 		/* 091	Set Color Property 0 */
@@ -1257,7 +1254,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned r = (inst[1] >> 24) & 0xFF;
 
 			VK_LOG ("GPU CMD %08X: Color: Set 2 [%08X %08X] %u <%u %u %u %u>",
-			        gpu->pc, inst[0], inst[1], x, a, b, b, r);
+			        gpu->pc, inst[0], inst[1], x, a, b, g, r);
 
 			gpu->cs_scratch._291_params.color.x[0] = r;
 			gpu->cs_scratch._291_params.color.x[1] = g;
@@ -1724,6 +1721,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x046:
 		/* 046	Unknown */
 	case 0xD03:
+	case 0xD13:
 		/* D03 Unknown */
 		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X]",
 		        gpu->pc, inst[0] & 0xFFF, inst[0]);
