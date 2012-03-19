@@ -783,7 +783,8 @@ draw_tri (hikaru_gpu_t *gpu, vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2)
 static bool
 cp_is_valid_addr (uint32_t addr)
 {
-	return (addr >= 0x48000000 && addr <= 0x483FFFFF) ||
+	return (addr >= 0x40000000 && addr <= 0x41FFFFFF) ||
+	       (addr >= 0x48000000 && addr <= 0x483FFFFF) ||
 	       (addr >= 0x4C000000 && addr <= 0x4C3FFFFF);
 }
 
@@ -818,25 +819,37 @@ exp16 (int x)
 		} \
 	} while (0);
 
-static int
-hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
+static void
+read_inst (vk_buffer_t *buf, uint32_t *inst, uint32_t offs)
 {
-	uint32_t inst[8];
 	unsigned i;
-
-	ASSERT (cp_is_valid_addr (gpu->sp[1]));
-	ASSERT (cp_is_valid_addr (gpu->sp[0]));
-
-	if (!cp_is_valid_addr (gpu->pc)) {
-		VK_ERROR ("invalid GPU address %08X", gpu->pc);
-		return 1;
-	}
-
 	/* XXX this is not exactly ideal; change the CMDRAM to an uint32_t
 	 * buffer */
 	for (i = 0; i < 8; i++)
-		inst[i] = vk_buffer_get (gpu->cmdram, 4,
-		                         (gpu->pc + i * 4) & 0xFFFFFF);
+		inst[i] = vk_buffer_get (buf, 4, offs + i * 4);
+}
+
+static int
+hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
+{
+	vk_device_t *device = (vk_device_t *) gpu;
+	hikaru_t *hikaru = (hikaru_t *) device->mach;
+	uint32_t inst[8];
+
+	ASSERT (cp_is_valid_addr (gpu->pc));
+	ASSERT (cp_is_valid_addr (gpu->sp[0]));
+	ASSERT (cp_is_valid_addr (gpu->sp[1]));
+
+	switch (gpu->pc >> 24) {
+	case 0x40:
+	case 0x41:
+		read_inst (hikaru->ram_s, inst, gpu->pc & 0x01FFFFFF);
+		break;
+	case 0x48:
+	case 0x4C:
+		read_inst (hikaru->cmdram, inst, gpu->pc & 0x00FFFFFF);
+		break;
+	}
 
 	switch (inst[0] & 0xFFF) {
 
