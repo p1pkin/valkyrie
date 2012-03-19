@@ -811,17 +811,24 @@ exp16 (int x)
 	return 0x10 << x;
 }
 
+#define ASSERT(cond_) \
+	do { \
+		if (!(cond_)) { \
+			VK_ABORT ("GPU: @%08X: assertion failed, aborting", gpu->pc); \
+		} \
+	} while (0);
+
 static int
 hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 {
 	uint32_t inst[8];
 	unsigned i;
 
-	VK_ASSERT (cp_is_valid_addr (gpu->sp[1]));
-	VK_ASSERT (cp_is_valid_addr (gpu->sp[0]));
+	ASSERT (cp_is_valid_addr (gpu->sp[1]));
+	ASSERT (cp_is_valid_addr (gpu->sp[0]));
 
 	if (!cp_is_valid_addr (gpu->pc)) {
-		VK_ERROR ("invalid GPU address %08X");
+		VK_ERROR ("invalid GPU address %08X", gpu->pc);
 		return 1;
 	}
 
@@ -841,7 +848,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 */
 		VK_LOG ("GPU CMD %08X: Nop [%08X]", gpu->pc, inst[0]);
-		VK_ASSERT (inst[0] == 0);
+		ASSERT (inst[0] == 0);
 		gpu->pc += 4;
 		break;
 	case 0x012:
@@ -854,12 +861,12 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			uint32_t addr = inst[1] * 4;
 			VK_LOG ("GPU CMD %08X: Jump [%08X] %08X",
 			        gpu->pc, inst[0], addr);
-			VK_ASSERT (inst[0] == 0x12);
+			ASSERT (inst[0] == 0x12);
 			gpu->pc = addr;
 		}
 		break;
 	case 0x812:
-		/* 012	Jump
+		/* 812	Jump
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 *	aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa		a = Offset in 32-bit words
@@ -868,7 +875,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			uint32_t addr = gpu->pc + 8 + inst[1] * 4;
 			VK_LOG ("GPU CMD %08X: Jump Rel [%08X %08X] %08X",
 			        gpu->pc, inst[0], inst[1], addr);
-			VK_ASSERT (inst[0] == 0x812);
+			ASSERT (inst[0] == 0x812);
 			gpu->pc = addr;
 		}
 		break;
@@ -882,14 +889,14 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			uint32_t addr = inst[1] * 4;
 			VK_LOG ("GPU CMD %08X: Call [%08X] %08X",
 			        gpu->pc, inst[0], addr);
-			VK_ASSERT (inst[0] == 0x52);
+			ASSERT (inst[0] == 0x52);
 			cp_push_pc (gpu);
 			gpu->pc = addr;
 
 		}
 		break;
 	case 0x852:
-		/* 052	Call Rel
+		/* 852	Call Rel
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 *	aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa		a = Offset in 32-bit words
@@ -898,10 +905,11 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			uint32_t addr = gpu->pc + 8 + inst[1] * 4;
 			VK_LOG ("GPU CMD %08X: Jump Rel [%08X %08X] %08X",
 			        gpu->pc, inst[0], inst[1], addr);
-			VK_ASSERT (inst[0] == 0x852);
+			ASSERT (inst[0] == 0x852);
 			cp_push_pc (gpu);
 			gpu->pc = addr;
 		}
+		break;
 	case 0x082:
 		/* 082	Return
 		 *
@@ -909,7 +917,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 */
 		VK_LOG ("GPU CMD %08X: Return [%08X]",
 		        gpu->pc, inst[0]);
-		VK_ASSERT (inst[0] == 0x82);
+		ASSERT (inst[0] == 0x82);
 		cp_pop_pc (gpu);
 		break;
 	case 0x1C2:
@@ -919,7 +927,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 */
 		VK_LOG ("GPU CMD %08X: Kill [%08X]",
 		        gpu->pc, inst[0]);
-		VK_ASSERT (inst[0] == 0x1C2);
+		ASSERT (inst[0] == 0x1C2);
 		gpu->is_running = false;
 		gpu->pc += 4;
 		return 1;
@@ -1068,8 +1076,8 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			        params.extents_x.x[0], params.extents_x.x[1],
 			        params.extents_y.x[0], params.extents_y.x[1]);
 
-			VK_ASSERT (!(inst[2] & 0xC0008000));
-			VK_ASSERT (!(inst[3] & 0xC0008000));
+			ASSERT (!(inst[2] & 0xC0008000));
+			ASSERT (!(inst[3] & 0xC0008000));
 
 			gpu->vp_scratch._221_params = params;
 			gpu->pc += 16;
@@ -1094,7 +1102,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			VK_LOG ("GPU CMD %08X: Viewport: Set Depth [ near=%f far=%f func=%u ]",
 			        gpu->pc, params.depth_near, params.depth_far, params.depth_func);
 			        
-			VK_ASSERT (!(inst[3] & 0x1FFFFFFF));
+			ASSERT (!(inst[3] & 0x1FFFFFFF));
 
 			gpu->vp_scratch._421_params = params;
 			gpu->pc += 16;
@@ -1483,9 +1491,9 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			        uv[1].x[0], uv[1].x[1],
 			        uv[2].x[0], uv[2].x[1]);
 
-			VK_ASSERT (!(inst[1] & 0xF000F000));
-			VK_ASSERT (!(inst[2] & 0xF000F000));
-			VK_ASSERT (!(inst[3] & 0xF000F000));
+			ASSERT (!(inst[1] & 0xF000F000));
+			ASSERT (!(inst[2] & 0xF000F000));
+			ASSERT (!(inst[3] & 0xF000F000));
 
 			draw_tri (gpu, &uv[0], &uv[1], &uv[2]);
 			gpu->pc += 16;
@@ -1615,7 +1623,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			//uint32_t l2 = inst[2];
 			VK_LOG ("GPU CMD %08X: Set Lo Addresses [%08X %08X %08X %08X]",
 			        gpu->pc, inst[0], inst[1], inst[2], inst[3]);
-			VK_ASSERT (!inst[3]);
+			ASSERT (!inst[3]);
 			gpu->pc += 16;
 		}
 		break;
@@ -1633,7 +1641,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			//uint32_t u2 = inst[2];
 			VK_LOG ("GPU CMD %08X: Set Hi Addresses [%08X %08X %08X %08X]",
 			        gpu->pc, inst[0], inst[1], inst[2], inst[3]);
-			VK_ASSERT (!inst[3]);
+			ASSERT (!inst[3]);
 			gpu->pc += 16;
 		}
 		break;
