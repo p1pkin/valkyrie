@@ -1410,7 +1410,7 @@ I (flt)
 		FRN.f = (float) (int32_t) FPUL.u; /* uint32 to float */
 	} else {
 		assert (!(_RN & 1));
-		DRN.f = (double) FPUL.u; /* uint32 to double */
+		DRN.f = (double) (int32_t) FPUL.u; /* uint32 to double */
 	}
 }
 
