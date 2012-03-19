@@ -1320,7 +1320,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned ena = (inst[0] >> 12) & 1;
 
 			VK_LOG ("GPU CMD %08X: Recall Color [%08X] unk=%u num=%u ena=%u",
-			        gpu->pc, inst[0], num, ena);
+			        gpu->pc, inst[0], unk, num, ena);
 
 			gpu->current_cs = &gpu->cs[num];
 			gpu->cs_enabled = ena;
