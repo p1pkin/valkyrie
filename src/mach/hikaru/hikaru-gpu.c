@@ -829,6 +829,18 @@ read_inst (vk_buffer_t *buf, uint32_t *inst, uint32_t offs)
 		inst[i] = vk_buffer_get (buf, 4, offs + i * 4);
 }
 
+/* In general, opcodes of the form:
+ *
+ * - xx1 seem to set properties of the current object
+ * - xx2 seem to be control-flow related.
+ * - xx3 seem to be used to recall a given object/offset
+ * - xx4 seem to be used to commit the current object
+ * - xx6 seem to be ?
+ */
+
+/* NOTE: it looks like the RECALL opcodes actually set the current offset
+ * for the following SET PROPERTY instructions. See PHARRIER. */
+
 static int
 hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 {
