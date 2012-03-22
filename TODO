@@ -14,8 +14,6 @@ Move the JSON location to '$HOME/.local/share/valkyrie' or something.
 
 Fix the copyright in the [ch] files (year, and license text.)
 
-Send a copy of the source to RBelmont.
-
 HIKARU
 -------
 
@@ -31,13 +29,7 @@ SH4
 
 Gix FTRV, FIPR PR handling; see AIRTRIX/PHARRIER.
 
-Enable DMAC for PHARRIER.
-
-Implement internal IRQs (for DMAC.)
-
 Implement the TMU.
-
-Fix SQ access for PHARRIER.
 
 RENDERING
 ---------
@@ -89,19 +81,11 @@ second problem SGNASCAR has.)
 SGNASCAR
 --------
 
-The game just doesn't boot. EPROM/MASKROM layout is wrong, and/or ROMBD
-parameters read from the EPROM (in authenticate_rom () or late __init ())
-simply don't work. To find out what is wrong, just look at the PR of
-set_errno_and_init_machine ().
+For some reason the ROM->RAM transfer table at EPROM offset +390 tells
+the BOOTROM to read 01FF0000 bytes from the ROM aperture at 03xxxxxx.
+The problem is that the aperture is only 16MB wide, so the BOOTROM ends
+up reading garbage from the 04xxxxxx MEMCTL device.
 
-The following patch makes the problematic check pass.
-
-	case 0x0C00BC9A:
-		/* Makes authenticate_rom pass also for SGNASCAR; the problem
-		 * is that the EEPROM contents and the EPROM contents don't
-		 * agree on something (EPROM size maybe?) */
-		R(3) = 0;
-		break;
-
-However . The problem seems to be bad EPROM mapping and/or bad EEPROM values
-influencing the boot process.
+Adding a patch to make the memcpy loop respect the bounds make SGNASCAR
+jump to the newly-copied code, but later writes stuff to the BOOTROM
+read-only area.
