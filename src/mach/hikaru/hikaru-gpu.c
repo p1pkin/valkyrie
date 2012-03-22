@@ -1576,7 +1576,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			nrm = (vec3f_t *) &inst[5];
 			texcoord = (vec2s_t *) &inst[4];
 
-			VK_LOG ("GPU CMD %08X: Vertex Normal [%08X %08X %08X %08X %08X %08X %08X %08X] <%f %f %f> <%f %f %f> <%X %X> %u %u %u %U",
+			VK_LOG ("GPU CMD %08X: Vertex Normal [%08X %08X %08X %08X %08X %08X %08X %08X] <%f %f %f> <%f %f %f> <%X %X> %u %u %u %u",
 			        gpu->pc,
 				inst[0], inst[1], inst[2], inst[3],
 				inst[4], inst[5], inst[6], inst[7],
