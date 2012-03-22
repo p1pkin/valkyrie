@@ -403,7 +403,7 @@ rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
 	/* Access here is valid even if performed on the wrong banks: we set
 	 * the ptr to garbage here because the hikaru bootrom reads
 	 * indiscriminately from banks 10-1B (including the EEPROM bank!) to
-	 * figure out the EPROM format. We don't want spurious matchings
+	 * figure out the EPROM format. We don't want spurious matches
 	 * (that is, 0 vs. 0) to affect the computation. */
 	set_ptr (val, size, rand ());
 
