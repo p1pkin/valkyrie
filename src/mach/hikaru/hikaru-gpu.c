@@ -1564,26 +1564,27 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *      wwww wwww wwww wwww wwww wwww wwww wwww                 
 		 */
 		{
-			unsigned n, m, t, s, p, q;
+			unsigned n, m, p, q;
 			vec3f_t *pos, *nrm;
+			vec2s_t *texcoord;
 
-			t = inst[0] >> 24;
+			p = inst[0] >> 24;
 			n = (inst[0] >> 20) & 15;
 			m = (inst[0] >> 16) & 15;
-			s = (inst[0] >> 12) & 15;
-			p = (inst[4] >> 16);
-			q = inst[4] & 0xFFFF;
+			q = (inst[0] >> 12) & 15;
 
 			pos = (vec3f_t *) &inst[1];
 			nrm = (vec3f_t *) &inst[5];
+			texcoord = (vec2s_t *) &inst[4];
 
-			VK_LOG ("GPU CMD %08X: Vertex Normal [%08X %08X %08X %08X %08X %08X %08X %08X] %u %u <%f %f %f> <%f %f %f>",
+			VK_LOG ("GPU CMD %08X: Vertex Normal [%08X %08X %08X %08X %08X %08X %08X %08X] <%f %f %f> <%f %f %f> <%X %X> %u %u %u %U",
 			        gpu->pc,
 				inst[0], inst[1], inst[2], inst[3],
 				inst[4], inst[5], inst[6], inst[7],
-				p, q,
 			        pos->x[0], pos->x[1], pos->x[2],
-			        nrm->x[0], nrm->x[1], nrm->x[2]);
+			        nrm->x[0], nrm->x[1], nrm->x[2],
+				texcoord->x[0], texcoord->x[1],
+			        n, m, p, q);
 			gpu->pc += 32;
 		}
 		break;

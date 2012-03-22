@@ -114,7 +114,7 @@ hikaru_mie_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 		/* HACK: for AIRTRIX, see AT:@0C69B34E */
 		/*set_ptr (val, size, vk_buffer_get (((hikaru_t *) dev->mach)->mie_ram, size, (addr / 2) & 0x7FFF));*/
 		set_ptr (val, size, 0);
-#if 1
+#if 0
 		if (addr == 0x00838004)
 			set_ptr (val, size, 3);
 		else if (addr == 0x00838008)
