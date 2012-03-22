@@ -1038,24 +1038,27 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 
 	/* BOOTROM 0.92 */
 	case 0x0C0010A4:
-		VK_CPU_LOG (ctx, " ### IRQ: about to jump to handler @%08X", R(5))
+		VK_CPU_LOG (ctx, " ### BOOTROM about to jump to IRQ handler @%08X", R(5))
 		break;
 	case 0x0C00B90A:
-		VK_CPU_LOG (ctx, " ### JUMPING TO ROM CODE! (%X)", R(11));
+		VK_CPU_LOG (ctx, " ### BOOTROM JUMPING TO ROM CODE! (%X)", R(11));
 		break;
-#if 0
+#if 1
+	case 0x0C0069E0:
+		VK_CPU_LOG (ctx, " ### BOOTROM sync (%X)", R(4));
+		break;
 	case 0x0C00BD18:
-		VK_CPU_LOG (ctx, " ### set_errno_and_init_machine_extended (%X)", R(4));
+		VK_CPU_LOG (ctx, " ### BOOTROM set_errno_and_init_machine_extended (%X)", R(4));
 		break;
 	case 0x0C00BC5C:
-		VK_CPU_LOG (ctx, " ### authenticate_rom (%X, %X, %X)", R(6), R(7), R(8));
+		VK_CPU_LOG (ctx, " ### BOOTROM authenticate_rom (%X, %X, %X)", R(6), R(7), R(8));
 		break;
 	case 0x0C00BC9E:
-		VK_CPU_LOG (ctx, " ### authenticate_rom () : values read from EPROM %X: %X %X",
+		VK_CPU_LOG (ctx, " ### BOOTROM authenticate_rom () : values read from EPROM %X: %X %X",
 		            R(5), R(3), R(1));
 		break;
 	case 0x0C004E46:
-		VK_CPU_LOG (ctx, " ### rombd_do_crc (%X, %X, %X)", R(4), R(5), R(6));
+		VK_CPU_LOG (ctx, " ### BOOTROM rombd_do_crc (%X, %X, %X)", R(4), R(5), R(6));
 		break;
 #endif
 
@@ -1112,7 +1115,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		break;
 #endif
 
-#if 1
+#if 0
 	/* PHARRIER */
 	case 0x0C0125C0:
 		VK_CPU_LOG (ctx, " ### PHARRIER: sync (%X)", R(4));
@@ -1154,6 +1157,24 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		R(0) |= 0xFFFFFF;
 		break;
 #endif
+#endif
+
+#if 1
+	/* SGNASCAR */
+	case 0x0C00BC9A:
+		/* Make the (non-existent) EEPROM data conform the ROM
+		 * information. This is likely a region/hw version check. */
+		R(3) = 0xFF;
+		break;
+	case 0x0C00B8BE:
+		/* Patches a BOOTROM ?bug? */
+		{
+			uint32_t old = R(3);
+			R(3) = MIN2 (R(3), 0x04000000 - (R(4) & 0x1FFFFFFF));
+			VK_CPU_LOG (ctx, " ### BOOTROM copying ROM data to RAM: [%08X] %08X -> %08X x %08X [was %08X]",
+			            R(6)-8, R(4), R(1), R(3), old);
+		}
+		break;
 #endif
 	}
 
