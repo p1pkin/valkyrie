@@ -60,9 +60,10 @@ static inline int
 vk_device_exec (vk_device_t *dev, int cycles)
 {
 	VK_ASSERT (dev);
-	VK_ASSERT (dev->exec);
 	VK_ASSERT (cycles);
-	return dev->exec (dev, cycles);
+	if (dev->exec)
+		return dev->exec (dev, cycles);
+	return cycles;
 }
 
 static inline int
