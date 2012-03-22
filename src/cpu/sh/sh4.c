@@ -477,6 +477,18 @@ sh4_dmac_tick (sh4_t *ctx)
 	sh4_dmac_tick_channel (ctx, 3);
 }
 
+#define IS_STORE_QUEUE(addr_) \
+	(addr >= 0xE0000000 && addr <= 0xE3FFFFFF)
+
+#define IS_ON_CHIP(addr_) \
+	(((addr >> 24) == 0x1F) || \
+	 ((addr >> 24) == 0xFF))
+
+#define ADDR_MASK 0x1FFFFFFF
+
+#define AREA(addr_) \
+	(((addr_) >> 26) & 7)
+
 /* On-chip Modules
  * See Table A.1, "Address List" */
 
@@ -1159,7 +1171,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 #endif
 #endif
 
-#if 1
+#if 0
 	/* SGNASCAR */
 	case 0x0C00BC9A:
 		/* Make the (non-existent) EEPROM data conform the ROM
