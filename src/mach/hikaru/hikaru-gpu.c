@@ -1426,7 +1426,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			VK_LOG ("GPU CMD %08X: Commit Tex Params [%08X] flag=%u n=%u",
 			        gpu->pc, inst[0], flag, n);
 
-			gpu->ts[num] = gpu->ts_scratch;
+			gpu->ts[n] = gpu->ts_scratch;
 			gpu->pc += 4;
 		}
 		break;
@@ -1440,9 +1440,9 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned flag = (inst[0] >> 12) & 1;
 
 			VK_LOG ("GPU CMD %08X: Recall Tex Params [%08X] flag=%u n=%u",
-			        gpu->pc, inst[0], flag, unk);
+			        gpu->pc, inst[0], flag, n);
 
-			gpu->current_ts = &gpu->ts[num];
+			gpu->current_ts = &gpu->ts[n];
 			gpu->ts_enabled = flag;
 			gpu->pc += 4;
 		}
@@ -1582,8 +1582,8 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 				inst[0], inst[1], inst[2], inst[3],
 				inst[4], inst[5], inst[6], inst[7],
 				p, q,
-			        v->x[0], v->x[1], v->x[2],
-			        n->x[0], n->x[1], n->x[2]);
+			        pos->x[0], pos->x[1], pos->x[2],
+			        nrm->x[0], nrm->x[1], nrm->x[2]);
 			gpu->pc += 32;
 		}
 		break;
