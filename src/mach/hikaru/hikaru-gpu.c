@@ -246,9 +246,10 @@
  * Unknown
  * -------
  *
- * 1A00001C	32-bit	RO	Unknown Counter
- *				 - Mask used in PH is 003FF800
- *				 - Bits 23,24 affect the argument of command 781
+ * 1A00001C	32-bit  RO      Current Raster Position?                        
+ *                              000007FF X Position                            
+ *                              003FF800 Y Position, See PH:@0C01C106          
+ *                              01800000 Unknown; affects the argument to command 781
  *				 - Affects how much stuff is sent to the 1A04
  *				   FIFO in PH.
  *				 - Gets stored into [0C00F070].w
