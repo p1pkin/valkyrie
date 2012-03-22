@@ -1769,7 +1769,13 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		gpu->pc += 8;
 		break;
 	case 0x064:
-		/* 064	Unknown */
+		/* 064  Unknown                                                 
+		 *                                                              
+		 *      ???? ???? ???? ???? ???? oooo oooo oooo                 
+		 *      bbbb bbbb bbbb bbbb aaaa aaaa aaaa aaaa                 
+		 *      dddd dddd dddd dddd cccc cccc cccc cccc                 
+		 *      ffff ffff ffff ffff eeee eeee eeee eeee                 
+		 */
 	case 0x561:
 		/* 561	Unknown */
 		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X %08X %08X %08X]",
