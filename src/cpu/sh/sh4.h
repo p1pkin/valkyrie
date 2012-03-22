@@ -26,8 +26,6 @@
 #include "vk/buffer.h"
 #include "vk/cpu.h"
 
-#include "cpu/sh/sh4-mmu.h"
-
 typedef union {
 	struct {
 		uint32_t t  : 1;
