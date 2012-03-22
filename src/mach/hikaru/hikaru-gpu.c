@@ -1486,7 +1486,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 
 	case 0xEE8:
 	case 0xEE9:
-		/* EE8	Tex Coord 3 */
 		/* EE9	Tex Coord 3
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
