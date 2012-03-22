@@ -615,7 +615,6 @@ hikaru_gpu_update_irqs (hikaru_gpu_t *gpu)
 static void
 hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A)
 {
-	vk_cpu_t *cpu = ((hikaru_t *) gpu->base.mach)->sh_current;
 	//VK_CPU_LOG (cpu, " ### raising GPU IRQs 15:%02X 1A:%02X", _15, _1A);
 	if (_1A & 1)
 		REG1A (0x08) |= 1;
