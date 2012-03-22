@@ -1552,16 +1552,16 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0xFBD:
 	case 0xFBE:
 	case 0xFBF:
-		/* 1BC	Vertex Normal 3f
-		 *
-		 *	tttt tttt mmmm nnnn ssss oooo oooo oooo o = Opcode, n,m,t = Unknown
-		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx	x,y,z = Coords 
-		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy
-		 *	zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz
-		 *	pppp pppp pppp pppp qqqq qqqq qqqq qqqq p,q = Unknown
-		 *	uuuu uuuu uuuu uuuu uuuu uuuu uuuu uuuu	u,v,w = Normal Coords?
-		 *	vvvv vvvv vvvv vvvv vvvv vvvv vvvv vvvv
-		 *	wwww wwww wwww wwww wwww wwww wwww wwww
+		/* 1BC  Vertex Normal 3f                                        
+		 *                                                              
+		 *      pppp pppp mmmm nnnn qqqq oooo oooo oooo o = Opcode, n,m,p,q = Unknown
+		 *      xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx x,y,z = Position
+		 *      yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy                 
+		 *      zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz                 
+		 *      ssss ssss ssss ssss tttt tttt tttt tttt p,q = Tex Coords
+		 *      uuuu uuuu uuuu uuuu uuuu uuuu uuuu uuuu u,v,w = Normal  
+		 *      vvvv vvvv vvvv vvvv vvvv vvvv vvvv vvvv                 
+		 *      wwww wwww wwww wwww wwww wwww wwww wwww                 
 		 */
 		{
 			unsigned n, m, t, s, p, q;
