@@ -1482,15 +1482,13 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		break;
 
 	/* Matrix Operations
+	 * =================
 	 *
-	 * Details on these are fuzzy and incongruent at best. */
+	 * Details on these are fuzzy and incongruent at best. I'd expect
+	 * a matrix stack somewhere, but it may as well be managed in
+	 * software.
+	 */
 
-	case 0x261:
-		/* 261	Set Matrix Vector */
-	case 0x961:
-		/* 961	Set Matrix Vector */
-	case 0xB61:
-		/* B61	Set Matrix Vector */
 	case 0x161:
 		/* 161	Set Matrix Vector
 		 *
@@ -1501,13 +1499,19 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 * See @0C008080
 		 */
+	case 0x261:
+		/* 261	Set Matrix Vector */
+	case 0x961:
+		/* 961	Set Matrix Vector */
+	case 0xB61:
+		/* B61	Set Matrix Vector */
 		{
 			unsigned n = (inst[0] >> 12) & 7;
 			unsigned m = (inst[0] >> 16) & 3;
 			unsigned i = (inst[0] >> 18) & 3;
 			vec3f_t *v = (vec3f_t *) &inst[1];
 
-			VK_LOG ("GPU CMD %08X: Set Matrix Vector [%08X %08X %08X %08X] %u %u %u <%f %f %f>",
+			VK_LOG ("GPU CMD %08X: Matrix: Vector [%08X %08X %08X %08X] %u %u %u <%f %f %f>",
 			        gpu->pc,
 			        inst[0], inst[1], inst[2], inst[3],
 			        n, m, i,
@@ -1528,53 +1532,44 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			gpu->pc += 4;
 		}
 		break;
-	case 0x006:
-		/* 006	Matrix: Unknown */
-		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X]",
-		        gpu->pc, inst[0] & 0xFFF, inst[0]);
-		gpu->pc += 4;
-		break;
-	case 0x046:
-		/* 046	Matrix: Unknown */
-		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X]",
-		        gpu->pc, inst[0] & 0xFFF, inst[0]);
-		gpu->pc += 4;
-		break;
 	case 0x051:
-		/* 051	Matrix: Unknown */
+		/* 051	Matrix: Set Unknown
+		 *
+		 *	---- ---- ---- ---- ---- oooo oooo oooo	o = Opcode
+		 *	--aa aaaa aaaa bbbb bbbb bbcc cccc cccc	a,b,c = Unknown */
 		{
 			vec4b_t *unk = (vec4b_t *) &inst[1];
-			VK_LOG ("GPU CMD %08X: Vertex: Unknown [%08X %08X] <%u %u %u %u>",
+			VK_LOG ("GPU CMD %08X: Matrix: Set Unknown [%08X %08X] <%u %u %u %u>",
 			        gpu->pc, inst[0], inst[1],
 			        unk->x[0], unk->x[1], unk->x[2], unk->x[3]);
 			gpu->pc += 8;
 		}
 		break;
 	case 0x451:
-		/* 451	Matrix: Unknown
+		/* 451	Matrix: Set Unknown
 		 *
 		 *	---- ---1 ---- ---- ---- oooo oooo oooo	o = Opcode, 1 = Unknown, always set
 		 *	???? ???? ???? ???? ???? ???? ???? ????
 		 *
 		 * XXX I'm not sure this command is _two_ words long. */
-		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X %08X]",
+		VK_LOG ("GPU CMD %08X: Matrix: Set Unknown %03X [%08X %08X]",
 		        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1]);
 		gpu->pc += 8;
 		break;
 	case 0x561:
-		/* 561	Matrix: Unknown
+		/* 561	Matrix: Set Unknown
 		 *
 		 *	---- ---- ---- --nn ---- oooo oooo oooo	o = Opcode
 		 *	---- ---- ---- ---- ---- ---- ---- ----
 		 *	---- ---- ---- ---- ---- ---- ---- ----
 		 *	---- ---- ---- ---- ---- ---- ---- ----
 		 */
-		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X %08X %08X %08X]",
+		VK_LOG ("GPU CMD %08X: Matrix: Set Unknown %03X [%08X %08X %08X %08X]",
 		        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1], inst[2], inst[3]);
 		gpu->pc += 16;
 		break;
 	case 0x064:
-		/* 064  Matrix: Unknown
+		/* 064  Matrix: Commit Unknown
 		 *
 		 *      ---- ---- ---- nnnn ---e oooo oooo oooo	o = Opcode, n = Num, e = Unknown
 		 *      bbbb bbbb bbbb bbbb aaaa aaaa aaaa aaaa	a,b = Unknown
@@ -1590,11 +1585,29 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			c = inst[2] & 0xFFFF;
 			d = inst[2] >> 16;
 
-			VK_LOG ("GPU CMD %08X: Unknown %03X [%08X %08X %08X %08X]",
+			VK_LOG ("GPU CMD %08X: Matrix: Set Unknown %03X [%08X %08X %08X %08X]",
 			        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1], inst[2], inst[3]);
 
 			gpu->pc += 16;
 		}
+		break;
+	case 0x006:
+		/* 006	Matrix: Unknown
+		 *
+		 *	---- ---- ---- ---- ---- oooo oooo oooo	o = Opcode
+		 */
+		VK_LOG ("GPU CMD %08X: Matrix: Unknown %03X [%08X]",
+		        gpu->pc, inst[0] & 0xFFF, inst[0]);
+		gpu->pc += 4;
+		break;
+	case 0x046:
+		/* 046	Matrix: Unknown
+		 *
+		 *	---- ---- ---- ---n ---- oooo oooo oooo	o = Opcode, n = Unknown
+		 */
+		VK_LOG ("GPU CMD %08X: Matrix: Unknown %03X [%08X]",
+		        gpu->pc, inst[0] & 0xFFF, inst[0]);
+		gpu->pc += 4;
 		break;
 
 	/* Vertex Operations
