@@ -204,7 +204,7 @@ set_fpscr (sh4_t *ctx, uint32_t val)
 
 	/* SZ and PR can't be both set */
 	if (FPSCR.bit.sz && FPSCR.bit.pr)
-		VK_CPU_ABORT (ctx, "invalid FPSCR: SZ and PR bot set");
+		VK_CPU_ABORT (ctx, "invalid FPSCR: SZ and PR both set");
 }
 
 static uint32_t
@@ -477,18 +477,6 @@ sh4_dmac_tick (sh4_t *ctx)
 	sh4_dmac_tick_channel (ctx, 3);
 }
 
-#define IS_STORE_QUEUE(addr_) \
-	(addr >= 0xE0000000 && addr <= 0xE3FFFFFF)
-
-#define IS_ON_CHIP(addr_) \
-	(((addr >> 24) == 0x1F) || \
-	 ((addr >> 24) == 0xFF))
-
-#define ADDR_MASK 0x1FFFFFFF
-
-#define AREA(addr_) \
-	(((addr_) >> 26) & 7)
-
 /* On-chip Modules
  * See Table A.1, "Address List" */
 
@@ -690,6 +678,18 @@ sh4_sq_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 }
 
 /* Bus Access */
+
+#define IS_STORE_QUEUE(addr_) \
+	(addr >= 0xE0000000 && addr <= 0xE3FFFFFF)
+
+#define IS_ON_CHIP(addr_) \
+	(((addr >> 24) == 0x1F) || \
+	 ((addr >> 24) == 0xFF))
+
+#define ADDR_MASK 0x1FFFFFFF
+
+#define AREA(addr_) \
+	(((addr_) >> 26) & 7)
 
 static int
 sh4_fetch (sh4_t *ctx, uint32_t addr, uint16_t *inst)
@@ -1055,7 +1055,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C00B90A:
 		VK_CPU_LOG (ctx, " ### BOOTROM JUMPING TO ROM CODE! (%X)", R(11));
 		break;
-#if 1
+#if 0
 	case 0x0C0069E0:
 		VK_CPU_LOG (ctx, " ### BOOTROM sync (%X)", R(4));
 		break;
@@ -1360,8 +1360,6 @@ sh4_reset (vk_cpu_t *cpu, vk_reset_type_t type)
 	ctx->dmac.is_running[1] = false;
 	ctx->dmac.is_running[2] = false;
 	ctx->dmac.is_running[3] = false;
-
-	/* TODO: master/slave in BSC */
 
 	ctx->in_slot = false;
 
