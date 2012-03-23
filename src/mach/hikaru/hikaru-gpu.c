@@ -471,7 +471,6 @@ typedef struct {
 	uint8_t regs_1A_fifo[0x10];
 
 	bool is_running;
-	bool fifo_is_running;
 
 	unsigned frame_type;
 	uint32_t pc;
@@ -891,7 +890,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 	case 0x812:
-		/* 812	Jump
+		/* 812	Jump Rel
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 *	aaaa aaaa aaaa aaaa aaaa aaaa aaaa aaaa		a = Offset in 32-bit words
@@ -2007,7 +2006,6 @@ hikaru_gpu_begin_fifo_operation (hikaru_gpu_t *gpu)
 		}
 	}
 
-	gpu->fifo_is_running = true;
 	REG1A (0x24) |= 1;
 }
 
