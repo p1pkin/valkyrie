@@ -103,28 +103,31 @@
  * GPU 15 Unknown Config A
  * -----------------------
  *
- * 15000018   W		Unknown; = 0         
- * 1500001C   W		Unknown; = 0x00040000
- * 15000020   W		Unknown; = 0x00048000
- * 15000024   W		Unknown; = 0x00058000
- * 15000028   W		Unknown; = 0x00007800
- * 1500002C   W		Unknown; = 0x0007FE00
- * 15000030   W		Unknown; = 0         
- * 15000034   W		Unknown; = 0x00005000
+ * 15000018   W		Unknown; = 0       ; ~ 48000000
+ * 1500001C   W		Unknown; = 00040000; ~ 48100000
+ * 15000020   W		Unknown; = 00048000; ~ 48120000
+ * 15000024   W		Unknown; = 00058000; ~ 48160000
+ * 15000028   W		Unknown; = 00007800; ~ 4801E000
+ * 1500002C   W		Unknown; = 0007FE00; ~ 481FF800
+ * 15000030   W		Unknown; = 0       ; ~ 48000000
+ * 15000034   W		Unknown; = 00005000; ~ 48014000
  *
  * GPU 15 Unknown Config B
  * -----------------------
  *
- * 15000038   W		Unknown; = 0x00080000
- * 1500003C   W		Unknown; = 0x000C0000
- * 15000040   W		Unknown; = 0x000C8000
- * 15000044   W		Unknown; = 0x000D8000
- * 15000048   W		Unknown; = 0x0000F800
- * 1500004C   W		Unknown; = 0x000FFE00
- * 15000050   W		Unknown; = 0x00008000
- * 15000054   W		Unknown; = 0x0000D000
+ * 15000038   W		Unknown; = 00080000; ~ 48200000
+ * 1500003C   W		Unknown; = 000C0000; ~ 48300000
+ * 15000040   W		Unknown; = 000C8000; ~ 48320000
+ * 15000044   W		Unknown; = 000D8000; ~ 48360000
+ * 15000048   W		Unknown; = 0000F800; ~ 4803E000
+ * 1500004C   W		Unknown; = 000FFE00; ~ 483FF800
+ * 15000050   W		Unknown; = 00008000; ~ 48020000
+ * 15000054   W		Unknown; = 0000D000; ~ 48034000
  *
  * Note: same as Config A, plus an offset of +80000 or +8000.
+ * Note: 000FFE00 is so so similar to 120FEE00 ~ 483FB800 used in the BOOTROM
+ *
+ * XXX log the above in AIRTRIX and PHARRIER.
  *
  * Command Stream Control
  * ----------------------
