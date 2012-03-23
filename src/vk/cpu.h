@@ -85,8 +85,8 @@ vk_cpu_delete (vk_cpu_t **cpu_)
 {
 	if (cpu_) {
 		vk_cpu_t *cpu = *cpu_;
-		if (cpu->delete)
-			(*cpu_)->delete (cpu_);
+		VK_ASSERT (cpu->delete != NULL);
+		cpu->delete (cpu_);
 	}
 }
 
@@ -94,7 +94,8 @@ static inline void
 vk_cpu_reset (vk_cpu_t *cpu, vk_reset_type_t type)
 {
 	VK_ASSERT (cpu != NULL);
-	VK_ASSERT (cpu->run != NULL);
+	VK_ASSERT (cpu->reset != NULL);
+	VK_ASSERT (type <= VK_NUM_RESET_TYPES);
 	cpu->reset (cpu, type);
 }
 
@@ -103,6 +104,7 @@ vk_cpu_run (vk_cpu_t *cpu, int cycles)
 {
 	VK_ASSERT (cpu != NULL);
 	VK_ASSERT (cpu->run != NULL);
+	VK_ASSERT (cycles >= 0);
 	return cpu->run (cpu, cycles);
 }
 
@@ -110,6 +112,7 @@ static inline void
 vk_cpu_set_state (vk_cpu_t *cpu, vk_cpu_state_t state)
 {
 	VK_ASSERT (cpu != NULL);
+	VK_ASSERT (cpu->set_state);
 	VK_ASSERT (state < VK_NUM_CPU_STATES);
 	cpu->set_state (cpu, state);
 }
@@ -118,6 +121,7 @@ static inline int
 vk_cpu_set_irq_state (vk_cpu_t *cpu, unsigned num, vk_irq_state_t state)
 {
 	VK_ASSERT (cpu != NULL);
+	VK_ASSERT (cpu->set_irq_state);
 	VK_ASSERT (state < VK_NUM_IRQ_STATES);
 	return cpu->set_irq_state (cpu, num, state);
 }
@@ -126,6 +130,7 @@ static inline const char *
 vk_cpu_get_debug_string (vk_cpu_t *cpu)
 {
 	VK_ASSERT (cpu != NULL);
+	VK_ASSERT (cpu->get_debug_string);
 	return cpu->get_debug_string (cpu);
 }
 

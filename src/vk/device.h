@@ -53,6 +53,7 @@ vk_device_reset (vk_device_t *dev, vk_reset_type_t type)
 {
 	VK_ASSERT (dev);
 	VK_ASSERT (dev->reset);
+	VK_ASSERT (type < VK_NUM_RESET_TYPES);
 	dev->reset (dev, type);
 }
 
@@ -63,6 +64,7 @@ vk_device_exec (vk_device_t *dev, int cycles)
 	VK_ASSERT (cycles);
 	if (dev->exec)
 		return dev->exec (dev, cycles);
+	/* As if all cycles were consumed by the device */
 	return cycles;
 }
 
