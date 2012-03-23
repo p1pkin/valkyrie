@@ -74,6 +74,15 @@
  *
  * The hardware uses 4x3 matrices (see the 161 command), with the fourth
  * vector specifying translation.
+ *
+ * Textures
+ * ========
+ *
+ * Texture come in at least the following formats: RGBA8888, RGBA551, RGB565,
+ * RGBA4444, and possibly alpha/luminance-only textures (as seen in the
+ * ROM data.)
+ *
+ * Textures also come with mipmap trees.
  */
 
 /*
@@ -165,16 +174,16 @@
  * Unknown
  * -------
  *
- * 1500008C  W		Unknown; = 0x02020202
- * 15000090  W		Unknown; = 0
- * 15000094  W		Unknown; = 0
- * 15000098  W		Unknown; = 0x02020202
+ * 1500008C   W		Unknown; = 02020202
+ * 15000090   W		Unknown; = 0
+ * 15000094   W		Unknown; = 0
+ * 15000098   W		Unknown; = 02020202
  *			See @0C001A82
  *
  * Unknown
  * -------
  *
- * 15002000 R		Unknown; Status
+ * 15002000  R		Unknown; Status
  *			Used to:
  *			 - determine if the GPU is done doing FOO (together
  *			   with bit 0 of 1A000024), see @0C0069E0.
@@ -186,41 +195,39 @@
  * Unknown
  * -------
  *
- * 15002800 R	Unknown
- * 15002804 R	Unknown
- * 15002808 R	Unknown
- * 1500280C R	Unknown
- * 15002810 R	Unknown
- * 15002814 R	Unknown
- * 15002820 R	Unknown
- * 15002824 R	Unknown
- * 15002840 R	Unknown
- * 15002844 R	Unknown
- * 15002848 R	Unknown
+ * 15002800  R		Unknown
+ * 15002804  R		Unknown
+ * 15002808  R		Unknown
+ * 1500280C  R		Unknown
+ * 15002810  R		Unknown
+ * 15002814  R		Unknown
+ * 15002820  R		Unknown
+ * 15002824  R		Unknown
+ * 15002840  R		Unknown
+ * 15002844  R		Unknown
+ * 15002848  R		Unknown
  *
  * See PH:@0C0127B8
  *
- * 1502C100 32-bit W	Unknown, = 9
- * 1502C104 32-bit W	Unknown, = 6
+ * 1502C100   W		Unknown; = 9
+ * 1502C104   W		Unknown; = 6
  *
- * 15040E00  32-bit W	Unknown, = 0
- */
-
-/* GPU MMIOs at 18001000
+ * 15040E00   W		Unknown; = 0
+ *
+ * GPU MMIOs at 18001000
  * =====================
  *
  * NOTE: these ports are always read twice.
  *
- * 18001000	32-bit	RO	PCI ID: 17C7:11DB, a SEGA ID. See @0C0019AE
- * 18001004	32-bit	WO	= 2
- * /
- * 18001010	32-bit	WO	= 0xF2000000 Look like addresses, see 15000018+
- * 18001014	32-bit	WO	= 0xF2040000
- * 18001018	32-bit	WO	= 0xF2080000
- * 1800101C	32-bit	WO	= 0xF3000000
- */
-
-/* GPU MMIOs at 1A000000
+ * 18001000  R		PCI ID: 17C7:11DB, a SEGA ID. See @0C0019AE
+ * 18001004   W		Unknown; = 2
+ *
+ * 18001010   W		Unknown; = F2000000
+ * 18001014   W		Unknown; = F2040000
+ * 18001018   W		Unknown; = F2080000
+ * 1800101C   W		Unknown; = F3000000
+ *
+ * GPU MMIOs at 1A000000
  * =====================
  *
  * NOTE: these ports are always read twice.
@@ -228,70 +235,95 @@
  * Unknown
  * -------
  *
- * 1A000000	32-bit	 W 	GPU 1A Enable A; b0 = enable; See @0C0069E0, @0C006AFC
- * 1A000004	32-bit	 W 	GPU 1A Enable B; b0 = enable; See @0C0069E0, @0C006AFC
+ * 1A000000   W 	GPU 1A Enable A; b0 = enable; See @0C0069E0, @0C006AFC
+ * 1A000004   W 	GPU 1A Enable B; b0 = enable; See @0C0069E0, @0C006AFC
  *
  * Interrupt Control
  * -----------------
  *
- * 1A000008	32-bit	 W 	IRQ 1A Source 0
- * 1A00000C	32-bit	 W 	IRQ 1A Source 1; GPU 1A finished
- * 1A000010	32-bit	 W 	IRQ 1A Source 2
- * 1A000014	32-bit	 W 	IRQ 1A Source 3
- * 1A000018	32-bit	RW	IRQ 1A Status
- *				Four bits; bit n indicates the status of the
- *				IRQ governed by register 1A000008+(n*4)
+ * 1A000008   W		IRQ 1A Source 0
+ * 1A00000C   W		IRQ 1A Source 1; GPU 1A done
+ * 1A000010   W		IRQ 1A Source 2; VBlank
+ * 1A000014   W		IRQ 1A Source 3
+ *
+ * 1A000018  RW		IRQ 1A Status
+ *			 Four bits; bit n indicates the status of the
+ *			 IRQ governed by register 1A000008+(n*4)
  *
  * Note: when any of these bits is set, bit 7 of 15000088 is set.
- *
- * Note: may be related to 1A0000C4, see @0C001ED0.
+ * Note: it may be related to 1A0000C4, see @0C001ED0.
  *
  * Unknown
  * -------
  *
- * 1A00001C	32-bit  RO      Current Raster Position?                        
- *                              000007FF X Position                            
- *                              003FF800 Y Position, See PH:@0C01C106          
- *                              01800000 Unknown; affects the argument to command 781
- *				 - Affects how much stuff is sent to the 1A04
- *				   FIFO in PH.
- *				 - Gets stored into [0C00F070].w
- *				See PH:@0C01C158.
+ * 1A00001C  R		Current Raster Position
  *
- * 1A000020	32-bit	RO	Unknown status
- *				 - Gets stored into [0C00F070].w
- *				 bit 0 = frame type; See @0C008130, selects the GPRs used for GPU upload
+ *	   		-------- -------- -----xxx xxxxxxxx
+ *	   		-------- --YYYYYY YYYYY--- --------
+ *	   		-------U U------- -------- --------
  *
- * 1A000024	32-bit	RO	b0 is related to:
- *				 - 15000058 bits 0,1 and GPU jump instructions, see @0C0018B4
- *				 - 15002000 bit 0, see @?
- *				 - HW version, see @?
- *				 - @0C0069E8 loops while the bit is set
- *				 - it is set on frame change
- *				 - Also related to GPU texture upload (acts as a busy bit); see SN-ROM:@0C070C9C
+ *	   		X = Current X position
+ *	   		Y = Current Y position
+ *	   		    See PH:@0C01C106
+ *	   		U = Unknown; Even/odd field status
+ *	   		    - Gets stored in [0C00F070].w, (56, GBR)
+ *	   		      in particular, it replaces the whole
+ *	   		      bitmask (101) in sync (); See e.g.
+ *	   		      @0C006A7A, PH:@0C01C158.
+ *	   		    - Affects the argument to command 781
+ *	   		    - Affects how much data is sent to the
+ *	   		      texture-to-texture DMA in PH.
+ *
+ * 1A000020  R		Even/Odd Frame Status?
+ *
+ *	   		-------- -------- -------- -------U
+ *
+ *	   		U = Unknown
+ *
+ *	   		It is stored in [0C00F070].w, (56, GBR) in
+ *	   		install_gpu_subroutine (), @0C0080E0.
+ *	   		Notably, only bit 0 of the GBR var can
+ *	   		possibly be set; bit 2 is always cleared.
+ *
+ *	   		It affects which set of GPRs is used for
+ *	   		GPU upload. See @0C008130.
+ *
+ * 1A000024  R		Unknown Status
+ *
+ *	   		-------- -------- -------- -------U
+ *
+ *	   		U = Unknown (in vblank?)
+ *
+ *	   		Notes:
+ *	   		- 15000058 bits 0,1 and GPU jump instructions, see @0C0018B4
+ *	   		- 15002000 bit 0, see @?
+ *	   		- HW version, see @?
+ *	   		- @0C0069E8 loops while the bit is set
+ *	   		- it is set on frame change
+ *	   		- Also related to GPU texture upload (acts as a busy bit); see SN-ROM:@0C070C9C
  *
  * Display Config
  * --------------
- *                                             ----------------------
- *                                              640x480      496x377	AIRTRIX
- *                                             ----------------------
- * 1A000080             l  W    = 0x0000027F   639          818		00000332
- * 1A000084             l  W    = 0x000001A0   416          528		00000210
- * 1A000088             l  W    = 0x02680078   616 | 120    798 | 158	031E009E
- * 1A00008C             l  W    = 0x0196001D \ 406 |  29    516 |  36	02040024
- * 1A000090             l  W    = 0x02400000 | 576 |   0    728 |   0	02D80000
- * 1A000094             l  W    = 0x00000040 |   0 |  64      0 |  91	0000005B
- * 1A000098             l  W    = 0x00000003 |   0 |   3      0 |   3	00000003
- * 1A00009C             l  W    = 0x00000075 |   0 | 117      0 | 155	0000009B
- * 1A0000A0             l  W    = 0x00000198 /   0 | 408      0 | 574	0000023E
- * 1A0000A4             l  W    = 0x001D0194 \  29 | 404     36 | 514	00240202
- * 1A0000A8             l  W    = 0x00000195 |   0 | 405      0 | 515	00000203
- * 1A0000AC             l  W    = 0x00000000 |   0 |   0      0 |   0	00000000
- * 1A0000B0             l  W    = 0x00000000 |   0 |   0      0 |   0	00000000
- * 1A0000B4             l  W    = 0x00000000 |   0 |   0      0 |   0	00000000
- * 1A0000B8             l  W    = 0x00000179 /   0 | 377      0 | 416	000001A0
- * 1A0000BC             l  W    = 0x00000008     0 |   8      0 |   8	00000008
- * 1A0000C0             l  W    = 0x01960000   406 |   0      0 | 516	02040000
+ *                                           ----------------------
+ *                                            640x480      496x377	AIRTRIX
+ *                                           ----------------------
+ * 1A000080             l  W    = 0000027F   639          818		00000332
+ * 1A000084             l  W    = 000001A0   416          528		00000210
+ * 1A000088             l  W    = 02680078   616 | 120    798 | 158	031E009E
+ * 1A00008C             l  W    = 0196001D \ 406 |  29    516 |  36	02040024
+ * 1A000090             l  W    = 02400000 | 576 |   0    728 |   0	02D80000
+ * 1A000094             l  W    = 00000040 |   0 |  64      0 |  91	0000005B
+ * 1A000098             l  W    = 00000003 |   0 |   3      0 |   3	00000003
+ * 1A00009C             l  W    = 00000075 |   0 | 117      0 | 155	0000009B
+ * 1A0000A0             l  W    = 00000198 /   0 | 408      0 | 574	0000023E
+ * 1A0000A4             l  W    = 001D0194 \  29 | 404     36 | 514	00240202
+ * 1A0000A8             l  W    = 00000195 |   0 | 405      0 | 515	00000203
+ * 1A0000AC             l  W    = 00000000 |   0 |   0      0 |   0	00000000
+ * 1A0000B0             l  W    = 00000000 |   0 |   0      0 |   0	00000000
+ * 1A0000B4             l  W    = 00000000 |   0 |   0      0 |   0	00000000
+ * 1A0000B8             l  W    = 00000179 /   0 | 377      0 | 416	000001A0
+ * 1A0000BC             l  W    = 00000008     0 |   8      0 |   8	00000008
+ * 1A0000C0             l  W    = 01960000   406 |   0      0 | 516	02040000
  *
  * Note: my gutter feeling is that these register specify operations that must
  * be performed at the rasterization stage to the whole contents of the frame
@@ -962,7 +994,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	/* Frame Control */
 
 	case 0x781:
-		/* 781	Sync
+		/* 781	Sync (or Dispatch to child GPU)
 		 *
 		 *	---- aabb ---- mmnn ---- oooo oooo oooo		o = Opcode, a, b, m, n = Unknown
 		 *
@@ -1232,12 +1264,12 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 	case 0xA81:
-		/* 881	Set Y Property A */
+		/* A81	Set Y Property A */
 		VK_LOG ("GPU CMD %08X: Color: Set Y A [%08X]", gpu->pc, inst[0]);
 		gpu->pc += 4;
 		break;
 	case 0xC81:
-		/* 881	Set Y Property C */
+		/* C81	Set Y Property C */
 		VK_LOG ("GPU CMD %08X: Color: Set Y C [%08X]", gpu->pc, inst[0]);
 		gpu->pc += 4;
 		break;
@@ -1449,7 +1481,9 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 
-	/* Matrix Data */
+	/* Matrix Operations
+	 *
+	 * Details on these are fuzzy and incongruent at best. */
 
 	case 0x261:
 		/* 261	Set Matrix Vector */
@@ -1482,9 +1516,184 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			gpu->pc += 16;
 		}
 		break;
+	case 0x104:
+		/* 104	Commit Matrix
+		 *
+		 *	---- ---- ---n nnnn ---- oooo oooo oooo	o = Opcode, n = Num
+		 */
+		{
+			unsigned n = (inst[0] >> 16) & 0x1F;
+			VK_LOG ("GPU CMD %08X: Commit Matrix [%08X] %u",
+			        gpu->pc, inst[0], n);
+			gpu->pc += 4;
+		}
+		break;
+	case 0x006:
+		/* 006	Matrix: Unknown */
+		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X]",
+		        gpu->pc, inst[0] & 0xFFF, inst[0]);
+		gpu->pc += 4;
+		break;
+	case 0x046:
+		/* 046	Matrix: Unknown */
+		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X]",
+		        gpu->pc, inst[0] & 0xFFF, inst[0]);
+		gpu->pc += 4;
+		break;
+	case 0x051:
+		/* 051	Matrix: Unknown */
+		{
+			vec4b_t *unk = (vec4b_t *) &inst[1];
+			VK_LOG ("GPU CMD %08X: Vertex: Unknown [%08X %08X] <%u %u %u %u>",
+			        gpu->pc, inst[0], inst[1],
+			        unk->x[0], unk->x[1], unk->x[2], unk->x[3]);
+			gpu->pc += 8;
+		}
+		break;
+	case 0x451:
+		/* 451	Matrix: Unknown
+		 *
+		 *	---- ---1 ---- ---- ---- oooo oooo oooo	o = Opcode, 1 = Unknown, always set
+		 *	???? ???? ???? ???? ???? ???? ???? ????
+		 *
+		 * XXX I'm not sure this command is _two_ words long. */
+		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X %08X]",
+		        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1]);
+		gpu->pc += 8;
+		break;
+	case 0x561:
+		/* 561	Matrix: Unknown
+		 *
+		 *	---- ---- ---- --nn ---- oooo oooo oooo	o = Opcode
+		 *	---- ---- ---- ---- ---- ---- ---- ----
+		 *	---- ---- ---- ---- ---- ---- ---- ----
+		 *	---- ---- ---- ---- ---- ---- ---- ----
+		 */
+		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X %08X %08X %08X]",
+		        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1], inst[2], inst[3]);
+		gpu->pc += 16;
+		break;
+	case 0x064:
+		/* 064  Matrix: Unknown
+		 *
+		 *      ---- ---- ---- nnnn ---e oooo oooo oooo	o = Opcode, n = Num, e = Unknown
+		 *      bbbb bbbb bbbb bbbb aaaa aaaa aaaa aaaa	a,b = Unknown
+		 *      dddd dddd dddd dddd cccc cccc cccc cccc	c,d = Unknown
+		 *      ---- ---- ---- ---- ---- ---- ---- ----
+		 *
+		 * This command seems to take four (or six?) matrix numbers.
+		 */
+		{
+			uint16_t a, b, c, d;
+			a = inst[1] & 0xFFFF;
+			b = inst[1] >> 16;
+			c = inst[2] & 0xFFFF;
+			d = inst[2] >> 16;
 
-	/* Vertex Data */
+			VK_LOG ("GPU CMD %08X: Unknown %03X [%08X %08X %08X %08X]",
+			        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1], inst[2], inst[3]);
 
+			gpu->pc += 16;
+		}
+		break;
+
+	/* Vertex Operations
+	 * =================
+	 *
+	 * This class of instructions pushes (or otherwise deals with) vertex
+	 * data to the hardware.
+	 *
+	 * All meshes seem to be defined in terms of tri strips; the exact
+	 * connectivity pattern between different vertices, edge flags, and
+	 * other parameters may be specified by the 'Unknown' fields.
+	 *
+	 * The main two actors here are the 'Vertex Normal' and the 'Vertex'
+	 * commands. The former includes vertex metadata (texture coords,
+	 * normals) for the given vertex, while the latter does not: in
+	 * this case texture coords are supplied (for a whole triangle)
+	 * by a following 'Set Tex Coords' command.
+	 *
+	 * Successive tri strips are demarked by the ??? command. XXX
+	 */
+
+	case 0x1B8:
+	case 0x1BC:
+	case 0x1BD:
+	case 0xFB8:
+	case 0xFBC:
+	case 0xFBD:
+	case 0xFBE:
+	case 0xFBF:
+		/* 1BC  Vertex Normal
+		 *
+		 *      pppp pppp mmmm nnnn qqqq oooo oooo oooo o = Opcode, n,m,p,q = Unknown
+		 *      xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx x,y,z = Position
+		 *      yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy
+		 *      zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz
+		 *      ssss ssss ssss ssss tttt tttt tttt tttt p,q = Tex Coords
+		 *      uuuu uuuu uuuu uuuu uuuu uuuu uuuu uuuu u,v,w = Normal
+		 *      vvvv vvvv vvvv vvvv vvvv vvvv vvvv vvvv
+		 *      wwww wwww wwww wwww wwww wwww wwww wwww
+		 */
+		{
+			unsigned n, m, p, q;
+			vec3f_t *pos, *nrm;
+			vec2s_t *texcoord;
+
+			p = inst[0] >> 24;
+			n = (inst[0] >> 20) & 15;
+			m = (inst[0] >> 16) & 15;
+			q = (inst[0] >> 12) & 15;
+
+			pos = (vec3f_t *) &inst[1];
+			nrm = (vec3f_t *) &inst[5];
+			texcoord = (vec2s_t *) &inst[4];
+
+			VK_LOG ("GPU CMD %08X: Vertex Normal [%08X %08X %08X %08X %08X %08X %08X %08X] <%f %f %f> <%f %f %f> <%X %X> %u %u %u %u",
+			        gpu->pc,
+				inst[0], inst[1], inst[2], inst[3],
+				inst[4], inst[5], inst[6], inst[7],
+			        pos->x[0], pos->x[1], pos->x[2],
+			        nrm->x[0], nrm->x[1], nrm->x[2],
+				texcoord->x[0], texcoord->x[1],
+			        n, m, p, q);
+			gpu->pc += 32;
+		}
+		break;
+#if 0
+	case 0x12C:
+	case 0x12D:
+	case 0x72C:
+	case 0x72D:
+		/* x2C	Unknown 3f */
+		{
+			vec3f_t *v = &inst[1];
+			gpu->pc += 16;
+		}
+		break;
+#endif
+	case 0x1AC:
+	case 0x1AD:
+	case 0xFAC:
+	case 0xFAD:
+		/* xAC	Vertex 3f
+		 *
+		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
+		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx		x = X coord
+		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy		y = Y coord
+		 *	zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz		z = Z coord
+		 *	*/
+		{
+			vec3f_t *v = (vec3f_t *) &inst[1];
+
+			VK_LOG ("GPU CMD %08X: Vertex [%08X] { %f %f %f }",
+			        gpu->pc, inst[0],
+			        v->x[0], v->x[1], v->x[2]);
+
+			append_vertex (gpu, v);
+			gpu->pc += 16;
+		}
+		break;
 	case 0xEE8:
 	case 0xEE9:
 		/* EE9	Tex Coord 3
@@ -1521,74 +1730,18 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			gpu->pc += 16;
 		}
 		break;
-	case 0x1AC:
-	case 0x1AD:
-	case 0xFAC:
-	case 0xFAD:
-		/* xAC	Vertex 3f
-		 *
-		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
-		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx		x = X coord
-		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy		y = Y coord
-		 *	zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz		z = Z coord
-		 *	*/
+#if 0
+	case 0x158:
+	case 0x159:
+	case 0xF58:
+	case 0xF59:
+		/* 158	Unknown Vertex-related */
 		{
-			vec3f_t *v = (vec3f_t *) &inst[1];
-
-			VK_LOG ("GPU CMD %08X: Vertex [%08X] { %f %f %f }",
-			        gpu->pc, inst[0],
-			        v->x[0], v->x[1], v->x[2]);
-
-			append_vertex (gpu, v);
-			/*print_vertex_buffer (gpu);*/
-			gpu->pc += 16;
+			vec2s_t *unk = &inst[1];
+			gpu->pc += 8;
 		}
 		break;
-	case 0x1B8:
-	case 0x1BC:
-	case 0x1BD:
-	case 0xFB8:
-	case 0xFBC:
-	case 0xFBD:
-	case 0xFBE:
-	case 0xFBF:
-		/* 1BC  Vertex Normal 3f                                        
-		 *                                                              
-		 *      pppp pppp mmmm nnnn qqqq oooo oooo oooo o = Opcode, n,m,p,q = Unknown
-		 *      xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx x,y,z = Position
-		 *      yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy                 
-		 *      zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz                 
-		 *      ssss ssss ssss ssss tttt tttt tttt tttt p,q = Tex Coords
-		 *      uuuu uuuu uuuu uuuu uuuu uuuu uuuu uuuu u,v,w = Normal  
-		 *      vvvv vvvv vvvv vvvv vvvv vvvv vvvv vvvv                 
-		 *      wwww wwww wwww wwww wwww wwww wwww wwww                 
-		 */
-		{
-			unsigned n, m, p, q;
-			vec3f_t *pos, *nrm;
-			vec2s_t *texcoord;
-
-			p = inst[0] >> 24;
-			n = (inst[0] >> 20) & 15;
-			m = (inst[0] >> 16) & 15;
-			q = (inst[0] >> 12) & 15;
-
-			pos = (vec3f_t *) &inst[1];
-			nrm = (vec3f_t *) &inst[5];
-			texcoord = (vec2s_t *) &inst[4];
-
-			VK_LOG ("GPU CMD %08X: Vertex Normal [%08X %08X %08X %08X %08X %08X %08X %08X] <%f %f %f> <%f %f %f> <%X %X> %u %u %u %u",
-			        gpu->pc,
-				inst[0], inst[1], inst[2], inst[3],
-				inst[4], inst[5], inst[6], inst[7],
-			        pos->x[0], pos->x[1], pos->x[2],
-			        nrm->x[0], nrm->x[1], nrm->x[2],
-				texcoord->x[0], texcoord->x[1],
-			        n, m, p, q);
-			gpu->pc += 32;
-		}
-		break;
-
+#endif
 	case 0xE88:
 		/* E88	Unknown [Flush Vertices?] */
 		{
@@ -1732,29 +1885,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			gpu->pc += 4;
 		}
 		break;
-	case 0x104:
-		/* 104	Unknown */
-		{
-			unsigned n = (inst[0] >> 16) & 7;
-			VK_LOG ("GPU CMD %08X: Commit Matrix [%08X] %u",
-			        gpu->pc, inst[0], n);
-			gpu->pc += 4;
-		}
-		break;
-	case 0x051:
-		/* 051	Unknown Vertex-related */
-		{
-			vec4b_t *unk = (vec4b_t *) &inst[1];
-			VK_LOG ("GPU CMD %08X: Vertex: Unknown [%08X %08X] <%u %u %u %u>",
-			        gpu->pc, inst[0], inst[1],
-			        unk->x[0], unk->x[1], unk->x[2], unk->x[3]);
-			gpu->pc += 8;
-		}
-		break;
-	case 0x006:
-		/* 006	Unknown */
-	case 0x046:
-		/* 046	Unknown */
 	case 0x313:
 	case 0xD03:
 	case 0xD13:
@@ -1763,49 +1893,8 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		        gpu->pc, inst[0] & 0xFFF, inst[0]);
 		gpu->pc += 4;
 		break;
-	case 0x451:
-		/* 451	Unknown */
-		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X %08X]",
-		        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1]);
-		gpu->pc += 8;
-		break;
-	case 0x064:
-		/* 064  Unknown                                                 
-		 *                                                              
-		 *      ???? ???? ???? ???? ???? oooo oooo oooo                 
-		 *      bbbb bbbb bbbb bbbb aaaa aaaa aaaa aaaa                 
-		 *      dddd dddd dddd dddd cccc cccc cccc cccc                 
-		 *      ffff ffff ffff ffff eeee eeee eeee eeee                 
-		 */
-	case 0x561:
-		/* 561	Unknown */
-		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X %08X %08X %08X]",
-		        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1], inst[2], inst[3]);
-		gpu->pc += 16;
-		break;
 
 #if 0
-	case 0x12C:
-	case 0x12D:
-	case 0x72C:
-	case 0x72D:
-		/* x2C	Unknown 3f */
-		/* x2D	Unknown 3f */
-		{
-			vec3f_t *v = &inst[1];
-			gpu->pc += 16;
-		}
-		break;
-	case 0x158:
-	case 0x159:
-	case 0xF58:
-	case 0xF59:
-		/* 158	Unknown Vertex-related */
-		{
-			vec2s_t *unk = &inst[1];
-			gpu->pc += 8;
-		}
-		break;
 	case 0x711:
 		/* 711	Unknown
 		 *
