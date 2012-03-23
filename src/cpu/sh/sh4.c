@@ -530,6 +530,15 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 
 /* TODO: mask writes to read-only bits */
 
+/* Writes to SAR0,DAR0,TCR0,CHCR0 are masked when DMAOR.DDT is set */
+#define DMAC_MASK_ON_DDT \
+	{ \
+		uint32_t dmaor = IREG_GET (4, DMAC_DMAOR); \
+		uint32_t ch = (addr >> 4) & 3; \
+		if ((dmaor & 0x8000) && (ch == 0)) \
+			return 0; \
+	}
+
 static int
 sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 {
@@ -609,12 +618,14 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case DMAC_DAR1:
 	case DMAC_DAR2:
 	case DMAC_DAR3:
+		DMAC_MASK_ON_DDT;
 		VK_ASSERT (size == 4);
 		break;
 	case DMAC_TCR0:
 	case DMAC_TCR1:
 	case DMAC_TCR2:
 	case DMAC_TCR3:
+		DMAC_MASK_ON_DDT;
 		VK_ASSERT (size == 4);
 		VK_ASSERT (!(val & 0xFF000000));
 		break;
@@ -625,6 +636,7 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 		{
 			unsigned ch = (addr >> 4) & 3;
 			uint32_t old = IREG_GET (size, addr);
+			DMAC_MASK_ON_DDT;
 			VK_ASSERT (size == 4);
 			VK_ASSERT (!(val & 0x00F00008));
 			VK_ASSERT ((ch < 2) || !(val & 0x00050000));
