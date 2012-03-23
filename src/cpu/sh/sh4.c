@@ -636,10 +636,13 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case DMAC_DMAOR:
 		{
 			uint32_t old = IREG_GET (size, addr);
+			uint32_t nmil = IREG_GET (2, INTC_ICR) & 0x8000 ? 1 : 0;
 			VK_ASSERT (size == 4);
 			VK_ASSERT (!(val & 0xFFFF7CF8));
-			/* Make sure that AE and NMIF don't get set */
-			IREG_PUT (size, addr, (val & ~6) | (old & val & 6));
+			/* Make sure that AE and NMIF don't get set; also
+			 * make sure that NMIF is never cleared if an NMI
+			 * is still raised. */
+			IREG_PUT (size, addr, (val & ~6) | (old & val & 6) | (nmil << 1));
 			sh4_dmac_update_state (ctx, 1);
 		}
 		return 0;
@@ -862,11 +865,17 @@ sh4_set_irq_state (vk_cpu_t *cpu, unsigned num, vk_irq_state_t state)
 
 	/* Handle NMI */
 	if (num == SH4_IESOURCE_NMI) {
-		/* Set ICR.NMIL and DMAOR.NMIF */
-		IREG_PUT (2, INTC_ICR, IREG_GET (2, INTC_ICR) | 0x8000);
-		IREG_PUT (4, DMAC_DMAOR, IREG_GET (4, DMAC_DMAOR) | 2);
-		/* Notify the DMAC that an NMI occurred */
-		sh4_dmac_update_state (ctx, 0);
+		if (state == VK_IRQ_STATE_RAISED) {
+			/* Set ICR.NMIL and DMAOR.NMIF */
+			IREG_PUT (2, INTC_ICR, IREG_GET (2, INTC_ICR) | 0x8000);
+			IREG_PUT (4, DMAC_DMAOR, IREG_GET (4, DMAC_DMAOR) | 2);
+			/* Notify the DMAC that an NMI occurred */
+			sh4_dmac_update_state (ctx, 0);
+		} else {
+			/* Clear ICR.NMIL; DMAOR.NMIF must be cleared
+			 * manually by software. */
+			IREG_PUT (2, INTC_ICR, IREG_GET (2, INTC_ICR) & 0x7FFF);
+		}
 	}
 
 	/* Update the pending flag */
