@@ -392,26 +392,7 @@ static vk_device_t unk_s = {
  *  0100	IRQ source is UNKNOWN [slave?], calls @0C000A30
  *  0200	Error
  *
- * 15000088: GPU 15 IRQs
- *
- *  0x80	Means that GPU 1A IRQs should be attended to
- *  0x40	Related to ?
- *  0x20	Related to ?
- *  0x10	Related to ?
- *  0x08	Related to ?
- *  0x04	Related to 140001xx GPU subroutine, 1A000024, 15000018, probably means FRAME DONE
- *  0x02	Related to ?
- *  0x01	Related to 15000014
- *
- *  The common bitmask is 0x85; if other bits are set, they are handled
- *  differently.
- *
- * 1A000018: GPU 1A IRQs
- *
- *  0x01	Related to 1A000008 bit 0
- *  0x02	Related to 1A00000C bit 0, 0C00F000, 0C00F001, 0C00F008, 0C00F072, 1A000000; it's also used to update the controls
- *  0x04	Related to 1A000010 bit 0, 140001xx GPU subroutine, 1A000024, 15000018, probably means FRAME DONE
- *  0x08	Related to 1A000014 bit 0
+ * For more informations on the GPU IRQs, see hikaru-gpu.c
  */
 
 void
@@ -422,6 +403,8 @@ hikaru_raise_irq (vk_machine_t *mach, unsigned num, uint16_t porta)
 	hikaru->porta_m &= ~porta;
 }
 
+/* XXX this should really be 200 MHz; downclocked to 50 MHz to make debugging
+ * a little more bearable. */
 #define CYCLES_PER_LINE ((50 * MHZ) / (60 * 480))
 
 static void
@@ -584,6 +567,7 @@ hikaru_delete (vk_machine_t **_mach)
 			/* dump everything we got before quitting */
 			hikaru_dump ((vk_machine_t *) hikaru);
 
+			/* XXX */
 			return;
 
 			vk_device_delete (&hikaru->memctl_m);
