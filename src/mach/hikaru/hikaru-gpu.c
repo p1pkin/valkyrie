@@ -1520,18 +1520,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			gpu->pc += 16;
 		}
 		break;
-	case 0x104:
-		/* 104	Commit Matrix
-		 *
-		 *	---- ---- ---n nnnn ---- oooo oooo oooo	o = Opcode, n = Num
-		 */
-		{
-			unsigned n = (inst[0] >> 16) & 0x1F;
-			VK_LOG ("GPU CMD %08X: Commit Matrix [%08X] %u",
-			        gpu->pc, inst[0], n);
-			gpu->pc += 4;
-		}
-		break;
 	case 0x051:
 		/* 051	Matrix: Set Unknown
 		 *
@@ -1567,6 +1555,31 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		VK_LOG ("GPU CMD %08X: Matrix: Set Unknown %03X [%08X %08X %08X %08X]",
 		        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1], inst[2], inst[3]);
 		gpu->pc += 16;
+		break;
+	case 0x043:
+		/* 043	Recall Unknown
+		 *
+		 *	uuuu uuuu ---- mmmm nnnn oooo oooo oooo
+		 */
+		{
+			unsigned u = (inst[0] >> 24) & 0xF;
+			unsigned n = (inst[0] >> 12) & 0xF;
+			VK_LOG ("GPU CMD %08X: Recall Unknown [%08X] n=%u u=%u",
+			        gpu->pc, inst[0], n, u);
+			gpu->pc += 4;
+		}
+		break;
+	case 0x104:
+		/* 104	Commit Matrix
+		 *
+		 *	---- ---- ---n nnnn ---- oooo oooo oooo	o = Opcode, n = Num
+		 */
+		{
+			unsigned n = (inst[0] >> 16) & 0x1F;
+			VK_LOG ("GPU CMD %08X: Commit Matrix [%08X] %u",
+			        gpu->pc, inst[0], n);
+			gpu->pc += 4;
+		}
 		break;
 	case 0x064:
 		/* 064  Matrix: Commit Unknown
@@ -1787,23 +1800,29 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			gpu->pc += 4;
 		}
 		break;
+	case 0x303:
+		/* 303	Unknown
+		 *
+		 *	uuuu ---- ---- ---- ---- oooo oooo oooo		o = Opcode, u = Unknown */
+		{
+			unsigned u = inst[0] >> 24;
+			VK_LOG ("GPU CMD %08X: Unknown 303 [%08X] %u",
+			        gpu->pc, inst[0], u);
+			gpu->pc += 4;
+		}
+		break;
+	case 0x313:
+	case 0xD03:
+	case 0xD13:
+		/* D03 Unknown */
+		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X]",
+		        gpu->pc, inst[0] & 0xFFF, inst[0]);
+		gpu->pc += 4;
+		break;
 	case 0x501:
 		/* 501	Unknown */
 		{
 			VK_LOG ("GPU CMD %08X: Unknown 501 [%08X]", gpu->pc, inst[0]);
-			gpu->pc += 4;
-		}
-		break;
-	case 0x043:
-		/* 043	Unknown
-		 *
-		 *	uuuu uuuu ---- mmmm nnnn oooo oooo oooo
-		 * */
-		{
-			unsigned u = (inst[0] >> 24) & 0xF;
-			unsigned n = (inst[0] >> 12) & 0xF;
-			VK_LOG ("GPU CMD %08X: Recall Unknown 043 [%08X] n=%u u=%u",
-			        gpu->pc, inst[0], n, u);
 			gpu->pc += 4;
 		}
 		break;
@@ -1820,6 +1839,9 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			gpu->pc += 4;
 		}
 		break;
+
+	/* More Unknown */
+
 	case 0x3A1:
 		/* 3A1	Set Lo Addresses; always comes in a pair with 5A1
 		 *
@@ -1859,10 +1881,10 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x6D1:
 		/* 6D1	Unknown
 		 *
-		 *	aaaa aaaa aaaa aaaa ---- oooo oooo oooo		o = Opcode
+		 *	---- ---- ---- --nn ---- oooo oooo oooo		o = Opcode
 		 *	bbbb bbbb bbbb bbbb cccc cccc cccc cccc
 		 *
-		 * See PH:@0C015C3E */
+		 * These come in quartets. See PH:@0C015C3E */
 		{
 			unsigned a = inst[0] >> 16;
 			unsigned b = inst[1] & 0xFFFF;
@@ -1886,27 +1908,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			gpu->pc += 4;
 		}
 		break;
-
-	case 0x303:
-		/* 303	Unknown
-		 *
-		 *	uuuu ---- ---- ---- ---- oooo oooo oooo		o = Opcode, u = Unknown */
-		{
-			unsigned u = inst[0] >> 24;
-			VK_LOG ("GPU CMD %08X: Unknown 303 [%08X] %u",
-			        gpu->pc, inst[0], u);
-			gpu->pc += 4;
-		}
-		break;
-	case 0x313:
-	case 0xD03:
-	case 0xD13:
-		/* D03 Unknown */
-		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X]",
-		        gpu->pc, inst[0] & 0xFFF, inst[0]);
-		gpu->pc += 4;
-		break;
-
 #if 0
 	case 0x711:
 		/* 711	Unknown
