@@ -34,6 +34,15 @@ Implement the TMU.
 RENDERING
 ---------
 
+Figure out the matrix/translation commands.
+
+FIX the TexCoords command in the BOOTROM and compare with the VtxNrm command
+in PHARRIER!!! 12 bits are enough to address the whole TEXRAM.
+
+Write an external disassembler/renderer for hikaru GPU command streams. Use
+it to render static mesh data found in the ROMs. Also write a heuristic
+search script to find the CSs.
+
 Fix triangle rendering: put everything in a vertex buffer object and compute
 the properties of each triangle before rendering it. It's required to
 display the CRT test screen properly.
@@ -54,7 +63,7 @@ out why.
 AIRTRIX
 -------
 
-Find out why it goes haywire.
+Find out why it dies after the intro screen.
 
 BRAVEFF
 -------
@@ -70,7 +79,9 @@ Not dumped yet.
 PHARRIER
 --------
 
-Find out why it goes haywire.
+Find out why it sends 3D command streams during the intro screen.
+
+Find out why it doesn't react to the test button: See PH:@0C10D260.
 
 PODRACE
 -------
