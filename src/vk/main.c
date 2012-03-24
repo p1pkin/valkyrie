@@ -39,12 +39,6 @@
 #include "vk/renderer.h"
 #include "vk/games.h"
 
-#ifdef VK_HAVE_SATURN
-#include "mach/saturn/mach.h"
-#endif
-#ifdef VK_HAVE_DREAMCAST
-#include "mach/dreamcast/mach.h"
-#endif
 #ifdef VK_HAVE_HIKARU
 #include "mach/hikaru/hikaru.h"
 #endif
@@ -114,6 +108,8 @@ process_events (void)
 			break;
 		}
 	}
+	/* XXX move save state handling into SDL_KEYDOWN */
+	/* XXX use CTRL+[1,5] for saving, SHIFT+[1,5] for loading */
 	if (vk_input_get_key (SDLK_F1))
 		load_or_save_state (mach, true);
 	else if (vk_input_get_key (SDLK_F2))
@@ -125,6 +121,7 @@ static void
 main_loop (vk_machine_t *mach)
 {
 	while (!process_events ()) {
+		/* XXX move the renderer funcs out of hikaru.c */
 //		vk_renderer_begin_frame (mach->renderer);
 		vk_machine_run_frame (mach);
 //		vk_renderer_end_frame (mach->renderer);
