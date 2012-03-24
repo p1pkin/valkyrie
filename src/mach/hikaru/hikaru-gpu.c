@@ -875,6 +875,8 @@ read_inst (vk_buffer_t *buf, uint32_t *inst, uint32_t offs)
 /* NOTE: it looks like the RECALL opcodes actually set the current offset
  * for the following SET PROPERTY instructions. See PHARRIER. */
 
+/* For command 02A: See PH:@0C0DECC0 */
+
 static int
 hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 {
@@ -1374,12 +1376,17 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 
-	/* Texture Params */
+	/* Texture Params
+	 * ==============
+	 *
+	 * These instructions are thought to define the texture parameters
+	 * for the vertex pushing commands. Their exact meaning is still
+	 * unknown. */
 
 	case 0x0C1:
 		/* 0C1	Set Tex Param 0
 		 *
-		 *	---- uuuu mmmm nnnn ---- oooo oooo oooo		u = Unknown, o = Opcode, n, m = Unknown
+		 *	---- mmmm mmmm nnnn ---- oooo oooo oooo	o = Opcode, n,m = Unknown
 		 *
 		 * See PH:@0C015B7A */
 		{
@@ -1788,54 +1795,38 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * See @0C008040, PH:@0C016418, PH:@0C016446 */
 		{
 			unsigned u = (inst[0] >> 24) & 1;
-			VK_LOG ("GPU CMD %08X: Unknown 101 [%08X] %u",
+			VK_LOG ("GPU CMD %08X: Unknown: 101 [%08X] %u",
 			        gpu->pc, inst[0], u);
 			gpu->pc += 4;
 		}
 		break;
 	case 0x301:
-		/* 301	Unknown */
+	case 0x501:
+	case 0x901:
+		/* x01	Unknown
+		 *
+		 *	---- ---- -nnn nnnn ---- oooo oooo oooo		o = Opcode, n = Unknown
+		 */
 		{
-			VK_LOG ("GPU CMD %08X: Unknown 301 [%08X]", gpu->pc, inst[0]);
+			unsigned n = (inst[0] >> 16) & 0x7F;
+			VK_LOG ("GPU CMD %08X: Unknown: Set %03X [%08X] %u",
+			        gpu->pc, inst[0] & 0xFFF, inst[0], n);
 			gpu->pc += 4;
 		}
 		break;
 	case 0x303:
-		/* 303	Unknown
-		 *
-		 *	uuuu ---- ---- ---- ---- oooo oooo oooo		o = Opcode, u = Unknown */
-		{
-			unsigned u = inst[0] >> 24;
-			VK_LOG ("GPU CMD %08X: Unknown 303 [%08X] %u",
-			        gpu->pc, inst[0], u);
-			gpu->pc += 4;
-		}
-		break;
 	case 0x313:
+	case 0x903:
 	case 0xD03:
 	case 0xD13:
-		/* D03 Unknown */
-		VK_LOG ("GPU CMD %08X: Unknown %03X [%08X]",
-		        gpu->pc, inst[0] & 0xFFF, inst[0]);
-		gpu->pc += 4;
-		break;
-	case 0x501:
-		/* 501	Unknown */
-		{
-			VK_LOG ("GPU CMD %08X: Unknown 501 [%08X]", gpu->pc, inst[0]);
-			gpu->pc += 4;
-		}
-		break;
-	case 0x903:
-	case 0x901:
-		/* 901	Unknown
+		/* x03	Unknown
 		 *
-		 *	---- ---- -nnn nnnn ---- oooo oooo oooo		o = Opcode, n = Unknown
-		 * */
+		 *	uuuu uuuu ---- ---- ---- oooo oooo oooo		o = Opcode, u = Unknown
+		 */
 		{
-			unsigned n = (inst[0] >> 16) & 0x7F;
-			VK_LOG ("GPU CMD %08X: Unknown 901 [%08X] %u",
-			        gpu->pc, inst[0], n);
+			unsigned u = inst[0] >> 24;
+			VK_LOG ("GPU CMD %08X: Unknown: Recall %03X [%08X] %u",
+			        gpu->pc, inst[0] & 0xFFF, inst[0], u);
 			gpu->pc += 4;
 		}
 		break;
@@ -1850,10 +1841,10 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	LLLL LLLL LLLL LLLL LLLL LLLL LLLL LLLL
 		 *      0000 0000 0000 0000 0000 0000 0000 0000
 		 *
-		 * See PH:@0C016308 */
+		 * Perhaps set frame buffer? See PH:@0C016308 */
 		{
-			//uint32_t l1 = inst[1];
-			//uint32_t l2 = inst[2];
+			uint32_t l1 = inst[1];
+			uint32_t l2 = inst[2];
 			VK_LOG ("GPU CMD %08X: Set Lo Addresses [%08X %08X %08X %08X]",
 			        gpu->pc, inst[0], inst[1], inst[2], inst[3]);
 			ASSERT (!inst[3]);
@@ -1868,10 +1859,10 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	UUUU UUUU UUUU UUUU UUUU UUUU UUUU UUUU
 		 *      0000 0000 0000 0000 0000 0000 0000 0000
 		 *
-		 * See PH:@0C016308 */
+		 * Perhaps set depth buffer? See PH:@0C016308 */
 		{
-			//uint32_t u1 = inst[1];
-			//uint32_t u2 = inst[2];
+			uint32_t u1 = inst[1];
+			uint32_t u2 = inst[2];
 			VK_LOG ("GPU CMD %08X: Set Hi Addresses [%08X %08X %08X %08X]",
 			        gpu->pc, inst[0], inst[1], inst[2], inst[3]);
 			ASSERT (!inst[3]);
@@ -1884,7 +1875,8 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	---- ---- ---- --nn ---- oooo oooo oooo		o = Opcode
 		 *	bbbb bbbb bbbb bbbb cccc cccc cccc cccc
 		 *
-		 * These come in quartets. See PH:@0C015C3E */
+		 * These come in quartets. May be related to matrices.
+		 * See PH:@0C015C3E */
 		{
 			unsigned a = inst[0] >> 16;
 			unsigned b = inst[1] & 0xFFFF;
@@ -1897,7 +1889,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x181:
 		/* 181	Unknown
 		 *
-		 *	---- ---b nnnn nnnn ---- oooo oooo oooo		o = Opcode, n = Unknown, b = set if n > 0 (rather n != 0)
+		 *	---- ---b nnnn nnnn ---- oooo oooo oooo		o = Opcode, n = Unknown, b = set if n != 0
 		 *
 		 * See PH:@0C015B50 */
 		{
