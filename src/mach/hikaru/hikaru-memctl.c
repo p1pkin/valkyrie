@@ -51,7 +51,7 @@
  * a couple of apertures: one is located at 02000000-03FFFFFF, the other
  * at 16000000-17FFFFFF. Other portions of the SH-4 address space (possibly
  * all of it) may be managed in a similar way, but apparently their emulation
- * is not critical (the mapping don't seem to change.)
+ * is not critical (their mappings don't seem to change.)
  *
  * What is mapped to the apertures is determined by the  MMIOs. See
  * get_bank_for_addr () for the details. Each byte in the MMIOs (+10, +14,
