@@ -212,6 +212,11 @@ struct sh4_t {
 	} dmac;
 
 	struct {
+		bool	is_running[3];
+		uint32_t counter[3];
+	} tmu;
+
+	struct {
 		int	(* get)(sh4_t *ctx, uint16_t *val);
 		int	(* put)(sh4_t *ctx, uint16_t val);
 	} porta;
