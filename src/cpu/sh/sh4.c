@@ -477,6 +477,70 @@ sh4_dmac_tick (sh4_t *ctx)
 	sh4_dmac_tick_channel (ctx, 3);
 }
 
+/* Timer Unit */
+
+/* Note: for performance reasons, TCNT{0,1,2} are handled differently than
+ * the other on-chip registers, and are defined as uint32_t directly. */
+
+#define TMU_TCOR(n_)	(TMU_TCOR0 + (n_) * 12)
+#define TMU_TCNT(n_)	(TMU_TCNT0 + (n_) * 12)
+#define TMU_TCR(n_)	(TMU_TCR0 + (n_) * 12)
+
+static void
+sh4_tmu_tick_channel (sh4_t *ctx, unsigned ch)
+{
+	if (ctx->tmu.is_running[ch]) {
+		/* TODO: frequency scaling */
+		--ctx->tmu.counter[ch];
+		/* Check for underflow */
+		if (ctx->tmu.counter[ch] == 0) {
+			/* Set UNF */
+			uint16_t tcr = IREG_GET (2, TMU_TCR (ch));
+			IREG_PUT (2, TMU_TCR (ch), tcr | 0x100);
+			/* Set the timer again */
+			ctx->tmu.counter[ch] = IREG_GET (4, TMU_TCOR (ch));
+			/* Raise an IRQ if UNIE is set */
+			if (tcr & 0x20) {
+				unsigned num = (ch == 0) ? SH4_IESOURCE_TUNI0 :
+				               (ch == 1) ? SH4_IESOURCE_TUNI1 :
+				               SH4_IESOURCE_TUNI2;
+				VK_CPU_LOG (ctx, "TMU: firing ch%u IRQ!", ch);
+				sh4_set_irq_state ((vk_cpu_t *) ctx, num,
+				                   VK_IRQ_STATE_RAISED);
+			}
+		}
+	}
+}
+
+static void
+sh4_tmu_tick (sh4_t *ctx)
+{
+	sh4_tmu_tick_channel (ctx, 0);
+	sh4_tmu_tick_channel (ctx, 1);
+	sh4_tmu_tick_channel (ctx, 2);
+}
+
+static void
+sh4_tmu_update_freq (sh4_t *ctx)
+{
+	/* TODO */
+}
+
+static void
+sh4_tmu_update_state (sh4_t *ctx)
+{
+	uint8_t tstr = IREG_GET (1, TMU_TSTR);
+
+	ctx->tmu.is_running[0] = tstr & 1;
+	ctx->tmu.is_running[1] = (tstr >> 1) & 1;
+	ctx->tmu.is_running[2] = (tstr >> 2) & 1;
+
+	VK_CPU_LOG (ctx, "TMU: settings states: %u, %u, %u",
+	            ctx->tmu.is_running[0],
+	            ctx->tmu.is_running[1],
+	            ctx->tmu.is_running[2]);
+}
+
 /* On-chip Modules
  * See Table A.1, "Address List" */
 
@@ -489,8 +553,8 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 
 	switch (addr & 0xFFFFFF) {
 	case BSC_RFCR:
-	case CPG_WTCSR:
 	case BSC_PDTRA:
+	case CPG_WTCSR:
 		VK_ASSERT (size == 2);
 		set_ptr (val, size, get_porta (ctx));
 		break;
@@ -511,15 +575,11 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 		break;
 	/* TMU */
 	case TMU_TSTR:
-		/* XXX pharrier */
 		VK_ASSERT (size == 1);
 		break;
-	case TMU_TCNT0: {
-		static uint32_t counter = 0;
+	case TMU_TCNT0:
 		VK_ASSERT (size == 4);
-		set_ptr (val, size, counter);
-		counter += 4;
-		}
+		set_ptr (val, size, ctx->tmu.counter[0]);
 		break;
 	/* Invalid/Unhandled */
 	default:
@@ -534,7 +594,6 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 #define DMAC_MASK_ON_DDT \
 	{ \
 		uint32_t dmaor = IREG_GET (4, DMAC_DMAOR); \
-		uint32_t ch = (addr >> 4) & 3; \
 		if ((dmaor & 0x8000) && (ch == 0)) \
 			return 0; \
 	}
@@ -548,8 +607,6 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case 0x900000 ... 0x90FFFF: /* BSC_SDRM2 */
 	case 0x940000 ... 0x94FFFF: /* BSC_SDRM3 */
 	case CPG_STBCR:
-	case TMU_TOCR:
-	case TMU_TSTR: /* XXX pharrier */
 		VK_ASSERT (size == 1);
 		break;
 	case BSC_BCR2:
@@ -559,9 +616,6 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case BSC_RTCOR:
 	case BSC_RFCR:
 	case CPG_WTCSR:
-	case TMU_TCR0:
-	case TMU_TCR1:
-	case TMU_TCR2:
 		VK_ASSERT (size == 2);
 		break;
 	case BSC_PDTRA:
@@ -578,8 +632,6 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case BSC_WCR3:
 	case BSC_MCR:
 	case BSC_PCTRA:
-	case TMU_TCOR0:
-	case TMU_TCNT0:
 		VK_ASSERT (size == 4);
 		break;
 	/* INTC */
@@ -618,16 +670,24 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case DMAC_DAR1:
 	case DMAC_DAR2:
 	case DMAC_DAR3:
-		DMAC_MASK_ON_DDT;
-		VK_ASSERT (size == 4);
+		{
+			unsigned ch = (addr >> 4) & 3;
+			DMAC_MASK_ON_DDT;
+			VK_ASSERT (size == 4);
+			VK_ASSERT (!(ctx->dmac.is_running[ch]));
+		}
 		break;
 	case DMAC_TCR0:
 	case DMAC_TCR1:
 	case DMAC_TCR2:
 	case DMAC_TCR3:
-		DMAC_MASK_ON_DDT;
-		VK_ASSERT (size == 4);
-		VK_ASSERT (!(val & 0xFF000000));
+		{
+			unsigned ch = (addr >> 4) & 3;
+			DMAC_MASK_ON_DDT;
+			VK_ASSERT (size == 4);
+			VK_ASSERT (!(val & 0xFF000000));
+			VK_ASSERT (!(ctx->dmac.is_running[ch]));
+		}
 		break;
 	case DMAC_CHCR0:
 	case DMAC_CHCR1:
@@ -651,12 +711,67 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 			uint32_t nmil = IREG_GET (2, INTC_ICR) & 0x8000 ? 1 : 0;
 			VK_ASSERT (size == 4);
 			VK_ASSERT (!(val & 0xFFFF7CF8));
+			/* DDT is unsupported */
+			//VK_ASSERT (!(val & 0x8000)); /* XXX used in Hikaru... */
 			/* Make sure that AE and NMIF don't get set; also
 			 * make sure that NMIF is never cleared if an NMI
 			 * is still raised. */
 			IREG_PUT (size, addr, (val & ~6) | (old & val & 6) | (nmil << 1));
 			sh4_dmac_update_state (ctx, 1);
 		}
+		return 0;
+	/* TMU */
+	case TMU_TOCR:
+		VK_ASSERT (size == 1);
+		VK_ASSERT (!(val & 0xFE));
+		IREG_PUT (size, addr, val);
+		sh4_tmu_update_freq (ctx);
+		return 0;
+	case TMU_TSTR:
+		VK_ASSERT (size == 1);
+		VK_ASSERT (!(val & 0xF8));
+		IREG_PUT (size, addr, val);
+		sh4_tmu_update_state (ctx);
+		return 0;
+	case TMU_TCR0:
+	case TMU_TCR1:
+		{
+			uint16_t old = IREG_GET (size, addr);
+			VK_ASSERT (size == 2);
+			VK_ASSERT (!(val & 0xFEC0));
+			/* Make sure not to set UNF */
+			IREG_PUT (size, addr, (val & 0x00FF) | (old & val & 0x0100));
+			sh4_tmu_update_freq (ctx);
+		}
+		return 0;
+	case TMU_TCR2:
+		{
+			uint16_t old = IREG_GET (size, addr);
+			VK_ASSERT (size == 2);
+		 	VK_ASSERT (!(val & 0xFC00));
+			/* XXX input capture is unsupported */
+			VK_ASSERT (!(val & 0x0080));
+			/* Make sure not to set ICPF, UNF */
+			IREG_PUT (size, addr, (val & 0x00FF) | (old & val & 0x0300));
+			sh4_tmu_update_freq (ctx);
+		}
+		return 0;
+	case TMU_TCOR0:
+	case TMU_TCOR1:
+	case TMU_TCOR2:
+		VK_ASSERT (size == 4);
+		break;
+	case TMU_TCNT0:
+		VK_ASSERT (size == 4);
+		ctx->tmu.counter[0] = val;
+		return 0;
+	case TMU_TCNT1:
+		VK_ASSERT (size == 4);
+		ctx->tmu.counter[1] = val;
+		return 0;
+	case TMU_TCNT2:
+		VK_ASSERT (size == 4);
+		ctx->tmu.counter[2] = val;
 		return 0;
 	/* Invalid/Unhandled */
 	default:
@@ -1213,8 +1328,8 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 
 	insns[inst] (ctx, inst);
 	//sh4_bsc_tick (ctx);
-	//sh4_tmu_rtc_tick (ctx);
 	//sh4_sci_tick (ctx);
+	sh4_tmu_tick (ctx);
 	sh4_dmac_tick (ctx);
 	ctx->base.remaining --;
 }
@@ -1330,8 +1445,6 @@ sh4_reset (vk_cpu_t *cpu, vk_reset_type_t type)
 	memset (ctx->x.f, 0, sizeof (ctx->x.f));
 	memset (ctx->rbank, 0, sizeof (ctx->rbank));
 
-	vk_buffer_clear (ctx->iregs);
-
 	PC = 0xA0000000;
 	PR = 0;
 	SPC = 0;
@@ -1355,6 +1468,8 @@ sh4_reset (vk_cpu_t *cpu, vk_reset_type_t type)
 	FPUL.u    = 0;
 
 	/* See Table A.1, "Address List" */
+	vk_buffer_clear (ctx->iregs);
+
 	tmp = (ctx->config.master ? 0x40000000 : 0) |
 	      (ctx->config.little_endian) ? 0x80000000 : 0;
 
@@ -1377,17 +1492,24 @@ sh4_reset (vk_cpu_t *cpu, vk_reset_type_t type)
 	IREG_PUT (2, SCIF_SCFSR2, 0x0060);
 	IREG_PUT (2, UDI_SDIR, 0xFFFF);
 
-	ctx->dmac.is_running[0] = false;
-	ctx->dmac.is_running[1] = false;
-	ctx->dmac.is_running[2] = false;
-	ctx->dmac.is_running[3] = false;
-
 	ctx->in_slot = false;
 
 	ctx->intc.pending = false;
 	ctx->intc.index = -1;
 	VK_ASSERT (sizeof (ctx->intc.irqs) == sizeof (default_irq_state));
 	memcpy (ctx->intc.irqs, default_irq_state, sizeof (default_irq_state));
+
+	ctx->dmac.is_running[0] = false;
+	ctx->dmac.is_running[1] = false;
+	ctx->dmac.is_running[2] = false;
+	ctx->dmac.is_running[3] = false;
+
+	ctx->tmu.is_running[0] = false;
+	ctx->tmu.is_running[1] = false;
+	ctx->tmu.is_running[2] = false;
+	ctx->tmu.counter[0] = 0xFFFFFFFF;
+	ctx->tmu.counter[1] = 0xFFFFFFFF;
+	ctx->tmu.counter[2] = 0xFFFFFFFF;
 }
 
 static const char *
