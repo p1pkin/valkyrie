@@ -1306,8 +1306,8 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C0DEC00:
 		VK_CPU_LOG (ctx, " ### PHARRIER: upload_set_material_props_commands (%X)", R(4));
 		break;
-	case 0x0C0CDB20:
-		VK_CPU_LOG (ctx, " ### PHARRIER: fishy_control_stuff ()");
+	case 0x0C01C800:
+		VK_CPU_LOG (ctx, " ### PHARRIER: check_debug_mode ()");
 		break;
 #if 1
 	case 0x0C01C322:
@@ -1318,10 +1318,10 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		/* Patches a software BUG */
 		R(0) |= 0xFFFFFF;
 		break;
-	case 0x0C0CDA3E:
+	case 0x0C0CDA1C:
 		/* XXX not required if the MIE hack is active; for debugging
 		 * only! */
-		R(1) = 1;
+		R(0) = 3;
 		break;
 #endif
 #endif
