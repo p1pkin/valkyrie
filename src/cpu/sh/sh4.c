@@ -634,6 +634,11 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	case BSC_PCTRA:
 		VK_ASSERT (size == 4);
 		break;
+	/* UBC */
+	case UBC_BBRA:
+	case UBC_BBRB:
+		VK_ASSERT (size == 2);
+		break;
 	/* INTC */
 	case INTC_ICR:
 		{
@@ -1263,10 +1268,13 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		break;
 #endif
 
-#if 0
+#if 1
 	/* PHARRIER */
-	case 0x0C0125C0:
+	case 0x0C01C0A0:
 		VK_CPU_LOG (ctx, " ### PHARRIER: sync (%X)", R(4));
+		break;
+	case 0x0C0125C0:
+		VK_CPU_LOG (ctx, " ### PHARRIER: core_sync (%X)", R(4));
 		break;
 	case 0x0C0F4280:
 		VK_CPU_LOG (ctx, " ### PHARRIER: upload_textures_in_a_double_loop (%X, %X, %X)", R(4), R(5), R(6));
@@ -1292,8 +1300,14 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C095240:
 		VK_CPU_LOG (ctx, " ### PHARRIER: memctl_dma_and_load_obj (%X)", R(4));
 		break;
-	case 0x0C01C0A0:
-		VK_CPU_LOG (ctx, " ### PHARRIER: gpu_1a_fifo_periodic ()");
+	case 0x0C10D27A:
+		VK_CPU_LOG (ctx, " ### PHARRIER: get_test_switch () : %X", R(0));
+		break;
+	case 0x0C0DEC00:
+		VK_CPU_LOG (ctx, " ### PHARRIER: upload_set_material_props_commands (%X)", R(4));
+		break;
+	case 0x0C0CDB20:
+		VK_CPU_LOG (ctx, " ### PHARRIER: fishy_control_stuff ()");
 		break;
 #if 1
 	case 0x0C01C322:
@@ -1303,6 +1317,11 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C011B14:
 		/* Patches a software BUG */
 		R(0) |= 0xFFFFFF;
+		break;
+	case 0x0C0CDA3E:
+		/* XXX not required if the MIE hack is active; for debugging
+		 * only! */
+		R(1) = 1;
 		break;
 #endif
 #endif
