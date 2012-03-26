@@ -192,22 +192,26 @@
  *				 - 1=newer
  *			   See @0C001AC4, PH:@0C01220C
  *
+ * GPU Performance Counters
+ * ------------------------
+ *
+ * 15002800  R		# of Opaque Primitives
+ * 15002804  R		# of 'Shadow A' Primitives
+ * 15002808  R		# of 'Shadow B' Primitives
+ * 1500280C  R		# of Transparent Primitive
+ * 15002810  R		# of Background Primitives
+ * 15002814  R		# of Translucent Primitives
+ * 15002820  R		# of 'Set Primitive' Operations
+ * 15002824  R		# of 'Render Primitive' Operations
+ * 15002840  R		# of Texture Head
+ * 15002844  R		# of Materials
+ * 15002848  R		# of Lights
+ *
+ * See PH:@0C0127B8 and the menu list at PH:@0C1D4EA4. Counter names are taken
+ * from the latter.
+ *
  * Unknown
  * -------
- *
- * 15002800  R		Unknown
- * 15002804  R		Unknown
- * 15002808  R		Unknown
- * 1500280C  R		Unknown
- * 15002810  R		Unknown
- * 15002814  R		Unknown
- * 15002820  R		Unknown
- * 15002824  R		Unknown
- * 15002840  R		Unknown
- * 15002844  R		Unknown
- * 15002848  R		Unknown
- *
- * See PH:@0C0127B8
  *
  * 1502C100   W		Unknown; = 9
  * 1502C104   W		Unknown; = 6
@@ -1732,10 +1736,10 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0xEE9:
 		/* EE9	Tex Coord 3
 		 *
-		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
-		 *	yyyy yyyy yyyy ---- xxxx xxxx xxxx ----		y,x = Coords for Vertex 0
-		 *	yyyy yyyy yyyy ---- xxxx xxxx xxxx ----		y,x = Coords for Vertex 1
-		 *	yyyy yyyy yyyy ---- xxxx xxxx xxxx ----		y,x = Coords for Vertex 2
+		 *	---- ---- ---- ---- ---- oooo oooo oooo	o = Opcode
+		 *	???? yyyy yyyy yyyy ???? xxxx xxxx xxxx	y,x = Coords for Vertex 0
+		 *	???? yyyy yyyy yyyy ???? xxxx xxxx xxxx	y,x = Coords for Vertex 1
+		 *	???? yyyy yyyy yyyy ???? xxxx xxxx xxxx	y,x = Coords for Vertex 2
 		 *
 		 * Note: 12.4 fixed point?
 		 */
@@ -1745,7 +1749,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 
 			for (i = 0; i < 3; i++) {
 				uv[i].x[0] = (inst[i+1] & 0xFFFF) >> 4;
-				uv[i].x[1] = inst[i+1] >> 21;
+				uv[i].x[1] = (inst[i+1] >> (16+5));
 				uv[i].x[0] += 1920;
 			}
 
