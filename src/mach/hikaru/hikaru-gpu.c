@@ -1698,18 +1698,10 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			gpu->pc += 32;
 		}
 		break;
-#if 0
 	case 0x12C:
 	case 0x12D:
-	case 0x72C:
-	case 0x72D:
-		/* x2C	Unknown 3f */
-		{
-			vec3f_t *v = &inst[1];
-			gpu->pc += 16;
-		}
-		break;
-#endif
+	case 0xF2C:
+	case 0xF2D:
 	case 0x1AC:
 	case 0x1AD:
 	case 0xFAC:
