@@ -1959,7 +1959,8 @@ hikaru_gpu_begin_processing (hikaru_gpu_t *gpu)
 
 		memset (gpu->vertex_buffer, 0, 3 * sizeof (vec3f_t));
 		gpu->vertex_index = 0;
-	}
+	} else
+		REG1A (0x24) = 0;
 }
 
 static void
