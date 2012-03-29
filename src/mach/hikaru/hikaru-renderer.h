@@ -39,7 +39,7 @@ vk_renderer_t	*hikaru_renderer_new (vk_buffer_t *texram);
 void		 hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
 		                           vec3f_t *v0, vec3f_t *v1, vec3f_t *v2,
 		                           bool has_color,
-		                           vec4b_t color,
+		                           vec3b_t color,
 		                           bool has_texture,
 		                           vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2);
 void		hikaru_renderer_draw_layer (hikaru_renderer_t *renderer,

@@ -85,7 +85,127 @@
  * Textures also come with mipmap trees.
  */
 
+#define NUM_VIEWPORTS	32
+#define NUM_MATERIALS	256
+#define NUM_TEXHEADS	256
+#define NUM_MATRICES	16
+
+#define VIEWPORT_MASK	(NUM_VIEWPORTS - 1)
+#define MATERIAL_MASK	(NUM_MATERIALS - 1)
+#define TEXHEAD_MASK	(NUM_TEXHEADS - 1)
+#define MATRIX_MASK	(NUM_MATRICES - 1)
+
+typedef struct {
+	/* 021 */
+	float persp_x;
+	float persp_y;
+	float persp_unk;
+	/* 221 */
+	vec2s_t center;
+	vec2s_t extents_x;
+	vec2s_t extents_y;
+	/* 421 */
+	unsigned unk_func;
+	float unk_n;
+	float unk_b;
+	/* 621 */
+	uint32_t _621_enabled;
+	uint32_t _621_n;
+	uint32_t _621_d;
+	vec4b_t	color;
+	float inv_delta;
+	float inv_max;
+	/* 881 */
+	vec3s_t ambient_color;
+	/* 991 */
+	vec4b_t clear_color;
+} viewport_state_t;
+
+typedef struct {
+	/* 091, 291 */
+	vec3b_t color[2];
+	/* 491 */
+	vec4b_t shininess;
+	/* 691 */
+	vec3s_t material_color;
+	/* 081 */
+	/* XXX unknown */
+	/* 881 */
+	unsigned mode		: 2;
+	unsigned depth_blend	: 1;
+	unsigned has_texture	: 1;
+	unsigned has_alpha	: 1;
+	unsigned has_highlight	: 1;
+	/* A81 */
+	unsigned bmode		: 2;
+	/* C81 */
+	/* XXX unknown */
+} material_state_t;
+
+typedef struct {
+	/* 0C1 */
+	uint8_t _0C1_n : 4;
+	uint8_t _0C1_m : 4;
+	/* 2C1 */
+	uint8_t _2C1_a;
+	uint8_t _2C1_b;
+	uint8_t _2C1_u : 4;
+	/* 4C1 */
+	uint8_t _4C1_n;
+	uint8_t _4C1_m;
+	uint8_t _4C1_p : 4;
+} texhead_state_t;
+
+typedef struct {
+	vk_device_t base;
+
+	vk_buffer_t *cmdram;
+	vk_buffer_t *texram;
+
+	uint8_t regs_15[0x100];
+	uint8_t regs_18[0x100];
+	uint8_t regs_1A[0x104];
+	uint8_t regs_1A_unit[2][0x40];
+	uint8_t regs_1A_fifo[0x10];
+
+	bool is_running;
+
+	unsigned frame_type;
+	uint32_t pc;
+	uint32_t sp[2];
+	int cycles;
+
+	viewport_state_t vp_scratch;
+	viewport_state_t vp[NUM_VIEWPORTS];
+	viewport_state_t *current_vp;
+	int current_vp_offset;
+
+	material_state_t ms_scratch;
+	material_state_t ms[NUM_MATERIALS];
+	material_state_t *current_ms;
+	int current_ms_offset;
+
+	texhead_state_t ts_scratch;
+	texhead_state_t ts[NUM_TEXHEADS];
+	texhead_state_t *current_ts;
+	int current_ts_offset;
+
+	mtx4x3f_t mtx_scratch;
+	mtx4x3f_t mtx[NUM_MATRICES];
+
+	/* XXX ditch immediate mode and replace with cached models */
+	vec3f_t vertex_buffer[3];
+	int vertex_index;
+
+} hikaru_gpu_t;
+
 /*
+ * GPU Address Space
+ * =================
+ *
+ * The GPU has access to the whole external BUS address space. See
+ * hikaru-memctl.c for more details.
+ *
  * GPU MMIOs at 15000000
  * =====================
  *
@@ -203,7 +323,7 @@
  * 15002814  R		# of Translucent Primitives
  * 15002820  R		# of 'Set Primitive' Operations
  * 15002824  R		# of 'Render Primitive' Operations
- * 15002840  R		# of Texture Head
+ * 15002840  R		# of Texture Heads
  * 15002844  R		# of Materials
  * 15002848  R		# of Lights
  *
@@ -408,133 +528,6 @@
  * 1A0A1600             l  W    1 [seems related to 15040E00, see pharrier]
  */
 
-/* Viewport State */
-
-typedef struct {
-	vec3s_t unk;
-} _811_params_t;
-
-typedef struct {
-	vec3b_t unk;
-	unsigned sign;
-} _991_params_t;
-
-typedef struct {
-	float persp_x;
-	float persp_y;
-	float unk;
-} _021_params_t;
-
-typedef struct {
-	vec2s_t center;
-	vec2s_t extents_x;
-	vec2s_t extents_y;
-} _221_params_t;
-
-typedef struct {
-	unsigned depth_func;
-	float depth_near;
-	float depth_far;
-} _421_params_t;
-
-typedef struct {
-	uint32_t enabled;
-	uint32_t unk_n;
-	uint32_t unk_b;
-	vec4b_t	color;
-	float inv_delta;
-	float inv_max;
-} _621_params_t;
-
-typedef struct {
-	_811_params_t _811_params; /* Unknown Params */
-	_991_params_t _991_params; /* Unknown Params */
-	_021_params_t _021_params; /* Aspect Ratio */
-	_221_params_t _221_params; /* Extents */
-	_421_params_t _421_params; /* Depth Params */
-	_621_params_t _621_params; /* Unknown Params */
-} viewport_state_t;
-
-/* Color/Material State */
-
-typedef struct {
-	uint8_t unk;
-} _881_params_t; /* Intensity? */
-
-typedef struct {
-	vec4b_t color; /* RGBA8 */
-} _291_params_t;
-
-/* TODO: find out if and where the tex/color combiner mode is selected */
-
-typedef struct {
-	_881_params_t _881_params;
-	_291_params_t _291_params;
-} color_state_t;
-
-/* Texture State */
-
-typedef struct {
-	uint8_t unk_n : 4;
-	uint8_t unk_m : 4;
-}_0C1_params_t;
-
-typedef struct {
-	uint8_t unk_a;
-	uint8_t unk_b;
-	uint8_t unk_u : 4;
-}_2C1_params_t;
-
-typedef struct {
-	uint8_t unk_n;
-	uint8_t unk_m;
-	uint8_t unk_p : 4;
-}_4C1_params_t;
-
-typedef struct {
-	_0C1_params_t _0C1_params;
-	_2C1_params_t _2C1_params;
-	_4C1_params_t _4C1_params;
-} tex_state_t;
-
-typedef struct {
-	vk_device_t base;
-
-	vk_buffer_t *cmdram;
-	vk_buffer_t *texram;
-
-	uint8_t regs_15[0x100];
-	uint8_t regs_18[0x100];
-	uint8_t regs_1A[0x104];
-	uint8_t regs_1A_unit[2][0x40];
-	uint8_t regs_1A_fifo[0x10];
-
-	bool is_running;
-
-	unsigned frame_type;
-	uint32_t pc;
-	uint32_t sp[2];
-	int cycles;
-
-	mtx4x3f_t mtx_scratch;
-	mtx4x3f_t mtx[8];
-
-	viewport_state_t vp_scratch;
-	viewport_state_t vp[8], *current_vp;
-
-	color_state_t cs_scratch;
-	color_state_t cs[16], *current_cs;
-	bool cs_enabled;
-
-	tex_state_t ts_scratch;
-	tex_state_t ts[4], *current_ts;
-	bool ts_enabled;
-
-	vec3f_t vertex_buffer[3];
-	int vertex_index;
-
-} hikaru_gpu_t;
-
 #define REG15(addr_)	(*(uint32_t *) &gpu->regs_15[(addr_) & 0xFF])
 #define REG18(addr_)	(*(uint32_t *) &gpu->regs_18[(addr_) & 0xFF])
 #define REG1A(addr_)	(*(uint32_t *) &gpu->regs_1A[(addr_) & 0x1FF])
@@ -554,21 +547,6 @@ hikaru_gpu_get_debug_str (vk_device_t *dev)
 
 	return out;
 }
-
-/*
- * GPU Address Space
- * =================
- *
- * The GPU has access to the whole external BUS address space. See
- * hikaru-memctl.c for more details.
- *
- * GPU Instructions
- * ================
- *
- * Each GPU instruction is made of 1, 2, 4, or 8 32-bit words. The opcode is
- * specified by the lower 12 bits of the first word. The meaning of the values
- * is determined by the opcode as follows:
- */
 
 /* GPU IRQs
  * ========
@@ -666,124 +644,7 @@ hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A)
 	hikaru_gpu_update_irqs (gpu);
 }
 
-/* Texture RAM
- * ===========
- *
- * Located at 1B000000-1B7FFFFF in the master SH-4 address space, 8MB large;
- * it is a single (double?) sheet of texel data. Supported texture formats
- * include RGBA4444, RGB565, RGBA5551, RGBA8888.
- *
- * It looks like the sheet has an (1 << 11) = 8192 bytes pitch.  See
- * PH:@0C01A242.
- */
-
-#define TEXRAM_ROW_PITCH	(1 << 11)
-
-static inline uint16_t
-get_texel16 (hikaru_gpu_t *gpu, unsigned x, unsigned y)
-{
-	unsigned yoffs = y * TEXRAM_ROW_PITCH;
-	unsigned xoffs = (x * 2) & (TEXRAM_ROW_PITCH - 1);
-	return vk_buffer_get (gpu->texram, 2, yoffs + xoffs);
-}
-
-static inline void
-put_texel16 (hikaru_gpu_t *gpu, unsigned x, unsigned y, uint16_t texel)
-{
-	unsigned yoffs = y * TEXRAM_ROW_PITCH;
-	unsigned xoffs = (x * 2) & (TEXRAM_ROW_PITCH - 1);
-	vk_buffer_put (gpu->texram, 2, yoffs + xoffs, texel);
-}
-
-/*
- * GPU Indirect DMA
- * ================
- *
- * Register 1500000C points to a table in GPU CMDRAM, defaulting to
- * 483FC000. Each entry has this format:
- *	
- *	3FC000: 48300000	Source address
- *	3FC004: 00002000	Lenght (in bytes)
- *	3FC008: 0812C080	Unknown (bitfield)
- *	3FC00C: 00000000	Unknown	(byte)
- *
- * Data can be located (at least) at 48xxxxxx (CMDRAM) or at 41xxxxxx
- * (slave RAM).
- *
- * During the bootrom life-cycle, the data address to texture-like data (the
- * not-yet-converted ASCII texture.) However, the bootrom uploads this
- * texture independently to TEXRAM by performing the format conversion
- * manually (RGBA1 to RGBA4); it does however use the GPU IDMA mechanism
- * too. I don't know why.
- *
- * The third and fourth parameters decide the type of operation to do. Their
- * format is still unknown.
- *
- * Note: C080 and x812 are also used as parameters for the `Set X' GPU
- * command. No idea if there is any relation. Possibly texture format?
- *
- * Note: GPU 15 IDMA fires GPU 15 IRQ 1 when done.
- */
-
-static void
-hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
-{
-	/* Step the GPU 15 indirect DMA thing */
-	uint32_t entry[4], addr;
-
-	if (!(REG15 (0x14) & 1) || !REG15 (0x10))
-		return;
-
-	VK_ASSERT ((REG15 (0x0C) >> 24) == 0x48);
-
-	/* Read the IDMA table address in CMDRAM */
-	addr = (REG15 (0x0C) & 0xFFFFFF);
-
-	entry[0] = vk_buffer_get (gpu->cmdram, 4, addr+0x0);
-	entry[1] = vk_buffer_get (gpu->cmdram, 4, addr+0x4);
-	entry[2] = vk_buffer_get (gpu->cmdram, 4, addr+0x8);
-	entry[3] = vk_buffer_get (gpu->cmdram, 4, addr+0xC);
-
-	VK_LOG (" ## GPU 15 IDMA entry = [ %08X %08x %08X %08X <%u %u %X> ]",
-	        entry[0], entry[1], entry[2], entry[3],
-	        entry[2] & 0xFF, (entry[2] >> 8) & 0xFF, entry[2] >> 16);
-
-	/* If the entry supplies a positive lenght, process it */
-	if (entry[1]) {
-		/* XXX actually process it ... */
-		REG15 (0x0C) += 0x10;
-		REG15 (0x10) --;
-	}
-
-	/* XXX note that the bootrom code assumes that the IDMA may stop even
-	 * if there are still unprocessed entries. This probably means that
-	 * the IDMA somehow stops processing when any other GPU IRQ fires */
-
-	VK_LOG (" ### GPU 15 IDMA status became = [ %08X %08X %08X ]",
-	        REG15 (0x0C), REG15 (0x10), REG15 (0x14));
-
-	/* If there are no more entries, stop */
-	if (REG15 (0x10) == 0) {
-		/* XXX I don't think it actually gets overwritten considering
-		 * that the IRL2 handler does it itself */
-		REG15 (0x14) = 0;
-		hikaru_gpu_raise_irq (gpu, _15_IRQ_IDMA, 0);
-	}
-}
-
-/*
-static void
-print_vertex_buffer (hikaru_gpu_t *gpu)
-{
-	int i;
-	for (i = 0; i < 3; i++)
-		printf (" VERTEX %u = { %f %f %f }\n",
-		        i,
-		        gpu->vertex_buffer[i].x[0],
-		        gpu->vertex_buffer[i].x[1],
-		        gpu->vertex_buffer[i].x[2]);
-}
-*/
+/* Rendering Helpers */
 
 static void
 append_vertex (hikaru_gpu_t *gpu, vec3f_t *src)
@@ -812,11 +673,63 @@ draw_tri (hikaru_gpu_t *gpu, vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2)
 	                          &gpu->vertex_buffer[i0],
 	                          &gpu->vertex_buffer[i1],
 	                          &gpu->vertex_buffer[i2],
-	                          gpu->cs_enabled,
-	                          gpu->current_cs->_291_params.color,
-	                          gpu->ts_enabled,
+	                          true,
+	                          gpu->current_ms->color[1],
+	                          gpu->current_ms->has_texture,
 	                          uv0, uv1, uv2);
 }
+
+/*
+ * GPU Command Processor
+ * =====================
+ *
+ * TODO (basically opcodes are stored in CMDRAM, execution begins on X and
+ * ends on Y; frequency unknown)
+ *
+ * GPU Instructions
+ * ================
+ *
+ * Each GPU instruction is made of 1, 2, 4, or 8 32-bit words. The opcode is
+ * specified by the lower 12 bits of the first word.
+ *
+ * In general, opcodes of the form:
+ *
+ * - xx1 seem to set properties of the current object
+ * - xx2 seem to be control-flow related.
+ * - xx3 seem to be used to recall a given object/offset
+ * - xx4 seem to be used to commit the current object
+ * - xx6 seem to be ?
+ *
+ * GPU Execution
+ * =============
+ *
+ * Very few things are known. Here are my guesses:
+ *
+ * GPU execution is likely initiated by:
+ *  15000058 = 3
+ *  1A000024 = 1
+ *
+ * A new frame subroutine is uploaded when both IRQs 2 of GPU 15 and GPU 1A
+ * are fired, meaning that they both consumed the data passed in and require
+ * new data (subroutine) to continue processing.
+ *
+ * When execution ends:
+ * CHECK ALL THIS AGAIN PLEASE
+ *  1A00000C bit 0 is set
+ *  1A000018 bit 1 is set as a consequence
+ *  15000088 bit 7 is set as a consequence
+ *  15000088 bit 1 is set; a GPU IRQ is raised (if not masked by 15000084)
+ *  15002000 bit 0 is set on some HW revisions
+ *  1A000024 bit 0 is cleared if some additional condition occurred
+ *
+ * 15002000 and 1A000024 signal different things; see the termination
+ * condition in sync_for_frame ()
+ */
+
+/* NOTE: it looks like the RECALL opcodes actually set the current offset
+ * for the following SET PROPERTY instructions. See PHARRIER. */
+
+/* For an additional command 02A: See PH:@0C0DECC0 */
 
 static bool
 cp_is_valid_addr (uint32_t addr)
@@ -867,20 +780,6 @@ read_inst (vk_buffer_t *buf, uint32_t *inst, uint32_t offs)
 		inst[i] = vk_buffer_get (buf, 4, offs + i * 4);
 }
 
-/* In general, opcodes of the form:
- *
- * - xx1 seem to set properties of the current object
- * - xx2 seem to be control-flow related.
- * - xx3 seem to be used to recall a given object/offset
- * - xx4 seem to be used to commit the current object
- * - xx6 seem to be ?
- */
-
-/* NOTE: it looks like the RECALL opcodes actually set the current offset
- * for the following SET PROPERTY instructions. See PHARRIER. */
-
-/* For command 02A: See PH:@0C0DECC0 */
-
 static int
 hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 {
@@ -903,7 +802,8 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		break;
 	}
 
-	switch (inst[0] & 0xFFF) {
+	unsigned op = inst[0] & 0xFFF;
+	switch (op) {
 
 	/* Flow Control */
 
@@ -1004,7 +904,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 *	---- aabb ---- mmnn ---- oooo oooo oooo		o = Opcode, a, b, m, n = Unknown
 		 *
-		 * See @0C0065D6, PH:@0C016336
+		 * See @0C0065D6, PH:@0C016336.
 		 */
 		{
 			unsigned a, b, m, n;
@@ -1023,7 +923,16 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	/* Clear Primitives */
 
 	case 0x154:
-		/* 154	Clear Unknown A */
+		/* 154	Clear Unknown A
+		 *
+		 *	nnnn nnnn nnnn nnnn ---- oooo oooo oooo
+		 *	---- ---- ---- ---- hhhh hhhh llll llll
+		 *
+		 * l = Alpha low threshold
+		 * h = Alpha high threshold
+		 *
+		 * See PH:@0C017798, PH:@0C0CF868.
+		 */
 		{
 			unsigned n, a, b, c, d;
 			n = (inst[0] >> 16) & 0xFF;
@@ -1050,49 +959,13 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 
-	/* Viewport */
+	/* Viewport
+	 * ========
+	 *
+	 * The parameters for many of these are taken from PHARRIER debug
+	 * info.
+	 */
 
-	case 0x811:
-		/* 811	Viewport: Unknown
-		 *
-		 *	aaaa aaaa aaaa aaaa ---- oooo oooo oooo
-		 *	cccc cccc cccc cccc bbbb bbbb bbbb bbbb */
-		{
-			vec3s_t unk;
-
-			unk.x[0] = inst[0] >> 16;
-			unk.x[1] = inst[1] & 0xFFFF;
-			unk.x[2] = inst[1] >> 16;
-
-			VK_LOG ("GPU CMD %08X: Viewport: Unknown 811 [ unk = <%u %u %u> ]",
-			        gpu->pc, unk.x[0], unk.x[1], unk.x[2]);
-
-			gpu->vp_scratch._811_params.unk = unk;
-			gpu->pc += 8;
-		}
-		break;
-	case 0x991:
-		/* 991	Viewport: Unknown
-		 *
-		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
-		 *	---- ---s nnnn nnnn mmmm mmmm pppp pppp		s = Sign; n, m, p = Unknown
-		 *
-		 * See PH:@0C016368, PH:@0C016396 */
-		{
-			_991_params_t params;
-
-			params.sign	= (inst[1] >> 24) & 1; /* Disabled? */
-			params.unk.x[0]	= (inst[1] >> 16) & 0xFF;
-			params.unk.x[1]	= (inst[1] >> 8) & 0xFF;
-			params.unk.x[2]	= inst[1] & 0xFF;
-
-			VK_LOG ("GPU CMD %08X: Viewport: Unknown 991 [ sign=%u unk=<%u %u %u> ]",
-			        gpu->pc, params.sign, params.unk.x[0], params.unk.x[1], params.unk.x[2]);
-
-			gpu->vp_scratch._991_params = params;
-			gpu->pc += 8;
-		}
-		break;
 	case 0x021:
 		/* 021	Set Viewport Projection
 		 *
@@ -1101,105 +974,160 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *      qqqq qqqq qqqq qqqq qqqq qqqq qqqq qqqq		q =  beta * cotf (angle / 2)
 		 *      zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz		z = Depth component, float
 		 *
-		 * See PH:@0C01587C, PH:@0C0158A4, PH:@0C0158E8 */
-		{
-			_021_params_t params;
+		 * See PH:@0C01587C, PH:@0C0158A4, PH:@0C0158E8.
+		 */
+		gpu->vp_scratch.persp_x		= *(float *) &inst[1];
+		gpu->vp_scratch.persp_y		= *(float *) &inst[2];
+		gpu->vp_scratch.persp_unk	= *(float *) &inst[3];
 
-			params.persp_x	= *(float *) &inst[1];
-			params.persp_y	= *(float *) &inst[2];
-			params.unk	= *(float *) &inst[3];
+		VK_LOG ("GPU CMD %08X: Viewport: Set Projection [%08X %08X %08X %08X] px=%f py=%f unk=%f",
+		        gpu->pc, inst[0], inst[1], inst[2], inst[3],
+		        gpu->vp_scratch.persp_x,
+		        gpu->vp_scratch.persp_y,
+		        gpu->vp_scratch.persp_unk);
 
-			VK_LOG ("GPU CMD %08X: Viewport: Set Projection [ px=%f py=%f unk=%f ]",
-			        gpu->pc, params.persp_x, params.persp_y, params.unk);
-
-			gpu->vp_scratch._021_params = params;
-			gpu->pc += 16;
-		}
+		gpu->pc += 16;
 		break;
 	case 0x221:
-		/* 221	Set Viewport Extents
+		/* 221	Viewport: Set Extents
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 *	jjjj jjjj jjjj jjjj cccc cccc cccc cccc		c = X center; j = Y center
 		 *	--YY YYYY YYYY YYYY -XXX XXXX XXXX XXXX		Y, X = Coord maximum; Y can be at most 512, X can be at most 640
 		 *	--yy yyyy yyyy yyyy -xxx xxxx xxxx xxxx		y, x = Coord minimums; at least one of them MUST be zero
 		 *
-		 * See PH:@0C015924 */
-		{
-			_221_params_t params;
+		 * See PH:@0C015924
+		 */
+		gpu->vp_scratch.center.x[0]	= inst[1] & 0xFFFF;
+		gpu->vp_scratch.center.x[1]	= inst[1] >> 16;
+		gpu->vp_scratch.extents_x.x[0]	= inst[2] & 0x7FFF;
+		gpu->vp_scratch.extents_x.x[1]	= inst[3] & 0x7FFF;
+		gpu->vp_scratch.extents_y.x[0]	= (inst[2] >> 16) & 0x3FFF;
+		gpu->vp_scratch.extents_y.x[1]	= (inst[3] >> 16) & 0x3FFF;
 
-			params.center.x[0]	= inst[1] & 0xFFFF;
-			params.center.x[1]	= inst[1] >> 16;
-			params.extents_x.x[0]	= inst[2] & 0x7FFF;
-			params.extents_x.x[1]	= inst[3] & 0x7FFF;
-			params.extents_y.x[0]	= (inst[2] >> 16) & 0x3FFF;
-			params.extents_y.x[1]	= (inst[3] >> 16) & 0x3FFF;
+		VK_LOG ("GPU CMD %08X: Viewport: Set Extents [%08X %08X %08X %08X] center=<%u,%u> x=<%u,%u> y=<%u,%u> ]",
+		        gpu->pc, inst[0], inst[1], inst[2], inst[3],
+		        gpu->vp_scratch.center.x[0],
+		        gpu->vp_scratch.center.x[1],
+		        gpu->vp_scratch.extents_x.x[0],
+		        gpu->vp_scratch.extents_x.x[1],
+		        gpu->vp_scratch.extents_y.x[0],
+		        gpu->vp_scratch.extents_y.x[1])
 
-			VK_LOG ("GPU CMD %08X: Viewport: Set Extents [ center=<%u,%u> x=<%u,%u> y=<%u,%u> ]",
-			        gpu->pc,
-			        params.center.x[0], params.center.x[1],
-			        params.extents_x.x[0], params.extents_x.x[1],
-			        params.extents_y.x[0], params.extents_y.x[1]);
+		ASSERT (!(inst[2] & 0xC0008000));
+		ASSERT (!(inst[3] & 0xC0008000));
 
-			ASSERT (!(inst[2] & 0xC0008000));
-			ASSERT (!(inst[3] & 0xC0008000));
-
-			gpu->vp_scratch._221_params = params;
-			gpu->pc += 16;
-		}
+		gpu->pc += 16;
 		break;
 	case 0x421:
-		/* 421	Set Depth
+		/* 421	Viewport: Set Depth
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx		x = Unknown
 		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy		y = Unknown
 		 *	aaa- ---- ---- ---- ---- ---- ---- ----		a = Unknown
 		 *
-		 * See PH:@0C015AA6 */
-		{
-			_421_params_t params;
+		 * See PH:@0C015AA6
+		 */
+		gpu->vp_scratch.unk_func = inst[3] >> 29;
+		gpu->vp_scratch.unk_n = *(float *) &inst[1];
+		gpu->vp_scratch.unk_b = *(float *) &inst[2];
 
-			params.depth_near	= *(float *) &inst[1];
-			params.depth_far	= *(float *) &inst[2];
-			params.depth_func	= inst[3] >> 29;
-
-			VK_LOG ("GPU CMD %08X: Viewport: Set Depth [ near=%f far=%f func=%u ]",
-			        gpu->pc, params.depth_near, params.depth_far, params.depth_func);
+		VK_LOG ("GPU CMD %08X: Viewport: Set Depth [%08X %08X %08X %08X] func=%u n=%f b=%f",
+		        gpu->pc, inst[0], inst[1], inst[2], inst[3],
+		        gpu->vp_scratch.unk_func,
+		        gpu->vp_scratch.unk_n,
+		        gpu->vp_scratch.unk_b);
 			        
-			ASSERT (!(inst[3] & 0x1FFFFFFF));
+		ASSERT (!(inst[3] & 0x1FFFFFFF));
 
-			gpu->vp_scratch._421_params = params;
-			gpu->pc += 16;
-		}
+		gpu->pc += 16;
 		break;
 	case 0x621:
-		/* 621	Set Shade Model
+		/* 621	Set Unknown
 		 *
 		 *	---- ---- ---- nnDb ---- oooo oooo oooo		n = Unknown, D = disable?, u = Unknown, o = Opcode
-		 *      RRRR RRRR GGGG GGGG BBBB BBBB AAAA AAAA		RGBA = light color
+		 *      AAAA AAAA BBBB BBBB GGGG GGGG RRRR RRRR		RGBA = color
 		 *	ffff ffff ffff ffff ffff ffff ffff ffff		f = 1.0f OR 1.0f / (max - min) OR 1.0f / sqrt ((max - min)**2)
 		 *	gggg gggg gggg gggg gggg gggg gggg gggg		g = kappa / max
 		 *
-		 * See PH:@0C0159C4, PH:@0C015A02, PH:@0C015A3E */
+		 * See PH:@0C0159C4, PH:@0C015A02, PH:@0C015A3E.
+		 */
+		gpu->vp_scratch._621_d		= (inst[0] >> 16) & 1;
+		gpu->vp_scratch._621_enabled	= (inst[0] >> 17) & 1 ? 0 : 1;
+		gpu->vp_scratch._621_n		= (inst[0] >> 18) & 3;
+		gpu->vp_scratch.color.x[0]	= inst[1] & 0xFF;
+		gpu->vp_scratch.color.x[1]	= (inst[1] >> 8) & 0xFF;
+		gpu->vp_scratch.color.x[2]	= (inst[1] >> 16) & 0xFF;
+		gpu->vp_scratch.color.x[3]	= inst[1] >> 24;
+		gpu->vp_scratch.inv_delta	= *(float *) &inst[2];
+		gpu->vp_scratch.inv_max		= *(float *) &inst[3];
+
+		VK_LOG ("GPU CMD %08X: Viewport: Set Unknown [%08X %08X %08X %08X] d=%u enabled=%u n=%u color=<%X %X %X %X> inv_delta=%f inv_max=%f",
+		        gpu->pc, inst[0], inst[1], inst[2], inst[3],
+		        gpu->vp_scratch._621_d,
+		        gpu->vp_scratch._621_enabled,
+		        gpu->vp_scratch._621_n,
+			gpu->vp_scratch.color.x[0],
+			gpu->vp_scratch.color.x[1],
+			gpu->vp_scratch.color.x[2],
+			gpu->vp_scratch.color.x[3],
+			gpu->vp_scratch.inv_delta,
+			gpu->vp_scratch.inv_max);
+
+		gpu->pc += 16;
+		break;
+	case 0x811:
+		/* 811	Viewport: Set Ambient Color
+		 *
+		 *	rrrr rrrr rrrr rrrr ---- oooo oooo oooo
+		 *	bbbb bbbb bbbb bbbb gggg gggg gggg gggg
+		 *
+		 * See PH:@0C037840.
+		 */
 		{
-			_621_params_t params;
+			vec3s_t color;
 
-			params.unk_n	 = (inst[0] >> 18) & 3;
-			params.enabled	 = (inst[0] >> 17) & 1 ? 0 : 1;
-			params.unk_b	 = (inst[0] >> 16) & 1;
-			params.color	 = *(vec4b_t *) &inst[1];
-			params.inv_delta = *(float *) &inst[2];
-			params.inv_max	 = *(float *) &inst[3];
+			color.x[0] = inst[0] >> 16;
+			color.x[1] = inst[1] & 0xFFFF;
+			color.x[2] = inst[1] >> 16;
 
-			VK_LOG ("GPU CMD %08X: Viewport: Set Shade Model [ enabled=%u n=%u b=%u color=<%X %X %X %X> inv_delta=%f inv_max=%f ]",
-			        gpu->pc,
-			        params.enabled, params.unk_n, params.unk_b,
-			        params.color.x[0], params.color.x[1], params.color.x[2], params.color.x[3],
-			        params.inv_delta, params.inv_max);
+			gpu->vp_scratch.ambient_color = color;
 
-			gpu->vp_scratch._621_params = params;
-			gpu->pc += 16;
+			VK_LOG ("GPU CMD %08X: Viewport: Set Ambient Color [%08X %08X] color=<%u %u %u>",
+			        gpu->pc, inst[0], inst[1],
+			        color.x[2], color.x[1], color.x[0]);
+
+			gpu->pc += 8;
+		}
+		break;
+	case 0x991:
+		/* 991	Viewport: Set Clear Color
+		 *
+		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
+		 *	---- ---a gggg gggg bbbb bbbb rrrr rrrr		a,r,g,b = Clear color
+		 *
+		 * Note: yes, apparently blue and green _are_ swapped.
+		 *
+		 * XXX double check the alpha mask.
+		 *
+		 * See PH:@0C016368, PH:@0C016396, PH:@0C037760.
+		 */
+		{
+			vec4b_t color;
+
+			color.x[0] = inst[1] & 0xFF;
+			color.x[1] = (inst[1] >> 8) & 0xFF;
+			color.x[2] = (inst[1] >> 16) & 0xFF;
+			color.x[3] = ((inst[1] >> 24) & 1) ? 0xFF : 0;
+
+			gpu->vp_scratch.clear_color = color;
+
+			VK_LOG ("GPU CMD %08X: Viewport: Set Clear Color [%08X %08X] color=<%u %u %u %u>",
+			        gpu->pc, inst[0], inst[1],
+			        color.x[3], color.x[2], color.x[1], color.x[0]); 
+
+			gpu->pc += 8;
 		}
 		break;
 	case 0x004:
@@ -1208,11 +1136,11 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * 404	Unknown
 		 * 504	Unknown
 		 *
-		 *	---- ---- ---- -nnn ---- oooo oooo oooo		o = Opcode. n = Unknown; n can't be zero
+		 *	---- ---- ---- nnnn ---- oooo oooo oooo		o = Opcode. n = Unknown; n can't be zero
 		 *
 		 * See PH:@0C015AD0 */
 		{
-			unsigned n = (inst[0] >> 16) & 7;
+			unsigned n = (inst[0] >> 16) & VIEWPORT_MASK;
 
 			VK_LOG ("GPU CMD %08X: Commit Viewport [%08X] %u",
 			        gpu->pc, inst[0], n);
@@ -1230,133 +1158,183 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 * See PH:@0C015AF6, PH:@0C015B12, PH:@0C015B32 */
 		{
-			unsigned n = (inst[0] >> 16) & 3;
+			unsigned n = (inst[0] >> 16) & VIEWPORT_MASK;
 			unsigned p = (inst[0] >> 14) & 1;
 			unsigned q = (inst[0] >> 13) & 1;
+
+			/* XXX add offset-only mode */
+			gpu->current_vp = &gpu->vp[n];
+
 			VK_LOG ("GPU CMD %08X: Recall Viewport [%08X] <%u %u %u>",
 			        gpu->pc, inst[0], n, p, q);
+
 			gpu->pc += 4;
 		}
 		break;
 
-	/* Color Operations */
+	/* Material
+	 * ========
+	 *
+	 * The parameters for many of these are taken from PHARREIR debug
+	 * info.
+	 */
 
-	case 0x081:
-		/* 081	Set Y Property 0
-		 *
-		 *	---- ---- ---- mmmm ---n oooo oooo oooo */
-		{
-			unsigned n, m;
-			n = (inst[0] >> 12) & 1;
-			m = (inst[0] >> 16) & 0xF;
-			VK_LOG ("GPU CMD %08X: Color: Set Y 0 [%08X] %u %u",
-			        gpu->pc, inst[0], n, m);
-			gpu->pc += 4;
-		}
-		break;
-	case 0x881:
-		/* 881	Set Y Property 8
-		 *
-		 *	---- ---- iiii iiii ---- oooo oooo oooo		o = Opcode, i = Intensity?
-		 *
-		 * This is used along with the 291 command to construct the
-		 * VGA palette in the bootrom CRT test screen.
-		 */
-		{
-			unsigned i = (inst[0] >> 16) & 0xFF;
-			VK_LOG ("GPU CMD %08X: Color: Set Y 8 [%08X]", gpu->pc, inst[0]);
-			gpu->cs_scratch._881_params.unk = i;
-			gpu->pc += 4;
-		}
-		break;
-	case 0xA81:
-		/* A81	Set Y Property A */
-		VK_LOG ("GPU CMD %08X: Color: Set Y A [%08X]", gpu->pc, inst[0]);
-		gpu->pc += 4;
-		break;
-	case 0xC81:
-		/* C81	Set Y Property C */
-		VK_LOG ("GPU CMD %08X: Color: Set Y C [%08X]", gpu->pc, inst[0]);
-		gpu->pc += 4;
-		break;
 	case 0x091:
-		/* 091	Set Color Property 0 */
-		{
-			unsigned x = (inst[0] >> 16) & 0xFF;
-			unsigned a = inst[1] & 0xFF;
-			unsigned b = (inst[1] >> 8) & 0xFF;
-			unsigned c = (inst[1] >> 16) & 0xFF;
-			unsigned d = (inst[1] >> 24) & 0xFF;
-			VK_LOG ("GPU CMD %08X: Color: Set 0 [%08X %08X] %u <%u %u %u %u>",
-			        gpu->pc, inst[0], inst[1], x, a, b, c, d);
-			gpu->pc += 8;
-		}
-		break;
 	case 0x291:
-		/* 291	Set Color Property 2
+		/* 091	Material: Set Color 0
+		 * 291	Material: Set Color 1
 		 *
-		 *	---- ---- xxxx xxxx ---- oooo oooo oooo
-		 *	aaaa aaaa bbbb bbbb gggg gggg rrrr rrr
+		 *	---- ---- ---- ---- ---- oooo oooo oooo
+		 *	---- ---- bbbb bbbb gggg gggg rrrr rrrr
+		 *
+		 * See PH:@0C0CF742.
 		 */
 		{
-			unsigned x = (inst[0] >> 16) & 0xFF;
-			unsigned a = inst[1] & 0xFF;
-			unsigned b = (inst[1] >> 8) & 0xFF;
-			unsigned g = (inst[1] >> 16) & 0xFF;
-			unsigned r = (inst[1] >> 24) & 0xFF;
+			vec3b_t color;
+			unsigned i = (op >> 9) & 1;
 
-			VK_LOG ("GPU CMD %08X: Color: Set 2 [%08X %08X] %u <%u %u %u %u>",
-			        gpu->pc, inst[0], inst[1], x, a, b, g, r);
+			color.x[0] = inst[1] & 0xFF;
+			color.x[1] = (inst[1] >> 8) & 0xFF;
+			color.x[2] = (inst[1] >> 16) & 0xFF;
 
-			gpu->cs_scratch._291_params.color.x[0] = r;
-			gpu->cs_scratch._291_params.color.x[1] = g;
-			gpu->cs_scratch._291_params.color.x[2] = b;
-			gpu->cs_scratch._291_params.color.x[3] = a;
+			gpu->ms_scratch.color[i] = color;
+
+			VK_LOG ("GPU CMD %08X: Material: Set Color %X [%08X %08X] %u <R=%u G=%u B=%u>",
+			        gpu->pc, i, inst[0], inst[1],
+			        color.x[0], color.x[1], color.x[2]);
+
 			gpu->pc += 8;
 		}
 		break;
 	case 0x491:
-		/* 491	Set Color Property 4 */
+		/* 491	Material: Set Shininess
+		 *
+		 *	---- ---- ---- ---- ---- oooo oooo oooo
+		 *	ssss ssss bbbb bbbb gggg gggg rrrr rrrr
+		 *
+		 * s = Specular shininess
+		 *
+		 * See PH:@0C0CF798, PH:@0C01782C.
+		 */
 		{
-			unsigned x = (inst[0] >> 16) & 0xFF;
-			unsigned a = inst[1] & 0xFF;
-			unsigned b = (inst[1] >> 8) & 0xFF;
-			unsigned c = (inst[1] >> 16) & 0xFF;
-			unsigned d = (inst[1] >> 24) & 0xFF;
-			VK_LOG ("GPU CMD %08X: Color: Set 4 [%08X %08X] %u <%u %u %u %u>",
-			        gpu->pc, inst[0], inst[1], x, a, b, c, d);
+			vec4b_t shininess;
+
+			shininess.x[0] = inst[1] & 0xFF;
+			shininess.x[1] = (inst[1] >> 8) & 0xFF;
+			shininess.x[2] = (inst[1] >> 16) & 0xFF;
+			shininess.x[3] = inst[1] >> 24;
+
+			gpu->ms_scratch.shininess = shininess;
+
+			VK_LOG ("GPU CMD %08X: Material: Set Shininess [%08X %08X] specularity=%u shininess=<%u %u %u>",
+			        gpu->pc, inst[0], inst[1],
+			        shininess.x[3], shininess.x[2],
+			        shininess.x[1], shininess.x[0]);
+
 			gpu->pc += 8;
 		}
 		break;
 	case 0x691:
-		/* 691	Set Color Property 6
+		/* 691	Material: Set Material Color
 		 *
-		 *	aaaa aaaa aaaa aaaa ---- oooo oooo oooo
-		 *	cccc cccc cccc cccc bbbb bbbb bbbb bbbb */
+		 *	rrrr rrrr rrrr rrrr ---- oooo oooo oooo
+		 *	bbbb bbbb bbbb bbbb gggg gggg gggg gggg
+		 *
+		 * See PH:@0C0CF7CC.
+		 */
 		{
-			unsigned a = inst[0] >> 16;
-			unsigned b = inst[1] & 0xFFFF;
-			unsigned c = inst[1] >> 16;
-			VK_LOG ("GPU CMD %08X: Color: Set 6 [%08X %08X] <%u %u %u>",
-			        gpu->pc, inst[0], inst[1], a, b, c);
+			vec3s_t color;
+
+			color.x[0] = inst[0] >> 16;
+			color.x[1] = inst[1] & 0xFFFF;
+			color.x[2] = inst[1] >> 16;
+
+			gpu->ms_scratch.material_color = color;
+
+			VK_LOG ("GPU CMD %08X: Material: Set Material Color [%08X %08X] color=<%u %u %u>",
+			        gpu->pc, inst[0], inst[1],
+			        color.x[0], color.x[1], color.x[2]);
+
 			gpu->pc += 8;
 		}
 		break;
-	case 0x084:
-		/* 084	Commit Color 
+	case 0x081:
+		/* 081	Material: Set Unknown
 		 *
-		 *	---- ---- uuuu nnnn ---m oooo oooo oooo		o = Opcode, n = Number
-		 *
-		 * See PH:@0C0153D4 */
+		 *	---- ---- ---- mmmm ---n oooo oooo oooo
+		 */
 		{
-			unsigned u = (inst[0] >> 20) & 0xF;
-			unsigned n = (inst[0] >> 16) & 0xF;
-			unsigned m = (inst[0] >> 12) & 1;
+			unsigned n = (inst[0] >> 12) & 1;
+			unsigned m = (inst[0] >> 16) & 0xF;
 
-			VK_LOG ("GPU CMD %08X: Commit Color [%08X] u=%X n=%u m=%u",
-			        gpu->pc, inst[0], u, n, m);
+			VK_LOG ("GPU CMD %08X: Material: Set Unknown [%08X] %u %u",
+			        gpu->pc, inst[0], n, m);
 
-			gpu->cs[n] = gpu->cs_scratch;
+			gpu->pc += 4;
+		}
+		break;
+	case 0x881:
+		/* 881	Set Flags
+		 *
+		 *	---- ---- --ha tzmm ---- oooo oooo oooo
+		 *
+		 * m = Mode
+		 * z = Depth blend (fog)
+		 * t = Enable texture
+		 * a = Alpha mode
+		 * h = Highlight mode
+		 *
+		 * See PH:@0C0CF700.
+		 */
+		gpu->ms_scratch.mode		= (inst[0] >> 16) & 3;
+		gpu->ms_scratch.depth_blend	= (inst[0] >> 18) & 1;
+		gpu->ms_scratch.has_texture	= (inst[0] >> 19) & 1;
+		gpu->ms_scratch.has_alpha	= (inst[0] >> 20) & 1;
+		gpu->ms_scratch.has_highlight	= (inst[0] >> 21) & 1;
+
+		VK_LOG ("GPU CMD %08X: Material: Set Flags [%08X]", gpu->pc, inst[0]);
+
+		gpu->pc += 4;
+		break;
+	case 0xA81:
+		/* A81	Material: Set BMode
+		 *
+		 *	---- ---- ---- ---mm ---- oooo ooo oooo
+		 *
+		 * See PH:@0C0CF7FA.
+		 */
+		gpu->ms_scratch.bmode = (inst[0] >> 16) & 3;
+
+		VK_LOG ("GPU CMD %08X: Material: Set BMode [%08X]", gpu->pc, inst[0]);
+
+		gpu->pc += 4;
+		break;
+	case 0xC81:
+		/* C81	Material: Set Unknown
+		 *
+		 *	---- ---- ---- ---- ---- oooo oooo oooo
+		 */
+
+		VK_LOG ("GPU CMD %08X: Material: Set Unknown [%08X]", gpu->pc, inst[0]);
+
+		gpu->pc += 4;
+		break;
+	case 0x084:
+		/* 084	Commit Material
+		 *
+		 *	---- ---- nnnn nnnn ---m oooo oooo oooo		o = Opcode, n = Number
+		 *
+		 * See PH:@0C0153D4, PH:@0C0CF878.
+		 */
+		{
+			unsigned num = (inst[0] >> 16) & MATERIAL_MASK;
+			unsigned unk = (inst[0] >> 12) & 1;
+
+			gpu->ms[num] = gpu->ms_scratch;
+
+			VK_LOG ("GPU CMD %08X: Commit Material [%08X] num=%u unk=%u",
+			        gpu->pc, inst[0], num, unk);
+
 			gpu->pc += 4;
 		}
 		break;
@@ -1365,17 +1343,18 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 *	uuuu uuuu nnnn nnnn ---m oooo oooo oooo		o = Opcode, u = Unknown, m = Enable Color, n = Unknown
 		 *
-		 * See @0C00657C */
+		 * See @0C00657C, PH:@0C0CF882.
+		 */
 		{
-			unsigned unk = (inst[0] >> 24) & 0xFF;
-			unsigned num = (inst[0] >> 16) & 0xFF;
-			unsigned ena = (inst[0] >> 12) & 1;
+			unsigned num = (inst[0] >> 16) & MATERIAL_MASK;
+			unsigned unk = (inst[0] >> 12) & 1;
 
-			VK_LOG ("GPU CMD %08X: Recall Color [%08X] unk=%u num=%u ena=%u",
-			        gpu->pc, inst[0], unk, num, ena);
+			/* XXX add offset-only mode */
+			gpu->current_ms = &gpu->ms[num];
 
-			gpu->current_cs = &gpu->cs[num];
-			gpu->cs_enabled = ena;
+			VK_LOG ("GPU CMD %08X: Recall Material [%08X] num=%u ena=%u",
+			        gpu->pc, inst[0], num, unk);
+
 			gpu->pc += 4;
 		}
 		break;
@@ -1388,26 +1367,24 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	 * unknown. */
 
 	case 0x0C1:
-		/* 0C1	Set Tex Param 0
+		/* 0C1	Texhead: Set 0
 		 *
 		 *	---- mmmm mmmm nnnn ---- oooo oooo oooo	o = Opcode, n,m = Unknown
 		 *
-		 * See PH:@0C015B7A */
-		{
-			unsigned u = (inst[0] >> 24) & 0xF;
-			unsigned n = (inst[0] >> 16) & 0xF;
-			unsigned m = (inst[0] >> 20) & 0xF;
+		 * See PH:@0C015B7A.
+		 */
+		gpu->ts_scratch._0C1_m = (inst[0] >> 20) & 0xFFFF;
+		gpu->ts_scratch._0C1_n = (inst[0] >> 16) & 0xFF;
 
-			VK_LOG ("GPU CMD %08X: Set Tex Param 0 [%08X] u=%u n=%u m=%u",
-			        gpu->pc, inst[0], u, n, m);
+		VK_LOG ("GPU CMD %08X: Texheard: Set 0 [%08X] m=%u n=%u",
+		        gpu->pc, inst[0],
+		        gpu->ts_scratch._0C1_m,
+		        gpu->ts_scratch._0C1_n);
 
-			gpu->ts_scratch._0C1_params.unk_n = n;
-			gpu->ts_scratch._0C1_params.unk_m = m;
-			gpu->pc += 4;
-		}
+		gpu->pc += 4;
 		break;
 	case 0x2C1:
-		/* 2C1	Set Tex Param 2
+		/* 2C1	Texhead: Set 2
 		 *
 		 *	8887 77ll ll66 6555 uu-- oooo oooo oooo
 		 *
@@ -1418,77 +1395,68 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * 5 = log16 of argument R5
 		 * u = Upper two bits of argument R4
 		 *
-		 * See PH:@0C015BCC */
-		{
-			unsigned unk4 = ((inst[0] >> 22) & 0xF) |
-			                ((inst[0] >> 14) & 3) << 4;
-			unsigned unk5 = exp16 ((inst[0] >> 16) & 7);
-			unsigned unk6 = exp16 ((inst[0] >> 19) & 7);
-			unsigned unk7 = (inst[0] >> 26) & 7;
-			unsigned unk8 = (inst[0] >> 29) & 7;
+		 * XXX this guy is a mess.
+		 *
+		 * See PH:@0C015BCC
+		 */
+		VK_LOG ("GPU CMD %08X: Texhead: Set 2 [%08X]",
+		        gpu->pc, inst[0]);
 
-			VK_LOG ("GPU CMD %08X: Set Tex Param 2 [%08X] %u %u %u %u %u",
-			        gpu->pc, inst[0], unk4, unk5, unk6, unk7, unk8);
-
-#if 0
-			gpu->ts_scratch._2C1_params.unk_a = a;
-			gpu->ts_scratch._2C1_params.unk_b = b;
-			gpu->ts_scratch._2C1_params.unk_u = u;
-#endif
-			gpu->pc += 4;
-		}
+		gpu->pc += 4;
 		break;
 	case 0x4C1:
-		/* 4C1	Set Tex Param 4
+		/* 4C1	Texhead: Set 4
 		 *
 		 *	nnnn nnnn mmmm mmmm pppp oooo oooo oooo		o = Opcode, n, m, p = Unknown
 		 *
-		 * See PH:@0C015BA0 */
-		{
-			unsigned n = (inst[0] >> 24) & 0xFF;
-			unsigned m = (inst[0] >> 16) & 0xFF;
-			unsigned p = (inst[0] >> 12) & 0xF;
+		 * See PH:@0C015BA0.
+		 */
+		gpu->ts_scratch._4C1_n = inst[0] >> 24;
+		gpu->ts_scratch._4C1_m = (inst[0] >> 16) & 0xFF;
+		gpu->ts_scratch._4C1_p = (inst[0] >> 12) & 0xF;
 
-			VK_LOG ("GPU CMD %08X: Set Tex Param 4 [%08X]",
-			        gpu->pc, inst[0]);
+		VK_LOG ("GPU CMD %08X: Texhead: Set 4 [%08X] n=%u m=%u p=%u",
+		        gpu->pc, inst[0],
+		        gpu->ts_scratch._4C1_n,
+		        gpu->ts_scratch._4C1_m,
+		        gpu->ts_scratch._4C1_p);
 
-			gpu->ts_scratch._4C1_params.unk_n = n;
-			gpu->ts_scratch._4C1_params.unk_m = m;
-			gpu->ts_scratch._4C1_params.unk_p = p;
-			gpu->pc += 4;
-		}
+		gpu->pc += 4;
 		break;
 	case 0x0C4:
-		/* 0C4	Commit Tex Params
+		/* 0C4	Commit Texhead
 		 *
-		 *	---- ---- ---- --nn ---m oooo oooo oooo		o = Opcode, m = Unknown, n = Number
+		 *	uuuu uuuu nnnn nnnn ---e oooo oooo oooo		o = Opcode, m = Unknown, n = Number
 		 */
 		{
-			unsigned num = (inst[0] >> 16) & 7;
-			unsigned unk = (inst[0] >> 12) & 1;
+			unsigned u = (inst[0] >> 24) & 0xFF;
+			unsigned n = (inst[0] >> 16) & TEXHEAD_MASK;
+			unsigned e = (inst[0] >> 12) & 1;
 
-			VK_LOG ("GPU CMD %08X: Commit Tex Params [%08X] num=%u unk=%u",
-			        gpu->pc, inst[0], num, unk);
+			gpu->ts[n] = gpu->ts_scratch;
 
-			gpu->ts[num] = gpu->ts_scratch;
+			VK_LOG ("GPU CMD %08X: Commit Texhead [%08X] u=%u n=%u e=%u",
+			        gpu->pc, inst[0], u, n, e);
+
 			gpu->pc += 4;
 		}
 		break;
 	case 0x0C3:
-		/* 0C3	Recall Tex Params
+		/* 0C3	Recall Texhead
 		 *
-		 *	uuuu uuuu ---- --nn ---m oooo oooo oooo		o = Opcode, m = Enable Texturing, n = Number, u = Unknown
+		 *	uuuu uuuu nnnn nnnn ---e oooo oooo oooo		o = Opcode, m = Enable Texturing, n = Number, u = Unknown
 		 */
 		{
-			unsigned unk = (inst[0] >> 24) & 0xFF;
-			unsigned num = (inst[0] >> 16) & 3;
-			unsigned ena = (inst[0] >> 12) & 1;
+			unsigned u = (inst[0] >> 24) & 0xFF;
+			unsigned n = (inst[0] >> 16) & TEXHEAD_MASK;
+			unsigned e = (inst[0] >> 12) & 1;
 
-			VK_LOG ("GPU CMD %08X: Recall Tex Params [%08X] unk=%u num=%u ena=%u",
-			        gpu->pc, inst[0], unk, num, ena);
+			/* XXX add offset-only mode */
+			gpu->current_ts = &gpu->ts[n];
 
-			gpu->current_ts = &gpu->ts[num];
-			gpu->ts_enabled = ena;
+			VK_LOG ("GPU CMD %08X: Recall Texhead [%08X] u=%u n=%u e=%u",
+			        gpu->pc, inst[0], u, n, e);
+
 			gpu->pc += 4;
 		}
 		break;
@@ -1535,13 +1503,24 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x051:
 		/* 051	Matrix: Set Unknown
 		 *
-		 *	---- ---- ---- ---- ---- oooo oooo oooo	o = Opcode
-		 *	--aa aaaa aaaa bbbb bbbb bbcc cccc cccc	a,b,c = Unknown */
+		 *	---- ---- nnnn nnnn ---- oooo oooo oooo	o = Opcode
+		 *	--aa aaaa aaaa bbbb bbbb bbcc cccc cccc	a,b,c = Unknown
+		 *
+		 * See PH:@0C0178C6.
+		 */
 		{
-			vec4b_t *unk = (vec4b_t *) &inst[1];
-			VK_LOG ("GPU CMD %08X: Matrix: Set Unknown [%08X %08X] <%u %u %u %u>",
+			vec3s_t param;
+			unsigned n;
+
+			n = (inst[0] >> 16) & 0xFF;
+			param.x[0] = inst[1] & 0x3FF;
+			param.x[1] = (inst[1] >> 10) & 0x3FF;
+			param.x[2] = (inst[1] >> 20) & 0x3FF;
+
+			VK_LOG ("GPU CMD %08X: Matrix: Set Unknown [%08X %08X] num=%u param=<%u %u %u>",
 			        gpu->pc, inst[0], inst[1],
-			        unk->x[0], unk->x[1], unk->x[2], unk->x[3]);
+			        n, param.x[2], param.x[1], param.x[0]);
+
 			gpu->pc += 8;
 		}
 		break;
@@ -1551,7 +1530,8 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	---- ---1 ---- ---- ---- oooo oooo oooo	o = Opcode, 1 = Unknown, always set
 		 *	???? ???? ???? ???? ???? ???? ???? ????
 		 *
-		 * XXX I'm not sure this command is _two_ words long. */
+		 * XXX I'm not sure this command is _two_ words long.
+		 */
 		VK_LOG ("GPU CMD %08X: Matrix: Set Unknown %03X [%08X %08X]",
 		        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1]);
 		gpu->pc += 8;
@@ -1587,9 +1567,11 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	---- ---- ---n nnnn ---- oooo oooo oooo	o = Opcode, n = Num
 		 */
 		{
-			unsigned n = (inst[0] >> 16) & 0x1F;
+			unsigned n = (inst[0] >> 16) & MATRIX_MASK;
+
 			VK_LOG ("GPU CMD %08X: Commit Matrix [%08X] %u",
 			        gpu->pc, inst[0], n);
+
 			gpu->pc += 4;
 		}
 		break;
@@ -1604,13 +1586,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * This command seems to take four (or six?) matrix numbers.
 		 */
 		{
-			uint16_t a, b, c, d;
-			a = inst[1] & 0xFFFF;
-			b = inst[1] >> 16;
-			c = inst[2] & 0xFFFF;
-			d = inst[2] >> 16;
-
-			VK_LOG ("GPU CMD %08X: Matrix: Set Unknown %03X [%08X %08X %08X %08X]",
+			VK_LOG ("GPU CMD %08X: Matrix: Commit Unknown %03X [%08X %08X %08X %08X]",
 			        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1], inst[2], inst[3]);
 
 			gpu->pc += 16;
@@ -1840,8 +1816,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 * Perhaps set frame buffer? See PH:@0C016308 */
 		{
-			uint32_t l1 = inst[1];
-			uint32_t l2 = inst[2];
 			VK_LOG ("GPU CMD %08X: Set Lo Addresses [%08X %08X %08X %08X]",
 			        gpu->pc, inst[0], inst[1], inst[2], inst[3]);
 			ASSERT (!inst[3]);
@@ -1858,8 +1832,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 * Perhaps set depth buffer? See PH:@0C016308 */
 		{
-			uint32_t u1 = inst[1];
-			uint32_t u2 = inst[2];
 			VK_LOG ("GPU CMD %08X: Set Hi Addresses [%08X %08X %08X %08X]",
 			        gpu->pc, inst[0], inst[1], inst[2], inst[3]);
 			ASSERT (!inst[3]);
@@ -1919,33 +1891,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	return 0;
 }
 
-/*
- * GPU Execution
- * =============
- *
- * Very few things are known. Here are my guesses:
- *
- * GPU execution is likely initiated by:
- *  15000058 = 3
- *  1A000024 = 1
- *
- * A new frame subroutine is uploaded when both IRQs 2 of GPU 15 and GPU 1A
- * are fired, meaning that they both consumed the data passed in and require
- * new data (subroutine) to continue processing.
- *
- * When execution ends:
- * CHECK ALL THIS AGAIN PLEASE
- *  1A00000C bit 0 is set
- *  1A000018 bit 1 is set as a consequence
- *  15000088 bit 7 is set as a consequence
- *  15000088 bit 1 is set; a GPU IRQ is raised (if not masked by 15000084)
- *  15002000 bit 0 is set on some HW revisions
- *  1A000024 bit 0 is cleared if some additional condition occurred
- *
- * 15002000 and 1A000024 signal different things; see the termination
- * condition in sync_for_frame ()
- */
-
 static void
 hikaru_gpu_begin_processing (hikaru_gpu_t *gpu)
 {
@@ -1974,40 +1919,113 @@ hikaru_gpu_end_processing (hikaru_gpu_t *gpu)
 	hikaru_gpu_raise_irq (gpu, _15_IRQ_DONE, _1A_IRQ_DONE);
 }
 
-static int
-hikaru_gpu_exec (vk_device_t *dev, int cycles)
+/*
+ * GPU Indirect DMA
+ * ================
+ *
+ * Register 1500000C points to a table in GPU CMDRAM, defaulting to
+ * 483FC000. Each entry has this format:
+ *	
+ *	3FC000: 48300000	Source address
+ *	3FC004: 00002000	Lenght (in bytes)
+ *	3FC008: 0812C080	Unknown (bitfield)
+ *	3FC00C: 00000000	Unknown	(byte)
+ *
+ * Data can be located (at least) at 48xxxxxx (CMDRAM) or at 41xxxxxx
+ * (slave RAM).
+ *
+ * During the bootrom life-cycle, the data address to texture-like data (the
+ * not-yet-converted ASCII texture.) However, the bootrom uploads this
+ * texture independently to TEXRAM by performing the format conversion
+ * manually (RGBA1 to RGBA4); it does however use the GPU IDMA mechanism
+ * too. I don't know why.
+ *
+ * The third and fourth parameters decide the type of operation to do. Their
+ * format is still unknown.
+ *
+ * Note: C080 and x812 are also used as parameters for the `Set X' GPU
+ * command. No idea if there is any relation. Possibly texture format?
+ *
+ * Note: GPU 15 IDMA fires GPU 15 IRQ 1 when done.
+ */
+
+static void
+hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 {
-	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
-
 	/* Step the GPU 15 indirect DMA thing */
-	hikaru_gpu_step_idma (gpu);
+	uint32_t entry[4], addr;
 
-	/* Step the GPU 1A texture FIFO thing */
-	/* TODO */
+	if (!(REG15 (0x14) & 1) || !REG15 (0x10))
+		return;
 
-	if (!gpu->is_running || REG15 (0x58) != 3)
-		return 0;
+	VK_ASSERT ((REG15 (0x0C) >> 24) == 0x48);
 
-	/* XXX hack, no idea how fast the GPU is or how much time each
-	 * command takes. */
-	gpu->cycles = cycles;
-	while (gpu->cycles > 0) {
-		if (hikaru_gpu_exec_one (gpu)) {
-			hikaru_gpu_end_processing (gpu);
-			gpu->cycles = 0;
-			break;
-		}
-		gpu->cycles--;
+	/* Read the IDMA table address in CMDRAM */
+	addr = (REG15 (0x0C) & 0xFFFFFF);
+
+	entry[0] = vk_buffer_get (gpu->cmdram, 4, addr+0x0);
+	entry[1] = vk_buffer_get (gpu->cmdram, 4, addr+0x4);
+	entry[2] = vk_buffer_get (gpu->cmdram, 4, addr+0x8);
+	entry[3] = vk_buffer_get (gpu->cmdram, 4, addr+0xC);
+
+	VK_LOG (" ## GPU 15 IDMA entry = [ %08X %08x %08X %08X <%u %u %X> ]",
+	        entry[0], entry[1], entry[2], entry[3],
+	        entry[2] & 0xFF, (entry[2] >> 8) & 0xFF, entry[2] >> 16);
+
+	/* If the entry supplies a positive lenght, process it */
+	if (entry[1]) {
+		/* XXX actually process it ... */
+		REG15 (0x0C) += 0x10;
+		REG15 (0x10) --;
 	}
 
-	return 0;
+	/* XXX note that the bootrom code assumes that the IDMA may stop even
+	 * if there are still unprocessed entries. This probably means that
+	 * the IDMA somehow stops processing when any other GPU IRQ fires */
+
+	VK_LOG (" ### GPU 15 IDMA status became = [ %08X %08X %08X ]",
+	        REG15 (0x0C), REG15 (0x10), REG15 (0x14));
+
+	/* If there are no more entries, stop */
+	if (REG15 (0x10) == 0) {
+		/* XXX I don't think it actually gets overwritten considering
+		 * that the IRL2 handler does it itself */
+		REG15 (0x14) = 0;
+		hikaru_gpu_raise_irq (gpu, _15_IRQ_IDMA, 0);
+	}
 }
 
-void
-hikaru_gpu_vblank_in (vk_device_t *dev)
-{
-	(void) dev;
-}
+/*
+ * FIFO at 1A040000
+ * ================
+ *
+ * Copies texture data from TEXRAM to the framebuffer(s)
+ *
+ * See AT:@0C697D48, PH:@0C0CD320.
+ *
+ * 1A040000  32-bit  W	Source
+ * 1A040004  32-bit  W  Destination
+ * 1A040008  32-bit  W	Texture size in pixels.
+ * 1A04000C  32-bit  W	Control
+ *
+ * Both source and destination are encoded as TEXRAM coordinates; both
+ * x and y are defined as 11-bit integers (range is 0 ... 2047); pixel
+ * size is 16-bit, fixed.
+ *
+ * 1A000024 bit 0 signals when the FIFO is processing: set means busy.
+ * The AIRTRIX 'WARNING' screen uses this thing to raster text on the
+ * framebuffer.
+ *
+ * Texture RAM
+ * ===========
+ *
+ * Located at 1B000000-1B7FFFFF in the master SH-4 address space, 8MB large;
+ * it is a single (double?) sheet of texel data. Supported texture formats
+ * include RGBA4444, RGB565, RGBA5551, RGBA8888.
+ *
+ * It looks like the sheet has an (1 << 11) = 8192 bytes pitch.  See
+ * PH:@0C01A242.
+ */
 
 static void
 parse_coords (vec2i_t *out, uint32_t coords)
@@ -2042,37 +2060,6 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 		}
 }
 
-void
-hikaru_gpu_vblank_out (vk_device_t *dev)
-{
-	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
-	hikaru_gpu_raise_irq (gpu, _15_IRQ_VBLANK, _1A_IRQ_VBLANK);
-
-	hikaru_gpu_render_bitmap_layers (gpu);
-}
-
-/*
- * FIFO at 1A040000
- * ================
- *
- * Copies texture data from TEXRAM to the framebuffer(s)
- *
- * See AT:@0C697D48, PH:@0C0CD320.
- *
- * 1A040000  32-bit  W	Source
- * 1A040004  32-bit  W  Destination
- * 1A040008  32-bit  W	Texture size in pixels.
- * 1A04000C  32-bit  W	Control
- *
- * Both source and destination are encoded as TEXRAM coordinates; both
- * x and y are defined as 11-bit integers (range is 0 ... 2047); pixel
- * size is 16-bit, fixed.
- *
- * 1A000024 bit 0 signals when the FIFO is processing: set means busy.
- * The AIRTRIX 'WARNING' screen uses this thing to raster text on the
- * framebuffer.
- */
-
 static void
 hikaru_gpu_begin_fifo_operation (hikaru_gpu_t *gpu)
 {
@@ -2104,6 +2091,56 @@ hikaru_gpu_begin_fifo_operation (hikaru_gpu_t *gpu)
 
 	REG1A (0x24) |= 1;
 }
+
+/* V-blanking events */
+
+void
+hikaru_gpu_vblank_in (vk_device_t *dev)
+{
+	(void) dev;
+}
+
+void
+hikaru_gpu_vblank_out (vk_device_t *dev)
+{
+	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
+	hikaru_gpu_raise_irq (gpu, _15_IRQ_VBLANK, _1A_IRQ_VBLANK);
+
+	hikaru_gpu_render_bitmap_layers (gpu);
+}
+
+/* Main loop */
+
+static int
+hikaru_gpu_exec (vk_device_t *dev, int cycles)
+{
+	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
+
+	/* Step the GPU 15 indirect DMA thing */
+	hikaru_gpu_step_idma (gpu);
+
+	/* Step the GPU 1A texture FIFO thing */
+	/* TODO */
+
+	if (!gpu->is_running || REG15 (0x58) != 3)
+		return 0;
+
+	/* XXX hack, no idea how fast the GPU is or how much time each
+	 * command takes. */
+	gpu->cycles = cycles;
+	while (gpu->cycles > 0) {
+		if (hikaru_gpu_exec_one (gpu)) {
+			hikaru_gpu_end_processing (gpu);
+			gpu->cycles = 0;
+			break;
+		}
+		gpu->cycles--;
+	}
+
+	return 0;
+}
+
+/* Accessors */
 
 static int
 hikaru_gpu_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
@@ -2145,7 +2182,7 @@ hikaru_gpu_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 		case 0x1C:
 		case 0x20: /* XXX ^= 1 */
 		case 0x24: /* XXX = 2 */
-		case 0x100: /* Tex UNITs busy/ready */
+		case 0x100:
 			break;
 		default:
 			return -1;
@@ -2231,7 +2268,7 @@ hikaru_gpu_put (vk_device_t *device, size_t size, uint32_t addr, uint64_t val)
 		case 0x80 ... 0xC0: /* Display Config? */
 		case 0xC4: /* Unknown control */
 		case 0xD0: /* Unknown control */
-		case 0x100: /* Tex UNITs busy/ready */
+		case 0x100:
 			break;
 		default:
 			return -1;
