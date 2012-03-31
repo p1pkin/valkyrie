@@ -813,7 +813,11 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	unsigned op = inst[0] & 0xFFF;
 	switch (op) {
 
-	/* Flow Control */
+	/* Flow Control
+	 * ============
+	 *
+	 * Jump, Call, Return, Kill, Sync.
+	 */
 
 	case 0x000:
 		/* 000	Nop
@@ -904,9 +908,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		gpu->is_running = false;
 		gpu->pc += 4;
 		return 1;
-
-	/* Frame Control */
-
 	case 0x781:
 		/* 781	Sync (or Dispatch to child GPU)
 		 *
@@ -928,7 +929,11 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 
-	/* Clear Primitives */
+	/* Clear Primitives
+	 * ================
+	 *
+	 * No idea.
+	 */
 
 	case 0x154:
 		/* 154	Clear Unknown A
@@ -1154,7 +1159,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 *	---- ---- ---- nnnn ---- oooo oooo oooo
 		 *
-		 * n = Num; can't be zero
+		 * n = Num
 		 *
 		 * See PH:@0C015AD0.
 		 */
@@ -1166,7 +1171,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			VK_LOG ("GPU CMD %08X: Commit Viewport [%08X] %u",
 			        gpu->pc, inst[0], n);
 
-			VK_ASSERT (n != 0);
 			gpu->pc += 4;
 		}
 		break;
@@ -1188,7 +1192,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			VK_LOG ("GPU CMD %08X: Recall Viewport [%08X] <%u %u %u>",
 			        gpu->pc, inst[0], n);
 
-			VK_ASSERT (n != 0);
 			gpu->pc += 4;
 		}
 		break;
@@ -1748,7 +1751,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx		x = X coord
 		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy		y = Y coord
 		 *	zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz		z = Z coord
-		 *	*/
+		 */
 		{
 			vec3f_t *v = (vec3f_t *) &inst[1];
 
