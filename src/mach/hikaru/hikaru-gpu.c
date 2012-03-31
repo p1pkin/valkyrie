@@ -113,12 +113,12 @@ typedef struct {
 	float unk_n;
 	float unk_b;
 	/* 621 */
-	uint32_t _621_enabled;
-	uint32_t _621_n;
-	uint32_t _621_d;
-	vec4b_t	color;
-	float inv_delta;
-	float inv_max;
+	uint32_t depth_type;
+	uint32_t depth_enabled;
+	uint32_t depth_unk;
+	vec4b_t	depth_mask;
+	float depth_density;
+	float depth_bias;
 	/* 881 */
 	vec3s_t ambient_color;
 	/* 991 */
@@ -942,14 +942,12 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * See PH:@0C017798, PH:@0C0CF868.
 		 */
 		{
-			unsigned n, a, b, c, d;
+			unsigned n, a, b;
 			n = (inst[0] >> 16) & 0xFF;
 			a = inst[1] & 0xFF;
 			b = (inst[1] >> 8) & 0xFF;
-			c = (inst[1] >> 16) & 0xFF;
-			d = (inst[1] >> 24) & 0xFF;
-			VK_LOG ("GPU CMD %08X: Clear Unknown A [%08X %08X] %u <%X %X %X %X>",
-			        gpu->pc, inst[0], inst[1], n, a, b, c, d);
+			VK_LOG ("GPU CMD %08X: Clear Unknown A [%08X %08X] %u <%X %X>",
+			        gpu->pc, inst[0], inst[1], n, a, b);
 			gpu->pc += 8;
 		}
 		break;
@@ -1028,7 +1026,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		gpu->pc += 16;
 		break;
 	case 0x421:
-		/* 421	Viewport: Set Depth
+		/* 421	Viewport: Set Unknown
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx		x = Unknown
@@ -1041,7 +1039,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		gpu->vp_scratch.unk_n = *(float *) &inst[1];
 		gpu->vp_scratch.unk_b = *(float *) &inst[2];
 
-		VK_LOG ("GPU CMD %08X: Viewport: Set Depth [%08X %08X %08X %08X] func=%u n=%f b=%f",
+		VK_LOG ("GPU CMD %08X: Viewport: Set Unknown [%08X %08X %08X %08X] func=%u n=%f b=%f",
 		        gpu->pc, inst[0], inst[1], inst[2], inst[3],
 		        gpu->vp_scratch.unk_func,
 		        gpu->vp_scratch.unk_n,
@@ -1052,36 +1050,49 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		gpu->pc += 16;
 		break;
 	case 0x621:
-		/* 621	Set Unknown
+		/* 621	Viewport: Set Depth
 		 *
-		 *	---- ---- ---- nnDb ---- oooo oooo oooo		n = Unknown, D = disable?, u = Unknown, o = Opcode
-		 *      AAAA AAAA BBBB BBBB GGGG GGGG RRRR RRRR		RGBA = color
-		 *	ffff ffff ffff ffff ffff ffff ffff ffff		f = 1.0f OR 1.0f / (max - min) OR 1.0f / sqrt ((max - min)**2)
-		 *	gggg gggg gggg gggg gggg gggg gggg gggg		g = kappa / max
+		 *	---- ---- ---- ttDu ---- oooo oooo oooo
+		 *      AAAA AAAA BBBB BBBB GGGG GGGG RRRR RRRR
+		 *	dddd dddd dddd dddd dddd dddd dddd dddd 
+		 *	gggg gggg gggg gggg gggg gggg gggg gggg
+		 *
+		 * t = Depth type (function)
+		 * D = Disable depth test?
+		 * u = Unknown
+		 * RGBA = Depth mask?
+		 * f = Depth density [1]
+		 * g = Depth bias [2]
+		 *
+		 * [1] Computed as 1.0f (constant), 1.0f / zdelta, or
+		 *     1.0f / sqrt (zdelta**2); where zdelta = zend - zstart.
+		 *
+		 * [2] Computed as kappa / zstart. The value kappa is
+		 *     stored in (13, GBR) aka 0C00F034.
 		 *
 		 * See PH:@0C0159C4, PH:@0C015A02, PH:@0C015A3E.
 		 */
-		gpu->vp_scratch._621_d		= (inst[0] >> 16) & 1;
-		gpu->vp_scratch._621_enabled	= (inst[0] >> 17) & 1 ? 0 : 1;
-		gpu->vp_scratch._621_n		= (inst[0] >> 18) & 3;
-		gpu->vp_scratch.color.x[0]	= inst[1] & 0xFF;
-		gpu->vp_scratch.color.x[1]	= (inst[1] >> 8) & 0xFF;
-		gpu->vp_scratch.color.x[2]	= (inst[1] >> 16) & 0xFF;
-		gpu->vp_scratch.color.x[3]	= inst[1] >> 24;
-		gpu->vp_scratch.inv_delta	= *(float *) &inst[2];
-		gpu->vp_scratch.inv_max		= *(float *) &inst[3];
+		gpu->vp_scratch.depth_type	= (inst[0] >> 18) & 3;
+		gpu->vp_scratch.depth_enabled	= ((inst[0] >> 17) & 1) ? 0 : 1;
+		gpu->vp_scratch.depth_unk	= (inst[0] >> 16) & 1;
+		gpu->vp_scratch.depth_mask.x[0]	= inst[1] & 0xFF;
+		gpu->vp_scratch.depth_mask.x[1]	= (inst[1] >> 8) & 0xFF;
+		gpu->vp_scratch.depth_mask.x[2]	= (inst[1] >> 16) & 0xFF;
+		gpu->vp_scratch.depth_mask.x[3]	= inst[1] >> 24;
+		gpu->vp_scratch.depth_density	= *(float *) &inst[2];
+		gpu->vp_scratch.depth_bias	= *(float *) &inst[3];
 
-		VK_LOG ("GPU CMD %08X: Viewport: Set Unknown [%08X %08X %08X %08X] d=%u enabled=%u n=%u color=<%X %X %X %X> inv_delta=%f inv_max=%f",
+		VK_LOG ("GPU CMD %08X: Viewport: Set Unknown [%08X %08X %08X %08X] type=%u enabled=%u unk=%u mask=<%X %X %X %X> density=%f bias=%f",
 		        gpu->pc, inst[0], inst[1], inst[2], inst[3],
-		        gpu->vp_scratch._621_d,
-		        gpu->vp_scratch._621_enabled,
-		        gpu->vp_scratch._621_n,
-			gpu->vp_scratch.color.x[0],
-			gpu->vp_scratch.color.x[1],
-			gpu->vp_scratch.color.x[2],
-			gpu->vp_scratch.color.x[3],
-			gpu->vp_scratch.inv_delta,
-			gpu->vp_scratch.inv_max);
+			gpu->vp_scratch.depth_type,
+			gpu->vp_scratch.depth_enabled,
+			gpu->vp_scratch.depth_unk,
+			gpu->vp_scratch.depth_mask.x[0],
+			gpu->vp_scratch.depth_mask.x[1],
+			gpu->vp_scratch.depth_mask.x[2],
+			gpu->vp_scratch.depth_mask.x[3],
+			gpu->vp_scratch.depth_density,
+			gpu->vp_scratch.depth_bias);
 
 		gpu->pc += 16;
 		break;
