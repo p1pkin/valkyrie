@@ -211,11 +211,6 @@ vk_renderer_init (vk_renderer_t *renderer)
 {
 	const SDL_VideoInfo *info;
 
-	if (glewInit () != GLEW_OK) {
-		VK_ERROR ("could not initialize glew");
-		return -1;
-	}
-
 	if (SDL_Init (SDL_INIT_VIDEO)) {
 		VK_ERROR ("could not initialize SDL: '%s'", SDL_GetError ());
 		return -1;
@@ -243,6 +238,11 @@ vk_renderer_init (vk_renderer_t *renderer)
 	}
 
 	SDL_WM_SetCaption ("Valkyrie", "Valkyrie");
+
+	if (glewInit () != GLEW_OK) {
+		VK_ERROR ("could not initialize glew");
+		return -1;
+	}
 
 	if (!vk_renderer_are_extensions_supported (default_extensions)) {
 		VK_ERROR ("required extensions missing");
