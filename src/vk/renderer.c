@@ -196,13 +196,15 @@ void
 vk_renderer_begin_frame (vk_renderer_t *renderer)
 {
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	renderer->begin_frame (renderer);
+	if (renderer->begin_frame)
+		renderer->begin_frame (renderer);
 }
 
 void
 vk_renderer_end_frame (vk_renderer_t *renderer)
 {
-	renderer->end_frame (renderer);
+	if (renderer->end_frame)
+		renderer->end_frame (renderer);
 	SDL_GL_SwapBuffers ();
 }
 
@@ -295,8 +297,8 @@ vk_renderer_new (unsigned width, unsigned height)
 	renderer->height = height;
 
 	renderer->begin_frame = vk_renderer_begin_frame;
-	renderer->end_frame = vk_renderer_end_frame;
-	renderer->delete = vk_renderer_delete;
+	renderer->end_frame = NULL;
+	renderer->delete = NULL;
 
 	vk_renderer_init (renderer);
 
