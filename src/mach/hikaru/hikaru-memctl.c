@@ -43,6 +43,7 @@
  * Aside from memory device mapping, they also provide a DMA facility to
  * transfer data directly from different devices on the external BUS.
  *
+ *
  * Mapping
  * =======
  *
@@ -57,7 +58,7 @@
  * get_bank_for_addr () for the details. Each byte in the MMIOs (+10, +14,
  * and +18 are confirmed) controls a 16 MB aperture. See @0C006688.
  *
-
+ *
  * MMIO Ports
  * ==========
  *
@@ -66,12 +67,12 @@
  *  +0x04	---u---- -------- ---sEEEE EEFFFFFF	DMA Status
  *  +0x08	-------- -------- -------- --------
  *  +0x0C	-------- -------- -------- --------
- *  +0x10	dddddddd cccccccc bbbbbbbb aaaaaaaa	Aperture 0 Address
- *  +0x14	hhhhhhhh gggggggg ffffffff eeeeeeee	Aperture 1 Address
- *  +0x18	llllllll kkkkkkkk jjjjjjjj iiiiiiii	Aperture 2 Address
- *  +0x1C	pppppppp oooooooo nnnnnnnn mmmmmmmm	Aperture 0 Control
- *  +0x20	tttttttt ssssssss rrrrrrrr qqqqqqqq	Aperture 1 Control
- *  +0x24	xxxxxxxx wwwwwwww vvvvvvvv uuuuuuuu	Aperture 2 Control
+ *  +0x10	dddddddd cccccccc bbbbbbbb aaaaaaaa	Aperture Addresses 0
+ *  +0x14	hhhhhhhh gggggggg ffffffff eeeeeeee	Aperture Addresses 1
+ *  +0x18	llllllll kkkkkkkk jjjjjjjj iiiiiiii	Aperture Addresses 2
+ *  +0x1C	pppppppp oooooooo nnnnnnnn mmmmmmmm	Aperture Control 0?
+ *  +0x20	tttttttt ssssssss rrrrrrrr qqqqqqqq	Aperture Control 1?
+ *  +0x24	xxxxxxxx wwwwwwww vvvvvvvv uuuuuuuu	Aperture Control 2?
  *  +0x28	-------- -------- -------- --------
  *  +0x2C	-------- -------- -------- --------
  *  +0x30	DDDDDDDD DDDDDDDD DDDDDDDD DDD-----	DMA Destination Address
@@ -108,14 +109,10 @@
  *		h = Unknown		F3 [m]			@0C0016A4
  *					C3 [m]			@0C00BDFC
  *					CC [s]			@0C00BE70
- * +0x18	i = Controls 00xxxxxx ? AICA IRL in the old docs
+ * +0x18	i = Controls 00xxxxxx ?
  *		j = Controls 01xxxxxx ?
- *		k = Controls 02xxxxxx	01			@0C0016A4
- *					0A = SNDBD		@0C001F3C
- *		l = Controls 03xxxxxx	10 = EPROM		@0C007964
- *					...
- *					1B = EPROM
- *
+ *		k = Controls 02xxxxxx				@0C0016A4
+ *		l = Controls 03xxxxxx				@0C007964,@0C001F3C
  * +0x1C	m = Controls 18xxxxxx[m]			@0C001CC4
  *		    Controls 14xxxxxx[s]	00,01
  *		n = Unknown
@@ -134,7 +131,7 @@
  *		x = Unknown			CC [m]		@0C00BDFC, @0C007820 => NIBBLES
  * +0x3x	D = DMA destination address
  * +0x34	S = DMA source address
- * +0x38	C = DMA begin/busy
+ * +0x38	C = DMA control (begin/busy)
  *		L = DMA transfer length in 32-bit words
  *		    See @0C008640
  * +0x3C	X = 0C to access the SNDBD1:027028BC
@@ -199,20 +196,20 @@
  *
  * This is what this data looks like:
  *
- *	AIRTRIX (Type 1)		ICs	Size	
- *	================		===	====	
+ *	AIRTRIX (Type 1)		ICs	Size
+ *	================		===	====
  *	
- *	0003 fee8 c889 97c2 620c	29,30	2 x 4MB	= 8, OK
+ *	0003 fee8 c889 97c2 620c	29,30	2 x 4MB
  *	ffff 0000 0000 0000 0000	 		
  *	ffff 0000 0000 0000 0000	 		
  *	ffff 0000 0000 0000 0000	 		
- *	0005 b9a5 9e67 a52a bce0	37,38	2 x 16MB = 32, OK
+ *	0005 b9a5 9e67 a52a bce0	37,38	2 x 16MB
  *	ffff 0000 0000 0000 0000	 
- *	0005 dabb b621 4bd4 5e6b	41,42	2 x 16MB = 32, OK
+ *	0005 dabb b621 4bd4 5e6b	41,42	2 x 16MB
  *	ffff 0000 0000 0000 0000	 
- *	0005 0d06 ad63 790f a27e	45,46	2 x 16MB = 32, OK
+ *	0005 0d06 ad63 790f a27e	45,46	2 x 16MB
  *	ffff 0000 0000 0000 0000	 
- *	0005 bdbb 4f01 14a7 6a4e	49,50	2 x 16MB = 32, OK
+ *	0005 bdbb 4f01 14a7 6a4e	49,50	2 x 16MB
  *	ffff 0000 0000 0000 0000 
  *	ffff 0000 0000 0000 0000 
  *	ffff 0000 0000 0000 0000 
@@ -223,14 +220,14 @@
  *	ffff 0000 0000 0000 0000 
  *	ffff 0000 0000 0000 0000 
  *	
- *	BRAVEFF (Type ?)		ICs	Size	
- *	================		===	====	
+ *	BRAVEFF (Type ?)		ICs	Size
+ *	================		===	====
  *	
- *	0002 0000 0000 0000 0000 	29,30	2 x 2MB = 4, OK
- *	0002 be43 7023 7077 f161	31,32	2 x 2MB = 4, OK
- *	0002 c60d d4f0 b533 8f66	33,34	2 x 2MB = 4, OK
+ *	0002 0000 0000 0000 0000 	29,30	2 x 2MB
+ *	0002 be43 7023 7077 f161	31,32	2 x 2MB
+ *	0002 c60d d4f0 b533 8f66	33,34	2 x 2MB
  *	ffff 0000 0000 0000 0000 
- *	0004 8613 2876 3700 2f6d 		2 x 4MB = 8, OK
+ *	0004 8613 2876 3700 2f6d 		2 x 4MB
  *	0004 f545 a454 b97e bb4c 
  *	0004 d6ff 6fe3 df40 f343 
  *	0004 e3b6 2f23 b2b6 61c7 
@@ -247,8 +244,8 @@
  *	ffff 0000 0000 0000 0000 
  *	ffff 0000 0000 0000 0000 
  *	
- *	PHARRIER			ICs	Size	
- *	========			===	====	
+ *	PHARRIER			ICs	Size
+ *	========			===	====
  *	
  *	0003 0000 0000 0000 0000	29,30	2 x 4MB 
  *	0003 388c 13b5 d289 5910	31,32	2 x 4MB
@@ -271,45 +268,45 @@
  *	0005 34bc 677b 5524 349e	65,66	2 x 16MB
  *	ffff 0000 0000 0000 0000	
  *	
- *	PODRACE (Type 2)		ICs	Size	
+ *	PODRACE (Type 2)		ICs	Size
  *	================		===	====	
  *	
  *	0003 0000 0000 0000 0000	29,30	2 x 4MB
  *	0003 5f01 4174 3594 38b3	31,32	2 x 4MB
  *	ffff 0000 0000 0000 0000	
  *	ffff 0000 0000 0000 0000	
- *	0004 7993 8e18 4d44 d239	37,38	2 x 16MB
- *	0004 4135 beab f0c8 04e2	39,40	2 x 16MB
- *	0004 9532 4c1c 925d 02fb	41,42	2 x 16MB
- *	0004 0809 7050 72bc 9311	43,44	2 x 16MB
- *	0004 de84 9d8a 7a5c e7fc	45,46	2 x 16MB
- *	0004 6806 1392 edf1 7bd1	47,48	2 x 16MB
- *	0004 b82d e114 5792 e5e5	49,50	2 x 16MB
- *	0004 3af3 a97c a8cc 721d	51,52	2 x 16MB
- *	0004 ced7 d3cf 6b67 fc76	53,54	2 x 16MB
- *	0004 586c 6954 13a0 db38	55,56	2 x 16MB
- *	0004 4f03 42bf 8ea6 adb6	57,58	2 x 16MB
- *	0004 8645 fc30 3847 ca6b	59,60	2 x 16MB
- *	0004 4140 01c4 ebe6 8085	61,62	2 x 16MB
- *	0004 b68b 7467 4715 4787	63,64	2 x 16MB
- *	0004 3cd6 144a e5d3 ba35	65,66	2 x 16MB
- *	0004 e668 08ed 1fe8 c4a1	67,68	2 x 16MB
+ *	0004 7993 8e18 4d44 d239	37,38	2 x 8MB
+ *	0004 4135 beab f0c8 04e2	39,40	2 x 8MB
+ *	0004 9532 4c1c 925d 02fb	41,42	2 x 8MB
+ *	0004 0809 7050 72bc 9311	43,44	2 x 8MB
+ *	0004 de84 9d8a 7a5c e7fc	45,46	2 x 8MB
+ *	0004 6806 1392 edf1 7bd1	47,48	2 x 8MB
+ *	0004 b82d e114 5792 e5e5	49,50	2 x 8MB
+ *	0004 3af3 a97c a8cc 721d	51,52	2 x 8MB
+ *	0004 ced7 d3cf 6b67 fc76	53,54	2 x 8MB
+ *	0004 586c 6954 13a0 db38	55,56	2 x 8MB
+ *	0004 4f03 42bf 8ea6 adb6	57,58	2 x 8MB
+ *	0004 8645 fc30 3847 ca6b	59,60	2 x 8MB
+ *	0004 4140 01c4 ebe6 8085	61,62	2 x 8MB
+ *	0004 b68b 7467 4715 4787	63,64	2 x 8MB
+ *	0004 3cd6 144a e5d3 ba35	65,66	2 x 8MB
+ *	0004 e668 08ed 1fe8 c4a1	67,68	2 x 8MB
  *	
- *	SGNASCAR (Type 2)		ICs	Size	
- *	=================		===	====	
+ *	SGNASCAR (Type 2)		ICs	Size		Bus Bank
+ *	=================		===	====		========
  *	
- *	0003 0000 0000 0000 0000	35,36	2 x 4MB
+ *	0003 0000 0000 0000 0000	35,36	2 x 4MB		10,11
  *	ffff 0000 0000 0000 0000 
  *	ffff 0000 0000 0000 0000 
  *	ffff 0000 0000 0000 0000 
- *	0005 0352 d263 49fd 4ad3	19,20	2 x 16MB 
- *	0005 e717 d635 3637 0e8e	21,22
- *	0005 4001 8dab c65d bde3	23,24
- *	0005 615c 293d 7507 1d85	25,26
- *	0005 90a2 eccc 2b1e 2f9b	27,28
- *	0005 c98b 3ffb 51e3 701b	29,30
- *	0005 523f 2979 953c 2e5c	31,32
- *	0005 28cf 283f f17b 74fb	33,34	2 x 16MB 
+ *	0005 0352 d263 49fd 4ad3	19,20	2 x 16MB 	20,21
+ *	0005 e717 d635 3637 0e8e	21,22			22,23
+ *	0005 4001 8dab c65d bde3	23,24			24,25
+ *	0005 615c 293d 7507 1d85	25,26			26,27
+ *	0005 90a2 eccc 2b1e 2f9b	27,28			28,29
+ *	0005 c98b 3ffb 51e3 701b	29,30			2A,2B
+ *	0005 523f 2979 953c 2e5c	31,32			2C,2D
+ *	0005 28cf 283f f17b 74fb	33,34			2E,2F
  *	ffff 0000 0000 0000 0000 
  *	ffff 0000 0000 0000 0000 
  *	ffff 0000 0000 0000 0000 
