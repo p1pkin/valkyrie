@@ -1151,42 +1151,44 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		break;
 	case 0x004:
 		/* 004	Commit Viewport
-		 * 104	Unknown
-		 * 404	Unknown
-		 * 504	Unknown
 		 *
-		 *	---- ---- ---- nnnn ---- oooo oooo oooo		o = Opcode. n = Unknown; n can't be zero
+		 *	---- ---- ---- nnnn ---- oooo oooo oooo
 		 *
-		 * See PH:@0C015AD0 */
+		 * n = Num; can't be zero
+		 *
+		 * See PH:@0C015AD0.
+		 */
 		{
 			unsigned n = (inst[0] >> 16) & VIEWPORT_MASK;
+
+			gpu->vp[n] = gpu->vp_scratch;
 
 			VK_LOG ("GPU CMD %08X: Commit Viewport [%08X] %u",
 			        gpu->pc, inst[0], n);
 
-			gpu->vp[n] = gpu->vp_scratch;
+			VK_ASSERT (n != 0);
 			gpu->pc += 4;
 		}
 		break;
 	case 0x003:
 		/* 003	Recall Viewport
-		 * 903	Unknown
-		 * D03	Unknown
 		 *
-		 *	---- ---- ---- mmnn -pq- oooo oooo oooo		o = Opcode. n = Unknown, p,q = Modifiers; if p 4 then n is ignored?
+		 *	---- ---- ---- nnnn ---- oooo oooo oooo
 		 *
-		 * See PH:@0C015AF6, PH:@0C015B12, PH:@0C015B32 */
+		 * n = Num
+		 *
+		 * See PH:@0C015AF6, PH:@0C015B12, PH:@0C015B32.
+		 */
 		{
 			unsigned n = (inst[0] >> 16) & VIEWPORT_MASK;
-			unsigned p = (inst[0] >> 14) & 1;
-			unsigned q = (inst[0] >> 13) & 1;
 
 			/* XXX add offset-only mode */
 			gpu->current_vp = &gpu->vp[n];
 
 			VK_LOG ("GPU CMD %08X: Recall Viewport [%08X] <%u %u %u>",
-			        gpu->pc, inst[0], n, p, q);
+			        gpu->pc, inst[0], n);
 
+			VK_ASSERT (n != 0);
 			gpu->pc += 4;
 		}
 		break;
@@ -1486,43 +1488,25 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 
-	/* Matrix Operations
-	 * =================
+	/* Lighting Operations
+	 * ===================
 	 *
-	 * Details on these are fuzzy and incongruent at best. I'd expect
-	 * a matrix stack somewhere, but it may as well be managed in
-	 * software.
+	 * Just random notes, really.
 	 */
-
-	case 0x161:
-		/* 161	Set Matrix Vector
-		 *
-		 *	---- ---- ---- nnnn ---- oooo oooo oooo		o = Opcode, n = num
-		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx		x = Component X, float
-		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy		y = Component Y, float
-		 *	zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz		z = Component Z, float
-		 *
-		 * Note: bit 4 of n becomes bit 3 in PH:@0C015CF2. This is
-		 * odd. It may highlight a 'set-offset' effect for matrix
-		 * commands too.
-		 *
-		 * See @0C008080.
-		 */
-
-		/* The following may be light-related */
 	case 0x261:
 	case 0x961:
 	case 0xB61:
-		/* 261	Set Matrix Vector */
-		/* 961	Set Matrix Vector */
-		/* B61	Set Matrix Vector */
+		/* 261	Set Light Vector
+		 * 961	Set Light Vector
+		 * B61	Set Light Vector
+		 */
 		{
 			unsigned n = (inst[0] >> 12) & 7;
 			unsigned m = (inst[0] >> 16) & 3;
 			unsigned i = (inst[0] >> 18) & 3;
 			vec3f_t *v = (vec3f_t *) &inst[1];
 
-			VK_LOG ("GPU CMD %08X: Matrix: Vector [%08X %08X %08X %08X] %u %u %u <%f %f %f>",
+			VK_LOG ("GPU CMD %08X: Light: Vector [%08X %08X %08X %08X] %u %u %u <%f %f %f>",
 			        gpu->pc,
 			        inst[0], inst[1], inst[2], inst[3],
 			        n, m, i,
@@ -1532,7 +1516,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 	case 0x051:
-		/* 051	Matrix: Set Unknown
+		/* 051	Light: Set Unknown
 		 *
 		 *	---- ---- nnnn nnnn ---- oooo oooo oooo	o = Opcode
 		 *	--aa aaaa aaaa bbbb bbbb bbcc cccc cccc	a,b,c = Unknown
@@ -1548,7 +1532,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			param.x[1] = (inst[1] >> 10) & 0x3FF;
 			param.x[2] = (inst[1] >> 20) & 0x3FF;
 
-			VK_LOG ("GPU CMD %08X: Matrix: Set Unknown [%08X %08X] num=%u param=<%u %u %u>",
+			VK_LOG ("GPU CMD %08X: Light: Set Unknown [%08X %08X] num=%u param=<%u %u %u>",
 			        gpu->pc, inst[0], inst[1],
 			        n, param.x[2], param.x[1], param.x[0]);
 
@@ -1556,31 +1540,31 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 	case 0x451:
-		/* 451	Matrix: Set Unknown
+		/* 451	Light: Set Unknown
 		 *
 		 *	---- ---1 ---- ---- ---- oooo oooo oooo	o = Opcode, 1 = Unknown, always set
 		 *	???? ???? ???? ???? ???? ???? ???? ????
 		 *
 		 * XXX I'm not sure this command is _two_ words long.
 		 */
-		VK_LOG ("GPU CMD %08X: Matrix: Set Unknown %03X [%08X %08X]",
+		VK_LOG ("GPU CMD %08X: Light: Set Unknown %03X [%08X %08X]",
 		        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1]);
 		gpu->pc += 8;
 		break;
 	case 0x561:
-		/* 561	Matrix: Set Unknown
+		/* 561	Light: Set Unknown
 		 *
 		 *	---- ---- ---- --nn ---- oooo oooo oooo	o = Opcode
 		 *	---- ---- ---- ---- ---- ---- ---- ----
 		 *	---- ---- ---- ---- ---- ---- ---- ----
 		 *	---- ---- ---- ---- ---- ---- ---- ----
 		 */
-		VK_LOG ("GPU CMD %08X: Matrix: Set Unknown %03X [%08X %08X %08X %08X]",
+		VK_LOG ("GPU CMD %08X: Light: Set Unknown %03X [%08X %08X %08X %08X]",
 		        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1], inst[2], inst[3]);
 		gpu->pc += 16;
 		break;
 	case 0x043:
-		/* 043	Recall Unknown
+		/* 043	Recall Lightset
 		 *
 		 *	uuuu uuuu ---- mmmm nnnn oooo oooo oooo
 		 */
@@ -1593,53 +1577,98 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 	case 0x104:
-		/* 104	Commit Matrix
+		/* 104	Commit Lightset
 		 *
 		 *	---- ---- ---n nnnn ---- oooo oooo oooo	o = Opcode, n = Num
 		 */
 		{
 			unsigned n = (inst[0] >> 16) & MATRIX_MASK;
 
-			VK_LOG ("GPU CMD %08X: Commit Matrix [%08X] %u",
+			VK_LOG ("GPU CMD %08X: Commit Light [%08X] %u",
 			        gpu->pc, inst[0], n);
 
 			gpu->pc += 4;
 		}
 		break;
 	case 0x064:
-		/* 064  Matrix: Commit Unknown
+		/* 064  Light: Commit Unknown
 		 *
-		 *      ---- ---- ---- nnnn ---e oooo oooo oooo	o = Opcode, n = Num, e = Unknown
-		 *      bbbb bbbb bbbb bbbb aaaa aaaa aaaa aaaa	a,b = Unknown
-		 *      dddd dddd dddd dddd cccc cccc cccc cccc	c,d = Unknown
-		 *      ---- ---- ---- ---- ---- ---- ---- ----
+		 *      ---- ---- ---- nnnn ---e oooo oooo oooo
+		 *      bbbb bbbb bbbb bbbb aaaa aaaa aaaa aaaa
+		 *      dddd dddd dddd dddd cccc cccc cccc cccc
+		 *      ffff ffff ffff ffff ffff ffff ffff ffff
 		 *
-		 * This command seems to take four (or six?) matrix numbers.
+		 * n = Unknown
+		 * e = Unknown
+		 * a,b,c,d = indices of four light vectors
+		 * f = floating point number
 		 */
 		{
-			VK_LOG ("GPU CMD %08X: Matrix: Commit Unknown %03X [%08X %08X %08X %08X]",
+			VK_LOG ("GPU CMD %08X: Light: Commit Unknown %03X [%08X %08X %08X %08X]",
 			        gpu->pc, inst[0] & 0xFFF, inst[0], inst[1], inst[2], inst[3]);
 
 			gpu->pc += 16;
 		}
 		break;
 	case 0x006:
-		/* 006	Matrix: Unknown
+		/* 006	Light: Unknown
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo	o = Opcode
 		 */
-		VK_LOG ("GPU CMD %08X: Matrix: Unknown %03X [%08X]",
+		VK_LOG ("GPU CMD %08X: Light: Unknown %03X [%08X]",
 		        gpu->pc, inst[0] & 0xFFF, inst[0]);
 		gpu->pc += 4;
 		break;
 	case 0x046:
-		/* 046	Matrix: Unknown
+		/* 046	Light: Unknown
 		 *
 		 *	---- ---- ---- ---n ---- oooo oooo oooo	o = Opcode, n = Unknown
 		 */
-		VK_LOG ("GPU CMD %08X: Matrix: Unknown %03X [%08X]",
+		VK_LOG ("GPU CMD %08X: Light: Unknown %03X [%08X]",
 		        gpu->pc, inst[0] & 0xFFF, inst[0]);
 		gpu->pc += 4;
+		break;
+
+
+	/* Matrix Operations
+	 * =================
+	 *
+	 * Details on these are fuzzy and incongruent at best. I'd expect
+	 * a matrix stack somewhere, but it may as well be managed in
+	 * software.
+	 */
+
+	case 0x161:
+		/* 161	Set Matrix Vector
+		 *
+		 *	---- ---- ---- nnnn ---- oooo oooo oooo
+		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
+		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy
+		 *	zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz
+		 *
+		 * n = Num
+		 * x,y,z = Vector elements
+		 *
+		 * Note: bit 4 of n becomes bit 3 in PH:@0C015CF2. This is
+		 * odd. It may highlight a 'set-offset' effect for matrix
+		 * commands too.
+		 *
+		 * See @0C008080.
+		 */
+		{
+			unsigned n = (inst[0] >> 12) & 7;
+			unsigned m = (inst[0] >> 16) & 3;
+			unsigned i = (inst[0] >> 18) & 3;
+			vec3f_t *v = (vec3f_t *) &inst[1];
+
+			VK_LOG ("GPU CMD %08X: Matrix: Vector [%08X %08X %08X %08X] %u %u %u <%f %f %f>",
+			        gpu->pc,
+			        inst[0], inst[1], inst[2], inst[3],
+			        n, m, i,
+			        v->x[0], v->x[1], v->x[2]);
+
+			gpu->pc += 16;
+		}
 		break;
 
 	/* Vertex Operations
@@ -1779,14 +1808,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 #endif
-	case 0xE88:
-		/* E88	Unknown [Flush Vertices?] */
-		{
-			VK_LOG ("GPU CMD %08X: Unknown %03X [%08X]",
-			        gpu->pc, inst[0] & 0xFFF, inst[0]);
-			gpu->pc += 4;
-		}
-		break;
 
 	/* Unknown */
 
@@ -1819,18 +1840,36 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 	case 0x303:
-	case 0x313:
 	case 0x903:
 	case 0xD03:
-	case 0xD13:
-		/* x03	Unknown
+		/* x03	Light/Fog Related
 		 *
-		 *	uuuu uuuu ---- ---- ---- oooo oooo oooo		o = Opcode, u = Unknown
+		 *	FFFF FFFF ---- ---- ---- NNNN oooo oooo
+		 *
+		 * F = Fog-related value? See PH:@0C0DA8BC.
+		 * N = Unknown; it can't be zero.
+		 *
+		 * See PH:@0C0173CA.
 		 */
 		{
+			unsigned f = inst[0] >> 24;
+			unsigned n = ((inst[0] >> 8) & 0xF) - 1;
+
+			VK_LOG ("GPU CMD %08X: Recall %03X [%08X] f=%X n=%X",
+			        gpu->pc, inst[0] & 0xFFF, inst[0], f, n);
+
+			gpu->pc += 4;
+		}
+		break;
+	case 0x313:
+	case 0xD13:
+		/* These could be just like the above; no idea. */
+		{
 			unsigned u = inst[0] >> 24;
+
 			VK_LOG ("GPU CMD %08X: Recall %03X [%08X] %u",
 			        gpu->pc, inst[0] & 0xFFF, inst[0], u);
+
 			gpu->pc += 4;
 		}
 		break;
@@ -1897,6 +1936,14 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned n = (inst[0] >> 16) & 0xFF;
 			VK_LOG ("GPU CMD %08X: Unknown 181 [%08X] <%u %u>",
 			        gpu->pc, inst[0], b, n);
+			gpu->pc += 4;
+		}
+		break;
+	case 0xE88:
+		/* E88	Unknown [Flush Vertices?] */
+		{
+			VK_LOG ("GPU CMD %08X: Unknown %03X [%08X]",
+			        gpu->pc, inst[0] & 0xFFF, inst[0]);
 			gpu->pc += 4;
 		}
 		break;
