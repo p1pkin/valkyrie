@@ -4,18 +4,24 @@ TODO
 BEFORE UPLOADING THE TREE
 -------------------------
 
-Make SGNASCAR boot.
+Fix the copyright in the [ch] files (year and license text.)`
 
-Move the slave GPU access to hikaru-gpu.c.
+Move the slave GPU access to hikaru-gpu.c. Proper support may require the
+introduction of a new vk_device_accessors_t class.
 
-Rewrite the JSON file to be more flexible (just like MAME.)
+Convert VK_*_{LOG,ERROR} from macros to functions; and add the DEVICE
+variants.
 
-Move the JSON location to '$HOME/.local/share/valkyrie' or something.
+Rewrite the JSON file to be more flexible (just like MAME.) Move its location
+to '$HOME/.local/share/valkyrie' or something. Create that directory on
+`make install'.
 
-Fix the copyright in the [ch] files (year, and license text.)
+Convert TEXRAM and CMDRAM from vk_buffer_t's to simple byte arrays.
 
 HIKARU
 -------
+
+Save state support. This is mandatory.
 
 Implement better AICA support (especially the RTC.)
 
@@ -27,43 +33,59 @@ Implement the three EEPROMs (MAINBD, ROMBD, MIE.)
 SH4
 ---
 
-Gix FTRV, FIPR PR handling; see AIRTRIX/PHARRIER.
+Check FPU handling; especially FTRV, FIPR, PR, and XF/XD/FV/XMTRX access.
 
-Implement the TMU.
+Implement simple per-basic-block LLVM translation. This should make debugging
+a lot more bearable.
 
 RENDERING
 ---------
 
-Figure out the matrix/translation commands.
+Figure out how to render the PHARRIER 3D intro screen. Aside from FPU
+bugs, we should be ready to go! This requires (in order of importance):
 
-FIX the TexCoords command in the BOOTROM and compare with the VtxNrm command
-in PHARRIER!!! 12 bits are enough to address the whole TEXRAM.
+- Use VBOs or VAOs to render the tri strips; split tri strips based on
+  command adjacency. It should be fairly easy.
 
-Write an external disassembler/renderer for hikaru GPU command streams. Use
-it to render static mesh data found in the ROMs. Also write a heuristic
-search script to find the CSs.
+- Fix viewport matrix settings: use separate settings for 2D layers and 3D.
 
-Fix triangle rendering: put everything in a vertex buffer object and compute
-the properties of each triangle before rendering it. It's required to
-display the CRT test screen properly.
+- Figuring out the matrix/translation commands. Only 161 is used; other
+  similar commands may actually be light-related. There's some evidence in
+  PHARRIER.
 
-Fix texturing; decode the coordinates properly. This likely implies finding
-out what the texture commands (2C1, etc.) mean. Considering that the
-tri-strip main menu should look like the braveff menu (which is rendered
-directly using the bitmap layers), the Y coordinates are way off.
+- Implement viewport recall, at least for the scissor test.
 
-Fix GPU IDMA; it likely performs texture decoding. Use the BOOTROM and
-AIRTRIX as test cases. Note that the parameters to the IDMA are the same
-as the texture commands (2C1, etc.)
+- Fix Y coords in the BOOTROM menu. The translation component of the 161
+  matrix doesn't seem to fix it; there must be some other offset somewhere
+  in the command stream or MMIOs. Again, check against the BRAVEFF menu.
 
-Fix the bitmap layers. The area cleared in TEXRAM by AIRTRIX doesn't match
-the area where the textures are uploaded (see the SEGA intro screen.) Find
-out why.
+- Fix textures: perhap texheads are `registered' through the IDMA device
+  and later recalled using texhead (0C1,2C1,4C1) commands. Note that
+  if this is true, textures may be access by the GPU directly in slave RAM!
+
+- Fix texture coords: 12 bits are enough to address the whole TEXRAM! Note
+  that vtxnrm commands and texcoord commands should have the same tex
+  coord range. Check if that is the case. Double check by making sure that
+  the BRAVEFF test menu (which is rendered with 2D layers) looks exactly
+  the same as the BOOTROM menu (which is rendered with tri strips.)
+
+- Fix the bitmap layers properly. In particular, figure out their format
+  by comparing the PHARRIER title screen to the youtube video. Also figure
+  out how to enable them.
+
+- Figure out how the fade-in effect is done in the intro screen.
+
+- Don't upload the TEXRAM if there's nothing to be rendered.
+
+- Make TEXRAM uploading _much_ faster. Right now 16% of all cycles are
+  spent there; it makes no sense. Use dirty rectangles to make it even
+  faster.
 
 AIRTRIX
 -------
 
-Find out why it dies after the intro screen.
+Find out why it dies after the intro screen. Note that one MASKROM doesn't
+pass the ROMBD test (all the other MASKROMs do.)
 
 BRAVEFF
 -------
@@ -79,9 +101,10 @@ Not dumped yet.
 PHARRIER
 --------
 
-Find out why it sends 3D command streams during the intro screen.
+Render the 3D intro screen using the youtube footage as a reference.
 
-Find out why it doesn't react to the test button: See PH:@0C10D260.
+Remove the out-of-bound-DMA-bug patch; it may be fucking up the intro
+screen.
 
 PODRACE
 -------
@@ -100,3 +123,7 @@ up reading garbage from the 04xxxxxx MEMCTL device.
 Adding a patch to make the memcpy loop respect the bounds make SGNASCAR
 jump to the newly-copied code, but later writes stuff to the BOOTROM
 read-only area.
+
+Note that MASKROMs are not mapped correctly: contrarily to AIRTRIX and
+PHARRIER the CRCs compute by the ROMBD test menu are wrong.
+
