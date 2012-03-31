@@ -241,7 +241,20 @@ porta_put_s (sh4_t *ctx, uint16_t val)
 	return 0;
 }
 
-/* Unknown devices in the master address space */
+/*
+ * Unknown MMIOs (Master)
+ * ======================
+ *
+ * All of these seem connected in some way. All of them act as semaphores
+ * of some kind, and are definitely related to the GPU.
+ *
+ * 00400000  RW 16-bit
+ *
+ * 01000000  RW 16-bit	
+ * 01000006   W 16-bit	See PH:@0C012752.
+ *
+ * 01000100  RW 16-bit	
+ */
 
 static int
 unk_m_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
@@ -256,11 +269,9 @@ unk_m_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 		*val16 = hikaru->unk00400000_m;
 		break;
 	case 0x01000000:
-		//hikaru->unk01000000_m ^= 0x101; /* XXX hack */
 		*val16 = hikaru->unk01000000_m;
 		break;
 	case 0x01000100:
-		//hikaru->unk01000100_m ^= 0x101; /* XXX hack */
 		*val16 = hikaru->unk01000100_m;
 		break;
 	default:
@@ -552,8 +563,10 @@ hikaru_dump (vk_machine_t *mach)
 	vk_buffer_dump (hikaru->mie_ram,	"hikaru-mie-ram.bin");
 
 	vk_buffer_dump (hikaru->bootrom,	"hikaru-bootrom.bin");
+#if 0
 	vk_buffer_dump (hikaru->eprom,		"hikaru-rombd-eprom.bin");
 	vk_buffer_dump (hikaru->maskrom,	"hikaru-rombd-maskrom.bin");
+#endif
 }
 
 static void
