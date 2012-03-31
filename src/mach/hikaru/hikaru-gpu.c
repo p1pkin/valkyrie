@@ -45,6 +45,10 @@
  *
  * The GPU(s) include at least:
  *
+ *  - A geometry engine (likely the command processor here; located at
+ *    150xxxxx) and a rendering engine (likely the texture-related device
+ *    at 1A0xxxxx).
+ *
  *  - A command stream processor, which executes instructions in CMDRAM,
  *    with an etherogeneous 32-bit ISA and variable-length instructions.
  *    It is capable to call sub-routines, and so is likely to hold a
@@ -229,6 +233,9 @@ typedef struct {
  * 15000014  RW		Indirect DMA Control
  *			 Bit 0: exec when set, busy when read
  *
+ * Note: it may be related to vblank timing, see PH:@0C0128E6 and
+ * PH:@0C01290A.
+ *
  * GPU 15 Unknown Config A
  * -----------------------
  *
@@ -360,7 +367,8 @@ typedef struct {
  * -------
  *
  * 1A000000   W 	GPU 1A Enable A; b0 = enable; See @0C0069E0, @0C006AFC
- * 1A000004   W 	GPU 1A Enable B; b0 = enable; See @0C0069E0, @0C006AFC
+ * 1A000004   W 	GPU 1A Enable B; b0 = enable;
+ *			See @0C0069E0, @0C006AFC, PH:@0C01276E.
  *
  * Interrupt Control
  * -----------------
@@ -1199,7 +1207,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 
 			gpu->ms_scratch.color[i] = color;
 
-			VK_LOG ("GPU CMD %08X: Material: Set Color %X [%08X %08X] %u <R=%u G=%u B=%u>",
+			VK_LOG ("GPU CMD %08X: Material: Set Color %X [%08X %08X] <R=%u G=%u B=%u>",
 			        gpu->pc, i, inst[0], inst[1],
 			        color.x[0], color.x[1], color.x[2]);
 
@@ -1292,7 +1300,13 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		gpu->ms_scratch.has_alpha	= (inst[0] >> 20) & 1;
 		gpu->ms_scratch.has_highlight	= (inst[0] >> 21) & 1;
 
-		VK_LOG ("GPU CMD %08X: Material: Set Flags [%08X]", gpu->pc, inst[0]);
+		VK_LOG ("GPU CMD %08X: Material: Set Flags [%08X] mode=%u zblend=%u tex=%u alpha=%u highl=%u",
+		        gpu->pc, inst[0],
+			gpu->ms_scratch.mode,
+			gpu->ms_scratch.depth_blend,
+			gpu->ms_scratch.has_texture,
+			gpu->ms_scratch.has_alpha,
+			gpu->ms_scratch.has_highlight);
 
 		gpu->pc += 4;
 		break;
@@ -1339,7 +1353,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		}
 		break;
 	case 0x083:
-		/* 083	Recall Color 
+		/* 083	Recall Material
 		 *
 		 *	uuuu uuuu nnnn nnnn ---m oooo oooo oooo		o = Opcode, u = Unknown, m = Enable Color, n = Unknown
 		 *
@@ -1376,7 +1390,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		gpu->ts_scratch._0C1_m = (inst[0] >> 20) & 0xFFFF;
 		gpu->ts_scratch._0C1_n = (inst[0] >> 16) & 0xFF;
 
-		VK_LOG ("GPU CMD %08X: Texheard: Set 0 [%08X] m=%u n=%u",
+		VK_LOG ("GPU CMD %08X: Texhead: Set 0 [%08X] m=%u n=%u",
 		        gpu->pc, inst[0],
 		        gpu->ts_scratch._0C1_m,
 		        gpu->ts_scratch._0C1_n);
@@ -1472,18 +1486,24 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x161:
 		/* 161	Set Matrix Vector
 		 *
-		 *	---- ---- ---- mmii -nnn oooo oooo oooo		o = Opcode, e = Index in Matrix, n = Unknown
+		 *	---- ---- ---- nnnn ---- oooo oooo oooo		o = Opcode, n = num
 		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx		x = Component X, float
 		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy		y = Component Y, float
 		 *	zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz		z = Component Z, float
 		 *
-		 * See @0C008080
+		 * Note: bit 4 of n becomes bit 3 in PH:@0C015CF2. This is
+		 * odd. It may highlight a 'set-offset' effect for matrix
+		 * commands too.
+		 *
+		 * See @0C008080.
 		 */
+
+		/* The following may be light-related */
 	case 0x261:
-		/* 261	Set Matrix Vector */
 	case 0x961:
-		/* 961	Set Matrix Vector */
 	case 0xB61:
+		/* 261	Set Matrix Vector */
+		/* 961	Set Matrix Vector */
 		/* B61	Set Matrix Vector */
 		{
 			unsigned n = (inst[0] >> 12) & 7;
@@ -1768,7 +1788,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * See @0C008040, PH:@0C016418, PH:@0C016446 */
 		{
 			unsigned u = (inst[0] >> 24) & 1;
-			VK_LOG ("GPU CMD %08X: Unknown: 101 [%08X] %u",
+			VK_LOG ("GPU CMD %08X: Unknown: Set 101 [%08X] %u",
 			        gpu->pc, inst[0], u);
 			gpu->pc += 4;
 		}
@@ -1798,7 +1818,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 */
 		{
 			unsigned u = inst[0] >> 24;
-			VK_LOG ("GPU CMD %08X: Unknown: Recall %03X [%08X] %u",
+			VK_LOG ("GPU CMD %08X: Recall %03X [%08X] %u",
 			        gpu->pc, inst[0] & 0xFFF, inst[0], u);
 			gpu->pc += 4;
 		}
