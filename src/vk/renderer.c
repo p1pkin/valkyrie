@@ -45,9 +45,6 @@ vk_renderer_are_extensions_supported (const char *extensions[])
 {
 	unsigned i;
 
-	if (glewInit () != GLEW_OK)
-		return false;
-
 	for (i = 0; strlen (extensions[i]) > 0; i++)
 		if (glewGetExtension (extensions[i]) != GL_TRUE)
 			return false;
@@ -214,6 +211,11 @@ vk_renderer_init (vk_renderer_t *renderer)
 {
 	const SDL_VideoInfo *info;
 
+	if (glewInit () != GLEW_OK) {
+		VK_ERROR ("could not initialize glew");
+		return -1;
+	}
+
 	if (SDL_Init (SDL_INIT_VIDEO)) {
 		VK_ERROR ("could not initialize SDL: '%s'", SDL_GetError ());
 		return -1;
@@ -272,6 +274,9 @@ vk_renderer_init (vk_renderer_t *renderer)
 
 	/* Shading Model */
 	glShadeModel (GL_SMOOTH);
+
+	/* Culling */
+	glDisable (GL_CULL_FACE);
 
 	/* Lighting */
 	glDisable (GL_LIGHTING);
