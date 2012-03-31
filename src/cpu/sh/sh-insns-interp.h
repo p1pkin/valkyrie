@@ -1427,12 +1427,14 @@ I (ftrc)
 I (fcnvsd)
 {
 	assert (!(_RN & 1));
+	assert (!FPSCR.bit.pr);
 	DRN.f = FPUL.f;
 }
 
 I (fcnvds)
 {
 	assert (!(_RN & 1));
+	assert (!FPSCR.bit.pr);
 	FPUL.f = DRN.f;
 }
 
@@ -1504,8 +1506,7 @@ I (fmov_restore)
 		XDN.u = R64 (ctx, RM);
 		RM += 8;
 	} else {
-		uint64_t tmp = R64 (ctx, RM);
-		DRN.u = tmp;
+		DRN.u = R64 (ctx, RM);
 		RM += 8;
 	}
 }
