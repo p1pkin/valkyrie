@@ -738,7 +738,7 @@ setup_master_mmap (hikaru_t *hikaru)
 static vk_mmap_t *
 setup_slave_mmap (hikaru_t *hikaru)
 {
-	vk_mmap_t *mmap = vk_mmap_new (&hikaru->base, 8);
+	vk_mmap_t *mmap = vk_mmap_new (&hikaru->base, 9);
 	vk_region_t *region;
 	unsigned i = 0;
 
