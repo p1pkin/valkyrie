@@ -420,8 +420,14 @@ sh4_dmac_tick_channel (sh4_t *ctx, unsigned ch)
 			sh4_put (ctx, 4, dar, tmp);
 			break;
 		case 4: /* 32 bytes */
-			/* TODO */
-			VK_ASSERT (0);
+			sh4_get (ctx, 4, sar+0, &tmp);
+			sh4_put (ctx, 4, dar+0, tmp);
+			sh4_get (ctx, 4, sar+4, &tmp);
+			sh4_put (ctx, 4, dar+4, tmp);
+			sh4_get (ctx, 4, sar+8, &tmp);
+			sh4_put (ctx, 4, dar+8, tmp);
+			sh4_get (ctx, 4, sar+12, &tmp);
+			sh4_put (ctx, 4, dar+12, tmp);
 			break;
 		}
 
@@ -1214,12 +1220,11 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		VK_CPU_LOG (ctx, " ### BOOTROM rombd_do_crc (%X, %X, %X)", R(4), R(5), R(6));
 		break;
 #endif
-
-	/* All games */
 	case 0x0C00BFB2:
 		/* Makes the EEPROM check pass */
 		R(0) = 0xF;
 		break;
+
 #if 0
 	/* AIRTRIX */
 	case 0x0C010E78:
@@ -1268,6 +1273,27 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		break;
 #endif
 
+#if 0
+       /* BRAVEFF */
+       case 0x0C0D3F00:
+               VK_CPU_LOG (ctx, " ### BRAVEFF: sync (%X)", R(4));
+               break;
+       case 0x0C0D51C0:
+               VK_CPU_LOG (ctx, " ### BRAVEFF: do_dmac (%X, %X, %X, %X)", R(4), R(5), R(6), R(7));
+               break;
+       case 0x0C0D522A:
+               T = 1;
+               break;
+       case 0x0C05B53E:
+               T = 0;
+               break;
+       case 0x0C04075C:
+               /* Manipulates the main loop stage: 1 is the 'WARNING' screen,
+                * 2 is the 'ADVERTISE' screen, etc. */
+               R(0) = 6;
+               break;
+#endif
+
 #if 1
 	/* PHARRIER */
 	case 0x0C01C0A0:
@@ -1276,40 +1302,10 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C0125C0:
 		VK_CPU_LOG (ctx, " ### PHARRIER: core_sync (%X)", R(4));
 		break;
-	case 0x0C0F4280:
-		VK_CPU_LOG (ctx, " ### PHARRIER: upload_textures_in_a_double_loop (%X, %X, %X)", R(4), R(5), R(6));
+	case 0x0C0198D4:
+		VK_CPU_LOG (ctx, " ### PHARRIER: cotan (%d)", R(4));
 		break;
-	case 0x0C0149CA:
-		VK_CPU_LOG (ctx, " ### PHARRIER: aica_upload (%X, %X, %X)", R(4), R(5), R(6));
-		break;
-	case 0x0C0144FE:
-		VK_CPU_LOG (ctx, " ### PHARRIER: do_dmac (%X, %X, %X, %X)", R(4), R(5), R(6), R(7));
-		break;
-	case 0x0C011AF0:
-		VK_CPU_LOG (ctx, " ### PHARRIER: memcpy_sq (%X,%X,%X)", R(4), R(5), R(6));
-		break;
-	case 0x0C094560:
-		VK_CPU_LOG (ctx, " ### PHARRIER: model_init_main ()");
-		break;
-	case 0x0C012990:
-		VK_CPU_LOG (ctx, " ### PHARRIER: slMemCpySlaveCPU (%X, %X, %X, %X)", R(4), R(5), R(6), R(7));
-		break;
-	case 0x0C0C89C0:
-		VK_CPU_LOG (ctx, " ### PHARRIER: print_str (%X,%X)", R(4), R(5));
-		break;
-	case 0x0C095240:
-		VK_CPU_LOG (ctx, " ### PHARRIER: memctl_dma_and_load_obj (%X)", R(4));
-		break;
-	case 0x0C10D27A:
-		VK_CPU_LOG (ctx, " ### PHARRIER: get_test_switch () : %X", R(0));
-		break;
-	case 0x0C0DEC00:
-		VK_CPU_LOG (ctx, " ### PHARRIER: upload_set_material_props_commands (%X)", R(4));
-		break;
-	case 0x0C01C800:
-		VK_CPU_LOG (ctx, " ### PHARRIER: check_debug_mode ()");
-		break;
-#if 1
+
 	case 0x0C01C322:
 		/* Patches an AICA-related while (1) into a NOP */
 		inst = 0x0009;
@@ -1323,7 +1319,6 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		 * only! */
 		R(0) = 3;
 		break;
-#endif
 #endif
 
 #if 0
