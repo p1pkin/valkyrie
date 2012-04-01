@@ -1407,10 +1407,10 @@ I (flds)
 I (flt)
 {
 	if (!FPSCR.bit.pr) {
-		FRN.f = (float) (int32_t) FPUL.u; /* uint32 to float */
+		FRN.f = (float) (int32_t) FPUL.u; /* int32 to float */
 	} else {
 		assert (!(_RN & 1));
-		DRN.f = (double) (int32_t) FPUL.u; /* uint32 to double */
+		DRN.f = (double) (int32_t) FPUL.u; /* int32 to double */
 	}
 }
 
@@ -1598,7 +1598,7 @@ I (fsca)
 {
 	static const float alpha = (2.0f * (float) M_PI) / 65536.0f;
 	float angle = (FPUL.u & 0xFFFF) * alpha;
-	unsigned n = _RN;
+	unsigned n = _RN & ~1;
 	FR(n+0).f = cosf (angle);
 	FR(n+1).f = sinf (angle);
 }
