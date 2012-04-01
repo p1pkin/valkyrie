@@ -298,7 +298,7 @@ vk_renderer_new (unsigned width, unsigned height)
 	renderer->width = width;
 	renderer->height = height;
 
-	renderer->begin_frame = vk_renderer_begin_frame;
+	renderer->begin_frame = NULL;
 	renderer->end_frame = NULL;
 	renderer->delete = NULL;
 
