@@ -570,18 +570,15 @@ hikaru_dump (vk_machine_t *mach)
 }
 
 static void
-hikaru_delete (vk_machine_t **_mach)
+hikaru_delete (vk_machine_t **mach_)
 {
-	if (_mach) {
+	if (mach_) {
 
-		hikaru_t *hikaru = (hikaru_t *) *_mach;
+		hikaru_t *hikaru = (hikaru_t *) *mach_;
 		if (hikaru) {
 
 			/* dump everything we got before quitting */
 			hikaru_dump ((vk_machine_t *) hikaru);
-
-			/* XXX */
-			return;
 
 			vk_device_delete (&hikaru->memctl_m);
 			vk_device_delete (&hikaru->memctl_s);
@@ -606,7 +603,8 @@ hikaru_delete (vk_machine_t **_mach)
 			vk_buffer_delete (&hikaru->bram);
 			vk_buffer_delete (&hikaru->mie_ram);
 		}
-		FREE (_mach);
+		free (hikaru);
+		*mach_ = NULL;
 	}
 }
 

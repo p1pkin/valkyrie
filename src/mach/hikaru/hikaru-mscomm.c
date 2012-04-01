@@ -127,7 +127,11 @@ hikaru_mscomm_load_state (vk_device_t *dev, FILE *fp)
 static void
 hikaru_mscomm_delete (vk_device_t **dev_)
 {
-	FREE (dev_);
+	if (dev_) {
+		hikaru_mscomm_t *mscomm = (hikaru_mscomm_t *) *dev_;
+		free (mscomm);
+		*dev_ = NULL;
+	}
 }
 
 vk_device_t *

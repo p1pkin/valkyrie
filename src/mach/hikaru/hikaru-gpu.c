@@ -2323,9 +2323,13 @@ hikaru_gpu_load_state (vk_device_t *dev, FILE *fp)
 }
 
 static void
-hikaru_gpu_delete (vk_device_t **_dev)
+hikaru_gpu_delete (vk_device_t **dev_)
 {
-	FREE (_dev);
+	if (dev_) {
+		hikaru_gpu_t *gpu = (hikaru_gpu_t *) *dev_;
+		free (gpu);
+		*dev_ = NULL;
+	}
 }
 
 vk_device_t *

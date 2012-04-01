@@ -27,7 +27,6 @@ typedef struct vk_device_t vk_device_t;
 
 struct vk_device_t {
 	vk_machine_t *mach;
-	char *name;
 	unsigned flags;
 
 	void	(* delete)(vk_device_t **dev_);
@@ -44,7 +43,6 @@ vk_device_delete (vk_device_t **dev_)
 {
 	if (dev_) {
 		(*dev_)->delete (dev_);
-		free ((*dev_)->name);
 	}
 }
 

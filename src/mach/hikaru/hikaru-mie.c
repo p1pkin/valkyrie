@@ -185,7 +185,11 @@ hikaru_mie_load_state (vk_device_t *dev, FILE *fp)
 static void
 hikaru_mie_delete (vk_device_t **dev_)
 {
-	FREE (dev_);
+	if (dev_) {
+		hikaru_mie_t *mie = (hikaru_mie_t *) *dev_;
+		free (mie);
+		*dev_ = NULL;
+	}
 }
 
 vk_device_t *
