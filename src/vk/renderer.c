@@ -25,6 +25,8 @@
 #include "vk/core.h"
 #include "vk/renderer.h"
 
+/* Add a generic on-screen FPS counter */
+
 static const char *default_extensions[] = {
 	"GL_ARB_fragment_shader",
 	"GL_ARB_vertex_shader",

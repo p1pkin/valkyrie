@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "mach/hikaru/hikaru-gpu.h"
+#include "mach/hikaru/hikaru-gpu-private.h"
 #include "mach/hikaru/hikaru-renderer.h"
 #include "cpu/sh/sh4.h"
 
@@ -89,77 +90,6 @@
  * Textures also come with mipmap trees.
  */
 
-#define NUM_VIEWPORTS	32
-#define NUM_MATERIALS	256
-#define NUM_TEXHEADS	256
-#define NUM_MATRICES	16
-
-#define VIEWPORT_MASK	(NUM_VIEWPORTS - 1)
-#define MATERIAL_MASK	(NUM_MATERIALS - 1)
-#define TEXHEAD_MASK	(NUM_TEXHEADS - 1)
-#define MATRIX_MASK	(NUM_MATRICES - 1)
-
-typedef struct {
-	/* 021 */
-	float persp_x;
-	float persp_y;
-	float persp_unk;
-	/* 221 */
-	vec2s_t center;
-	vec2s_t extents_x;
-	vec2s_t extents_y;
-	/* 421 */
-	unsigned unk_func;
-	float unk_n;
-	float unk_b;
-	/* 621 */
-	uint32_t depth_type;
-	uint32_t depth_enabled;
-	uint32_t depth_unk;
-	vec4b_t	depth_mask;
-	float depth_density;
-	float depth_bias;
-	/* 881 */
-	vec3s_t ambient_color;
-	/* 991 */
-	vec4b_t clear_color;
-} viewport_state_t;
-
-typedef struct {
-	/* 091, 291 */
-	vec3b_t color[2];
-	/* 491 */
-	vec4b_t shininess;
-	/* 691 */
-	vec3s_t material_color;
-	/* 081 */
-	/* XXX unknown */
-	/* 881 */
-	unsigned mode		: 2;
-	unsigned depth_blend	: 1;
-	unsigned has_texture	: 1;
-	unsigned has_alpha	: 1;
-	unsigned has_highlight	: 1;
-	/* A81 */
-	unsigned bmode		: 2;
-	/* C81 */
-	/* XXX unknown */
-} material_state_t;
-
-typedef struct {
-	/* 0C1 */
-	uint8_t _0C1_n : 4;
-	uint8_t _0C1_m : 4;
-	/* 2C1 */
-	uint8_t _2C1_a;
-	uint8_t _2C1_b;
-	uint8_t _2C1_u : 4;
-	/* 4C1 */
-	uint8_t _4C1_n;
-	uint8_t _4C1_m;
-	uint8_t _4C1_p : 4;
-} texhead_state_t;
-
 typedef struct {
 	vk_device_t base;
 
@@ -179,27 +109,28 @@ typedef struct {
 	uint32_t sp[2];
 	int cycles;
 
-	viewport_state_t vp_scratch;
-	viewport_state_t vp[NUM_VIEWPORTS];
-	viewport_state_t *current_vp;
+	hikaru_gpu_viewport_t vp_scratch;
+	hikaru_gpu_viewport_t vp[NUM_VIEWPORTS];
+	hikaru_gpu_viewport_t *current_vp;
 	int current_vp_offset;
 
-	material_state_t ms_scratch;
-	material_state_t ms[NUM_MATERIALS];
-	material_state_t *current_ms;
+	hikaru_gpu_material_t ms_scratch;
+	hikaru_gpu_material_t ms[NUM_MATERIALS];
+	hikaru_gpu_material_t *current_ms;
 	int current_ms_offset;
 
-	texhead_state_t ts_scratch;
-	texhead_state_t ts[NUM_TEXHEADS];
-	texhead_state_t *current_ts;
+	hikaru_gpu_texhead_t ts_scratch;
+	hikaru_gpu_texhead_t ts[NUM_TEXHEADS];
+	hikaru_gpu_texhead_t *current_ts;
 	int current_ts_offset;
+
+	hikaru_gpu_light_t lt_scratch;
+	hikaru_gpu_light_t lt[NUM_LIGHTS];
+	hikaru_gpu_light_t *current_lt;
+	int current_lt_offset;
 
 	mtx4x3f_t mtx_scratch;
 	mtx4x3f_t mtx[NUM_MATRICES];
-
-	/* XXX ditch immediate mode and replace with cached models */
-	vec3f_t vertex_buffer[3];
-	int vertex_index;
 
 } hikaru_gpu_t;
 
@@ -652,41 +583,6 @@ hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A)
 	hikaru_gpu_update_irqs (gpu);
 }
 
-/* Rendering Helpers */
-
-static void
-append_vertex (hikaru_gpu_t *gpu, vec3f_t *src)
-{
-	gpu->vertex_buffer[gpu->vertex_index] = *src;
-	gpu->vertex_buffer[gpu->vertex_index].x[1] += 480.0f; /* XXX hack */
-	gpu->vertex_index = (gpu->vertex_index + 1) % 3;
-}
-
-static int
-get_vertex_index (int i)
-{
-	return (i < 0) ? (i + 3) : i;
-}
-
-static void
-draw_tri (hikaru_gpu_t *gpu, vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2)
-{
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) gpu->base.mach->renderer;
-
-	int i0 = get_vertex_index (gpu->vertex_index - 1);
-	int i1 = get_vertex_index (gpu->vertex_index - 2);
-	int i2 = get_vertex_index (gpu->vertex_index - 3);
-
-	hikaru_renderer_draw_tri (hr,
-	                          &gpu->vertex_buffer[i0],
-	                          &gpu->vertex_buffer[i1],
-	                          &gpu->vertex_buffer[i2],
-	                          true,
-	                          gpu->current_ms->color[1],
-	                          gpu->current_ms->has_texture,
-	                          uv0, uv1, uv2);
-}
-
 /*
  * GPU Command Processor
  * =====================
@@ -769,6 +665,37 @@ exp16 (int x)
 	if (x == 0)
 		return 1;
 	return 0x10 << x;
+}
+
+static bool
+is_vertex_op (uint32_t op)
+{
+	switch (op) {
+	case 0x1B8:
+	case 0x1BC:
+	case 0x1BD:
+	case 0xFB8:
+	case 0xFBC:
+	case 0xFBD:
+	case 0xFBE:
+	case 0xFBF:
+		/* Vertex Normal */
+	case 0x12C:
+	case 0x12D:
+	case 0xF2C:
+	case 0xF2D:
+	case 0x1AC:
+	case 0x1AD:
+	case 0xFAC:
+	case 0xFAD:
+		/* Vertex */
+	case 0xEE8:
+	case 0xEE9:
+		/* Tex Coord */
+		return true;
+	default:
+		return false;
+	}
 }
 
 #define ASSERT(cond_) \
@@ -1745,7 +1672,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x1AD:
 	case 0xFAC:
 	case 0xFAD:
-		/* xAC	Vertex 3f
+		/* xAC	Vertex
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx		x = X coord
@@ -1759,13 +1686,12 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			        gpu->pc, inst[0],
 			        v->x[0], v->x[1], v->x[2]);
 
-			append_vertex (gpu, v);
 			gpu->pc += 16;
 		}
 		break;
 	case 0xEE8:
 	case 0xEE9:
-		/* EE9	Tex Coord 3
+		/* EE9	Tex Coord
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo	o = Opcode
 		 *	???? yyyy yyyy yyyy ???? xxxx xxxx xxxx	y,x = Coords for Vertex 0
@@ -1795,7 +1721,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			ASSERT (!(inst[2] & 0xF000F000));
 			ASSERT (!(inst[3] & 0xF000F000));
 
-			draw_tri (gpu, &uv[0], &uv[1], &uv[2]);
 			gpu->pc += 16;
 		}
 		break;
@@ -1969,6 +1894,10 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	default:
 		VK_ABORT ("GPU: @%08X: unhandled opcode %03X", gpu->pc, inst[0] & 0xFFF);
 	}
+
+	if (!is_vertex_op (op))
+		hikaru_renderer_end_vertex_data (gpu->base.mach->renderer);
+
 	return 0;
 }
 
@@ -1982,9 +1911,6 @@ hikaru_gpu_begin_processing (hikaru_gpu_t *gpu)
 		gpu->pc = REG15 (0x70);
 		gpu->sp[0] = REG15 (0x74);
 		gpu->sp[1] = REG15 (0x78);
-
-		memset (gpu->vertex_buffer, 0, 3 * sizeof (vec3f_t));
-		gpu->vertex_index = 0;
 	} else
 		REG1A (0x24) = 0;
 }
@@ -2118,7 +2044,6 @@ parse_coords (vec2i_t *out, uint32_t coords)
 static void
 hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 {
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) gpu->base.mach->renderer;
 	unsigned i, j, offs;
 	for (i = 0; i < 2; i++)
 		for (j = 0; j < 4; j++) {
@@ -2136,7 +2061,7 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 				        rect[0].x[0], rect[1].x[0],
 				        rect[0].x[1], rect[1].x[1]);
 #endif
-				hikaru_renderer_draw_layer (hr, rect);
+				hikaru_renderer_draw_layer (gpu->base.mach->renderer, rect);
 			}
 		}
 }

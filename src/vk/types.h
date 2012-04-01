@@ -95,7 +95,7 @@ typedef struct {
 
 typedef struct {
 	float x[3][3];
-} mtx3f_t;
+} mtx3x3f_t;
 
 typedef struct {
 	float x[4][3];
@@ -103,6 +103,6 @@ typedef struct {
 
 typedef struct {
 	float x[4][4];
-} mtx4f_t;
+} mtx4x4f_t;
 
 #endif /* __VK_TYPES_H__ */

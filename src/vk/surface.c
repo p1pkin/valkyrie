@@ -119,4 +119,3 @@ vk_surface_commit (vk_surface_t *surface)
 	                 GL_UNSIGNED_BYTE,
 	                 surface->data);
 }
-

@@ -24,25 +24,32 @@
 #include "vk/core.h"
 #include "vk/types.h"
 #include "vk/buffer.h"
-#include "vk/surface.h"
 #include "vk/renderer.h"
-
-typedef struct {
-	vk_renderer_t base;
-
-	vk_buffer_t *texram;
-	vk_surface_t *texture;
-
-} hikaru_renderer_t;
+#include "mach/hikaru/hikaru-gpu-private.h"
 
 vk_renderer_t	*hikaru_renderer_new (vk_buffer_t *texram);
-void		 hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
-		                           vec3f_t *v0, vec3f_t *v1, vec3f_t *v2,
-		                           bool has_color,
-		                           vec3b_t color,
-		                           bool has_texture,
-		                           vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2);
-void		hikaru_renderer_draw_layer (hikaru_renderer_t *renderer,
-		                            vec2i_t coords[4]);
+
+void		hikaru_renderer_set_viewport (vk_renderer_t *renderer,
+		                              hikaru_gpu_viewport_t *viewport);
+void		hikaru_renderer_set_matrix (vk_renderer_t *renderer,
+		                            mtx4x4f_t *mtx);
+void		hikaru_renderer_set_material (vk_renderer_t *renderer,
+ 		                              hikaru_gpu_material_t *material);
+void		hikaru_renderer_set_texhead (vk_renderer_t *renderer,
+		                             hikaru_gpu_texhead_t *texhead);
+void		hikaru_renderer_set_light (vk_renderer_t *renderer,
+		                           hikaru_gpu_light_t *light);
+void		hikaru_renderer_append_vertex (vk_renderer_t *renderer,
+		                               vec3f_t *pos);
+void		hikaru_renderer_append_texcoords (vk_renderer_t *renderer,
+		                                  vec2f_t *texcoords);
+void		hikaru_renderer_append_vertex_full (vk_renderer_t *renderer,
+		                                    vec3f_t *pos,
+		                                    vec3f_t *normal,
+		                                    vec2f_t *texcoords);
+void		hikaru_renderer_end_vertex_data (vk_renderer_t *renderer);
+
+void		hikaru_renderer_draw_layer (vk_renderer_t *renderer,
+		                            vec2i_t coords[2]);
 
 #endif /* __VK_HIKARU_RENDERER_H__ */

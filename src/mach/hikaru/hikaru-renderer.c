@@ -19,7 +19,37 @@
  */
 
 #include "mach/hikaru/hikaru-renderer.h"
+#include "vk/surface.h"
 
+/* XXX ditch immediate mode; use VBOs instead. */
+/* XXX ditch the fixed pipeline; use shaders instead. */
+/* XXX */
+/* XXX use the IDMA device to detect where textures are; possibly in
+ * slave RAM */
+
+typedef struct {
+	vec3f_t pos;		/* 12 bytes */
+	vec3f_t normal;		/* 12 bytes */
+	vec2f_t texcoords;	/* 8 bytes */
+} hikaru_vertex_t;
+
+typedef struct {
+	vk_renderer_t base;
+
+	/* Texture data */
+	vk_buffer_t *texram;
+	vk_surface_t *texture;
+
+	/* Model data */
+	hikaru_vertex_t	*vbo;
+	int vbo_index;
+
+} hikaru_renderer_t;
+
+/* 3D Rendering */
+
+#if 0
+/* XXX PORTME */
 void
 hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
                           vec3f_t *v0, vec3f_t *v1, vec3f_t *v2,
@@ -38,10 +68,160 @@ hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
 	glEnd ();
 }
 
+static int
+get_vertex_index (int i)
+{
+	return (i < 0) ? (i + 3) : i;
+}
+
+static void
+draw_tri (hikaru_gpu_t *gpu, vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) gpu->base.mach->renderer;
+
+	int i0 = get_vertex_index (gpu->vertex_index - 1);
+	int i1 = get_vertex_index (gpu->vertex_index - 2);
+	int i2 = get_vertex_index (gpu->vertex_index - 3);
+
+	hikaru_renderer_draw_tri (hr,
+	                          &gpu->vertex_buffer[i0],
+	                          &gpu->vertex_buffer[i1],
+	                          &gpu->vertex_buffer[i2],
+	                          true,
+	                          gpu->current_ms->color[1],
+	                          gpu->current_ms->has_texture,
+	                          uv0, uv1, uv2);
+}
+
+static void
+append_vertex (hikaru_renderer_t, vec3f_t *pos)
+{
+	gpu->vertex_buffer[gpu->vertex_index] = *src;
+	gpu->vertex_buffer[gpu->vertex_index].x[1] += 480.0f; /* XXX hack */
+	gpu->vertex_index = (gpu->vertex_index + 1) % 3;
+}
+#endif
+
 void
-hikaru_renderer_draw_layer (hikaru_renderer_t *renderer,
+hikaru_renderer_set_viewport (vk_renderer_t *renderer,
+                              hikaru_gpu_viewport_t *viewport)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	(void) hr;
+}
+
+void
+hikaru_renderer_set_matrix (vk_renderer_t *renderer, mtx4x4f_t *mtx)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	(void) hr;
+}
+
+void
+hikaru_renderer_set_material (vk_renderer_t *renderer,
+                              hikaru_gpu_material_t *material)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	(void) hr;
+}
+
+void
+hikaru_renderer_set_texhead (vk_renderer_t *renderer,
+                             hikaru_gpu_texhead_t *texhead)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	(void) hr;
+}
+
+void
+hikaru_renderer_set_light (vk_renderer_t *renderer,
+                           hikaru_gpu_light_t *light)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	(void) hr;
+}
+
+static void
+draw_vbo (hikaru_renderer_t *hr)
+{
+}
+
+static void
+begin_vbo (hikaru_renderer_t *hr)
+{
+	if (hr->vbo_index < 0) {
+		/* XXX lookup existing VBO or generate a new one. Return
+		 * true if a match was found. */
+		hr->vbo_index = 0;
+	}
+}
+
+static void
+end_vbo (hikaru_renderer_t *hr)
+{
+	if (hr->vbo_index >= 0) {
+		/* XXX upload the VBO; draw it */
+		draw_vbo (hr);
+		hr->vbo_index = -1;
+	}
+}
+
+void
+hikaru_renderer_append_vertex_full (vk_renderer_t *renderer,
+                                    vec3f_t *pos,
+                                    vec3f_t *normal,
+                                    vec2f_t *texcoords)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+	if (hr->vbo_index < 0)
+		begin_vbo (hr);
+	hr->vbo[hr->vbo_index].pos = *pos;
+	hr->vbo[hr->vbo_index].normal = *normal;
+	hr->vbo[hr->vbo_index].texcoords = *texcoords;
+}
+
+void
+hikaru_renderer_append_vertex (vk_renderer_t *renderer, vec3f_t *pos)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+	if (hr->vbo_index < 0)
+		begin_vbo (hr);
+	hr->vbo[hr->vbo_index].pos = *pos;
+}
+
+void
+hikaru_renderer_append_texcoords (vk_renderer_t *renderer,
+                                  vec2f_t texcoords[3])
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	VK_ASSERT (hr->vbo_index >= 2);
+
+	hr->vbo[hr->vbo_index-2].texcoords = texcoords[0];
+	hr->vbo[hr->vbo_index-1].texcoords = texcoords[1];
+	hr->vbo[hr->vbo_index-0].texcoords = texcoords[2];
+}
+
+void
+hikaru_renderer_end_vertex_data (vk_renderer_t *renderer)
+{
+	end_vbo ((hikaru_renderer_t *) renderer);
+}
+
+/* 2D Rendering and Texture Decoding/Upload */
+
+void
+hikaru_renderer_draw_layer (vk_renderer_t *renderer,
                             vec2i_t coords[2])
 {
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	/* Note: the Y axis is facing upwards by default. */
 	glBegin (GL_TRIANGLE_STRIP);
 		glTexCoord2s (coords[0].x[0], coords[0].x[1]);
 		glVertex3f (0.0f, 479.0f, 0.1f);
@@ -64,10 +244,12 @@ rgba4_to_rgba8 (uint32_t p)
 }
 
 static void
-bind_texram (vk_renderer_t *renderer)
+bind_texram (hikaru_renderer_t *hr)
 {
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 	unsigned x, y;
+
+	/* XXX this is _very_ slow; it's one of the main CPU hogs in
+	 * valkyrie. */
 
 	/* Upload the RGBA4444 data in the bootrom defined ASCII texture */
 	for (y = 0; y < 2048; y++) {
@@ -88,14 +270,24 @@ bind_texram (vk_renderer_t *renderer)
 	/* A character is 8x8 pixels; the entire ASCII table is 16x8 tiles */
 }
 
+/* Interface */
+
 static void
 hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 {
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	/* Set the texture matrix */
 	glEnable (GL_TEXTURE_2D);
 	glMatrixMode (GL_TEXTURE);
 	glLoadIdentity ();
 	glScalef (1.0f/2048, 1.0f/2048, 1.0f);
-	bind_texram (renderer);
+
+	/* Upload the TEXRAM data */
+	bind_texram (hr);
+
+	/* Reset the temporary vertex data */
+	hr->vbo_index = -1;
 }
 
 static void
@@ -113,7 +305,10 @@ hikaru_renderer_reset (vk_renderer_t *renderer)
 static void
 hikaru_renderer_delete (vk_renderer_t **renderer_)
 {
-	(void) renderer_;
+	if (renderer_) {
+		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
+		vk_surface_delete (&hr->texture);
+	}
 }
 
 vk_renderer_t *
