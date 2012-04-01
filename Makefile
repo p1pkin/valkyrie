@@ -1,10 +1,10 @@
-CC := gcc
-LD := gcc
+CC := gcc-4.7
+LD := gcc-4.7
 
 DEFS := -DVK_HAVE_HIKARU
 
-CFLAGS  := -I src -I /usr/include/json -O2 $(DEFS) -Wall -flto
-LDFLAGS := -lm -lSDL -lGLEW -ljansson -lncurses -ltinfo
+CFLAGS  := -I src -I /usr/include/json -O3 -fomit-frame-pointer -flto $(DEFS) -Wall -Wno-strict-aliasing
+LDFLAGS := -lm -lSDL -lGLEW -ljansson
 
 .PHONY: all clean
 
