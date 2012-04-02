@@ -22,17 +22,17 @@
 #define __HIKARU_GPU_PRIVATE_H__
 
 /* All of these are tentative */
-#define NUM_VIEWPORTS	32
+#define NUM_VIEWPORTS	8
 #define NUM_MATERIALS	256
 #define NUM_TEXHEADS	256
-#define NUM_MATRICES	16
 #define NUM_LIGHTS	16
+#define NUM_MATRICES	4
 
 #define VIEWPORT_MASK	(NUM_VIEWPORTS - 1)
 #define MATERIAL_MASK	(NUM_MATERIALS - 1)
 #define TEXHEAD_MASK	(NUM_TEXHEADS - 1)
-#define MATRIX_MASK	(NUM_MATRICES - 1)
 #define LIGHT_MASK	(NUM_LIGHTS - 1)
+#define MATRIX_MASK	(NUM_MATRICES - 1)
 
 typedef struct {
 	/* 021 */
@@ -64,7 +64,8 @@ typedef struct {
 	/* 091, 291 */
 	vec3b_t color[2];
 	/* 491 */
-	vec4b_t shininess;
+	uint8_t specularity;
+	vec3b_t shininess;
 	/* 691 */
 	vec3s_t material_color;
 	/* 081 */

@@ -35,6 +35,7 @@ typedef struct {
 
 typedef struct {
 	vk_renderer_t base;
+	bool log;
 
 	/* Texture data */
 	vk_buffer_t *texram;
@@ -108,7 +109,42 @@ hikaru_renderer_set_viewport (vk_renderer_t *renderer,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	(void) hr;
+	if (hr->log) {
+		VK_LOG ("HR == VIEWPORT ==");
+		VK_LOG ("HR persp   : { %f, %f, %f }",
+		        viewport->persp_x, viewport->persp_y,
+		        viewport->persp_unk);
+		VK_LOG ("HR extents : { %d, %d } { %d, %d } { %d, %d }",
+		        viewport->center.x[0],
+		        viewport->center.x[1],
+		        viewport->extents_x.x[0],
+		        viewport->extents_x.x[1],
+		        viewport->extents_y.x[0],
+		        viewport->extents_y.x[1]);
+		VK_LOG ("HR 421     : type=%u { %f, %f }",
+		        viewport->unk_func,
+		        viewport->unk_n,
+		        viewport->unk_b);
+		VK_LOG ("HR depth   : type=%u ena=%u unk=%u mask=#%02X%02X%02X%02X density=%f bias=%f ",
+		        viewport->depth_type,
+		        viewport->depth_enabled,
+		        viewport->depth_unk,
+		        viewport->depth_mask.x[3],
+		        viewport->depth_mask.x[2],
+		        viewport->depth_mask.x[1],
+		        viewport->depth_mask.x[0],
+		        viewport->depth_density,
+		        viewport->depth_bias);
+		VK_LOG ("HR ambient : RGB#%02X%02X%02X",
+		        viewport->ambient_color.x[2],
+		        viewport->ambient_color.x[1],
+		        viewport->ambient_color.x[0]);
+		VK_LOG ("HR clear   : RGBA#%02X%02X%02X%02X",
+		        viewport->clear_color.x[3],
+		        viewport->clear_color.x[2],
+		        viewport->clear_color.x[1],
+		        viewport->clear_color.x[0]);
+	}
 }
 
 void
@@ -116,7 +152,19 @@ hikaru_renderer_set_matrix (vk_renderer_t *renderer, mtx4x4f_t *mtx)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	(void) hr;
+	if (hr->log) {
+		VK_LOG ("HR == MATRIX ==");
+		VK_LOG ("HR %+9.3f %+9.3f %+9.3f %+9.3f\n"
+		        "HR %+9.3f %+9.3f %+9.3f %+9.3f\n"
+		        "HR %+9.3f %+9.3f %+9.3f %+9.3f\n"
+		        "HR %+9.3f %+9.3f %+9.3f %+9.3f",
+		        mtx->x[0][0], mtx->x[0][1], mtx->x[0][2], mtx->x[0][3],
+		        mtx->x[1][0], mtx->x[1][1], mtx->x[1][2], mtx->x[1][3],
+		        mtx->x[2][0], mtx->x[2][1], mtx->x[2][2], mtx->x[2][3],
+		        mtx->x[3][0], mtx->x[3][1], mtx->x[3][2], mtx->x[3][3]);
+	}
+
+	/* TODO convert to GL's native column-major format */
 }
 
 void
@@ -125,7 +173,30 @@ hikaru_renderer_set_material (vk_renderer_t *renderer,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	(void) hr;
+	if (hr->log) {
+		VK_LOG ("HR == MATERIAL ==");
+		VK_LOG ("HR color0    : #%02X%02X%02X",
+		        material->color[0].x[0],
+		        material->color[0].x[1],
+		        material->color[0].x[2]);
+		VK_LOG ("HR color1    : #%02X%02X%02X",
+		        material->color[1].x[0],
+		        material->color[1].x[1],
+		        material->color[1].x[2]);
+		VK_LOG ("HR shininess : #%02X%02X%02X (%02X)",
+		        material->shininess.x[0],
+		        material->shininess.x[1],
+		        material->shininess.x[2],
+		        material->specularity);
+		VK_LOG ("HR material  : #<%04X,%04X,%04X>",
+		        material->material_color.x[0],
+		        material->material_color.x[1],
+		        material->material_color.x[2]);
+		VK_LOG ("HR flags     : mode=%u zblend=%u tex=%u alpha=%u high=%u bmode=%u",
+		        material->mode, material->depth_blend,
+		        material->has_texture, material->has_alpha,
+		        material->has_highlight, material->bmode);
+	}
 }
 
 void
@@ -220,6 +291,8 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer,
                             vec2i_t coords[2])
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	(void) hr;
 
 	/* Note: the Y axis is facing upwards by default. */
 	glBegin (GL_TRIANGLE_STRIP);
@@ -333,6 +406,11 @@ hikaru_renderer_new (vk_buffer_t *texram)
 
 		/* XXX handle the return value */
 		hr->texture = vk_surface_new (2048, 2048, GL_RGBA8);
+
+		hr->log = vk_util_get_bool_option ("HR_LOG", false);
+		if (hr->log) {
+			VK_LOG ("HR logging enabled");
+		}
 	}
 	return (vk_renderer_t *) hr;
 }
