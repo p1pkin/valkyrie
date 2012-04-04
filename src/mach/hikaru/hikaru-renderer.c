@@ -23,9 +23,6 @@
 
 /* XXX ditch immediate mode; use VBOs instead. */
 /* XXX ditch the fixed pipeline; use shaders instead. */
-/* XXX */
-/* XXX use the IDMA device to detect where textures are; possibly in
- * slave RAM */
 
 typedef struct {
 	vec3f_t pos;		/* 12 bytes */
@@ -34,16 +31,25 @@ typedef struct {
 } hikaru_vertex_t;
 
 typedef struct {
+	hikaru_gpu_texture_t texture;
+	GLuint id;
+} hikaru_texture_t;
+
+typedef struct {
 	vk_renderer_t base;
 	bool log;
 
 	/* Texture data */
 	vk_buffer_t *texram;
 	vk_surface_t *texture;
+	hikaru_texture_t textures[256][256];
 
 	/* Model data */
-	hikaru_vertex_t	*vbo;
-	int vbo_index;
+	hikaru_vertex_t *models[64];
+	hikaru_vertex_t	vertices[1024];
+	int vertex_index;
+	int model_index;
+	int hack;
 
 } hikaru_renderer_t;
 
@@ -67,12 +73,6 @@ hikaru_renderer_draw_tri (hikaru_renderer_t *renderer,
 		glTexCoord2s (uv2->x[0], uv2->x[1]);
 		glVertex3fv (v2->x);
 	glEnd ();
-}
-
-static int
-get_vertex_index (int i)
-{
-	return (i < 0) ? (i + 3) : i;
 }
 
 static void
@@ -145,6 +145,46 @@ hikaru_renderer_set_viewport (vk_renderer_t *renderer,
 		        viewport->clear_color.x[1],
 		        viewport->clear_color.x[0]);
 	}
+
+#if 0
+	glMatrixMode (GL_PROJECTION);
+	glLoadIdentity ();
+	glFrustum (-viewport->persp_x / 2.0f,	/* left */
+	           viewport->persp_x / 2.0f,	/* right */
+	           -viewport->persp_y / 2.0f,	/* bottom */
+	           viewport->persp_y / 2.0f,	/* top */
+	           0.0f,			/* near */
+	           100.0f);			/* far */
+
+	glScissor (viewport->extents_x.x[0],
+	           viewport->extents_y.x[0],
+	           viewport->extents_x.x[1] - viewport->extents_x.x[0],
+	           viewport->extents_y.x[1] - viewport->extents_y.x[0]);
+	glEnable (GL_SCISSOR_TEST);
+
+	if (viewport->depth_enabled) {
+		/* TODO: other setup */
+		glEnable (GL_DEPTH_TEST);
+	} else
+		glDisable (GL_DEPTH_TEST);
+
+	glClearColor (viewport->clear_color.x[0] / 255.0f,
+	              viewport->clear_color.x[1] / 255.0f,
+	              viewport->clear_color.x[2] / 255.0f,
+	              viewport->clear_color.x[3] / 255.0f);
+
+	/* XXX glClearDepth */
+	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	/* DEBUG */
+	glColor3f (1.0f, 0.0f, 1.0f);
+	glBegin (GL_QUADS);
+		glVertex3f (-1.0f, -1.0f, 0.0f);
+		glVertex3f ( 1.0f, -1.0f, 0.0f);
+		glVertex3f ( 1.0f,  1.0f, 0.0f);
+		glVertex3f (-1.0f,  1.0f, 0.0f);
+	glEnd ();
+#endif
 }
 
 void
@@ -164,7 +204,7 @@ hikaru_renderer_set_matrix (vk_renderer_t *renderer, mtx4x4f_t *mtx)
 		        mtx->x[3][0], mtx->x[3][1], mtx->x[3][2], mtx->x[3][3]);
 	}
 
-	/* TODO convert to GL's native column-major format */
+	/* TODO: set modelview matrix */
 }
 
 void
@@ -197,6 +237,10 @@ hikaru_renderer_set_material (vk_renderer_t *renderer,
 		        material->has_texture, material->has_alpha,
 		        material->has_highlight, material->bmode);
 	}
+
+	glColor3f (material->color[1].x[0] / 255.0f,
+	           material->color[1].x[1] / 255.0f,
+	           material->color[1].x[2] / 255.0f);
 }
 
 void
@@ -205,7 +249,13 @@ hikaru_renderer_set_texhead (vk_renderer_t *renderer,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	(void) hr;
+	if (hr->log) {
+		VK_LOG ("HR == TEXHEAD ==");
+		VK_LOG ("HR ...");
+	}
+
+	/* TODO: set texture attributes -- bind the proper texture(s) and
+	 * set their properties. */
 }
 
 void
@@ -214,31 +264,58 @@ hikaru_renderer_set_light (vk_renderer_t *renderer,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	(void) hr;
+	if (hr->log) {
+		VK_LOG ("HR == LIGHT ==");
+		VK_LOG ("HR ...");
+	}
+
+	/* TODO: no idea yet */
 }
 
-static void
-draw_vbo (hikaru_renderer_t *hr)
-{
-}
+/* Apparently hikaru triangle strip vertex-linking rules work just like
+ * OpenGL's --- that is, 0-1-2, 2-1-3, etc. */
 
 static void
-begin_vbo (hikaru_renderer_t *hr)
+draw_vertices (hikaru_renderer_t *hr)
 {
-	if (hr->vbo_index < 0) {
-		/* XXX lookup existing VBO or generate a new one. Return
-		 * true if a match was found. */
-		hr->vbo_index = 0;
+	if (hr->log) {
+		int i;
+		VK_LOG ("HR == DRAWING %d VERTICES ==", hr->vertex_index);
+		glBegin (GL_TRIANGLE_STRIP);
+		for (i = 0; i < hr->vertex_index; i++) {
+			hikaru_vertex_t *vtx = &hr->vertices[i];
+			VK_LOG ("HR VERTEX %d: %9.3f %9.3f %9.3f | %6.3f %6.3f",
+			        i,
+			        vtx->pos.x[0], vtx->pos.x[1], vtx->pos.x[2],
+			        vtx->texcoords.x[0], vtx->texcoords.x[1]);
+			glVertex3f (vtx->pos.x[0], vtx->pos.x[1], vtx->pos.x[2]);
+		}
+		glEnd ();
 	}
 }
 
 static void
-end_vbo (hikaru_renderer_t *hr)
+begin_vertices (hikaru_renderer_t *hr)
 {
-	if (hr->vbo_index >= 0) {
+	if (hr->vertex_index < 0) {
+		/* XXX lookup existing VBO or generate a new one. Return
+		 * true if a match was found. */
+		hr->vertex_index = 0;
+		if (hr->log)
+			VK_LOG ("HR == BEGIN VBO ==");
+	}
+}
+
+static void
+end_vertices (hikaru_renderer_t *hr)
+{
+	if (hr->vertex_index >= 0) {
 		/* XXX upload the VBO; draw it */
-		draw_vbo (hr);
-		hr->vbo_index = -1;
+		if (hr->log)
+			VK_LOG ("HR == END VBO ==");
+		if (hr->vertex_index >= 4)
+			draw_vertices (hr);
+		hr->vertex_index = -1;
 	}
 }
 
@@ -249,20 +326,42 @@ hikaru_renderer_append_vertex_full (vk_renderer_t *renderer,
                                     vec2f_t *texcoords)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-	if (hr->vbo_index < 0)
-		begin_vbo (hr);
-	hr->vbo[hr->vbo_index].pos = *pos;
-	hr->vbo[hr->vbo_index].normal = *normal;
-	hr->vbo[hr->vbo_index].texcoords = *texcoords;
+	if (hr->vertex_index < 0)
+		begin_vertices (hr);
+
+	hr->vertices[hr->vertex_index].pos = *pos;
+	hr->vertices[hr->vertex_index].normal = *normal;
+	hr->vertices[hr->vertex_index].texcoords = *texcoords;
+
+	hr->vertex_index++;
+	hr->hack = 0;
 }
 
 void
 hikaru_renderer_append_vertex (vk_renderer_t *renderer, vec3f_t *pos)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-	if (hr->vbo_index < 0)
-		begin_vbo (hr);
-	hr->vbo[hr->vbo_index].pos = *pos;
+	if (hr->vertex_index < 0)
+		begin_vertices (hr);
+
+	hr->vertices[hr->vertex_index].pos = *pos;
+	hr->vertices[hr->vertex_index].normal.x[0] = 0.0f;
+	hr->vertices[hr->vertex_index].normal.x[1] = 0.0f;
+	hr->vertices[hr->vertex_index].normal.x[2] = 0.0f;
+	hr->vertices[hr->vertex_index].texcoords.x[0] = 0.0f;
+	hr->vertices[hr->vertex_index].texcoords.x[1] = 0.0f;
+
+	hr->hack++;
+	VK_ASSERT (hr->hack <= 3);
+	if (hr->hack == 3) {
+		/* XXX three consecutive Vertex3f calls; start a new model.
+		 * Note that this is bogus if Vertex+Normal commands are
+		 * followed by Vertex+Texcoord commands... This code will
+		 * be rewritten anyway, so meh. */
+		
+	}
+
+	hr->vertex_index++;
 }
 
 void
@@ -271,17 +370,20 @@ hikaru_renderer_append_texcoords (vk_renderer_t *renderer,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	VK_ASSERT (hr->vbo_index >= 2);
+	VK_ASSERT (hr->vertex_index >= 3);
 
-	hr->vbo[hr->vbo_index-2].texcoords = texcoords[0];
-	hr->vbo[hr->vbo_index-1].texcoords = texcoords[1];
-	hr->vbo[hr->vbo_index-0].texcoords = texcoords[2];
+	/* XXX wrong */
+	hr->vertices[hr->vertex_index-3].texcoords = texcoords[0];
+	hr->vertices[hr->vertex_index-2].texcoords = texcoords[1];
+	hr->vertices[hr->vertex_index-1].texcoords = texcoords[2];
+
+	hr->hack = 0;
 }
 
 void
 hikaru_renderer_end_vertex_data (vk_renderer_t *renderer)
 {
-	end_vbo ((hikaru_renderer_t *) renderer);
+	end_vertices ((hikaru_renderer_t *) renderer);
 }
 
 /* 2D Rendering and Texture Decoding/Upload */
@@ -294,7 +396,20 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer,
 
 	(void) hr;
 
-	/* Note: the Y axis is facing upwards by default. */
+	glMatrixMode (GL_PROJECTION);
+	glLoadIdentity ();
+	glOrtho (0.0f,			/* left */
+	         renderer->width - 1,	/* right */
+	         0.0f,			/* bottom */
+	         renderer->height -1,	/* top */
+	         0.0f,			/* near */
+	         1.0f);			/* far */
+
+	glMatrixMode (GL_MODELVIEW);
+	glLoadIdentity ();
+
+	glEnable (GL_TEXTURE_2D);
+
 	glBegin (GL_TRIANGLE_STRIP);
 		glTexCoord2s (coords[0].x[0], coords[0].x[1]);
 		glVertex3f (0.0f, 479.0f, 0.1f);
@@ -343,6 +458,26 @@ bind_texram (hikaru_renderer_t *hr)
 	/* A character is 8x8 pixels; the entire ASCII table is 16x8 tiles */
 }
 
+void
+hikaru_renderer_register_texture (vk_renderer_t *renderer,
+                                  hikaru_gpu_texture_t *texture)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	if (hr->log) {
+		VK_LOG ("HR == REGISTER TEXTURE ==");
+		VK_LOG ("HR @%08X, %X bytes, offs = [ %u, %u ]",
+		        texture->addr, texture->size,
+		        texture->offsx, texture->offsy);
+		VK_LOG ("HR %ux%u, format = %u",
+		        texture->width, texture->height,
+		        texture->format);
+	}
+
+	/* TODO: create a surface, upload the data, add to the texture
+	 * table */
+}
+
 /* Interface */
 
 static void
@@ -350,17 +485,43 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
+	/* Set an identity projection matrix */
+	glMatrixMode (GL_PROJECTION);
+	glLoadIdentity ();
+#if 0
+	glOrtho (0.0f,			/* left */
+	         renderer->width - 1,	/* right */
+	         -renderer->height + 1,	/* bottom */
+	         0.0f,			/* top */
+	         0.0f,			/* near */
+	         1.0f);			/* far */
+#else
+	glOrtho (0.0f, 640.0f,
+	         -640.0f, 0.0f,
+	         -1.0f, 1.0f);
+#endif
+
+	/* Set an identity modelview matrix */
+	glMatrixMode (GL_MODELVIEW);
+	glLoadIdentity ();
+
 	/* Set the texture matrix */
 	glEnable (GL_TEXTURE_2D);
 	glMatrixMode (GL_TEXTURE);
 	glLoadIdentity ();
 	glScalef (1.0f/2048, 1.0f/2048, 1.0f);
 
+	/* Clear the whole framebuffer */
+	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glDisable (GL_TEXTURE_2D);
+
 	/* Upload the TEXRAM data */
 	bind_texram (hr);
 
 	/* Reset the temporary vertex data */
-	hr->vbo_index = -1;
+	hr->vertex_index = -1;
+	hr->hack = 0;
 }
 
 static void

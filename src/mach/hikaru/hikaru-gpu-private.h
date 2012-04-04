@@ -21,6 +21,8 @@
 #ifndef __HIKARU_GPU_PRIVATE_H__
 #define __HIKARU_GPU_PRIVATE_H__
 
+#include <vk/device.h>
+
 /* All of these are tentative */
 #define NUM_VIEWPORTS	8
 #define NUM_MATERIALS	256
@@ -100,5 +102,76 @@ typedef struct {
 	/* TODO */
 	unsigned dummy;
 } hikaru_gpu_light_t;
+
+enum {
+	FORMAT_RGBA5551 = 0,
+	FORMAT_RGBA4444 = 1,
+	FORMAT_UNKNOWN = 2,
+	FORMAT_ALPHA = 4,
+};
+
+typedef struct {
+	uint32_t addr;
+	uint32_t size;
+	uint32_t offsx;
+	uint32_t offsy;
+	uint32_t width;
+	uint32_t height;
+	unsigned format : 3;
+} hikaru_gpu_texture_t;
+
+typedef struct {
+	vk_device_t base;
+
+	vk_buffer_t *cmdram;
+	vk_buffer_t *texram;
+
+	vk_renderer_t *renderer;
+
+	uint8_t regs_15[0x100];
+	uint8_t regs_18[0x100];
+	uint8_t regs_1A[0x104];
+	uint8_t regs_1A_unit[2][0x40];
+	uint8_t regs_1A_fifo[0x10];
+
+	/* CS Execution State */
+
+	struct {
+		uint32_t pc, sp[2];
+		bool is_running;
+		unsigned frame_type;
+		int cycles;
+	} cs;
+
+	/* Rendering State */
+
+	struct {
+		hikaru_gpu_viewport_t table[NUM_VIEWPORTS];
+		hikaru_gpu_viewport_t scratch;
+		int offset;
+	} viewports;
+
+	struct {
+		hikaru_gpu_material_t table[NUM_MATERIALS];
+		hikaru_gpu_material_t scratch;
+		int offset;
+	} materials;
+
+	struct {
+		hikaru_gpu_texhead_t table[NUM_TEXHEADS];
+		hikaru_gpu_texhead_t scratch;
+		int offset;
+	} texheads;
+
+	struct {
+		hikaru_gpu_light_t table[NUM_LIGHTS];
+		hikaru_gpu_light_t scratch;
+		int offset;
+	} lights;
+
+	mtx4x3f_t mtx[NUM_MATRICES];
+
+} hikaru_gpu_t;
+
 
 #endif /* __HIKARU_GPU_PRIVATE_H__ */

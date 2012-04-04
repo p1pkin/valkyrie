@@ -3,7 +3,8 @@ LD := gcc-4.7
 
 DEFS := -DVK_HAVE_HIKARU
 
-CFLAGS  := -I src -I /usr/include/json -O3 -fomit-frame-pointer -flto $(DEFS) -Wall -Wno-strict-aliasing
+#CFLAGS  := -I src -I /usr/include/json -O3 -flto -fomit-frame-pointer $(DEFS) -Wall -Wno-strict-aliasing
+CFLAGS  := -I src -I /usr/include/json -O0 -g $(DEFS) -Wall -Wno-strict-aliasing
 LDFLAGS := -lm -lSDL -lGLEW -ljansson
 
 .PHONY: all clean
@@ -30,6 +31,7 @@ HIKARU_OBJ := \
 	src/mach/hikaru/hikaru-memctl.o \
 	src/mach/hikaru/hikaru-renderer.o \
 	src/mach/hikaru/hikaru-gpu.o \
+	src/mach/hikaru/hikaru-gpu-insns.o \
 	src/mach/hikaru/hikaru-aica.o
 
 all: bin/valkyrie

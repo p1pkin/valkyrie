@@ -52,4 +52,7 @@ void		hikaru_renderer_end_vertex_data (vk_renderer_t *renderer);
 void		hikaru_renderer_draw_layer (vk_renderer_t *renderer,
 		                            vec2i_t coords[2]);
 
+void		hikaru_renderer_register_texture (vk_renderer_t *renderer,
+		                                  hikaru_gpu_texture_t *texture);
+
 #endif /* __VK_HIKARU_RENDERER_H__ */
