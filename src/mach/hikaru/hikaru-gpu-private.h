@@ -84,25 +84,6 @@ typedef struct {
 	/* XXX unknown */
 } hikaru_gpu_material_t;
 
-typedef struct {
-	/* 0C1 */
-	uint8_t _0C1_n : 4;
-	uint8_t _0C1_m : 4;
-	/* 2C1 */
-	uint8_t _2C1_a;
-	uint8_t _2C1_b;
-	uint8_t _2C1_u : 4;
-	/* 4C1 */
-	uint8_t _4C1_n;
-	uint8_t _4C1_m;
-	uint8_t _4C1_p : 4;
-} hikaru_gpu_texhead_t;
-
-typedef struct {
-	/* TODO */
-	unsigned dummy;
-} hikaru_gpu_light_t;
-
 enum {
 	FORMAT_RGBA5551 = 0,
 	FORMAT_RGBA4444 = 1,
@@ -113,12 +94,45 @@ enum {
 typedef struct {
 	uint32_t addr;
 	uint32_t size;
-	uint32_t offsx;
-	uint32_t offsy;
+	uint32_t slotx;
+	uint32_t sloty;
 	uint32_t width;
 	uint32_t height;
 	unsigned format : 3;
+	unsigned has_mipmap : 1;
 } hikaru_gpu_texture_t;
+
+typedef struct {
+	/* 0C1 */
+	uint32_t _0C1_nibble;
+	uint32_t _0C1_byte;
+	/* 2C1 */
+	uint32_t format;
+	uint32_t width;
+	uint32_t height;
+	uint32_t _2C1_unk4;
+	uint32_t _2C1_unk8;
+	/* 4C1 */
+	uint32_t slotx;
+	uint32_t sloty;
+	uint32_t _4C1_unk;
+} hikaru_gpu_texhead_t;
+
+typedef struct {
+	/* TODO */
+	unsigned dummy;
+} hikaru_gpu_light_t;
+
+static char *
+get_gpu_texture_str (hikaru_gpu_texture_t *texture)
+{
+	static char out[256];
+	sprintf (out, "@%X size=%X slot=%X,%X %ux%u format=%u hasmip=%u",
+	         texture->addr, texture->size, texture->slotx, texture->sloty,
+	         texture->width, texture->height, texture->format,
+	         texture->has_mipmap);
+	return out;
+}
 
 typedef struct {
 	vk_device_t base;
@@ -172,6 +186,5 @@ typedef struct {
 	mtx4x3f_t mtx[NUM_MATRICES];
 
 } hikaru_gpu_t;
-
 
 #endif /* __HIKARU_GPU_PRIVATE_H__ */

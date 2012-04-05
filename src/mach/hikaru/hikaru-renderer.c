@@ -251,7 +251,13 @@ hikaru_renderer_set_texhead (vk_renderer_t *renderer,
 
 	if (hr->log) {
 		VK_LOG ("HR == TEXHEAD ==");
-		VK_LOG ("HR ...");
+		VK_LOG ("HR 0C1: byte=%X nibble=%X",
+		        texhead->_0C1_byte, texhead->_0C1_nibble);
+		VK_LOG ("HR 2C1: %ux%u format=%u unk4=%X unk8=%X",
+		        texhead->width, texhead->height, texhead->format,
+		        texhead->_2C1_unk4, texhead->_2C1_unk8);
+		VK_LOG ("HR 4C1: slot=%X,%X unk=%X",
+		        texhead->slotx, texhead->sloty, texhead->_4C1_unk);
 	}
 
 	/* TODO: set texture attributes -- bind the proper texture(s) and
@@ -273,7 +279,7 @@ hikaru_renderer_set_light (vk_renderer_t *renderer,
 }
 
 /* Apparently hikaru triangle strip vertex-linking rules work just like
- * OpenGL's --- that is, 0-1-2, 2-1-3, etc. */
+ * OpenGL's --- that is, 0-1-2, 2-1-3, etc. right-hand rule. */
 
 static void
 draw_vertices (hikaru_renderer_t *hr)
@@ -386,7 +392,7 @@ hikaru_renderer_end_vertex_data (vk_renderer_t *renderer)
 	end_vertices ((hikaru_renderer_t *) renderer);
 }
 
-/* 2D Rendering and Texture Decoding/Upload */
+/* 2D Rendering */
 
 void
 hikaru_renderer_draw_layer (vk_renderer_t *renderer,
@@ -421,6 +427,8 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer,
 		glVertex3f (639.0f, 0.0f, 0.1f);
 	glEnd ();
 }
+
+/* Texture Upload */
 
 static inline uint32_t
 rgba4_to_rgba8 (uint32_t p)
@@ -463,16 +471,6 @@ hikaru_renderer_register_texture (vk_renderer_t *renderer,
                                   hikaru_gpu_texture_t *texture)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-
-	if (hr->log) {
-		VK_LOG ("HR == REGISTER TEXTURE ==");
-		VK_LOG ("HR @%08X, %X bytes, offs = [ %u, %u ]",
-		        texture->addr, texture->size,
-		        texture->offsx, texture->offsy);
-		VK_LOG ("HR %ux%u, format = %u",
-		        texture->width, texture->height,
-		        texture->format);
-	}
 
 	/* TODO: create a surface, upload the data, add to the texture
 	 * table */

@@ -281,7 +281,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	nnnn nnnn mmmm mm-- ---- oooo oooo oooo
 		 *	aaaa aaaa aaaa aaaa bbbb bbbb bbbb bbbb
 		 *
-		 * Note: these come in groups of 8. The data for each group
+		 * NOTE: these come in groups of 8. The data for each group
 		 * comes from a different ptr.
 		 *
 		 * See PH:@0C017A3E.
@@ -289,7 +289,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		{
 			unsigned n, m, a, b;
 			n = (inst[0] >> 24) & 0xFF;
-			m = (inst[0] >> 18) & 0x3F;
+			m = (inst[0] >> 19) & 0x1F;
 			a = inst[1] & 0xFFFF;
 			b = inst[1] >> 16;
 
@@ -308,12 +308,16 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	 */
 
 	case 0x021:
-		/* 021	Set Viewport Projection
+		/* 021	Set Projection
 		 *
-		 * 	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
-		 *      pppp pppp pppp pppp pppp pppp pppp pppp		p = alpha * cotf (angle / 2)
-		 *      qqqq qqqq qqqq qqqq qqqq qqqq qqqq qqqq		q =  beta * cotf (angle / 2)
-		 *      zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz		z = Depth component, float
+		 * 	---- ---- ---- ---- ---- oooo oooo oooo
+		 *      pppp pppp pppp pppp pppp pppp pppp pppp
+		 *      qqqq qqqq qqqq qqqq qqqq qqqq qqqq qqqq
+		 *      zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz
+		 *
+		 * p = (display height / 2) * tanf (angle / 2)
+		 * q = (display height / 2) * tanf (angle / 2)
+		 * z = depth kappa (used also in 621)
 		 *
 		 * See PH:@0C01587C, PH:@0C0158A4, PH:@0C0158E8.
 		 */
@@ -361,12 +365,16 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		gpu->cs.pc += 16;
 		break;
 	case 0x421:
-		/* 421	Viewport: Set Unknown [Depth Clip?]
+		/* 421	Viewport: Set Depth Range
 		 *
-		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
-		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx		x = Unknown
-		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy		y = Unknown
-		 *	aaa- ---- ---- ---- ---- ---- ---- ----		a = Unknown
+		 *	---- ---- ---- ---- ---- oooo oooo oooo
+		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
+		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy
+		 *	aaa- ---- ---- ---- ---- ---- ---- ----
+		 *
+		 * x = depth kappa, also used for 021 and 621
+		 * y = Unknown
+		 * a = Unknown
 		 *
 		 * See PH:@0C015AA6
 		 */
@@ -374,7 +382,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		gpu->viewports.scratch.unk_n = *(float *) &inst[1];
 		gpu->viewports.scratch.unk_b = *(float *) &inst[2];
 
-		VK_LOG ("GPU CMD %08X: Viewport: Set Unknown [%08X %08X %08X %08X] func=%u n=%f b=%f",
+		VK_LOG ("GPU CMD %08X: Viewport: Set Depth Range [%08X %08X %08X %08X] func=%u n=%f b=%f",
 		        gpu->cs.pc, inst[0], inst[1], inst[2], inst[3],
 		        gpu->viewports.scratch.unk_func,
 		        gpu->viewports.scratch.unk_n,
@@ -385,7 +393,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		gpu->cs.pc += 16;
 		break;
 	case 0x621:
-		/* 621	Viewport: Set Depth
+		/* 621	Viewport: Set Depth Queue
 		 *
 		 *	---- ---- ---- ttDu ---- oooo oooo oooo
 		 *      AAAA AAAA BBBB BBBB GGGG GGGG RRRR RRRR
@@ -403,7 +411,8 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *     1.0f / sqrt (zdelta**2); where zdelta = zend - zstart.
 		 *
 		 * [2] Computed as kappa / zstart. The value kappa is
-		 *     stored in (13, GBR) aka 0C00F034.
+		 *     stored in (13, GBR) aka 0C00F034; it is also the third
+		 *     parameter of instruction 021.
 		 *
 		 * See PH:@0C0159C4, PH:@0C015A02, PH:@0C015A3E.
 		 */
@@ -417,7 +426,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		gpu->viewports.scratch.depth_density	= *(float *) &inst[2];
 		gpu->viewports.scratch.depth_bias	= *(float *) &inst[3];
 
-		VK_LOG ("GPU CMD %08X: Viewport: Set Unknown [%08X %08X %08X %08X] type=%u enabled=%u unk=%u mask=<%X %X %X %X> density=%f bias=%f",
+		VK_LOG ("GPU CMD %08X: Viewport: Set Depth Queue [%08X %08X %08X %08X] type=%u enabled=%u unk=%u mask=<%X %X %X %X> density=%f bias=%f",
 		        gpu->cs.pc, inst[0], inst[1], inst[2], inst[3],
 			gpu->viewports.scratch.depth_type,
 			gpu->viewports.scratch.depth_enabled,
@@ -461,7 +470,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
 		 *	---- ---a gggg gggg bbbb bbbb rrrr rrrr		a,r,g,b = Clear color
 		 *
-		 * Note: yes, apparently blue and green _are_ swapped.
+		 * NOTE: yes, apparently blue and green _are_ swapped.
 		 *
 		 * XXX double check the alpha mask.
 		 *
@@ -756,34 +765,40 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 * See PH:@0C015B7A.
 		 */
-		gpu->texheads.scratch._0C1_m = (inst[0] >> 20) & 0xFF;
-		gpu->texheads.scratch._0C1_n = (inst[0] >> 16) & 0xF;
+		gpu->texheads.scratch._0C1_nibble	= (inst[0] >> 16) & 0xF;
+		gpu->texheads.scratch._0C1_byte		= (inst[0] >> 20) & 0xFF;
 
-		VK_LOG ("GPU CMD %08X: Texhead: Set Unknown [%08X] m=%u n=%u",
-		        gpu->cs.pc, inst[0],
-		        gpu->texheads.scratch._0C1_m,
-		        gpu->texheads.scratch._0C1_n);
+		VK_LOG ("GPU CMD %08X: Texhead: Set Unknown [%08X]",
+		        gpu->cs.pc, inst[0]);
 
 		gpu->cs.pc += 4;
 		break;
 	case 0x2C1:
 		/* 2C1	Texhead: Set Format/Size
 		 *
-		 *	8887 77ll ll66 6555 uu-- oooo oooo oooo
+		 *	888F FFll llHH HWWW uu-- oooo oooo oooo
 		 *
 		 * 8 = argument on stack
-		 * 7 = Format
-		 * 6 = log16 of Height
+		 * F = Format (argument R7)
+		 * H = log16 of Height (argument R6)
 		 * l = lower four bits of argument R4
-		 * 5 = log16 of Width
+		 * W = log16 of Width (argument R5)
 		 * u = Upper two bits of argument R4
 		 *
-		 * Note: the parameters are also used in conjunction with
+		 * NOTE: the parameters are also used in conjunction with
 		 * the GPU IDMA-like device. It has the very same format
 		 * as the third word.
 		 *
 		 * See PH:@0C015BCC
 		 */
+		gpu->texheads.scratch._2C1_unk4	=
+			(((inst[0] >> 14) & 3) << 4) |
+			((inst[0] >> 22) & 15);
+		gpu->texheads.scratch.width	= 16 << ((inst[0] >> 16) & 7);
+		gpu->texheads.scratch.height	= 16 << ((inst[0] >> 19) & 7);
+		gpu->texheads.scratch.format	= (inst[0] >> 26) & 7;
+		gpu->texheads.scratch._2C1_unk8	= inst[0] >> 29;
+
 		VK_LOG ("GPU CMD %08X: Texhead: Set Format/Size [%08X]",
 		        gpu->cs.pc, inst[0]);
 
@@ -794,22 +809,22 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 *	nnnn nnnn mmmm mmmm pppp oooo oooo oooo
 		 *
-		 * n, m, p = Unknown
+		 * n = Slot Y
+		 * m = Slot X
+		 * p = Unknown; perhaps equivalent to byte +0C of the IDMA
+		 *     entries?
 		 *
-		 * Note: the parameters are also used in conjunction with
+		 * NOTE: the parameters are also used in conjunction with
 		 * the GPU IDMA-like device.
 		 *
 		 * See PH:@0C015BA0.
 		 */
-		gpu->texheads.scratch._4C1_n = inst[0] >> 24;
-		gpu->texheads.scratch._4C1_m = (inst[0] >> 16) & 0xFF;
-		gpu->texheads.scratch._4C1_p = (inst[0] >> 12) & 0xF;
+		gpu->texheads.scratch._4C1_unk = (inst[0] >> 12) & 0xF;
+		gpu->texheads.scratch.slotx = (inst[0] >> 16) & 0xFF;
+		gpu->texheads.scratch.sloty = inst[0] >> 24;
 
-		VK_LOG ("GPU CMD %08X: Texhead: Set Slot [%08X] n=%u m=%u p=%u",
-		        gpu->cs.pc, inst[0],
-		        gpu->texheads.scratch._4C1_n,
-		        gpu->texheads.scratch._4C1_m,
-		        gpu->texheads.scratch._4C1_p);
+		VK_LOG ("GPU CMD %08X: Texhead: Set Slot [%08X]",
+		        gpu->cs.pc, inst[0]);
 
 		gpu->cs.pc += 4;
 		break;
@@ -900,7 +915,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *  p = (hi^2 * lo^2) / (hi^2 - lo^2)
 		 *  q = 1.0 / sqrt (hi^4)
 		 *
-		 * Note: light types according to the PHARRIER text are:
+		 * NOTE: light types according to the PHARRIER text are:
 		 * constant, infinite, square, reciprocal, reciprocal2,
 		 * linear.
 		 */
@@ -920,34 +935,44 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		/*
 		 * 961	Set Light Position
 		 *
-		 *	---- ---- ---- ---- ---- oooo oooo oooo
+		 *	---- ---- ---- ---e nnnn oooo oooo oooo
 		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
 		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy
 		 *	zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz
 		 *
-		 * x,y,z = Direction vector?
+		 * e = Unknown
+		 * n = Unknown
+		 * x,y,z = Light position; 7FC00000 = INF?
 		 */
+		{
+			vec3f_t *v = (vec3f_t *) &inst[1];
+
+			VK_LOG ("GPU CMD %08X: Light: Set Position [%08X %08X %08X %08X] <%f %f %f>",
+			        gpu->cs.pc,
+			        inst[0], inst[1], inst[2], inst[3],
+			        v->x[0], v->x[1], v->x[2]);
+
+			gpu->cs.pc += 16;
+		}
+		break;
 	case 0xB61:
 		/*
 		 * B61	Set Light Direction
 		 *
-		 *	---- ---- ---- ---- ---- oooo oooo oooo
+		 *	---- ---- ---- ---- nnnn oooo oooo oooo
 		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
 		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy
 		 *	zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz
 		 *
-		 * x,y,z = Direction vector?
+		 * n = Unknown
+		 * x,y,z = Light direction
 		 */
 		{
-			unsigned n = (inst[0] >> 12) & 7;
-			unsigned m = (inst[0] >> 16) & 3;
-			unsigned i = (inst[0] >> 18) & 3;
 			vec3f_t *v = (vec3f_t *) &inst[1];
 
-			VK_LOG ("GPU CMD %08X: Light: Vector [%08X %08X %08X %08X] %u %u %u <%f %f %f>",
+			VK_LOG ("GPU CMD %08X: Light: Set Direction [%08X %08X %08X %08X] <%f %f %f>",
 			        gpu->cs.pc,
 			        inst[0], inst[1], inst[2], inst[3],
-			        n, m, i,
 			        v->x[0], v->x[1], v->x[2]);
 
 			gpu->cs.pc += 16;
@@ -956,10 +981,14 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x051:
 		/* 051	Light: Set Unknown
 		 *
-		 *	---- ---- nnnn nnnn ---- oooo oooo oooo	o = Opcode
-		 *	--aa aaaa aaaa bbbb bbbb bbcc cccc cccc	a,b,c = Unknown
+		 *	---- ---- nnnn nnnn ---- oooo oooo oooo
+		 *	--aa aaaa aaaa bbbb bbbb bbcc cccc cccc
 		 *
-		 * See PH:@0C0178C6.
+		 * n = Index?
+		 * a, b, c = Color? It's three FP values * 255.0f and then
+		 *           truncated and clamped to [0,FF].
+		 *
+		 * See PH:@0C0178C6; for a,b,c computation see PH:@0C03DC66.
 		 */
 		{
 			vec3s_t param;
@@ -977,17 +1006,20 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			gpu->cs.pc += 8;
 		}
 		break;
+	case 0x400:
 	case 0x451:
 		/* 451	Light: Set Unknown
 		 *
-		 *	---- ---1 ---- ---- ---- oooo oooo oooo	o = Opcode, 1 = Unknown, always set
-		 *	???? ???? ???? ???? ???? ???? ???? ????
+		 *	---- ---u ---- ---- ---- oooo oooo oooo
 		 *
-		 * XXX I'm not sure this command is _two_ words long.
+		 * u = Unknown
+		 *
+		 * See PH:@0C017A7C, PH:@0C017B6C, PH:@0C017C58,
+		 * PH:@0C017CD4, PH:@0C017D64, 
 		 */
 		VK_LOG ("GPU CMD %08X: Light: Set Unknown %03X [%08X %08X]",
 		        gpu->cs.pc, inst[0] & 0xFFF, inst[0], inst[1]);
-		gpu->cs.pc += 8;
+		gpu->cs.pc += 4;
 		break;
 	case 0x561:
 		/* 561	Light: Set Unknown
@@ -1006,9 +1038,9 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 *	---- mmmm ---- nnnn ---e oooo oooo oooo
 		 *
-		 * m,n = Unknown
+		 * m,n = Unknown (enable bitmasks?)
 		 *
-		 * Note: it's always used _before_ any lighting stuff is
+		 * NOTE: it's always used _before_ any lighting stuff is
 		 * uploaded.
 		 */
 		{
@@ -1078,7 +1110,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * See PH:@0C017DF0.
 		 */
 		{
-			VK_LOG ("GPU CMD %08X: Light: Commit Unknown %03X [%08X %08X %08X %08X]",
+			VK_LOG ("GPU CMD %08X: Commit Lightset %03X [%08X %08X %08X %08X]",
 			        gpu->cs.pc, inst[0] & 0xFFF, inst[0], inst[1], inst[2], inst[3]);
 
 			gpu->cs.pc += 16;
@@ -1106,7 +1138,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * n = Element index
 		 * x,y,z = Vector elements
 		 *
-		 * Note: bit 4 of n becomes bit 3 in PH:@0C015CF2. This is
+		 * NOTE: bit 4 of n becomes bit 3 in PH:@0C015CF2. This is
 		 * odd. It may highlight a 'set-offset' effect for matrix
 		 * commands too.
 		 *
@@ -1336,12 +1368,13 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x3A1:
 		/* 3A1	Set Lo Addresses; always comes in a pair with 5A1
 		 *
-		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
+		 *	---- ---- ---- ---- ---- oooo oooo oooo
 		 *	llll llll llll llll llll llll llll llll
 		 *	LLLL LLLL LLLL LLLL LLLL LLLL LLLL LLLL
 		 *      0000 0000 0000 0000 0000 0000 0000 0000
 		 *
-		 * Perhaps set frame buffer? See PH:@0C016308 */
+		 * See PH:@0C016308
+		 */
 		{
 			VK_LOG ("GPU CMD %08X: Set Lo Addresses [%08X %08X %08X %08X]",
 			        gpu->cs.pc, inst[0], inst[1], inst[2], inst[3]);
@@ -1352,12 +1385,13 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x5A1:
 		/* 5A1	Set Hi Addresses; always comes in a pair with 3A1
 		 *
-		 *	---- ---- ---- ---- ---- oooo oooo oooo		o = Opcode
+		 *	---- ---- ---- ---- ---- oooo oooo oooo
 		 *	uuuu uuuu uuuu uuuu uuuu uuuu uuuu uuuu
 		 *	UUUU UUUU UUUU UUUU UUUU UUUU UUUU UUUU
 		 *      0000 0000 0000 0000 0000 0000 0000 0000
 		 *
-		 * Perhaps set depth buffer? See PH:@0C016308 */
+		 * See PH:@0C016308
+		 */
 		{
 			VK_LOG ("GPU CMD %08X: Set Hi Addresses [%08X %08X %08X %08X]",
 			        gpu->cs.pc, inst[0], inst[1], inst[2], inst[3]);
@@ -1368,11 +1402,12 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x6D1:
 		/* 6D1	Unknown
 		 *
-		 *	---- ---- ---- --nn ---- oooo oooo oooo		o = Opcode
+		 *	---- ---- ---- --nn ---- oooo oooo oooo
 		 *	bbbb bbbb bbbb bbbb cccc cccc cccc cccc
 		 *
 		 * These come in quartets. May be related to matrices.
-		 * See PH:@0C015C3E */
+		 * See PH:@0C015C3E
+		 */
 		{
 			unsigned a = inst[0] >> 16;
 			unsigned b = inst[1] & 0xFFFF;
@@ -1385,9 +1420,13 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x181:
 		/* 181	Unknown
 		 *
-		 *	---- ---b nnnn nnnn ---- oooo oooo oooo		o = Opcode, n = Unknown, b = set if n != 0
+		 *	---- ---b nnnn nnnn ---- oooo oooo oooo
 		 *
-		 * See PH:@0C015B50 */
+		 * n = Unknown
+		 * b = set only if n is non-zero
+		 *
+		 * See PH:@0C015B50
+		 */
 		{
 			unsigned b = (inst[0] >> 24) & 1;
 			unsigned n = (inst[0] >> 16) & 0xFF;
