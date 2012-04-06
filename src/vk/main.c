@@ -31,6 +31,9 @@
 #include <assert.h>
 #include <getopt.h>
 #include <signal.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <pwd.h>
 
 #include <SDL/SDL.h>
 
@@ -196,6 +199,47 @@ finalize (void)
 		vk_machine_delete (&mach);
 }
 
+static char *
+get_home_dir (void)
+{
+	char *path;
+	path = getenv ("HOME");
+	if (!path) {
+		struct passwd *pwd = getpwuid (getuid ());
+		path = pwd->pw_dir;
+	}
+	return path;
+}
+
+static vk_game_list_t *
+load_game_list (void)
+{
+	vk_game_list_t *list;
+	char *paths[3], *home;
+	unsigned i;
+
+	home = get_home_dir ();
+
+	paths[0] = strdup ("./vk-games.json");
+	asprintf (&paths[1], "%s/vk-games.json", home);
+	asprintf (&paths[2], "%s/.local/share/valkyrie/vk-games.json", home);
+
+	for (i = 0; i < 3; i++) {
+		list = vk_game_list_new (paths[i]);
+		if (list)
+			break;
+	}
+
+	if (list)
+		VK_LOG ("loading game list from '%s'", paths[i]);
+
+	free (paths[0]);
+	free (paths[1]);
+	free (paths[2]);
+
+	return list;
+}
+
 int
 main (const int argc, char **argv)
 {
@@ -208,16 +252,13 @@ main (const int argc, char **argv)
 	if (parse_global_opts (argc, argv))
 		goto fail;
 
-	game_list = vk_game_list_new ("/home/stefano/vk-games.json");
+	game_list = load_game_list ();
 	if (!game_list) {
-		game_list = vk_game_list_new ("/usr/shader/valkyrie/vk-games.json");
-		if (!game_list) {
-			VK_ERROR ("failed to load the game list");
-			goto fail;
-		}
+		VK_ERROR ("failed to load the game list");
+		goto fail;
 	}
 
-	/* XXX retry on known locations too */
+	exit (1);
 
 	game = vk_game_new (game_list, options.rom_path, options.rom_name);
 	if (!game) {
