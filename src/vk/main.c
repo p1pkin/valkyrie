@@ -258,8 +258,6 @@ main (const int argc, char **argv)
 		goto fail;
 	}
 
-	exit (1);
-
 	game = vk_game_new (game_list, options.rom_path, options.rom_name);
 	if (!game) {
 		VK_ERROR ("failed to load '%s'", options.rom_name);
