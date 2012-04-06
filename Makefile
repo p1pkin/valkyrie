@@ -1,13 +1,12 @@
-CC := gcc-4.7
-LD := gcc-4.7
+CC := clang
+LD := clang
 
 DEFS := -DVK_HAVE_HIKARU
 
-#CFLAGS  := -I src -I /usr/include/json -O3 -flto -fomit-frame-pointer $(DEFS) -Wall -Wno-strict-aliasing
-CFLAGS  := -I src -I /usr/include/json -O0 -g $(DEFS) -Wall -Wno-strict-aliasing
+CFLAGS  := $(DEFS) -I src -I /usr/include/json -O3 -fomit-frame-pointer -Wall -Wno-strict-aliasing
 LDFLAGS := -lm -lSDL -lGLEW -ljansson
 
-.PHONY: all clean
+.PHONY: all install clean
 
 VK_OBJ := \
 	src/vk/core.o \
@@ -44,6 +43,12 @@ bin/valkyrie: $(VK_OBJ) $(HIKARU_OBJ)
 
 %.o: %.c %.h
 	$(CC) $(CFLAGS) -c $< -o $@
+
+install:
+	@( mkdir -pv $(HOME)/.local/bin )
+	@( cp -v bin/valkyrie $(HOME)/.local/bin )
+	@( mkdir -pv $(HOME)/.local/share/valkyrie )
+	@( cp -v vk-games.json $(HOME)/.local/share/valkyrie )
 
 clean:
 	find . -name '*.o' | xargs rm -vf
