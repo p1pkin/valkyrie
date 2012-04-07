@@ -860,7 +860,7 @@ sh4_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 		ret = vk_cpu_get ((vk_cpu_t *) ctx, size, addr & ADDR_MASK, val);
 	/* TODO propagate to the caller to allow for memory exceptions */
 	if (ret)
-		VK_CPU_ABORT (ctx, "unhandled R%d @%08X", 8*size, addr);
+		VK_CPU_ERROR (ctx, "unhandled R%d @%08X", 8*size, addr);
 	return ret;
 }
 
@@ -880,7 +880,7 @@ sh4_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 		ret = vk_cpu_put ((vk_cpu_t *) ctx, size, addr & ADDR_MASK, val);
 	/* TODO propagate to the caller to allow for memory exceptions */
 	if (ret)
-		VK_CPU_ABORT (ctx, "unhandled W%d @%08X = %llX", 8*size, addr, val);
+		VK_CPU_ERROR (ctx, "unhandled W%d @%08X = %llX", 8*size, addr, val);
 	return ret;
 }
 
@@ -1186,6 +1186,22 @@ setup_insns_handlers (void)
 /* Execution */
 
 static void
+print_f_context (sh4_t *ctx, uint32_t pc)
+{
+	unsigned i;
+
+	VK_LOG ("FP @%08X:", pc);
+	for (i = 0; i < 16; i += 4) {
+		VK_LOG ("	FP FR%2u=%9.3f FR%2u=%9.3f FR%2u=%9.3f FR%2u=%9.3f",
+		        i, FR(i).f, i+1, FR(i+1).f, i+2, FR(i+2).f, i+3, FR(i+3).f);
+	}
+	for (i = 0; i < 16; i += 4) {
+		VK_LOG ("	FP XF%2u=%9.3f XF%2u=%9.3f XF%2u=%9.3f XF%2u=%9.3f",
+		        i, XF(i).f, i+1, XF(i+1).f, i+2, XF(i+2).f, i+3, XF(i+2).f);
+	}
+}
+
+static void
 sh4_step (sh4_t *ctx, uint32_t pc)
 {
 	uint16_t inst;
@@ -1197,115 +1213,137 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 
 	/* BOOTROM 0.92 */
 	case 0x0C0010A4:
-		VK_CPU_LOG (ctx, " ### BOOTROM about to jump to IRQ handler @%08X", R(5))
+		VK_CPU_LOG (ctx, "BOOTROM about to jump to IRQ handler @%08X", R(5))
 		break;
 	case 0x0C00B90A:
-		VK_CPU_LOG (ctx, " ### BOOTROM JUMPING TO ROM CODE! (%X)", R(11));
+		VK_CPU_LOG (ctx, "BOOTROM JUMPING TO ROM CODE! (%X)", R(11));
+		break;
+	case 0x0C0069E0:
+		VK_CPU_LOG (ctx, "BOOTROM sync (%X)", R(4));
 		break;
 #if 0
-	case 0x0C0069E0:
-		VK_CPU_LOG (ctx, " ### BOOTROM sync (%X)", R(4));
-		break;
 	case 0x0C00BD18:
-		VK_CPU_LOG (ctx, " ### BOOTROM set_errno_and_init_machine_extended (%X)", R(4));
+		VK_CPU_LOG (ctx, "BOOTROM set_errno_and_init_machine_extended (%X)", R(4));
 		break;
 	case 0x0C00BC5C:
-		VK_CPU_LOG (ctx, " ### BOOTROM authenticate_rom (%X, %X, %X)", R(6), R(7), R(8));
+		VK_CPU_LOG (ctx, "BOOTROM authenticate_rom (%X, %X, %X)", R(6), R(7), R(8));
 		break;
 	case 0x0C00BC9E:
-		VK_CPU_LOG (ctx, " ### BOOTROM authenticate_rom () : values read from EPROM %X: %X %X",
+		VK_CPU_LOG (ctx, "BOOTROM authenticate_rom () : values read from EPROM %X: %X %X",
 		            R(5), R(3), R(1));
 		break;
 	case 0x0C004E46:
-		VK_CPU_LOG (ctx, " ### BOOTROM rombd_do_crc (%X, %X, %X)", R(4), R(5), R(6));
+		VK_CPU_LOG (ctx, "BOOTROM rombd_do_crc (%X, %X, %X)", R(4), R(5), R(6));
 		break;
 #endif
 	case 0x0C00BFB2:
 		/* Makes the EEPROM check pass */
 		R(0) = 0xF;
 		break;
+	case 0x0C0100E4:
+		VK_CPU_LOG (ctx, "BOOTROM game main() is at %08X", PR);
+		break;
 
 #if 0
 	/* AIRTRIX */
 	case 0x0C010E78:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: main ()");
+		VK_CPU_LOG (ctx, "AIRTRIX: main ()");
 		break;
 	case 0x0C697A40:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: sync (%X)", R(4));
+		VK_CPU_LOG (ctx, "AIRTRIX: sync (%X)", R(4));
 		break;
 	case 0x0C697CDC:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: flush_list_to_15000010_idma ()");
+		VK_CPU_LOG (ctx, "AIRTRIX: flush_list_to_15000010_idma ()");
 		break;
 	case 0x0C697D48:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: flush_list_to_1A040000_fifo ()");
+		VK_CPU_LOG (ctx, "AIRTRIX: flush_list_to_1A040000_fifo ()");
 		break;
 	case 0x0C697C3C:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: update_controls ()");
+		VK_CPU_LOG (ctx, "AIRTRIX: update_controls ()");
 		break;
 	case 0x0C6996A0:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: print_warning (%X)", R(4));
+		VK_CPU_LOG (ctx, "AIRTRIX: print_warning (%X)", R(4));
 		break;
 	case 0x0C0310CC:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: upload_textures_from_table_with_dma_and_idma (%X)", R(4));
+		VK_CPU_LOG (ctx, "AIRTRIX: upload_textures_from_table_with_dma_and_idma (%X)", R(4));
 		break;
 	case 0x0C699A60:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: do_memctl_dma_and_idma (%X,%X,%X,%X)", R(4),R(5),R(6),R(7));
+		VK_CPU_LOG (ctx, "AIRTRIX: do_memctl_dma_and_idma (%X,%X,%X,%X)", R(4),R(5),R(6),R(7));
 		break;
 	case 0x0C699580:
 	case 0x0C699760:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: upload_texture (%X,%X,%X)", R(4),R(5),R(6));
+		VK_CPU_LOG (ctx, "AIRTRIX: upload_texture (%X,%X,%X)", R(4),R(5),R(6));
 		break;
 	case 0x0C699200:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: texture_foo (%X,%X,%X,%X,SP,SP+4)", R(4),R(5),R(6),R(7));
+		VK_CPU_LOG (ctx, "AIRTRIX: texture_foo (%X,%X,%X,%X,SP,SP+4)", R(4),R(5),R(6),R(7));
 		break;
 	case 0x0C699140:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: clear_layer (%X,%X)", R(4),R(5));
+		VK_CPU_LOG (ctx, "AIRTRIX: clear_layer (%X,%X)", R(4),R(5));
 		break;
 	case 0x0C010F9A:
 		/* Make the 'WARNING' screen faster (well, 656 frames faster) */
 		R(2) = 0x290;
 		break;
 	case 0x0C014D72:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: huge_shit ()");
+		VK_CPU_LOG (ctx, "AIRTRIX: huge_shit ()");
 		break;
 	case 0x0C0263EA:
-		VK_CPU_LOG (ctx, " ### AIRTRIX: game_logic_update_A ()");
+		VK_CPU_LOG (ctx, "AIRTRIX: game_logic_update_A ()");
 		break;
 #endif
 
 #if 0
        /* BRAVEFF */
-       case 0x0C0D3F00:
-               VK_CPU_LOG (ctx, " ### BRAVEFF: sync (%X)", R(4));
-               break;
-       case 0x0C0D51C0:
-               VK_CPU_LOG (ctx, " ### BRAVEFF: do_dmac (%X, %X, %X, %X)", R(4), R(5), R(6), R(7));
-               break;
-       case 0x0C0D522A:
-               T = 1;
-               break;
-       case 0x0C05B53E:
-               T = 0;
-               break;
-       case 0x0C04075C:
-               /* Manipulates the main loop stage: 1 is the 'WARNING' screen,
-                * 2 is the 'ADVERTISE' screen, etc. */
-               R(0) = 6;
-               break;
+	case 0x0C0D3F00:
+		VK_CPU_LOG (ctx, "BRAVEFF: sync (%X)", R(4));
+		break;
+	case 0x0C0D51C0:
+		VK_CPU_LOG (ctx, "BRAVEFF: do_dmac (%X, %X, %X, %X)", R(4), R(5), R(6), R(7));
+		break;
+	case 0x0C07A0C4:
+		{
+			uint32_t strptr;
+			sh4_get (ctx, 4, R(15), &strptr);
+			VK_CPU_LOG (ctx, "BRAVEFF: print_at_cursor (%X)", strptr);
+		}
+		break;
+	case 0x0C0766BA:
+		/* trick the faulty aica_stuff () functions into doing a
+		 * non-zero dmac to the AICA */
+		if (R(6) == 0)
+			R(6) = 1;
+		break;
+	case 0x0C010E4E:
+		/* Make the "ADVERTISE" screen 1 frame long */
+		R(1) = 0x100;
+		break;
+	case 0x0C0D522A:
+		T = 1;
+		break;
+	case 0x0C05B53E:
+		T = 0;
+		break;
+	case 0x0C04075C:
+		/* Manipulates the main loop stage: 1 is the 'WARNING' screen,
+		 * 2 is the 'ADVERTISE' screen, etc. */
+		//R(0) = 6;
+		break;
 #endif
 
 #if 1
 	/* PHARRIER */
 	case 0x0C01C0A0:
-		VK_CPU_LOG (ctx, " ### PHARRIER: sync (%X)", R(4));
+		VK_CPU_LOG (ctx, "PHARRIER: sync_fifo_iomain (%X)", R(4));
 		break;
 	case 0x0C0125C0:
-		VK_CPU_LOG (ctx, " ### PHARRIER: core_sync (%X)", R(4));
+		VK_CPU_LOG (ctx, "PHARRIER: sync (%X)", R(4));
 		break;
 	case 0x0C0198D4:
-		VK_CPU_LOG (ctx, " ### PHARRIER: cotan (%d)", R(4));
+		VK_CPU_LOG (ctx, "PHARRIER: cotan (%d)", R(4));
 		break;
-
+	case 0x0C0C96C0:
+		VK_CPU_LOG (ctx, "PHARRIER: print_to_cursor (%X)", R(4));
+		break;
 	case 0x0C01C322:
 		/* Patches an AICA-related while (1) into a NOP */
 		inst = 0x0009;
