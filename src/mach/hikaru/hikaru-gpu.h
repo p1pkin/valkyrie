@@ -31,6 +31,7 @@ vk_device_t	*hikaru_gpu_new (vk_machine_t *mach,
 		                 vk_buffer_t *texram);
 void		 hikaru_gpu_vblank_out (vk_device_t *dev);
 void		 hikaru_gpu_vblank_in (vk_device_t *dev);
+void		 hikaru_gpu_hblank_in (vk_device_t *dev, unsigned line);
 const char	*hikaru_gpu_get_debug_str (vk_device_t *dev);
 
 #endif /* __VK_HKGPU_H__ */

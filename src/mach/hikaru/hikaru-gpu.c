@@ -28,6 +28,13 @@
 /* TODO: figure out what is 4Cxxxxxx; there are a few CALL commands to that
  * bus bank in the BOOTROM command streams. */
 /* TODO: handle slave access */
+/* TODO: figure out the following: 
+ * Shading		Flat, Linear, Phong
+ * Lighting		Horizontal, Spot, 1024 lights per scene, 4 lights
+ *			per polygon, 8 window surfaces. 
+ * Effects		Phong Shading, Fog, Depth Queueing, Stencil, Shadow [?]
+ *			Motion blur
+ */
 
 /*
  * Overview
@@ -705,6 +712,9 @@ hikaru_gpu_end_processing (hikaru_gpu_t *gpu)
  * However, some experiments (see idma.py and idmas.log) seem to indicate
  * that the proper unit size is in fact 8. XXX implement it! XXX
  *
+ * NOTE: AIRTRIX uploads textures as blocks of 512x512 pixels. The odd thing
+ * is that format=0 while not all textures in the block are RGBA5551.
+ *
  * NOTE: during the bootrom life-cycle, the data address to texture-like
  * data (the not-yet-converted ASCII texture.) However, the bootrom uploads
  * the very same texture independently to TEXRAM by performing the format
@@ -733,11 +743,51 @@ calc_full_texture_size (hikaru_gpu_texture_t *texture)
 }
 
 static void
+copy_texture (hikaru_gpu_t *gpu, hikaru_gpu_texture_t *texture)
+{
+	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
+	vk_buffer_t *srcbuf;
+	uint32_t basex = texture->slotx * 8;
+	uint32_t basey = texture->sloty * 8;
+	uint32_t endx = basex + texture->width;
+	uint32_t endy = basey + texture->height;
+	uint32_t mask, x, y, offs;
+
+	if ((texture->addr >> 24) == 0x48) {
+		srcbuf = hikaru->cmdram;
+		mask = 8*MB-1;
+	} else {
+		srcbuf = hikaru->ram_s;
+		mask = 32*MB-1;
+	}
+
+	VK_LOG ("IDMA: %ux%u to (%X,%X), area in texram is ([%u,%u],[%u,%u]); dst addr = %08X",
+	        texture->width, texture->height,
+	        texture->slotx, texture->sloty,
+	        basex, basey, endx, endy,
+	        basey * 4096 + basex * 2);
+
+	if ((endx > 2048) || (endy > 2048)) {
+		VK_ERROR ("IDMA: out-of-bounds transfer: %s",
+		          get_gpu_texture_str (texture));
+		return;
+	}
+
+	offs = texture->addr & mask;
+	for (y = 0; y < texture->height; y++) {
+		for (x = 0; x < texture->width; x++, offs += 2) {
+			uint32_t temp = (basey + y) * 4096 + (basex + x) * 2;
+			uint32_t texel = vk_buffer_get (srcbuf, 2, offs);
+			vk_buffer_put (gpu->texram, 2, temp, texel);
+		}
+	}
+}
+
+static void
 process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 {
 	hikaru_gpu_texture_t texture;
 	uint32_t exp_size[2];
-	bool okay = true;
 
 	texture.addr	= entry[0];
 	texture.size	= entry[1];
@@ -750,38 +800,47 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	exp_size[0] = texture.width * texture.height * 2;
 	exp_size[1] = calc_full_texture_size (&texture);
 
-	texture.has_mipmap = (texture.size == exp_size[0]) ? 0 : 1;
+	/* XXX this check isn't clever enough to figure out that AIRTRIX
+	 * texture blobs _do_ have a mipmap. However even if we miss a
+	 * mipmap or two, it shouldn't be that big of a problem. */
+	texture.has_mipmap = (texture.size == exp_size[1]) ? 1 : 0;
 
 	VK_LOG ("IDMA %08X %08X %08X %08X : %s",
 	        entry[0], entry[1], entry[2], entry[3],
 	        get_gpu_texture_str (&texture));
 
-	if ((entry[1] & 0xFFFF0000) ||
-	    (entry[2] & 0xE3C00000) ||
+	if ((entry[2] & 0xE3C00000) ||
 	    (entry[3] & 0xFFFFFFFE)) {
-		VK_ERROR ("IDMA: unhandled texture entry: %08X %08X %08X %08X",
+		VK_ERROR ("IDMA: unhandled bits in texture entry: %08X %08X %08X %08X",
 		          entry[0], entry[1], entry[2], entry[3]);
-		okay = false;
+		/* continue anyway */
 	}
 
 	if (texture.size != exp_size[0] &&
 	    texture.size != exp_size[1]) {
 		VK_ERROR ("IDMA: unexpected texture size: %s",
 		          get_gpu_texture_str (&texture));
-		okay = false;
+		/* continue anyway */
 	}
 
 	if (texture.format != FORMAT_RGBA5551 &&
 	    texture.format != FORMAT_RGBA4444 &&
-	    texture.format != FORMAT_UNKNOWN &&
-	    texture.format != FORMAT_ALPHA) {
-		VK_ERROR ("IDMA: unknown texture format: %s",
+	    texture.format != FORMAT_RGBA1111 &&
+	    texture.format != FORMAT_ALPHA8) {
+		VK_ERROR ("IDMA: unknown texture format, skipping: %s",
 		          get_gpu_texture_str (&texture));
-		okay = false;
+		return;
 	}
 
-	if (okay)
-		hikaru_renderer_register_texture (gpu->renderer, &texture);
+	if ((texture.addr & 0xFE000000) != 0x40000000 &&
+	    (texture.addr & 0xFF000000) != 0x48000000) {
+		VK_ERROR ("IDMA: unknown texture address, skipping: %s",
+		          get_gpu_texture_str (&texture));
+		return;
+	}
+
+	copy_texture (gpu, &texture);
+	hikaru_renderer_register_texture (gpu->renderer, &texture);
 }
 
 static void
@@ -899,6 +958,14 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 /* External event handlers */
 
 void
+hikaru_gpu_hblank_in (vk_device_t *dev, unsigned line)
+{
+	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
+
+	REG1A(0x1C) = (REG1A(0x1C) & ~0x003FF800) | (line << 11);
+}
+
+void
 hikaru_gpu_vblank_in (vk_device_t *dev)
 {
 	(void) dev;
@@ -908,8 +975,8 @@ void
 hikaru_gpu_vblank_out (vk_device_t *dev)
 {
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
-	hikaru_gpu_raise_irq (gpu, _15_IRQ_VBLANK, _1A_IRQ_VBLANK);
 
+	hikaru_gpu_raise_irq (gpu, _15_IRQ_VBLANK, _1A_IRQ_VBLANK);
 	hikaru_gpu_render_bitmap_layers (gpu);
 }
 
@@ -1107,6 +1174,18 @@ hikaru_gpu_reset (vk_device_t *dev, vk_reset_type_t type)
 	memset (gpu->regs_1A_unit[0], 0, 0x40);
 	memset (gpu->regs_1A_unit[0], 0, 0x40);
 	memset (gpu->regs_1A_fifo, 0, 0x10);
+
+	memset (&gpu->cs, 0, sizeof (gpu->cs));
+
+	memset (&gpu->viewports, 0, sizeof (gpu->viewports));
+	memset (&gpu->materials, 0, sizeof (gpu->materials));
+	memset (&gpu->texheads, 0, sizeof (gpu->texheads));
+	memset (&gpu->lights, 0, sizeof (gpu->lights));
+	memset (&gpu->mtx, 0, sizeof (gpu->mtx));
+
+	gpu->viewports.scratch.used = 1;
+	gpu->materials.scratch.used = 1;
+	gpu->texheads.scratch.used = 1;
 }
 
 const char *
@@ -1135,11 +1214,121 @@ hikaru_gpu_load_state (vk_device_t *dev, FILE *fp)
 	return -1;
 }
 
+char *
+get_gpu_viewport_str (hikaru_gpu_viewport_t *viewport)
+{
+	static char out[512];
+	sprintf (out, "(%7.3f %7.3f %7.3f) (%u,%u) (%u,%u) (%u,%u) (%u %5.3f %5.3f) (%u %5.3f %5.3f)",
+	         viewport->persp_x, viewport->persp_y, viewport->persp_unk,
+	         viewport->center.x[0], viewport->center.x[1],
+	         viewport->extents_x.x[0], viewport->extents_x.x[1],
+	         viewport->extents_y.x[0], viewport->extents_y.x[1],
+	         viewport->depth_func, viewport->depth_near, viewport->depth_far,
+	         viewport->depthq_type, viewport->depthq_density, viewport->depthq_bias);
+	return out;
+}
+
+char *
+get_gpu_material_str (hikaru_gpu_material_t *material)
+{
+	static char out[512];
+	sprintf (out, "C0=#%02X%02X%02X C1=#%02X%02X%02X S=%u,#%02X%02X%02X MC=#%04X,%04X,%04X M=%u Z=%u T=%u A=%u H=%u B=%u",
+	         material->color[0].x[0],
+	         material->color[0].x[1],
+	         material->color[0].x[2],
+	         material->color[1].x[0],
+	         material->color[1].x[1],
+	         material->color[1].x[2],
+	         material->specularity,
+	         material->shininess.x[0],
+	         material->shininess.x[1],
+	         material->shininess.x[2],
+	         material->material_color.x[0],
+	         material->material_color.x[1],
+	         material->material_color.x[2],
+	         material->mode,
+	         material->depth_blend,
+	         material->has_texture,
+	         material->has_alpha,
+	         material->has_highlight,
+	         material->bmode);
+	return out;
+}
+
+char *
+get_gpu_texhead_str (hikaru_gpu_texhead_t *texhead)
+{
+	static const char *name[8] = {
+		"RGBA5551",
+		"RGBA4444",
+		"RGBA1111",
+		"3",
+		"ALPHA8",
+		"5",
+		"6",
+		"7"
+	};
+	static char out[512];
+	sprintf (out, "slot=%X,%X pos=%X,%X offs=%08X %ux%u %s ni=%X by=%X u4=%X u8=%X uk=%X",
+	         texhead->slotx, texhead->sloty,
+	         texhead->slotx*8, texhead->sloty*8,
+	         texhead->sloty*8*4096+texhead->slotx*8*2,
+	         texhead->width, texhead->height,
+	         name[texhead->format],
+	         texhead->_0C1_nibble, texhead->_0C1_byte,
+	         texhead->_2C1_unk4, texhead->_2C1_unk8,
+	         texhead->_4C1_unk);
+	return out;
+}
+
+char *
+get_gpu_texture_str (hikaru_gpu_texture_t *texture)
+{
+	static char out[256];
+	sprintf (out, "%X size=%X slot=%X,%X pos=%X,%X offs=%08X %ux%u format=%u hasmip=%u",
+	         texture->addr, texture->size,
+	         texture->slotx, texture->sloty,
+	         texture->slotx*8, texture->sloty*8,
+	         texture->sloty*8*4096+texture->slotx*8*2,
+	         texture->width, texture->height, texture->format,
+	         texture->has_mipmap);
+	return out;
+}
+
+static void
+hikaru_gpu_print_rendering_state (hikaru_gpu_t *gpu)
+{
+	unsigned i;
+
+	for (i = 0; i < NUM_VIEWPORTS; i++) {
+		hikaru_gpu_viewport_t *vp;
+		vp = &gpu->viewports.table[i];
+		if (vp->used)
+			VK_LOG ("GPU RS: viewport %3u: %s", i,
+			        get_gpu_viewport_str (vp));
+	}
+	for (i = 0; i < NUM_MATERIALS; i++) {
+		hikaru_gpu_material_t *mat;
+		mat = &gpu->materials.table[i];
+		if (mat->used)
+			VK_LOG ("GPU RS: material %3u: %s", i,
+			        get_gpu_material_str (mat));
+	}
+	for (i = 0; i < NUM_TEXHEADS; i++) {
+		hikaru_gpu_texhead_t *th;
+		th = &gpu->texheads.table[i];
+		if (th->used)
+			VK_LOG ("GPU RS: texhead %3u: %s", i,
+			        get_gpu_texhead_str (th));
+	}
+}
+
 static void
 hikaru_gpu_delete (vk_device_t **dev_)
 {
 	if (dev_) {
 		hikaru_gpu_t *gpu = (hikaru_gpu_t *) *dev_;
+		hikaru_gpu_print_rendering_state (gpu);
 		free (gpu);
 		*dev_ = NULL;
 	}

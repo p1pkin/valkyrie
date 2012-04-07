@@ -372,6 +372,7 @@ unk_s_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 	return 0;
 }
 
+/* XXX hack */
 static vk_device_t unk_s = {
 	0,
 	.get = unk_s_get,
@@ -416,7 +417,7 @@ hikaru_raise_irq (vk_machine_t *mach, unsigned num, uint16_t porta)
 
 /* XXX this should really be 200 MHz; downclocked to 50 MHz to make debugging
  * a little more bearable. */
-#define CYCLES_PER_LINE ((50 * MHZ) / (60 * 480))
+static const unsigned cycles_per_line = (50 * MHZ) / (60 * 480);
 
 static void
 hikaru_run_cycles (vk_machine_t *mach, int cycles)
@@ -424,33 +425,37 @@ hikaru_run_cycles (vk_machine_t *mach, int cycles)
 	hikaru_t *hikaru = (hikaru_t *) mach;
 
 	hikaru->sh_current = hikaru->sh_m;
-	vk_cpu_run (hikaru->sh_m, CYCLES_PER_LINE);
+	vk_cpu_run (hikaru->sh_m, cycles);
 	
 	hikaru->sh_current = hikaru->sh_s;
-	vk_cpu_run (hikaru->sh_s, CYCLES_PER_LINE);
+	vk_cpu_run (hikaru->sh_s, cycles);
 
-	vk_device_exec (hikaru->memctl_m, CYCLES_PER_LINE);
-	vk_device_exec (hikaru->gpu, CYCLES_PER_LINE);
+	vk_device_exec (hikaru->memctl_m, cycles);
+	vk_device_exec (hikaru->gpu, cycles);
 }
 
 static int
 hikaru_run_frame (vk_machine_t *mach)
 {
 	hikaru_t *hikaru = (hikaru_t *) mach;
-	int line;
+	unsigned line;
 
 	vk_renderer_begin_frame (hikaru->base.renderer);
 
 	VK_LOG (" *** VBLANK-OUT %s ***", vk_machine_get_debug_string (mach));
 
-	for (line = 0; line < 480; line++)
-		hikaru_run_cycles (mach, CYCLES_PER_LINE);
+	for (line = 0; line < 480; line++) {
+		hikaru_run_cycles (mach, cycles_per_line);
+		hikaru_gpu_hblank_in (hikaru->gpu, line);
+	}
 
 	VK_LOG (" *** VBLANK-IN  %s ***", vk_machine_get_debug_string (mach));
 	hikaru_gpu_vblank_in (hikaru->gpu);
 
-	for (line = 0; line < 64; line++)
-		hikaru_run_cycles (mach, CYCLES_PER_LINE);
+	for (line = 480; line < (480+64); line++) {
+		hikaru_run_cycles (mach, cycles_per_line);
+		hikaru_gpu_hblank_in (hikaru->gpu, line);
+	}
 
 	/* this may actually be an hblank-out IRQ */
 	hikaru_gpu_vblank_out (hikaru->gpu);
@@ -815,10 +820,12 @@ hikaru_set_rombd_config (hikaru_t *hikaru)
 		eprom_bank_size = 4;
 		maskrom_bank_size = 16;
 	} else if (!strcmp (game->name, "podrace")) {
+		/* XXX doesn't pass the ROMBD test */
 		eprom_bank_size = 4;
 		maskrom_bank_size = 8;
 		maskrom_is_stretched = true;
 	} else if (!strcmp (game->name, "sgnascar")) {
+		/* XXX doesn't pass the ROMBD test */
 		//rombd_offs = 8;
 		eprom_bank_size = 4;
 		maskrom_bank_size = 16;

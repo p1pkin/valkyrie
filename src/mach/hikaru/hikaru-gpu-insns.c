@@ -50,8 +50,9 @@ static bool
 is_vertex_op (uint32_t op)
 {
 	switch (op) {
-	case 0x000:
 		/* Nop */
+	case 0x000:
+		/* Vertex Normal */
 	case 0x1B8:
 	case 0x1BC:
 	case 0x1BD:
@@ -60,7 +61,7 @@ is_vertex_op (uint32_t op)
 	case 0xFBD:
 	case 0xFBE:
 	case 0xFBF:
-		/* Vertex Normal */
+		/* Vertex */
 	case 0x12C:
 	case 0x12D:
 	case 0xF2C:
@@ -69,10 +70,9 @@ is_vertex_op (uint32_t op)
 	case 0x1AD:
 	case 0xFAC:
 	case 0xFAD:
-		/* Vertex */
+		/* Tex Coord */
 	case 0xEE8:
 	case 0xEE9:
-		/* Tex Coord */
 		return true;
 	default:
 		return false;
@@ -110,7 +110,10 @@ read_inst (hikaru_gpu_t *gpu, uint32_t inst[8])
 #define ASSERT(cond_) \
 	do { \
 		if (!(cond_)) { \
-			VK_ABORT ("GPU: @%08X: assertion failed, aborting", gpu->cs.pc); \
+			VK_ABORT ("GPU: @%08X: assertion failed, aborting [%08X %08X %08X %08X %08X %08X %08X %08X]", \
+			          gpu->cs.pc, \
+				  inst[0], inst[1], inst[2], inst[3], \
+			          inst[4], inst[5], inst[6], inst[7]); \
 		} \
 	} while (0);
 
@@ -368,25 +371,25 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		/* 421	Viewport: Set Depth Range
 		 *
 		 *	---- ---- ---- ---- ---- oooo oooo oooo
-		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
-		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy
-		 *	aaa- ---- ---- ---- ---- ---- ---- ----
+		 *	nnnn nnnn nnnn nnnn nnnn nnnn nnnn nnnn
+		 *	ffff ffff ffff ffff ffff ffff ffff ffff
+		 *	FFF- ---- ---- ---- ---- ---- ---- ----
 		 *
-		 * x = depth kappa, also used for 021 and 621
-		 * y = Unknown
-		 * a = Unknown
+		 * n = depth near; also called depth kappa, used in 021 and 621
+		 * f = depth far
+		 * F = depth function?
 		 *
 		 * See PH:@0C015AA6
 		 */
-		gpu->viewports.scratch.unk_func = inst[3] >> 29;
-		gpu->viewports.scratch.unk_n = *(float *) &inst[1];
-		gpu->viewports.scratch.unk_b = *(float *) &inst[2];
+		gpu->viewports.scratch.depth_near = *(float *) &inst[1];
+		gpu->viewports.scratch.depth_far  = *(float *) &inst[2];
+		gpu->viewports.scratch.depth_func = inst[3] >> 29;
 
-		VK_LOG ("GPU CMD %08X: Viewport: Set Depth Range [%08X %08X %08X %08X] func=%u n=%f b=%f",
+		VK_LOG ("GPU CMD %08X: Viewport: Set Depth Range [%08X %08X %08X %08X] func=%u near=%f far=%f",
 		        gpu->cs.pc, inst[0], inst[1], inst[2], inst[3],
-		        gpu->viewports.scratch.unk_func,
-		        gpu->viewports.scratch.unk_n,
-		        gpu->viewports.scratch.unk_b);
+		        gpu->viewports.scratch.depth_func,
+		        gpu->viewports.scratch.depth_near,
+		        gpu->viewports.scratch.depth_far);
 			        
 		ASSERT (!(inst[3] & 0x1FFFFFFF));
 
@@ -416,27 +419,27 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 * See PH:@0C0159C4, PH:@0C015A02, PH:@0C015A3E.
 		 */
-		gpu->viewports.scratch.depth_type	= (inst[0] >> 18) & 3;
-		gpu->viewports.scratch.depth_enabled	= ((inst[0] >> 17) & 1) ? 0 : 1;
-		gpu->viewports.scratch.depth_unk	= (inst[0] >> 16) & 1;
-		gpu->viewports.scratch.depth_mask.x[0]	= inst[1] & 0xFF;
-		gpu->viewports.scratch.depth_mask.x[1]	= (inst[1] >> 8) & 0xFF;
-		gpu->viewports.scratch.depth_mask.x[2]	= (inst[1] >> 16) & 0xFF;
-		gpu->viewports.scratch.depth_mask.x[3]	= inst[1] >> 24;
-		gpu->viewports.scratch.depth_density	= *(float *) &inst[2];
-		gpu->viewports.scratch.depth_bias	= *(float *) &inst[3];
+		gpu->viewports.scratch.depthq_type	= (inst[0] >> 18) & 3;
+		gpu->viewports.scratch.depthq_enabled	= ((inst[0] >> 17) & 1) ? 0 : 1;
+		gpu->viewports.scratch.depthq_unk	= (inst[0] >> 16) & 1;
+		gpu->viewports.scratch.depthq_mask.x[0]	= inst[1] & 0xFF;
+		gpu->viewports.scratch.depthq_mask.x[1]	= (inst[1] >> 8) & 0xFF;
+		gpu->viewports.scratch.depthq_mask.x[2]	= (inst[1] >> 16) & 0xFF;
+		gpu->viewports.scratch.depthq_mask.x[3]	= inst[1] >> 24;
+		gpu->viewports.scratch.depthq_density	= *(float *) &inst[2];
+		gpu->viewports.scratch.depthq_bias	= *(float *) &inst[3];
 
 		VK_LOG ("GPU CMD %08X: Viewport: Set Depth Queue [%08X %08X %08X %08X] type=%u enabled=%u unk=%u mask=<%X %X %X %X> density=%f bias=%f",
 		        gpu->cs.pc, inst[0], inst[1], inst[2], inst[3],
-			gpu->viewports.scratch.depth_type,
-			gpu->viewports.scratch.depth_enabled,
-			gpu->viewports.scratch.depth_unk,
-			gpu->viewports.scratch.depth_mask.x[0],
-			gpu->viewports.scratch.depth_mask.x[1],
-			gpu->viewports.scratch.depth_mask.x[2],
-			gpu->viewports.scratch.depth_mask.x[3],
-			gpu->viewports.scratch.depth_density,
-			gpu->viewports.scratch.depth_bias);
+			gpu->viewports.scratch.depthq_type,
+			gpu->viewports.scratch.depthq_enabled,
+			gpu->viewports.scratch.depthq_unk,
+			gpu->viewports.scratch.depthq_mask.x[0],
+			gpu->viewports.scratch.depthq_mask.x[1],
+			gpu->viewports.scratch.depthq_mask.x[2],
+			gpu->viewports.scratch.depthq_mask.x[3],
+			gpu->viewports.scratch.depthq_density,
+			gpu->viewports.scratch.depthq_bias);
 
 		gpu->cs.pc += 16;
 		break;
@@ -644,11 +647,13 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 *	---- ---- --ha tzmm ---- oooo oooo oooo
 		 *
-		 * m = Mode
+		 * m = Mode (Shading Mode?)
 		 * z = Depth blend (fog)
 		 * t = Enable texture
 		 * a = Alpha mode
 		 * h = Highlight mode
+		 *
+		 * m should include Flat, Linear, Phong.
 		 *
 		 * See PH:@0C0CF700.
 		 */
@@ -672,6 +677,8 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		/* A81	Material: Set BMode
 		 *
 		 *	---- ---- ---- ---mm ---- oooo ooo oooo
+		 *
+		 * Blending Mode?
 		 *
 		 * See PH:@0C0CF7FA.
 		 */
@@ -710,13 +717,19 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			unsigned n = (inst[0] >> 16) & MATERIAL_MASK;
 			unsigned u = (inst[0] >> 12) & 1;
 
-			n += gpu->materials.offset;
-			gpu->materials.table[n & MATERIAL_MASK] = gpu->materials.scratch;
-
 			VK_LOG ("GPU CMD %08X: Commit Material [%08X] num=%u unk=%u",
 			        gpu->cs.pc, inst[0], n, u);
 
 			gpu->cs.pc += 4;
+
+			n += gpu->materials.offset;
+			if (n >= NUM_MATERIALS) {
+				VK_ERROR ("GPU MATERIAL: commit index exceeds MAX (%u >= %u), skipping",
+				          n, NUM_MATERIALS);
+				break;
+			}
+			n &= MATERIAL_MASK;
+			gpu->materials.table[n] = gpu->materials.scratch;
 		}
 		break;
 	case 0x083:
@@ -731,21 +744,27 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * See @0C00657C, PH:@0C0CF882.
 		 */
 		{
-			unsigned n = (inst[0] >> 16) & MATERIAL_MASK;
+			unsigned n = inst[0] >> 16;
 			unsigned e = (inst[0] >> 12) & 1;
-
-			if (e) {
-				n += gpu->materials.offset;
-				hikaru_renderer_set_material (gpu->renderer,
-				                              &gpu->materials.table[n]);
-			} else
-				gpu->materials.offset = n;
 
 			VK_LOG ("GPU CMD %08X: Recall Material [%08X] (%s) num=%u ena=%u",
 			        gpu->cs.pc, inst[0],
 			        e ? "" : "OFFS ONLY", n, e);
 
 			gpu->cs.pc += 4;
+
+			if (e) {
+				n += gpu->materials.offset;
+				if (n >= NUM_MATERIALS) {
+					VK_ERROR ("GPU MATERIAL: recall index exceeds MAX (%u >= %u), skipping",
+					          n, NUM_MATERIALS);
+					break;
+				}
+				n &= MATERIAL_MASK;
+				hikaru_renderer_set_material (gpu->renderer,
+				                              &gpu->materials.table[n]);
+			} else
+				gpu->materials.offset = n;
 		}
 		break;
 
@@ -839,46 +858,62 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * See PH:@0C01545C. 
 		 */
 		{
-			unsigned n = (inst[0] >> 16) & TEXHEAD_MASK;
+			unsigned n = inst[0] >> 16;
 			unsigned e = (inst[0] >> 12) & 1;
-
-			n += gpu->texheads.offset;
-			gpu->texheads.table[n & TEXHEAD_MASK] = gpu->texheads.scratch;
 
 			VK_LOG ("GPU CMD %08X: Commit Texhead [%08X] n=%u e=%u",
 			        gpu->cs.pc, inst[0], n, e);
 
 			gpu->cs.pc += 4;
+
+			n += gpu->texheads.offset;
+			if (n >= NUM_TEXHEADS) {
+				VK_ERROR ("GPU TEXHEAD: commit index exceeds MAX: %u >= %u",
+				          n, NUM_TEXHEADS);
+				break;
+			}
+			n &= TEXHEAD_MASK;
+			gpu->texheads.table[n] = gpu->texheads.scratch;
 		}
 		break;
 	case 0x0C3:
 		/* 0C3	Recall Texhead
 		 *
-		 *	uuuu uuuu nnnn nnnn ---e oooo oooo oooo		o = Opcode, m = Enable Texturing, n = Number, u = Unknown
+		 *	nnnn nnnn nnnn nnnn ---e oooo oooo oooo
+		 *
+		 * n = index
+		 * e = bind if 1, set offset if 0
 		 */
 		{
-			unsigned n = (inst[0] >> 16) & TEXHEAD_MASK;
+			unsigned n = inst[0] >> 16;
 			unsigned e = (inst[0] >> 12) & 1;
-
-			if (e) {
-				n += gpu->texheads.offset;
-				hikaru_renderer_set_texhead (gpu->renderer,
-				                             &gpu->texheads.table[n]);
-			} else
-				gpu->texheads.offset = n;
 
 			VK_LOG ("GPU CMD %08X: Recall Texhead [%08X] (%s) n=%u e=%u",
 			        gpu->cs.pc, inst[0],
 			        e ? "" : "OFFS ONLY", n, e);
 
 			gpu->cs.pc += 4;
+
+			if (e) {
+				n += gpu->texheads.offset;
+				if (n >= NUM_TEXHEADS) {
+					VK_ERROR ("GPU TEXHEAD: bind index exceeds MAX (%u >= %u), skipping",
+					          n, NUM_TEXHEADS);
+					break;
+				}
+				n &= TEXHEAD_MASK;
+				hikaru_renderer_set_texhead (gpu->renderer,
+				                             &gpu->texheads.table[n]);
+			} else
+				gpu->texheads.offset = n;
 		}
 		break;
 
 	/* Lighting Operations
 	 * ===================
 	 *
-	 * Just random notes, really.
+	 * Just random notes, really. However the system16.com specs say:
+	 * "four lights per polygon, 1024 lights total."
 	 */
 
 	case 0x261:
@@ -1006,20 +1041,22 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			gpu->cs.pc += 8;
 		}
 		break;
-	case 0x400:
 	case 0x451:
 		/* 451	Light: Set Unknown
 		 *
 		 *	---- ---u ---- ---- ---- oooo oooo oooo
+		 *	---- ---- ---- ---- ---- ---- ---- ----
 		 *
 		 * u = Unknown
 		 *
 		 * See PH:@0C017A7C, PH:@0C017B6C, PH:@0C017C58,
 		 * PH:@0C017CD4, PH:@0C017D64, 
 		 */
+
 		VK_LOG ("GPU CMD %08X: Light: Set Unknown %03X [%08X %08X]",
 		        gpu->cs.pc, inst[0] & 0xFFF, inst[0], inst[1]);
-		gpu->cs.pc += 4;
+
+		gpu->cs.pc += 8;
 		break;
 	case 0x561:
 		/* 561	Light: Set Unknown
@@ -1135,7 +1172,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *	zzzz zzzz zzzz zzzz zzzz zzzz zzzz zzzz
 		 *
 		 * m = Matrix index?
-		 * n = Element index
+		 * n = Vector index
 		 * x,y,z = Vector elements
 		 *
 		 * NOTE: bit 4 of n becomes bit 3 in PH:@0C015CF2. This is
@@ -1155,6 +1192,9 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			        n, m,
 			        v->x[0], v->x[1], v->x[2]);
 
+			hikaru_renderer_set_modelview_vertex (gpu->renderer,
+			                                      n, m, v);
+
 			gpu->cs.pc += 16;
 		}
 		break;
@@ -1163,7 +1203,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	 * =================
 	 *
 	 * This class of instructions pushes (or otherwise deals with) vertex
-	 * data to the hardware.
+	 * data to the transformation/rasterization pipeline.
 	 *
 	 * All meshes seem to be defined in terms of tri strips; the exact
 	 * connectivity pattern between different vertices, edge flags, and

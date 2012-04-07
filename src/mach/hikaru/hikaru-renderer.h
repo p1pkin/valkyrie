@@ -39,6 +39,9 @@ void		hikaru_renderer_set_texhead (vk_renderer_t *renderer,
 		                             hikaru_gpu_texhead_t *texhead);
 void		hikaru_renderer_set_light (vk_renderer_t *renderer,
 		                           hikaru_gpu_light_t *light);
+void		hikaru_renderer_set_modelview_vertex (vk_renderer_t *renderer,
+		                                      unsigned m, unsigned n,
+		                                      vec3f_t *vertex);
 void		hikaru_renderer_append_vertex (vk_renderer_t *renderer,
 		                               vec3f_t *pos);
 void		hikaru_renderer_append_texcoords (vk_renderer_t *renderer,
