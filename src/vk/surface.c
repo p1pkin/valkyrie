@@ -119,3 +119,10 @@ vk_surface_commit (vk_surface_t *surface)
 	                 GL_UNSIGNED_BYTE,
 	                 surface->data);
 }
+
+void
+vk_surface_bind (vk_surface_t *surface)
+{
+	glBindTexture (GL_TEXTURE_2D, surface->id);
+}
+
