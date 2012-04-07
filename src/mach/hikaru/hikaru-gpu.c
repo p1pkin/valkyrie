@@ -581,7 +581,7 @@ hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A)
  */
 
 static void
-hikaru_gpu_begin_processing (hikaru_gpu_t *gpu)
+hikaru_gpu_update_cs_status (hikaru_gpu_t *gpu)
 {
 	/* Check the GPU 15 execute bits */
 	if (REG15 (0x58) == 3) {
@@ -747,8 +747,8 @@ copy_texture (hikaru_gpu_t *gpu, hikaru_gpu_texture_t *texture)
 {
 	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
 	vk_buffer_t *srcbuf;
-	uint32_t basex = texture->slotx * 8;
-	uint32_t basey = texture->sloty * 8;
+	uint32_t basex = (texture->slotx - 0x80) * 16;
+	uint32_t basey = (texture->sloty - 0x80) * 16;
 	uint32_t endx = basex + texture->width;
 	uint32_t endy = basey + texture->height;
 	uint32_t mask, x, y, offs;
@@ -1096,7 +1096,7 @@ hikaru_gpu_put (vk_device_t *device, size_t size, uint32_t addr, uint64_t val)
 			break;
 		case 0x58: /* Control */
 			REG15 (0x58) = val;
-			hikaru_gpu_begin_processing (gpu);
+			hikaru_gpu_update_cs_status (gpu);
 			return 0;
 		case 0x84: /* IRQ mask */
 			REG15 (addr) = val;
@@ -1122,11 +1122,12 @@ hikaru_gpu_put (vk_device_t *device, size_t size, uint32_t addr, uint64_t val)
 		switch (addr & 0x1FF) {
 		case 0x00:
 		case 0x04:
+			/* XXX update FIFO/layer status? */
 			break;
-		case 0x08: /* GPU 1A IRQ 0 */
-		case 0x0C: /* GPU 1A IRQ 1 */
-		case 0x10: /* GPU 1A IRQ 2 */
-		case 0x14: /* GPU 1A IRQ 3 */
+		case 0x08:
+		case 0x0C:
+		case 0x10:
+		case 0x14:
 			/* Bit 0 is ANDNOT'ed on write; I have no clue about
 			 * the other bits. */
 			VK_ASSERT (val == 1);
@@ -1135,7 +1136,7 @@ hikaru_gpu_put (vk_device_t *device, size_t size, uint32_t addr, uint64_t val)
 			return 0;
 		case 0x24:
 			REG1A (addr) = val;
-			hikaru_gpu_begin_processing (gpu);
+			hikaru_gpu_update_cs_status (gpu);
 			return 0;
 		case 0x80 ... 0xC0: /* Display Config? */
 		case 0xC4: /* Unknown control */
