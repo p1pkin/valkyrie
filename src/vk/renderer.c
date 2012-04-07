@@ -197,7 +197,6 @@ vk_shader_program_delete (vk_shader_program_t **program_)
 void
 vk_renderer_begin_frame (vk_renderer_t *renderer)
 {
-	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	if (renderer->begin_frame)
 		renderer->begin_frame (renderer);
 }
@@ -259,8 +258,6 @@ vk_renderer_init (vk_renderer_t *renderer)
 	/* Set an orthographic projection matrix */
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
-	gluOrtho2D (0.0f, renderer->width - 1, /* left, right */
-	            0.0f, renderer->height - 1); /* bottom, top */
 
 	/* Set an identity modelview matrix */
 	glMatrixMode (GL_MODELVIEW);
