@@ -191,7 +191,7 @@ hikaru_renderer_set_modelview_vertex (vk_renderer_t *renderer,
 
 		/* Load the modelview matrix */
 		glMatrixMode (GL_MODELVIEW);
-		glLoadMatrixf (hr->modelview_matrix.x);
+		glLoadMatrixf ((GLfloat *) hr->modelview_matrix.x);
 	}
 }
 
@@ -296,11 +296,16 @@ hikaru_renderer_append_texcoords (vk_renderer_t *renderer,
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 	int i;
 
-	VK_ASSERT (hr->vertex_index >= 3);
-
-	for (i = 0; i < 3; i++) {
-		int j = ((int) hr->vertex_index) - (i + 1);
-		hr->vertices[j].texcoords = texcoords[i];
+	if (hr->vertex_index < 3) {
+		VK_ERROR ("HR: bad texcoords call, vertex_index=%d, skipping", hr->vertex_index);
+	} else if (hr->vertex_index == 3) {
+		/* If it's the first */
+		int j = hr->vertex_index - 1;
+		for (i = 0; i < 3; i++, j--) {
+			hr->vertices[j].texcoords = texcoords[i];
+		}
+	} else {
+		int j = hr->vertex_index - 1;
 	}
 
 	hr->hack = 0;
@@ -337,36 +342,35 @@ hikaru_renderer_end_vertex_data (vk_renderer_t *renderer)
 
 void
 hikaru_renderer_draw_layer (vk_renderer_t *renderer,
-                            vec2i_t coords[2])
+                            uint32_t x0, uint32_t y0,
+                            uint32_t x1, uint32_t y1)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
 	(void) hr;
 
+	glEnable (GL_TEXTURE_2D);
+
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
-	glOrtho (0.0f,			/* left */
-	         renderer->width - 1,	/* right */
-	         0.0f,			/* bottom */
-	         renderer->height -1,	/* top */
-	         0.0f,			/* near */
-	         1.0f);			/* far */
+	glOrtho (0.0f, 640.0f,	/* left, right */
+	         0.0f, 480.0f,	/* bottom, top */
+	         -1.0f, 1.0f);	/* near, far */
 
 	glMatrixMode (GL_MODELVIEW);
 	glLoadIdentity ();
 
-	glEnable (GL_TEXTURE_2D);
+	glMatrixMode (GL_TEXTURE);
+	glLoadIdentity ();
+	glScalef (1.0f/2048, 1.0f/2048, 1.0f);
+
 	vk_surface_bind (hr->texture);
 
 	glBegin (GL_TRIANGLE_STRIP);
-		glTexCoord2s (coords[0].x[0], coords[0].x[1]);
-		glVertex3f (0.0f, 479.0f, 0.1f);
-		glTexCoord2s (coords[1].x[0], coords[0].x[1]);
-		glVertex3f (639.0f, 479.0f, 0.1f);
-		glTexCoord2s (coords[0].x[0], coords[1].x[1]);
-		glVertex3f (0.0f, 0.0f, 0.1f);
-		glTexCoord2s (coords[1].x[0], coords[1].x[1]);
-		glVertex3f (639.0f, 0.0f, 0.1f);
+		glTexCoord2s (x0, y0); glVertex3f (0.0f, 0.0f, 0.1f);
+		glTexCoord2s (x1, y0); glVertex3f (639.0f, 0.0f, 0.1f);
+		glTexCoord2s (x0, y1); glVertex3f (0.0f, 480.0f, 0.1f);
+		glTexCoord2s (x1, y1); glVertex3f (639.0f, 480.0f, 0.1f);
 	glEnd ();
 }
 

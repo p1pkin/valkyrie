@@ -170,14 +170,14 @@
  *
  * 15000084   W		GPU IRQ Mask
  * 15000088  RW		GPU IRQ Status
- *			 0x80 = GPU 1A IRQ fired
- *			 0x40 = Unknown
- *			 0x20 = Unknown
- *			 0x10 = Unknown
- *			 0x08 = Unknown
- *			 0x04 = GPU 15 is ready/done; see @0C0018B4
- *			 0x02 = Unknown; possibly VBLANK
- *			 0x01 = IDMA done; see @0C006C04
+ *			 80 = GPU 1A IRQ fired
+ *			 40 = Unknown
+ *			 20 = Unknown
+ *			 10 = Unknown
+ *			 08 = Unknown
+ *			 04 = GPU 15 is ready/done; see @0C0018B4
+ *			 02 = Unknown; possibly VBLANK
+ *			 01 = IDMA done; see @0C006C04
  *			All bits are AND'ed on write
  *
  * Unknown
@@ -258,17 +258,25 @@
  * Interrupt Control
  * -----------------
  *
- * 1A000008   W		IRQ 1A Source 0
- * 1A00000C   W		IRQ 1A Source 1; GPU 1A done
- * 1A000010   W		IRQ 1A Source 2; VBlank
- * 1A000014   W		IRQ 1A Source 3
+ * 1A000008   W		IRQ 0 Source
+ * 1A00000C   W		IRQ 1 Source (GPU is done/ready)
+ * 1A000010   W		IRQ 2 Source (v-blank occurred)
+ * 1A000014   W		IRQ 3 Source
  *
- * 1A000018  RW		IRQ 1A Status
- *			 Four bits; bit n indicates the status of the
- *			 IRQ governed by register 1A000008+(n*4)
+ *			-------- -------- -------- -------i
  *
- * NOTE: when any of these bits is set, bit 7 of 15000088 is set.
- * NOTE: it may be related to 1A0000C4, see @0C001ED0.
+ *			i = IRQ n is raised
+ *
+ * 1A000018  RW		IRQ Status
+ *
+ *			-------- -------- -------- ----3210
+ *
+ *			n = IRQ n is raised
+ *
+ *			NOTE: when any of the IRQs is raised, bit 7 of
+ *			15000088 is set.
+ *
+ *			NOTE: it may be related to 1A0000C4, see @0C001ED0.
  *
  * Unknown
  * -------
@@ -344,85 +352,105 @@
  *
  * NOTE: my gutter feeling is that these register specify operations that must
  * be performed at the rasterization stage to the whole contents of the frame
- * buffer.
+ * buffer. Color offset and stuff?
  *
  * Unknown
  * -------
  *
- * 1A0000C4             l  W    = 6		Unknown control
- * 1A0000D0		l  W	= 1		Unknown control
+ * 1A0000C4   W		Unknown control
  *
- * Texture RAM Control
- * -------------------
+ *			-------- -------- -------- -----uu-
  *
- * XXX update this section; it's stale.
+ *			u = Unknown
  *
- * 1A000100             l RW    Enable scanout (the framebuffer is displayed
- *				on-screen.)
- *				See @0C007D00 ,PH:@0C01A0F8, PH@0C01A10C,
+ * 1A0000D0   W		Unknown control
+ *
+ *			-------- -------- -------- -------u
+ *
+ *			u = Unknown
  *
  * Framebuffer/2D Layer Control
  * ----------------------------
  *
- * XXX update this section; it's stale.
+ * Unit 0 and 1 MMIOs are identical. The values stored in unit 0 MMIOs are
+ * copied into unit 1 MMIOs in @0C00689E.
  *
- * 1A000180-1A0001BF    l RW    Framebuffer A, 16 registers
- * 1A000200-1A00023F    l RW    Framebuffer B, 16 registers
+ * Each bank supposedly specifies a layer. No idea why there are two units
+ * though.
  *
- *     The UNIT's come in pairs: 9 LSBs + other, see PH:@0C01A860.
+ * 1A000100  RW		Unknown control
  *
- *     +0x34 lower 2 bits (at least) turn on/off a unit. See PH:@0C01A124.
- *     It uses the same (R4 < 2) check as PH:@0C01A860.
+ *			-------- -------- -------- ----uuuu
  *
- *      180             l RW    = 0x00000 \ UNIT 0                          \
- *      184             l RW    = 0x3BF3F /                                 | TEXRAM
- *      188             l RW    = 0x40000 \ UNIT 1                          | addresses in
- *      18C             l RW    = 0x7BF3F /                                 | 8-byte units
- *      190             l RW    = 0x00140 \ UNIT 2 [Reserved? See pharrier] |
- *      194             l RW    = 0x3BFDF /                                 | lower 9 bits only
- *      198             l RW    = 0x40140 \ UNIT 3 [Reserved? See pharrier] | see PH:@0C01A860
- *      19C             l RW    = 0x7BFDF /                                 /
- *      1A0             l RW    = 0 \ UNIT 0 CONTROL
- *      1A4             l RW    = 0 /
- *      1A8             l RW    = 0 \ UNIT 1 CONTROL
- *      1AC             l RW    = 0 /
- *      1B0             l RW    = 1 \ UNIT 2 CONTROL // a bitfield: see @0C007D60
- *      1B4             l RW    = 1 /
- *      1B8             l RW    = 3 \ UNIT 3 CONTROL
- *      1BC             l RW    = 6,0 /              // 6 to turn on, 0 to turn off; bitfield
+ *			u = Unknown; a bitfield
  *
- *	These could be the TEXRAM content setup.
+ *			See @0C007D00, PH:@0C01A0F8, PH@0C01A10C.
  *
- *      200-21C         are identical to 180-19C + 0x80000 [GPU CMD RAM OFFSET DIFF BETWEEN ODD/EVEN FRAMES!]
- *      220-23C         are identical to 1A0-1BC
+ * 1A000180-1A0001BF	Unit 0
  *
- *      The fact that there are four of these guys may be related to the
- *      fact that there are four different IRQ causes in 1A000018 -- not likely
+ * 1A000200-1A00023F	Unit 1
  *
- *      Point is that the +180 regs seem to be used in even frames, +200 regs in
- *      odd ones. 200+ is written to 180+ sometimes.
+ * 1A000180,4		Unit 0, Bank 0 Coords
+ * 1A000188,C		Unit 0, Bank 1 Coords
+ * 1A000190,4		Unit 0, Bank 2 Coords
+ * 1A000198,C		Unit 0, Bank 3 Coords
+ *
+ *			-------- -----yyy yyyyyyyx xxxxxxxx
+ *			-------- -----YYY YYYYYYYX XXXXXXXX
+ *
+ *			x,y = Coordinates of upper right layer endpoint
+ *			X,Y = Coordinates of lower left layer endpoint
+ *
+ *			See PH:@0C01A1A6, PH:@0C01A860.
+ *
+ *			NOTE: bank 0 seems special, see the above functions.
+ *
+ * 1A0001B0  RW		Unit 0, Bank N Pixel Size
+ *
+ *			-------- -------- -------- ----3210
+ *
+ *			n: if set, one pixel of layer n is 32 bpp; 16 bpp
+ *			otherwise. See PH:@0C01A190.
+ *
+ * 1A0001B4  RW		Unit 0, Unknown Control
+ *
+ *			-------- -------- -------- -----uuu
+ *
+ *			Bitfield. See PH:@0C01A124, PH:@0C01A142.
+ *
+ * 1A0001B8  RW		Unknown Control
+ *
+ *			???????? ???????? ???????? ????????
+ *
+ *			Not a bitfield. See PH:@0C01A184, PH:@0C01A18A.
+ *
+ * 1A0001BC  RW		Unit 0, Bank N Unknown Control
+ *
+ *			-------- -------- -------- ----3210
+ *
+ *			Bitfield. See PH:@0C01A162, PH:@0C01A171.
  *
  * Unknown
  * -------
  *
- * 1A020000 32-bit  W	"SEGA" is written here; see @0C001A58
+ * 1A020000   W		"SEGA" is written here; see @0C001A58
  *
  * TEXRAM-to-TEXRAM DMA
  * --------------------
  *
- * 1A040000 32-bit  W	Source
- * 1A040004 32-bit  W	Destination
- * 1A040008 32-bit  W	Texture Size
- * 1A04000C 32-bit  W	Control
+ * 1A040000  W		Source Coords
+ * 1A040004  W		Destination Coords
+ * 1A040008  W		Texture Size
+ * 1A04000C  W		Control
  *
  * See 'TEXRAM-to-TEXRAM DMA Device' below.
  *
  * Unknown
  * -------
  *
- * 1A08006C 32-bit R	Unknown
+ * 1A08006C  R		Unknown
  *
- * 1A0A1600 32-bit  W	Unknown (seems related 15040E00, see PHARRIER)
+ * 1A0A1600   W		Unknown (seems related 15040E00, see PHARRIER)
  */
 
 #define REG15(addr_)	(*(uint32_t *) &gpu->regs_15[(addr_) & 0xFF])
@@ -465,7 +493,7 @@
  * anything related to the 1A00xxxx registers (including texture FIFO, etc.)
  * When raised, they set bit 8 in 15000088.
  *
- * [1] This bit is checked in 0C001C08 and updates (0, GBR) and implies
+ * [1] This bit is checked in @0C001C08 and updates (0, GBR) and implies
  *     1A000000 = 1.
  */
 
@@ -613,8 +641,7 @@ hikaru_gpu_end_processing (hikaru_gpu_t *gpu)
  * it acts as a single 2048x2048-texels wide sheet. Texels/pixels are 16-bit
  * only, so: 2048x2048x2 bytes = 8MB. Each row is 4096 bytes wide.
  *
- * Curiously, PH:@0C01A242 uses a pitch of (1 << 11) = 8192; this may be
- * due to the way texture coordinates are encoded though.
+ * See PH:@0C01A2FE.
  *
  *
  * Texture Data
@@ -747,8 +774,8 @@ copy_texture (hikaru_gpu_t *gpu, hikaru_gpu_texture_t *texture)
 {
 	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
 	vk_buffer_t *srcbuf;
-	uint32_t basex = (texture->slotx - 0x80) * 16;
-	uint32_t basey = (texture->sloty - 0x80) * 16;
+	uint32_t basex = (texture->slotx & 0x7F) * 16;
+	uint32_t basey = (texture->sloty & 0x7F) * 16;
 	uint32_t endx = basex + texture->width;
 	uint32_t endy = basey + texture->height;
 	uint32_t mask, x, y, offs;
@@ -900,14 +927,14 @@ hikaru_gpu_begin_dma (hikaru_gpu_t *gpu)
 	w = fifo[2] & 0xFFFF;
 	h = fifo[2] >> 16;
 
-	VK_LOG ("GPU 1A FIFO exec: [%08X %08X %08X %08X] { %u %u } --> { %u %u }, %ux%u",
+	VK_LOG ("GPU DMA: [%08X %08X %08X %08X] { %u %u } --> { %u %u }, %ux%u",
 	        fifo[0], fifo[1], fifo[2], fifo[3],
 		src_x, src_y, dst_x, dst_y, w, h);
 
 	for (i = 0; i < h; i++) {
 		for (j = 0; j < w; j++) {
-			uint32_t src_offs = (src_y + i) * 0x1000 + (src_x + j) * 2;
-			uint32_t dst_offs = (dst_y + i) * 0x1000 + (dst_x + j) * 2;
+			uint32_t src_offs = (src_y + i) * 4096 + (src_x + j) * 2;
+			uint32_t dst_offs = (dst_y + i) * 4096 + (dst_x + j) * 2;
 			uint16_t pixel;
 			pixel = vk_buffer_get (gpu->texram, 2, src_offs);
 			vk_buffer_put (gpu->texram, 2, dst_offs, pixel);
@@ -917,42 +944,34 @@ hikaru_gpu_begin_dma (hikaru_gpu_t *gpu)
 	REG1A (0x24) |= 1;
 }
 
-/* Framebuffer/2D Layers
- * =====================
- *
- * Apparently controlled by 1A000100, 1A000180+ and 1A000200+.
- *
- * Size and format: unknown. Speculated to be set by command 021/221.
- */
-
-static void
-parse_coords (vec2i_t *out, uint32_t coords)
-{
-	out->x[0] = (coords & 0x1FF) * 4;
-	out->x[1] = (coords >> 9);
-}
+/* XXX figure out what is the layer priority (fixed?) and how they
+ * are enabled/disabled. */
+/* XXX figure out the proper layer format instead of just ramming
+ * the raw data into the renderer. The SEGA intro in PHARRIER looks like
+ * 32-bit per pixel! */
 
 static void
 hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 {
-	unsigned i, j, offs;
-	/* XXX figure out what is the layer priority (fixed?) and how they
-	 * are enabled/disabled. */
-	/* XXX figure out the proper layer format instead of just ramming
-	 * the raw data into the renderer. */
-	for (i = 0; i < 2; i++)
-		for (j = 0; j < 4; j++) {
-			offs = j*8;
-			if (REG1AUNIT (i, offs + 0x20) ||
-			    REG1AUNIT (i, offs + 0x24)) {
-				vec2i_t rect[2];
-				uint32_t lo = REG1AUNIT (i, offs);
-				uint32_t hi = REG1AUNIT (i, offs + 4);
-				parse_coords (&rect[0], lo);
-				parse_coords (&rect[1], hi);
-				hikaru_renderer_draw_layer (gpu->base.mach->renderer, rect);
-			}
+	unsigned bank;
+	for (bank = 0; bank < 4; bank++) {
+		unsigned bank_offs = bank * 8;
+		uint32_t lo = REG1AUNIT (0, bank_offs + 0);
+		uint32_t hi = REG1AUNIT (0, bank_offs + 4);
+		if (lo || hi) {
+			uint32_t flag = (REG1AUNIT (0, 30) >> bank) & 1;
+			uint32_t mult = flag == 0 ? 4 : 2;
+			uint32_t x0 = (lo & 0x1FF) * mult;
+			uint32_t y0 = lo >> 9;
+			uint32_t x1 = (hi & 0x1FF) * mult;
+			uint32_t y1 = hi >> 9;
+
+			VK_LOG ("TEX UNIT0 BANK%u: %08X %08X %u (%u) = (%u,%u) (%u,%u)",
+			        bank, lo, hi, flag, mult, x0, y0, x1, y1);
+
+			hikaru_renderer_draw_layer (gpu->renderer, x0, y0, x1, y1);
 		}
+	}
 }
 
 /* External event handlers */
