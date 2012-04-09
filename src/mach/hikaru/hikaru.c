@@ -558,17 +558,17 @@ hikaru_dump (vk_machine_t *mach)
 
 	vk_buffer_dump (hikaru->ram_m,		"hikaru-ram-m.bin");
 	vk_buffer_dump (hikaru->ram_s,		"hikaru-ram-s.bin");
-	vk_buffer_dump (hikaru->cmdram,		"hikaru-gpu-cmdram.bin");
-	vk_buffer_dump (hikaru->texram,		"hikaru-gpu-texram.bin");
-	vk_buffer_dump (hikaru->unkram[0],	"hikaru-gpu-unkram-0.bin");
-	vk_buffer_dump (hikaru->unkram[1],	"hikaru-gpu-unkram-1.bin");
-	vk_buffer_dump (hikaru->aica_ram_m,	"hikaru-aica-ram-m.bin");
-	vk_buffer_dump (hikaru->aica_ram_m,	"hikaru-aica-ram-s.bin");
+	vk_buffer_dump (hikaru->cmdram,		"hikaru-cmdram.bin");
+	vk_buffer_dump (hikaru->texram,		"hikaru-texram.bin");
+	vk_buffer_dump (hikaru->unkram[0],	"hikaru-unkram-0.bin");
+	vk_buffer_dump (hikaru->unkram[1],	"hikaru-unkram-1.bin");
+	vk_buffer_dump (hikaru->aica_ram_m,	"hikaru-aica-m.bin");
+	vk_buffer_dump (hikaru->aica_ram_m,	"hikaru-aica-s.bin");
 	vk_buffer_dump (hikaru->bram,		"hikaru-bram.bin");
-	vk_buffer_dump (hikaru->mie_ram,	"hikaru-mie-ram.bin");
+	vk_buffer_dump (hikaru->mie_ram,	"hikaru-mie.bin");
 
-	vk_buffer_dump (hikaru->bootrom,	"hikaru-bootrom.bin");
 #if 0
+	vk_buffer_dump (hikaru->bootrom,	"hikaru-bootrom.bin");
 	vk_buffer_dump (hikaru->eprom,		"hikaru-rombd-eprom.bin");
 	vk_buffer_dump (hikaru->maskrom,	"hikaru-rombd-maskrom.bin");
 #endif
