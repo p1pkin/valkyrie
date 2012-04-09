@@ -42,6 +42,7 @@ typedef struct {
 		bool enable_logging;
 		bool enable_2d;
 		bool enable_3d;
+		bool draw_texram;
 	} options;
 
 	/* Texture data */
@@ -103,8 +104,6 @@ hikaru_renderer_set_viewport (vk_renderer_t *renderer,
 	              viewport->clear_color.x[1] / 255.0f,
 	              viewport->clear_color.x[2] / 255.0f,
 	              viewport->clear_color.x[3] / 255.0f);
-
-	/* XXX clear depth too? */
 	glClear (GL_COLOR_BUFFER_BIT);
 }
 
@@ -394,10 +393,13 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer,
 	if (!hr->options.enable_2d)
 		return;
 
+	if (hr->options.enable_logging)
+		VK_LOG ("HR: rendering layer (%u,%u) (%u,%u)", x0, y0, x1, y1);
+
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
 	glOrtho (0.0f, 640.0f,	/* left, right */
-	         0.0f, 480.0f,	/* bottom, top */
+	         480.0f, 0.0f,	/* bottom, top */
 	         -1.0f, 1.0f);	/* near, far */
 
 	glMatrixMode (GL_MODELVIEW);
@@ -411,10 +413,10 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer,
 	vk_surface_bind (hr->texture);
 
 	glBegin (GL_TRIANGLE_STRIP);
-		glTexCoord2s (x0, y0); glVertex3f (0.0f, 0.0f, 0.1f);
-		glTexCoord2s (x1, y0); glVertex3f (639.0f, 0.0f, 0.1f);
-		glTexCoord2s (x0, y1); glVertex3f (0.0f, 480.0f, 0.1f);
-		glTexCoord2s (x1, y1); glVertex3f (639.0f, 480.0f, 0.1f);
+		glTexCoord2s (x0, y0); glVertex3f (0.0f, 0.0f, 0.0f);
+		glTexCoord2s (x1, y0); glVertex3f (639.0f, 0.0f, 0.0f);
+		glTexCoord2s (x0, y1); glVertex3f (0.0f, 479.0f, 0.0f);
+		glTexCoord2s (x1, y1); glVertex3f (639.0f, 479.0f, 0.0f);
 	glEnd ();
 }
 
@@ -427,6 +429,33 @@ rgba4_to_rgba8 (uint32_t p)
 	       ((p & 0x00F0) <<  8) |
 	       ((p & 0x0F00) << 12) |
 	       ((p & 0xF000) << 16);
+}
+
+static void
+draw_texram (hikaru_renderer_t *hr)
+{
+	glMatrixMode (GL_PROJECTION);
+	glLoadIdentity ();
+	glOrtho (0.0f, 640.0f,	/* left, right */
+	         480.0f, 0.0f,	/* bottom, top */
+	         -1.0f, 1.0f);	/* near, far */
+
+	glMatrixMode (GL_MODELVIEW);
+	glLoadIdentity ();
+
+	glMatrixMode (GL_TEXTURE);
+	glLoadIdentity ();
+	glScalef (1.0f/2048, 1.0f/2048, 1.0f);
+
+	glEnable (GL_TEXTURE_2D);
+	vk_surface_bind (hr->texture);
+
+	glBegin (GL_TRIANGLE_STRIP);
+		glTexCoord2s (0, 0); glVertex3f (0.0f, 0.0f, 0.0f);
+		glTexCoord2s (2047, 0); glVertex3f (639.0f, 0.0f, 0.0f);
+		glTexCoord2s (0, 2047); glVertex3f (0.0f, 479.0f, 0.0f);
+		glTexCoord2s (2047, 2047); glVertex3f (639.0f, 479.0f, 0.0f);
+	glEnd ();
 }
 
 static void
@@ -447,8 +476,10 @@ upload_texram (hikaru_renderer_t *hr)
 			vk_surface_put32 (hr->texture, x ^ 1, y, texel);
 		}
 	}
-
 	vk_surface_commit (hr->texture);
+
+	if (hr->options.draw_texram)
+		draw_texram (hr);
 }
 
 /* Interface */
@@ -465,21 +496,6 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	hr->modelview_num_up = 0;
 	hr->vertex_index = -1;
 	hr->hack = 0;
-
-	/* Setup default GL state; this is useful if any of the state
-	 * update instructions is not called during in the GPU command
-	 * stream. */
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity ();
-	glOrtho (0.0f,		/* left */
-	         640.0f,	/* right */
-	         -640.0f,	/* bottom */
-	         0.0f,		/* top */
-	         -1.0f,		/* near */
-	         1.0f);		/* far */
-
-	glMatrixMode (GL_MODELVIEW);
-	glLoadIdentity ();
 
 	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -538,6 +554,8 @@ hikaru_renderer_new (vk_buffer_t *texram)
 			vk_util_get_bool_option ("HR_ENABLE_2D", true);
 		hr->options.enable_3d =
 			vk_util_get_bool_option ("HR_ENABLE_3D", true);
+		hr->options.draw_texram =
+			vk_util_get_bool_option ("HR_DRAW_TEXRAM", false);
 
 		if (hr->options.enable_logging) {
 			VK_LOG ("HR: logging enabled; 2d=%d 3d=%d",
