@@ -109,15 +109,12 @@
  *			See @0C001AD8, @0C00792C.
  * 15000008   W		Unknown; = 0
  *
- * BUS-to-TEXRAM IDMA
- * ------------------
+ * GPU IDMA
+ * --------
  *
- * 1500000C   W		Indirect DMA table address (in CMDRAM)
- * 15000010  RW		Indirect DMA # of entries to process (16 bits wide)
- * 15000014  RW		Indirect DMA Control
- *			 Bit 0: exec when set, busy when read
+ * 1500000C,10,14	Indirect DMA (IDMA) MMIOs
  *
- * See 'Texture Binder Device' below.
+ * See 'GPU IDMA' below.
  *
  * GPU 15 Unknown Config A
  * -----------------------
@@ -386,64 +383,22 @@
  *
  *			See @0C007D00, PH:@0C01A0F8, PH@0C01A10C.
  *
- * 1A000180-1A0001BF	Unit 0
+ * 1A000180-1A0001BF	Texture Unit 0 MMIOs
+ * 1A000200-1A00023F	Texture Unit 1 MMIOs
  *
- * 1A000200-1A00023F	Unit 1
- *
- * 1A000180,4		Unit 0, Bank 0 Coords
- * 1A000188,C		Unit 0, Bank 1 Coords
- * 1A000190,4		Unit 0, Bank 2 Coords
- * 1A000198,C		Unit 0, Bank 3 Coords
- *
- *			-------- -----yyy yyyyyyyx xxxxxxxx
- *			-------- -----YYY YYYYYYYX XXXXXXXX
- *
- *			x,y = Coordinates of upper right layer endpoint
- *			X,Y = Coordinates of lower left layer endpoint
- *
- *			See PH:@0C01A1A6, PH:@0C01A860.
- *
- *			NOTE: bank 0 seems special, see the above functions.
- *
- * 1A0001B0  RW		Unit 0, Bank N Pixel Size
- *
- *			-------- -------- -------- ----3210
- *
- *			n: if set, one pixel of layer n is 32 bpp; 16 bpp
- *			otherwise. See PH:@0C01A190.
- *
- * 1A0001B4  RW		Unit 0, Unknown Control
- *
- *			-------- -------- -------- -----uuu
- *
- *			Bitfield. See PH:@0C01A124, PH:@0C01A142.
- *
- * 1A0001B8  RW		Unknown Control
- *
- *			???????? ???????? ???????? ????????
- *
- *			Not a bitfield. See PH:@0C01A184, PH:@0C01A18A.
- *
- * 1A0001BC  RW		Unit 0, Bank N Unknown Control
- *
- *			-------- -------- -------- ----3210
- *
- *			Bitfield. See PH:@0C01A162, PH:@0C01A171.
+ * See '2D Layers' below.
  *
  * Unknown
  * -------
  *
  * 1A020000   W		"SEGA" is written here; see @0C001A58
  *
- * TEXRAM-to-TEXRAM DMA
- * --------------------
+ * GPU DMA
+ * -------
  *
- * 1A040000  W		Source Coords
- * 1A040004  W		Destination Coords
- * 1A040008  W		Texture Size
- * 1A04000C  W		Control
+ * 1A04000{0,4,8,C}	DMA MMIOs
  *
- * See 'TEXRAM-to-TEXRAM DMA Device' below.
+ * See 'GPU DMA' below.
  *
  * Unknown
  * -------
@@ -637,33 +592,95 @@ hikaru_gpu_end_processing (hikaru_gpu_t *gpu)
  * Texture RAM
  * ===========
  *
- * Located at 1B000000-1B7FFFFF in the master SH-4 address space, 8MB large;
- * it acts as a single 2048x2048-texels wide sheet. Texels/pixels are 16-bit
- * only, so: 2048x2048x2 bytes = 8MB. Each row is 4096 bytes wide.
+ * The main texture RAM is located at 1B000000-1B7FFFFF in the master SH-4
+ * address space, and it's 8 MB large. It acts as a single 2048x2048 texels
+ * sheet. It holds the framebuffers and 2D layers, plus some texture data,
+ * and is accessible both directly and indirectly through the GPU DMA
+ * device. It's called TEXRAM in the source.
  *
  * See PH:@0C01A2FE.
+ *
+ * The auxiliary texture RAM ICs are located at 04000000-043FFFFF (bank 0)
+ * and 06000000-063FFFFF (bank 1) of the external BUS address space. Each
+ * bank is 4 MB large, and acts as a 2048x1024 texels sheet. They only hold
+ * texture data, and are mainly accessed through the GPU IDMA device. They
+ * are called AUXTEXRAM in the source.
  *
  *
  * Texture Data
  * ============
  *
  * Supported texture formats include RGBA5551, RGBA4444, pure-ALPHA and
- * others. See hikaru_gpu_texture_t for details.
+ * others. See hikaru_gpu_texture_t for details. Textures may or may not
+ * include a complete mipmap tree.
  *
- * Textures may include a complete mipmap tree.
+ *
+ * Framebuffer and 2D Layers
+ * =========================
+ *
+ * The GPU is able to specify four regions of TEXRAM to be used as either
+ * framebuffer (front and back, likely) or 2D data layers. The device is
+ * configured to do so through the following MMIOs:
+ *
+ * 1A000180,4		Unit 0, Bank 0 Coords
+ * 1A000188,C		Unit 0, Bank 1 Coords
+ * 1A000190,4		Unit 0, Bank 2 Coords
+ * 1A000198,C		Unit 0, Bank 3 Coords
+ *
+ *			-------- -----yyy yyyyyyyx xxxxxxxx
+ *			-------- -----YYY YYYYYYYX XXXXXXXX
+ *
+ *			x,y = Coordinates of upper right layer endpoint
+ *			X,Y = Coordinates of lower left layer endpoint
+ *
+ *			See PH:@0C01A1A6, PH:@0C01A860.
+ *
+ *			NOTE: bank 0 seems special, see the above functions.
+ *
+ * 1A0001B0  RW		Unit 0, Bank N Pixel Size
+ *
+ *			-------- -------- -------- ----3210
+ *
+ *			n: if set, one pixel of layer n is 32 bpp; 16 bpp
+ *			otherwise. See PH:@0C01A190.
+ *
+ * 1A0001B4  RW		Unit 0, Unknown Control
+ *
+ *			-------- -------- -------- -----uuu
+ *
+ *			Bitfield. See PH:@0C01A124, PH:@0C01A142.
+ *
+ * 1A0001B8  RW		Unknown Control
+ *
+ *			???????? ???????? ???????? ????????
+ *
+ *			Not a bitfield. See PH:@0C01A184, PH:@0C01A18A.
+ *
+ * 1A0001BC  RW		Unit 0, Bank N Unknown Control
+ *
+ *			-------- -------- -------- ----3210
+ *
+ *			Bitfield. See PH:@0C01A162, PH:@0C01A171.
+ *
+ * The MMIOs at 1A000200-1A00023F have the very same layout.
+ *
+ * NOTE: it may be the case that bank 0 defines the actual framebuffer.
+ *
+ * NOTE: it may be the case that unit 1 is used for (a) a second GPU, or (b)
+ * to implement double buffering.
  *
  *
- * Texture DMA
- * ===========
+ * GPU DMA
+ * =======
  *
  * Copies texture data from TEXRAM to the framebuffer(s). It's used to
  * compose the intro text of AIRTRIX and PHARRIER, for instance. It is
  * controlled by the ports at 1A0000{0,4,8,C} as follows:
  *
- *	1A040000  32-bit  W	Source
- *	1A040004  32-bit  W	Destination
- *	1A040008  32-bit  W	Texture width/height in pixels
- *	1A04000C  32-bit  W	Control
+ * 1A040000   W		Source coords
+ * 1A040004   W		Destination coords
+ * 1A040008   W		Texture width/height in pixels
+ * 1A04000C   W		Control
  *
  * Both source and destination are encoded as TEXRAM coordinates; both
  * x and y are defined as 11-bit integers (range is 0 ... 2047); pixel
@@ -677,36 +694,42 @@ hikaru_gpu_end_processing (hikaru_gpu_t *gpu)
  * See AT:@0C697D48, PH:@0C0CD320.
  *
  *
- * Texture Indirect DMA
- * ====================
+ * GPU Indirect DMA (IDMA)
+ * =======================
  *
- * This device is used to either (a) register texture data into the GPU (that
- * is, to notify the GPU that some texture with a given format is stored
- * at the given location; IOW to attach metadata to a given texture), or
- * (b) perform texture upload/conversion to TEXRAM.
+ * This device is used to transfer texture data from the BUS to the GPU
+ * texture cache RAM. It is controlled by the MMIOs at 150000{0C,10,14} as
+ * follows:
  *
- * This device is controlled by registers: 150000{0C,10,14}. Register
- * 1500000C points to a table in CMDRAM, defaulting to 483FC000. Each entry
- * is 4 words long, and has this format:
+ * 1500000C   W		Indirect DMA table address (in CMDRAM)
+ * 15000010  RW		Indirect DMA # of entries to process (16 bits wide)
+ * 15000014  RW		Indirect DMA Control
+ *			 Bit 0: exec when set, busy when read
+ *
+ * 1500001C points to a table in CMDRAM, defaulting to 483FC000. Each entry
+ * is 4 words long, and has the following format:
  *
  *         MSB                               LSB
  *	+00 AAAAAAAA AAAAAAAA AAAAAAAA AAAAAAAA
  *	+04 -------- -------- SSSSSSSS SSSSSSSS
  *	+08 ---fff-- --hhhwww yyyyyyyy xxxxxxxx
- *	+0C                            -------u
+ *	+0C                            -------b
  *
- * 	A = a bus address; it specifies where the texels are stored. Valid
+ * 	A = a BUS address; it specifies where the texels are stored. Valid
  *          locations seen so far are the CMDRAM (48xxxxxx) and slave RAM
- *          (41xxxxxx). Perhaps textures in TEXRAM don't require validation?
+ *          (41xxxxxx).
  *
  *	S = texture size in bytes; it includes the size of the whole
- *          mipmap tree. That is, the size for a 64x64 texture is:
+ *          mipmap tree (if present.) That is, the size for a 64x64 texture
+ *	    is:
  *
  *	    (64*64+32*32+16*16+8*8+4*4+2*2+1)*2 = 0x2AAA bytes
  *
- *	y = Unknown, possibly positional information
+ *	    Without a mipmap it would just be: 64*64*2 = 0x2000 bytes.
  *
- *	x = Unknown, possibly positional information
+ *	y = Destination slot y (each slot seems 16 pixels high)
+ *
+ *	x = Destination slot x (each slot seems 16 pixels wide)
  *
  *	w = log_16 of width
  *
@@ -726,18 +749,12 @@ hikaru_gpu_end_processing (hikaru_gpu_t *gpu)
  *		2 = RGBA1? XXX check the BOOTROM conversion code!
  *		4 = A8?
  *
- *	u = XXX Unknown (issue IRQ when done?)
+ *	b = Destination bank
  *
  * NOTE: the upper half of +08 likely uses the same format as instruction
  * 2C1; the lower half likely uses the same format as 4C1. If this is the
  * case, then bits 22-26 and 29-31 may not be unused --- in fact, there's
  * evidence that they are used within the 2C1 instruction.
- *
- * NOTE: since the smallest texture size is 16x16, I wouldn't be surprised
- * if the x and y fields were multiples of 16 (or 16*2 if they are in
- * bytes.) However 2048 / 256 = 8, so that's perhap the proper unit.
- * However, some experiments (see idma.py and idmas.log) seem to indicate
- * that the proper unit size is in fact 8. XXX implement it! XXX
  *
  * NOTE: AIRTRIX uploads textures as blocks of 512x512 pixels. The odd thing
  * is that format=0 while not all textures in the block are RGBA5551.
@@ -774,11 +791,11 @@ copy_texture (hikaru_gpu_t *gpu, hikaru_gpu_texture_t *texture)
 {
 	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
 	vk_buffer_t *srcbuf;
-	uint32_t basex = (texture->slotx & 0x7F) * 16;
-	uint32_t basey = (texture->sloty & 0x7F) * 16;
+	uint32_t basex = (texture->slotx - 0x80) * 16;
+	uint32_t basey = (texture->sloty - 0xC0) * 16;
 	uint32_t endx = basex + texture->width;
 	uint32_t endy = basey + texture->height;
-	uint32_t mask, x, y, offs;
+	uint32_t mask, x, y, offs, bank;
 
 	if ((texture->addr >> 24) == 0x48) {
 		srcbuf = hikaru->cmdram;
@@ -794,18 +811,19 @@ copy_texture (hikaru_gpu_t *gpu, hikaru_gpu_texture_t *texture)
 	        basex, basey, endx, endy,
 	        basey * 4096 + basex * 2);
 
-	if ((endx > 2048) || (endy > 2048)) {
+	if ((endx > 2048) || (endy > 1024)) {
 		VK_ERROR ("GPU IDMA: out-of-bounds transfer: %s",
 		          get_gpu_texture_str (texture));
 		return;
 	}
 
 	offs = texture->addr & mask;
+	bank = texture->bank;
 	for (y = 0; y < texture->height; y++) {
 		for (x = 0; x < texture->width; x++, offs += 2) {
 			uint32_t temp = (basey + y) * 4096 + (basex + x) * 2;
 			uint32_t texel = vk_buffer_get (srcbuf, 2, offs);
-			vk_buffer_put (gpu->texram, 2, temp, texel);
+			vk_buffer_put (gpu->unkram[bank], 2, temp, texel);
 		}
 	}
 }
@@ -823,7 +841,9 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	texture.width	= 16 << ((entry[2] >> 16) & 7);
 	texture.height	= 16 << ((entry[2] >> 19) & 7);
 	texture.format	= (entry[2] >> 26) & 7;
+	texture.bank	= entry[3] & 1;
 
+	/* Compute the expected size in bytes */
 	exp_size[0] = texture.width * texture.height * 2;
 	exp_size[1] = calc_full_texture_size (&texture);
 
@@ -854,7 +874,13 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	    texture.format != FORMAT_RGBA4444 &&
 	    texture.format != FORMAT_RGBA1111 &&
 	    texture.format != FORMAT_ALPHA8) {
-		VK_ERROR ("GPU IDMA: unknown texture format, skipping: %s",
+		VK_ERROR ("GPU IDMA: unknown texture format: %s",
+		          get_gpu_texture_str (&texture));
+		/* continue anyway */
+	}
+
+	if (texture.slotx < 0x80 || texture.sloty < 0xC0) {
+		VK_ERROR ("GPU IDMA: unknown texture slot, skipping: %s",
 		          get_gpu_texture_str (&texture));
 		return;
 	}
@@ -910,8 +936,6 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 	}
 }
 
-/* TEXRAM-to-TEXRAM DMA */
-
 static void
 hikaru_gpu_begin_dma (hikaru_gpu_t *gpu)
 {
@@ -960,14 +984,17 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 		uint32_t hi = REG1AUNIT (0, bank_offs + 4);
 		if (lo || hi) {
 			uint32_t flag = (REG1AUNIT (0, 30) >> bank) & 1;
-			uint32_t mult = flag == 0 ? 4 : 2;
+			uint32_t mult = flag == 0 ? 2 : 4;
 			uint32_t x0 = (lo & 0x1FF) * mult;
 			uint32_t y0 = lo >> 9;
 			uint32_t x1 = (hi & 0x1FF) * mult;
 			uint32_t y1 = hi >> 9;
 
-			VK_LOG ("TEX UNIT0 BANK%u: %08X %08X %u (%u) = (%u,%u) (%u,%u)",
-			        bank, lo, hi, flag, mult, x0, y0, x1, y1);
+			VK_LOG ("GPU LAYER %u: %08X %08X %u (%u) = (%u,%u) (%u,%u) [%X %X %X %X]",
+			        bank, lo, hi, flag, mult,
+			        x0, y0, x1, y1,
+			        REG1AUNIT (0, 0x30), REG1AUNIT (0, 0x34),
+			        REG1AUNIT (0, 0x38), REG1AUNIT (0, 0x3C));
 
 			hikaru_renderer_draw_layer (gpu->renderer, x0, y0, x1, y1);
 		}
@@ -1308,8 +1335,8 @@ get_gpu_texture_str (hikaru_gpu_texture_t *texture)
 	sprintf (out, "%X size=%X slot=%X,%X pos=%X,%X offs=%08X %ux%u format=%u hasmip=%u",
 	         texture->addr, texture->size,
 	         texture->slotx, texture->sloty,
-	         texture->slotx*8, texture->sloty*8,
-	         texture->sloty*8*4096+texture->slotx*8*2,
+	         texture->slotx*16, texture->sloty*16,
+	         texture->sloty*16*4096+texture->slotx*16*2,
 	         texture->width, texture->height, texture->format,
 	         texture->has_mipmap);
 	return out;
@@ -1359,6 +1386,8 @@ hikaru_gpu_new (vk_machine_t *mach, vk_buffer_t *cmdram, vk_buffer_t *texram)
 {
 	hikaru_gpu_t *gpu = ALLOC (hikaru_gpu_t);
 	if (gpu) {
+		hikaru_t *hikaru = (hikaru_t *) mach;
+
 		gpu->base.mach = mach;
 
 		gpu->base.delete	= hikaru_gpu_delete;
@@ -1371,6 +1400,8 @@ hikaru_gpu_new (vk_machine_t *mach, vk_buffer_t *cmdram, vk_buffer_t *texram)
 
 		gpu->cmdram = cmdram;
 		gpu->texram = texram;
+		gpu->unkram[0] = hikaru->unkram[0];
+		gpu->unkram[1] = hikaru->unkram[1];
 	}
 	return (vk_device_t *) gpu;
 }

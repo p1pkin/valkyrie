@@ -120,6 +120,7 @@ typedef struct {
 	uint32_t width;
 	uint32_t height;
 	uint32_t format : 3;
+	uint32_t bank : 1;
 	uint32_t has_mipmap : 1;
 } hikaru_gpu_texture_t;
 
@@ -144,6 +145,7 @@ typedef struct {
 
 	vk_buffer_t *cmdram;
 	vk_buffer_t *texram;
+	vk_buffer_t *unkram[2];
 
 	vk_renderer_t *renderer;
 
