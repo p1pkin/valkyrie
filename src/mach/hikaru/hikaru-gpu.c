@@ -788,14 +788,14 @@ copy_texture (hikaru_gpu_t *gpu, hikaru_gpu_texture_t *texture)
 		mask = 32*MB-1;
 	}
 
-	VK_LOG ("IDMA: %ux%u to (%X,%X), area in texram is ([%u,%u],[%u,%u]); dst addr = %08X",
+	VK_LOG ("GPU IDMA: %ux%u to (%X,%X), area in texram is ([%u,%u],[%u,%u]); dst addr = %08X",
 	        texture->width, texture->height,
 	        texture->slotx, texture->sloty,
 	        basex, basey, endx, endy,
 	        basey * 4096 + basex * 2);
 
 	if ((endx > 2048) || (endy > 2048)) {
-		VK_ERROR ("IDMA: out-of-bounds transfer: %s",
+		VK_ERROR ("GPU IDMA: out-of-bounds transfer: %s",
 		          get_gpu_texture_str (texture));
 		return;
 	}
@@ -832,20 +832,20 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	 * mipmap or two, it shouldn't be that big of a problem. */
 	texture.has_mipmap = (texture.size == exp_size[1]) ? 1 : 0;
 
-	VK_LOG ("IDMA %08X %08X %08X %08X : %s",
+	VK_LOG ("GPU IDMA %08X %08X %08X %08X : %s",
 	        entry[0], entry[1], entry[2], entry[3],
 	        get_gpu_texture_str (&texture));
 
 	if ((entry[2] & 0xE3C00000) ||
 	    (entry[3] & 0xFFFFFFFE)) {
-		VK_ERROR ("IDMA: unhandled bits in texture entry: %08X %08X %08X %08X",
+		VK_ERROR ("GPU IDMA: unhandled bits in texture entry: %08X %08X %08X %08X",
 		          entry[0], entry[1], entry[2], entry[3]);
 		/* continue anyway */
 	}
 
 	if (texture.size != exp_size[0] &&
 	    texture.size != exp_size[1]) {
-		VK_ERROR ("IDMA: unexpected texture size: %s",
+		VK_ERROR ("GPU IDMA: unexpected texture size: %s",
 		          get_gpu_texture_str (&texture));
 		/* continue anyway */
 	}
@@ -854,14 +854,14 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	    texture.format != FORMAT_RGBA4444 &&
 	    texture.format != FORMAT_RGBA1111 &&
 	    texture.format != FORMAT_ALPHA8) {
-		VK_ERROR ("IDMA: unknown texture format, skipping: %s",
+		VK_ERROR ("GPU IDMA: unknown texture format, skipping: %s",
 		          get_gpu_texture_str (&texture));
 		return;
 	}
 
 	if ((texture.addr & 0xFE000000) != 0x40000000 &&
 	    (texture.addr & 0xFF000000) != 0x48000000) {
-		VK_ERROR ("IDMA: unknown texture address, skipping: %s",
+		VK_ERROR ("GPU IDMA: unknown texture address, skipping: %s",
 		          get_gpu_texture_str (&texture));
 		return;
 	}
