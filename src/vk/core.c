@@ -28,9 +28,9 @@ vk_util_get_bool_option (const char *name, bool fallback)
 {
 	char *env = getenv (name);
 	if (env) {
-		if (!strcasecmp (env, "TRUE"))
+		if (!strcasecmp (env, "TRUE") || !strcmp (env, "1"))
 			return true;
-		if (!strcasecmp (env, "FALSE"))
+		if (!strcasecmp (env, "FALSE") || !strcmp (env, "0"))
 			return false;
 	}
 	return fallback;
