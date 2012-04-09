@@ -38,6 +38,12 @@ typedef struct {
 
 typedef struct {
 	vk_renderer_t base;
+	struct {
+		bool enable_logging;
+		bool enable_2d;
+		bool enable_3d;
+	} options;
+
 	bool log;
 
 	/* Texture data */
@@ -516,10 +522,13 @@ hikaru_renderer_new (vk_buffer_t *texram)
 		/* XXX handle the return value */
 		hr->texture = vk_surface_new (2048, 2048, GL_RGBA8);
 
-		hr->log = vk_util_get_bool_option ("HR_LOG", false);
-		if (hr->log) {
-			VK_LOG ("HR logging enabled");
-		}
+		/* Read options from the environment */
+		hr->options.enable_logging =
+			vk_util_get_bool_option ("HR_LOG_REND", false);
+		hr->options.enable_2d =
+			vk_util_get_bool_option ("HR_ENABLE_2D", true);
+		hr->options.enable_3d =
+			vk_util_get_bool_option ("HR_ENABLE_3D", true);
 	}
 	return (vk_renderer_t *) hr;
 }
