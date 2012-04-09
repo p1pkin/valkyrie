@@ -44,8 +44,6 @@ typedef struct {
 		bool enable_3d;
 	} options;
 
-	bool log;
-
 	/* Texture data */
 	vk_buffer_t *texram;
 	vk_surface_t *texture;
@@ -72,10 +70,12 @@ hikaru_renderer_set_viewport (vk_renderer_t *renderer,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	if (hr->log) {
+	if (!hr->options.enable_3d)
+		return;
+
+	if (hr->options.enable_logging)
 		VK_LOG ("HR: Set VIEWPORT %s",
 		        get_gpu_viewport_str (viewport));
-	}
 
 	/* Hikaru's origin is at the top left; x axis extends to the
 	 * right; y axis extends downwards. How come? */
@@ -114,10 +114,12 @@ hikaru_renderer_set_material (vk_renderer_t *renderer,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	if (hr->log) {
+	if (!hr->options.enable_3d)
+		return;
+
+	if (hr->options.enable_logging)
 		VK_LOG ("HR: Set MATERIAL %s",
 		        get_gpu_material_str (material));
-	}
 
 	glColor3f (material->color[1].x[0] / 255.0f,
 	           material->color[1].x[1] / 255.0f,
@@ -135,10 +137,12 @@ hikaru_renderer_set_texhead (vk_renderer_t *renderer,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	if (hr->log) {
+	if (!hr->options.enable_3d)
+		return;
+
+	if (hr->options.enable_logging)
 		VK_LOG ("HR: Set TEXHEAD %s",
 		        get_gpu_texhead_str (texhead));
-	}
 
 	/* For now just bind the default surface and work in 2048x2048
 	 * space. */
@@ -151,7 +155,11 @@ hikaru_renderer_set_light (vk_renderer_t *renderer,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	(void) hr;
+	if (!hr->options.enable_3d)
+		return;
+
+	if (hr->options.enable_logging)
+		VK_LOG ("HR: Set LIGHT");
 }
 
 void
@@ -160,6 +168,9 @@ hikaru_renderer_set_modelview_vertex (vk_renderer_t *renderer,
                                       vec3f_t *vertex)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	if (!hr->options.enable_3d)
+		return;
 
 	/* It's a row vertex */
 
@@ -171,7 +182,7 @@ hikaru_renderer_set_modelview_vertex (vk_renderer_t *renderer,
 	hr->modelview_num_up++;
 	if (hr->modelview_num_up == 4) {
 		hr->modelview_num_up = 0;
-		if (hr->log) {
+		if (hr->options.enable_logging) {
 			VK_LOG ("HR == MODELVIEW MATRIX ==");
 			VK_LOG ("HR [ %9.3f %9.3f %9.3f %9.3f ]",
 			        hr->modelview_matrix.x[0][0],
@@ -201,6 +212,19 @@ hikaru_renderer_set_modelview_vertex (vk_renderer_t *renderer,
 	}
 }
 
+void
+hikaru_renderer_register_texture (vk_renderer_t *renderer,
+                                  hikaru_gpu_texture_t *texture)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	if (!hr->options.enable_3d)
+		return;
+
+	/* TODO: create a surface, upload the data, add to the texture
+	 * table */
+}
+
 /* Apparently hikaru triangle strip vertex-linking rules work just like
  * OpenGL's --- that is, 0-1-2, 2-1-3, etc. right-hand rule. Tex coords
  * are a bit tougher... */
@@ -208,22 +232,25 @@ hikaru_renderer_set_modelview_vertex (vk_renderer_t *renderer,
 static void
 draw_vertices (hikaru_renderer_t *hr)
 {
-	if (hr->log) {
-		int i;
+	int i;
+	if (hr->options.enable_logging)
 		VK_LOG ("HR == DRAWING %d VERTICES ==", hr->vertex_index);
-		glDisable (GL_TEXTURE_2D);
-		glBegin (GL_TRIANGLE_STRIP);
-		for (i = 0; i < hr->vertex_index; i++) {
-			hikaru_vertex_t *vtx = &hr->vertices[i];
+
+	glDisable (GL_TEXTURE_2D);
+
+	glBegin (GL_TRIANGLE_STRIP);
+	for (i = 0; i < hr->vertex_index; i++) {
+		hikaru_vertex_t *vtx = &hr->vertices[i];
+		glTexCoord2fv (vtx->texcoords.x);
+		glVertex3fv (vtx->pos.x);
+
+		if (hr->options.enable_logging)
 			VK_LOG ("HR VERTEX %d: %9.3f %9.3f %9.3f | %6.3f %6.3f",
 			        i,
 			        vtx->pos.x[0], vtx->pos.x[1], vtx->pos.x[2],
 			        vtx->texcoords.x[0], vtx->texcoords.x[1]);
-			glTexCoord2fv (vtx->texcoords.x);
-			glVertex3fv (vtx->pos.x);
-		}
-		glEnd ();
 	}
+	glEnd ();
 }
 
 static void
@@ -233,7 +260,7 @@ begin_vertices (hikaru_renderer_t *hr)
 		/* XXX lookup existing VBO or generate a new one. Return
 		 * true if a match was found. */
 		hr->vertex_index = 0;
-		if (hr->log)
+		if (hr->options.enable_logging)
 			VK_LOG ("HR == BEGIN VBO ==");
 	}
 }
@@ -243,7 +270,7 @@ end_vertices (hikaru_renderer_t *hr)
 {
 	if (hr->vertex_index >= 0) {
 		/* XXX upload the VBO; draw it */
-		if (hr->log)
+		if (hr->options.enable_logging)
 			VK_LOG ("HR == END VBO ==");
 		draw_vertices (hr);
 		hr->vertex_index = -1;
@@ -257,6 +284,9 @@ hikaru_renderer_append_vertex_full (vk_renderer_t *renderer,
                                     vec2f_t *texcoords)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+	if (!hr->options.enable_3d)
+		return;
+
 	if (hr->vertex_index < 0)
 		begin_vertices (hr);
 
@@ -272,6 +302,9 @@ void
 hikaru_renderer_append_vertex (vk_renderer_t *renderer, vec3f_t *pos)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+	if (!hr->options.enable_3d)
+		return;
+
 	if (hr->vertex_index < 0)
 		begin_vertices (hr);
 
@@ -300,18 +333,20 @@ hikaru_renderer_append_texcoords (vk_renderer_t *renderer,
                                   vec2f_t texcoords[3])
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-	int i;
+	if (!hr->options.enable_3d)
+		return;
 
 	if (hr->vertex_index < 3) {
 		VK_ERROR ("HR: bad texcoords call, vertex_index=%d, skipping", hr->vertex_index);
 	} else if (hr->vertex_index == 3) {
 		/* If it's the first */
-		int j = hr->vertex_index - 1;
+		int i, j = hr->vertex_index - 1;
 		for (i = 0; i < 3; i++, j--) {
 			hr->vertices[j].texcoords = texcoords[i];
 		}
 	} else {
-		int j = hr->vertex_index - 1;
+		/* TODO append only to the last vertex and check that the
+		 * texcoords match the others. */
 	}
 
 	hr->hack = 0;
@@ -341,7 +376,10 @@ draw_tri (hikaru_gpu_t *gpu, vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2)
 void
 hikaru_renderer_end_vertex_data (vk_renderer_t *renderer)
 {
-	end_vertices ((hikaru_renderer_t *) renderer);
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+	if (!hr->options.enable_3d)
+		return;
+	end_vertices (hr);
 }
 
 /* 2D Rendering */
@@ -353,9 +391,8 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	(void) hr;
-
-	glEnable (GL_TEXTURE_2D);
+	if (!hr->options.enable_2d)
+		return;
 
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
@@ -370,6 +407,7 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer,
 	glLoadIdentity ();
 	glScalef (1.0f/2048, 1.0f/2048, 1.0f);
 
+	glEnable (GL_TEXTURE_2D);
 	vk_surface_bind (hr->texture);
 
 	glBegin (GL_TRIANGLE_STRIP);
@@ -392,7 +430,7 @@ rgba4_to_rgba8 (uint32_t p)
 }
 
 static void
-bind_texram (hikaru_renderer_t *hr)
+upload_texram (hikaru_renderer_t *hr)
 {
 	unsigned x, y;
 
@@ -411,18 +449,6 @@ bind_texram (hikaru_renderer_t *hr)
 	}
 
 	vk_surface_commit (hr->texture);
-}
-
-void
-hikaru_renderer_register_texture (vk_renderer_t *renderer,
-                                  hikaru_gpu_texture_t *texture)
-{
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-
-	/* TODO: create a surface, upload the data, add to the texture
-	 * table */
-
-	(void) hr;
 }
 
 /* Interface */
@@ -445,37 +471,20 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	 * stream. */
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
-#if 0
-	glOrtho (0.0f,			/* left */
-	         renderer->width - 1,	/* right */
-	         -renderer->height + 1,	/* bottom */
-	         0.0f,			/* top */
-	         0.0f,			/* near */
-	         1.0f);			/* far */
-#else
-	glOrtho (0.0f, 640.0f,
-	         -640.0f, 0.0f,
-	         -1.0f, 1.0f);
-#endif
+	glOrtho (0.0f,		/* left */
+	         640.0f,	/* right */
+	         -640.0f,	/* bottom */
+	         0.0f,		/* top */
+	         -1.0f,		/* near */
+	         1.0f);		/* far */
 
-	/* Set an identity modelview matrix */
 	glMatrixMode (GL_MODELVIEW);
 	glLoadIdentity ();
 
-	/* Set the texture matrix */
-	glEnable (GL_TEXTURE_2D);
-	glMatrixMode (GL_TEXTURE);
-	glLoadIdentity ();
-	glScalef (1.0f/2048, 1.0f/2048, 1.0f);
-
-	/* Clear the whole framebuffer */
 	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	glDisable (GL_TEXTURE_2D);
-
-	/* Upload the TEXRAM data */
-	bind_texram (hr);
+	upload_texram (hr);
 }
 
 static void
@@ -524,11 +533,16 @@ hikaru_renderer_new (vk_buffer_t *texram)
 
 		/* Read options from the environment */
 		hr->options.enable_logging =
-			vk_util_get_bool_option ("HR_LOG_REND", false);
+			vk_util_get_bool_option ("HR_LOG", false);
 		hr->options.enable_2d =
 			vk_util_get_bool_option ("HR_ENABLE_2D", true);
 		hr->options.enable_3d =
 			vk_util_get_bool_option ("HR_ENABLE_3D", true);
+
+		if (hr->options.enable_logging) {
+			VK_LOG ("HR: logging enabled; 2d=%d 3d=%d",
+			        hr->options.enable_2d, hr->options.enable_3d);
+		}
 	}
 	return (vk_renderer_t *) hr;
 }
