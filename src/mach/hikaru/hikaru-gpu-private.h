@@ -108,7 +108,8 @@ typedef struct {
 	/* 4C1 */
 	uint32_t slotx;
 	uint32_t sloty;
-	uint32_t _4C1_unk;
+	uint32_t bank;
+	/* Util */
 	uint32_t used : 1;
 } hikaru_gpu_texhead_t;
 
