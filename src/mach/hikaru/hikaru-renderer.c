@@ -464,6 +464,7 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer, hikaru_gpu_layer_t *layer)
 	glMatrixMode (GL_TEXTURE);
 	glLoadIdentity ();
 
+	glDisable (GL_SCISSOR_TEST);
 	glEnable (GL_TEXTURE_2D);
 
 	surface = upload_layer (hr, layer);
