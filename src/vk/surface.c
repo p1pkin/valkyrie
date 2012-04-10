@@ -86,11 +86,11 @@ vk_surface_delete (vk_surface_t **surface_)
 {
 	if (surface_) {
 		vk_surface_t *surface = *surface_;
-
-		if (surface->id)
-			glDeleteTextures (1, &surface->id);
-
-		free (surface->data);
+		if (surface) {
+			if (surface->id)
+				glDeleteTextures (1, &surface->id);
+			free (surface->data);
+		}
 		free (surface);
 		*surface_ = NULL;
 	}
@@ -130,4 +130,3 @@ vk_surface_bind (vk_surface_t *surface)
 	if (surface)
 		glBindTexture (GL_TEXTURE_2D, surface->id);
 }
-
