@@ -69,6 +69,7 @@ typedef struct {
 	vk_device_t base;
 
 	uint8_t regs[0x20];
+	bool hack;
 } hikaru_mie_t;
 
 #define REG(addr_)	(*(uint16_t *) &mie->regs[(addr_) & 0x1F])
@@ -111,15 +112,17 @@ hikaru_mie_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 		return 0;
 	} else if (addr >= 0x00830000 && addr <= 0x0083FFFF) {
 		/* FIXME handle size != 1 */
-		/* HACK: for AIRTRIX, see AT:@0C69B34E */
 		/*set_ptr (val, size, vk_buffer_get (((hikaru_t *) dev->mach)->mie_ram, size, (addr / 2) & 0x7FFF));*/
 		set_ptr (val, size, 0);
-#if 1
-		if (addr == 0x00838004)
-			set_ptr (val, size, 3);
-		else if (addr == 0x00838008)
-			set_ptr (val, size, 6);
-#endif
+		if (mie->hack) {
+			/* XXX hack: fakes MIE better, but then the games
+			 * don't poll the MAINBD switches anymore. See
+			 * AT:@0C69B34E */
+			if (addr == 0x00838004)
+				set_ptr (val, size, 3);
+			else if (addr == 0x00838008)
+				set_ptr (val, size, 6);
+		}
 	} else
 		return -1;
 	return 0;
@@ -206,6 +209,9 @@ hikaru_mie_new (vk_machine_t *mach)
 		mie->base.put		= hikaru_mie_put;
 		mie->base.save_state	= hikaru_mie_save_state;
 		mie->base.load_state	= hikaru_mie_load_state;
+
+		mie->hack =
+			vk_util_get_bool_option ("MIE_HACK", false);
 	}
 	return (vk_device_t *) mie;
 }
