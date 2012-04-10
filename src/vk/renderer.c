@@ -178,18 +178,19 @@ vk_shader_program_delete (vk_shader_program_t **program_)
 {
 	if (program_) {
 		vk_shader_program_t *program = *program_;
-		GLint id;
+		if (program) {
+			GLint id;
 
-		/* Make sure we don't delete the current program */
-		glGetIntegerv (GL_CURRENT_PROGRAM, &id);
-		VK_ASSERT (program->id != id);
+			/* Make sure we don't delete the current program */
+			glGetIntegerv (GL_CURRENT_PROGRAM, &id);
+			VK_ASSERT (program->id != id);
 
-		vk_shader_delete (&program->vs);
-		vk_shader_delete (&program->fs);
+			vk_shader_delete (&program->vs);
+			vk_shader_delete (&program->fs);
 
-		glDeleteProgram (program->id);
+			glDeleteProgram (program->id);
+		}
 		free (program);
-
 		*program_ = NULL;
 	}
 }
