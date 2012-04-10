@@ -542,8 +542,7 @@ upload_fb (hikaru_renderer_t *hr)
 	}
 	vk_surface_commit (hr->fb_surface);
 
-	if (hr->options.draw_fb)
-		draw_fb_or_texram (hr, true);
+	draw_fb_or_texram (hr, true);
 }
 
 static void
@@ -563,8 +562,7 @@ upload_texram (hikaru_renderer_t *hr)
 	}
 	vk_surface_commit (hr->texram_surface);
 
-	if (hr->options.draw_texram)
-		draw_fb_or_texram (hr, false);
+	draw_fb_or_texram (hr, false);
 }
 
 /* Interface */
@@ -585,8 +583,11 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	upload_fb (hr);
-	upload_texram (hr);
+	if (hr->options.draw_fb)
+		upload_fb (hr);
+
+	if (hr->options.draw_fb)
+		upload_texram (hr);
 }
 
 static void
