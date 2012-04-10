@@ -44,7 +44,7 @@ vk_surface_new (unsigned width, unsigned height, GLuint format)
 	surface->pitch = width * bpp;
 	surface->format = format;
 
-	surface->data = (uint8_t *) calloc (1, width * height * 4);
+	surface->data = (uint8_t *) calloc (1, width * height * bpp);
 	if (!surface->data)
 		goto fail;
 
@@ -99,12 +99,16 @@ vk_surface_delete (vk_surface_t **surface_)
 void
 vk_surface_clear (vk_surface_t *surface)
 {
-	memset (surface->data, 0xFF, surface->height * surface->pitch);
+	if (surface)
+		memset (surface->data, 0xFF, surface->height * surface->pitch);
 }
 
 void
 vk_surface_commit (vk_surface_t *surface)
 {
+	if (!surface)
+		return;
+
 	/* Bind type to the texture */
 	glBindTexture (GL_TEXTURE_2D, surface->id);
 
@@ -123,6 +127,7 @@ vk_surface_commit (vk_surface_t *surface)
 void
 vk_surface_bind (vk_surface_t *surface)
 {
-	glBindTexture (GL_TEXTURE_2D, surface->id);
+	if (surface)
+		glBindTexture (GL_TEXTURE_2D, surface->id);
 }
 
