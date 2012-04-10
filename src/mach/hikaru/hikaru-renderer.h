@@ -27,7 +27,7 @@
 #include "vk/renderer.h"
 #include "mach/hikaru/hikaru-gpu-private.h"
 
-vk_renderer_t	*hikaru_renderer_new (vk_buffer_t *texram);
+vk_renderer_t	*hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2]);
 
 /* 2D */
 

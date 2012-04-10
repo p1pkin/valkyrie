@@ -805,7 +805,7 @@ copy_texture (hikaru_gpu_t *gpu, hikaru_gpu_texture_t *texture)
 		mask = 32*MB-1;
 	}
 
-	VK_LOG ("GPU IDMA: %ux%u to (%X,%X), area in texram is ([%u,%u],[%u,%u]); dst addr = %08X",
+	VK_LOG ("GPU IDMA: %ux%u to (%X,%X), area in TEXRAM is ([%u,%u],[%u,%u]); dst addr = %08X",
 	        texture->width, texture->height,
 	        texture->slotx, texture->sloty,
 	        basex, basey, endx, endy,
@@ -823,7 +823,7 @@ copy_texture (hikaru_gpu_t *gpu, hikaru_gpu_texture_t *texture)
 		for (x = 0; x < texture->width; x++, offs += 2) {
 			uint32_t temp = (basey + y) * 4096 + (basex + x) * 2;
 			uint32_t texel = vk_buffer_get (srcbuf, 2, offs);
-			vk_buffer_put (gpu->unkram[bank], 2, temp, texel);
+			vk_buffer_put (gpu->texram[bank], 2, temp, texel);
 		}
 	}
 }
@@ -960,8 +960,8 @@ hikaru_gpu_begin_dma (hikaru_gpu_t *gpu)
 			uint32_t src_offs = (src_y + i) * 4096 + (src_x + j) * 2;
 			uint32_t dst_offs = (dst_y + i) * 4096 + (dst_x + j) * 2;
 			uint16_t pixel;
-			pixel = vk_buffer_get (gpu->texram, 2, src_offs);
-			vk_buffer_put (gpu->texram, 2, dst_offs, pixel);
+			pixel = vk_buffer_get (gpu->fb, 2, src_offs);
+			vk_buffer_put (gpu->fb, 2, dst_offs, pixel);
 		}
 	}
 
@@ -1392,7 +1392,7 @@ hikaru_gpu_delete (vk_device_t **dev_)
 }
 
 vk_device_t *
-hikaru_gpu_new (vk_machine_t *mach, vk_buffer_t *cmdram, vk_buffer_t *texram)
+hikaru_gpu_new (vk_machine_t *mach, vk_buffer_t *cmdram, vk_buffer_t *fb)
 {
 	hikaru_gpu_t *gpu = ALLOC (hikaru_gpu_t);
 	if (gpu) {
@@ -1409,9 +1409,9 @@ hikaru_gpu_new (vk_machine_t *mach, vk_buffer_t *cmdram, vk_buffer_t *texram)
 		gpu->base.load_state	= hikaru_gpu_load_state;
 
 		gpu->cmdram = cmdram;
-		gpu->texram = texram;
-		gpu->unkram[0] = hikaru->unkram[0];
-		gpu->unkram[1] = hikaru->unkram[1];
+		gpu->fb = fb;
+		gpu->texram[0] = hikaru->texram[0];
+		gpu->texram[1] = hikaru->texram[1];
 	}
 	return (vk_device_t *) gpu;
 }

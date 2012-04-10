@@ -303,6 +303,7 @@ unk_m_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 	return 0;
 }
 
+/* XXX hack */
 static vk_device_t unk_m = {
 	0,
 	.get = unk_m_get,
@@ -440,6 +441,8 @@ hikaru_run_frame (vk_machine_t *mach)
 	hikaru_t *hikaru = (hikaru_t *) mach;
 	unsigned line;
 
+	/* XXX move the main loop into vk_machine */
+
 	vk_renderer_begin_frame (hikaru->base.renderer);
 
 	VK_LOG (" *** VBLANK-OUT %s ***", vk_machine_get_debug_string (mach));
@@ -473,9 +476,9 @@ hikaru_reset (vk_machine_t *mach, vk_reset_type_t type)
 	vk_buffer_clear (hikaru->ram_m);
 	vk_buffer_clear (hikaru->ram_s);
 	vk_buffer_clear (hikaru->cmdram);
-	vk_buffer_clear (hikaru->texram);
-	vk_buffer_clear (hikaru->unkram[0]);
-	vk_buffer_clear (hikaru->unkram[1]);
+	vk_buffer_clear (hikaru->texram[0]);
+	vk_buffer_clear (hikaru->texram[1]);
+	vk_buffer_clear (hikaru->fb);
 	vk_buffer_clear (hikaru->aica_ram_m);
 	vk_buffer_clear (hikaru->aica_ram_s);
 	vk_buffer_clear (hikaru->mie_ram);
@@ -514,7 +517,8 @@ hikaru_get_debug_string (vk_machine_t *mach)
 {
 	hikaru_t *hikaru = (hikaru_t *) mach;
 	static char out[256];
-	char *mstr, *sstr, *gpustr;
+	char *mstr, *sstr;
+	const char *gpustr;
 
 	mstr = strdup (vk_cpu_get_debug_string (hikaru->sh_m));
 	sstr = strdup (vk_cpu_get_debug_string (hikaru->sh_s));
@@ -559,58 +563,13 @@ hikaru_dump (vk_machine_t *mach)
 	vk_buffer_dump (hikaru->ram_m,		"hikaru-ram-m.bin");
 	vk_buffer_dump (hikaru->ram_s,		"hikaru-ram-s.bin");
 	vk_buffer_dump (hikaru->cmdram,		"hikaru-cmdram.bin");
-	vk_buffer_dump (hikaru->texram,		"hikaru-texram.bin");
-	vk_buffer_dump (hikaru->unkram[0],	"hikaru-unkram-0.bin");
-	vk_buffer_dump (hikaru->unkram[1],	"hikaru-unkram-1.bin");
+	vk_buffer_dump (hikaru->texram[0],	"hikaru-texram-0.bin");
+	vk_buffer_dump (hikaru->texram[1],	"hikaru-texram-1.bin");
+	vk_buffer_dump (hikaru->fb,		"hikaru-fb.bin");
 	vk_buffer_dump (hikaru->aica_ram_m,	"hikaru-aica-m.bin");
 	vk_buffer_dump (hikaru->aica_ram_m,	"hikaru-aica-s.bin");
 	vk_buffer_dump (hikaru->bram,		"hikaru-bram.bin");
 	vk_buffer_dump (hikaru->mie_ram,	"hikaru-mie.bin");
-
-#if 0
-	vk_buffer_dump (hikaru->bootrom,	"hikaru-bootrom.bin");
-	vk_buffer_dump (hikaru->eprom,		"hikaru-rombd-eprom.bin");
-	vk_buffer_dump (hikaru->maskrom,	"hikaru-rombd-maskrom.bin");
-#endif
-}
-
-static void
-hikaru_delete (vk_machine_t **mach_)
-{
-	if (mach_) {
-
-		hikaru_t *hikaru = (hikaru_t *) *mach_;
-		if (hikaru) {
-
-			/* dump everything we got before quitting */
-			hikaru_dump ((vk_machine_t *) hikaru);
-
-			vk_device_delete (&hikaru->memctl_m);
-			vk_device_delete (&hikaru->memctl_s);
-			vk_device_delete (&hikaru->mscomm);
-			vk_device_delete (&hikaru->mie);
-			vk_device_delete (&hikaru->gpu);
-
-			vk_cpu_delete (&hikaru->sh_m);
-			vk_cpu_delete (&hikaru->sh_s);
-
-			vk_mmap_delete (&hikaru->mmap_m);
-			vk_mmap_delete (&hikaru->mmap_s);
-
-			vk_buffer_delete (&hikaru->ram_m);
-			vk_buffer_delete (&hikaru->ram_s);
-			vk_buffer_delete (&hikaru->cmdram);
-			vk_buffer_delete (&hikaru->texram);
-			vk_buffer_delete (&hikaru->unkram[0]);
-			vk_buffer_delete (&hikaru->unkram[1]);
-			vk_buffer_delete (&hikaru->aica_ram_m);
-			vk_buffer_delete (&hikaru->aica_ram_s);
-			vk_buffer_delete (&hikaru->bram);
-			vk_buffer_delete (&hikaru->mie_ram);
-		}
-		free (hikaru);
-		*mach_ = NULL;
-	}
 }
 
 /*
@@ -619,7 +578,7 @@ hikaru_delete (vk_machine_t **mach_)
  *
  * Area 0	00000000-00200000 Boot ROM 
  *		00400000-00400003 ?
- *		00800000-0083FFFF On-board Controls + MIE
+ *		00800000-0083FFFF On-board Switches + MIE
  *		00C00000-00C0FFFF Backup RAM
  *		01000000-01000003 ?
  *		01000100-01000103 ?
@@ -628,17 +587,13 @@ hikaru_delete (vk_machine_t **mach_)
  * Area 1	04000000-0400003F Memory Controller [Master]
  * Area 3	0C000000-0DFFFFFF RAM
  * Area 5	14000000-140000FF Master/Slave Communication Box
- *		14000100-143FFFFF GPU Command RAM
- *		15000000-150000FF GPU Regs
+ *		14000100-143FFFFF Command RAM
+ *		15000000-150FFFFF Geometry Processor
  *		16000000-16FFFFFF Aperture-16
  *		17000000-17FFFFFF Aperture-17
  * Area 6	18001000-180010FF GPU Regs
- *		1A000000-1A0001FF GPU Regs
- *		1A000180-1A0001BF GPU Texture Unit A
- *		1A000200-1A00023F GPU Texture Unit B
- *		1A020000-1A020003 GPU ?
- *		1A040000-1A04000F GPU Texture FIFO
- *		1B000000-1B7FFFFF GPU Texture RAM
+ *		1A000000-1A0FFFFF Image Generator
+ *		1B000000-1B7FFFFF Frame Buffer
  */
 
 static vk_mmap_t *
@@ -718,7 +673,7 @@ setup_master_mmap (hikaru_t *hikaru)
 	vk_mmap_set_region (mmap, region, i++);
 
 	region = vk_region_ram_new (0x1B000000, 0x1B7FFFFF, 0x7FFFFF, 0,
-	                            hikaru->texram, "TEXRAM/M");
+	                            hikaru->fb, "TEXRAM/M");
 	vk_mmap_set_region (mmap, region, i++);
 
 	vk_mmap_set_region (mmap, (vk_region_t *) &vk_region_end, i++);
@@ -731,10 +686,10 @@ setup_master_mmap (hikaru_t *hikaru)
  * =====================
  *
  * Area 0	00000000-001FFFFF Boot ROM
- * Area 1	04000000-0400003F Memory Controller [Slave] [1]
+ * Area 1	04000000-0400003F Memory Controller [Slave]
  * Area 3	0C000000-0DFFFFFF RAM
- * Area 4	10000000-100000FF M/S COMM
- *		10000100-103FFFFF GPU CMDRAM (slave?)
+ * Area 4	10000000-100000FF Master/Slave Communication Box
+ *		10000100-103FFFFF Command RAM [Slave]
  * Area 5	14000800-1400083F Master's 18000000
  * Area 6	1A800000-1A800003 GPU
  *		1B000100-1B000103 GPU
@@ -856,6 +811,45 @@ hikaru_set_rombd_config (hikaru_t *hikaru)
 	return 0;
 }
 
+static void
+hikaru_delete (vk_machine_t **mach_)
+{
+	if (mach_) {
+
+		hikaru_t *hikaru = (hikaru_t *) *mach_;
+		if (hikaru) {
+
+			/* dump everything we got before quitting */
+			hikaru_dump ((vk_machine_t *) hikaru);
+
+			vk_device_delete (&hikaru->memctl_m);
+			vk_device_delete (&hikaru->memctl_s);
+			vk_device_delete (&hikaru->mscomm);
+			vk_device_delete (&hikaru->mie);
+			vk_device_delete (&hikaru->gpu);
+
+			vk_cpu_delete (&hikaru->sh_m);
+			vk_cpu_delete (&hikaru->sh_s);
+
+			vk_mmap_delete (&hikaru->mmap_m);
+			vk_mmap_delete (&hikaru->mmap_s);
+
+			vk_buffer_delete (&hikaru->ram_m);
+			vk_buffer_delete (&hikaru->ram_s);
+			vk_buffer_delete (&hikaru->cmdram);
+			vk_buffer_delete (&hikaru->fb);
+			vk_buffer_delete (&hikaru->texram[0]);
+			vk_buffer_delete (&hikaru->texram[1]);
+			vk_buffer_delete (&hikaru->aica_ram_m);
+			vk_buffer_delete (&hikaru->aica_ram_s);
+			vk_buffer_delete (&hikaru->bram);
+			vk_buffer_delete (&hikaru->mie_ram);
+		}
+		free (hikaru);
+		*mach_ = NULL;
+	}
+}
+
 static int
 hikaru_init (hikaru_t *hikaru)
 {
@@ -868,51 +862,75 @@ hikaru_init (hikaru_t *hikaru)
 	hikaru->ram_m		= vk_buffer_le32_new (32*MB, 0);
 	hikaru->ram_s		= vk_buffer_le32_new (32*MB, 0);
 	hikaru->cmdram		= vk_buffer_le32_new (4*MB, 0);
-	hikaru->texram		= vk_buffer_le32_new (8*MB, 0);
-	hikaru->unkram[0]	= vk_buffer_le32_new (4*MB, 0);
-	hikaru->unkram[1]	= vk_buffer_le32_new (4*MB, 0);
+	hikaru->fb		= vk_buffer_le32_new (8*MB, 0);
+	hikaru->texram[0]	= vk_buffer_le32_new (4*MB, 0);
+	hikaru->texram[1]	= vk_buffer_le32_new (4*MB, 0);
 	hikaru->aica_ram_m	= vk_buffer_le32_new (8*MB, 0);
 	hikaru->aica_ram_s	= vk_buffer_le32_new (8*MB, 0);
 	hikaru->mie_ram		= vk_buffer_le32_new (32*KB, 0);
 	hikaru->bram		= vk_buffer_le32_new (64*KB, 0);
 
 	if (!hikaru->ram_m || !hikaru->ram_s ||
-	    !hikaru->cmdram || !hikaru->texram ||
-	    !hikaru->unkram[0] || !hikaru->unkram[1] ||
+	    !hikaru->cmdram || !hikaru->fb ||
+	    !hikaru->texram[0] || !hikaru->texram[1] ||
 	    !hikaru->aica_ram_m || !hikaru->aica_ram_s ||
 	    !hikaru->bram || !hikaru->mie_ram)
-		return -1;
+		goto fail;
 
 	hikaru->bootrom 	= vk_game_get_section_data (game, "bootrom");
 	hikaru->eprom   	= vk_game_get_section_data (game, "eprom");
 	hikaru->maskrom 	= vk_game_get_section_data (game, "maskrom");
 
 	if (hikaru_set_rombd_config (hikaru))
-		return -1;
+		goto fail;
 
 	hikaru->memctl_m = hikaru_memctl_new (mach, true);
 	hikaru->memctl_s = hikaru_memctl_new (mach, false);
 
+	if (!hikaru->memctl_m || !hikaru->memctl_s)
+		goto fail;
+
 	hikaru->mscomm = hikaru_mscomm_new (mach);
+	if (!hikaru->mscomm)
+		goto fail;
 
 	hikaru->mie = hikaru_mie_new (mach);
+	if (!hikaru->mie)
+		goto fail;
 
-	hikaru->gpu = hikaru_gpu_new (mach, hikaru->cmdram, hikaru->texram);
-	hikaru->base.renderer = hikaru_renderer_new (hikaru->texram);
+	hikaru->gpu = hikaru_gpu_new (mach, hikaru->cmdram, hikaru->fb);
+	hikaru->base.renderer = hikaru_renderer_new (hikaru->fb,
+	                                             hikaru->texram);
+
+	if (!hikaru->gpu || !hikaru->base.renderer)
+		goto fail;
 
 	hikaru->aica_m = hikaru_aica_new (mach, hikaru->aica_ram_m, true);
 	hikaru->aica_s = hikaru_aica_new (mach, hikaru->aica_ram_m, false);
 
+	if (!hikaru->aica_m || !hikaru->aica_s)
+		goto fail;
+
 	hikaru->mmap_m = setup_master_mmap (hikaru);
 	hikaru->mmap_s = setup_slave_mmap (hikaru);
 
+	if (!hikaru->mmap_m || !hikaru->mmap_s)
+		goto fail;
+
 	hikaru->sh_m = sh4_new (mach, hikaru->mmap_m, true, true);
 	hikaru->sh_s = sh4_new (mach, hikaru->mmap_s, false, true);
+
+	if (!hikaru->sh_m || !hikaru->sh_s)
+		goto fail;
 
 	sh4_set_porta_handlers (hikaru->sh_m, porta_get_m, porta_put_m);
 	sh4_set_porta_handlers (hikaru->sh_s, porta_get_s, porta_put_s);
 
 	return 0;
+
+fail:
+	hikaru_delete (&mach);
+	return -1;
 }
 
 struct vk_machine_t *

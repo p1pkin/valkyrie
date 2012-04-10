@@ -42,13 +42,16 @@ typedef struct {
 		bool enable_logging;
 		bool enable_2d;
 		bool enable_3d;
+		bool draw_fb;
 		bool draw_texram;
 	} options;
 
 	/* Texture data */
-	vk_buffer_t *texram;
-	vk_surface_t *texture;
-	hikaru_texture_t textures[256][256];
+	vk_buffer_t *fb;
+	vk_buffer_t *texram[2];
+
+	vk_surface_t *fb_surface;
+	vk_surface_t *texram_surface;
 
 	/* Modelview Matrix */
 	unsigned modelview_num_up;
@@ -145,7 +148,6 @@ hikaru_renderer_set_texhead (vk_renderer_t *renderer,
 
 	/* For now just bind the default surface and work in 2048x2048
 	 * space. */
-	vk_surface_bind (hr->texture);
 }
 
 void
@@ -397,7 +399,7 @@ upload_layer_rgba4444 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 		uint32_t yoffs = (layer->y0 + y) * 4096;
 		for (x = 0; x < 640; x++) {
 			uint32_t offs  = yoffs + (layer->x0 + x) * 2;
-			uint32_t texel = vk_buffer_get (hr->texram, 2, offs);
+			uint32_t texel = vk_buffer_get (hr->fb, 2, offs);
 			vk_surface_put16 (surface, x ^ 1, y, texel);
 		}
 	}
@@ -418,7 +420,7 @@ upload_layer_rgba8888 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 		uint32_t yoffs = (layer->y0 + y) * 4096;
 		for (x = 0; x < 640; x++) {
 			uint32_t offs  = yoffs + (layer->x0 + x) * 4;
-			uint32_t texel = vk_buffer_get (hr->texram, 4, offs);
+			uint32_t texel = vk_buffer_get (hr->fb, 4, offs);
 			vk_surface_put32 (surface, x, y, texel);
 		}
 	}
@@ -495,7 +497,7 @@ rgba4_to_rgba8 (uint32_t p)
 }
 
 static void
-draw_texram (hikaru_renderer_t *hr)
+draw_fb_or_texram (hikaru_renderer_t *hr, bool fb)
 {
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
@@ -511,7 +513,11 @@ draw_texram (hikaru_renderer_t *hr)
 	glScalef (1.0f/2048, 1.0f/2048, 1.0f);
 
 	glEnable (GL_TEXTURE_2D);
-	vk_surface_bind (hr->texture);
+
+	if (fb)
+		vk_surface_bind (hr->fb_surface);
+	else
+		vk_surface_bind (hr->texram_surface);
 
 	glBegin (GL_TRIANGLE_STRIP);
 		glTexCoord2i (0, 0); glVertex3f (0.0f, 0.0f, 0.0f);
@@ -522,27 +528,43 @@ draw_texram (hikaru_renderer_t *hr)
 }
 
 static void
-upload_texram (hikaru_renderer_t *hr)
+upload_fb (hikaru_renderer_t *hr)
 {
 	unsigned x, y;
 
-	/* XXX this is _very_ slow; it's one of the main CPU hogs in
-	 * valkyrie. The solution is to stop doing it all the time, and
-	 * probably just upload the layer areas. */
 	for (y = 0; y < 2048; y++) {
 		uint32_t yoffs = y * 4096;
 		for (x = 0; x < 2048; x++) {
 			uint32_t offs = yoffs + x * 2;
-			uint32_t texel = rgba4_to_rgba8 (vk_buffer_get (hr->texram, 2, offs));
-			/* Note: the xor here is needed; is the GPU a big
-			 * endian device? */
-			vk_surface_put32 (hr->texture, x ^ 1, y, texel);
+			uint32_t texel = rgba4_to_rgba8 (vk_buffer_get (hr->fb, 2, offs));
+			vk_surface_put32 (hr->fb_surface, x ^ 1, y, texel);
 		}
 	}
-	vk_surface_commit (hr->texture);
+	vk_surface_commit (hr->fb_surface);
+
+	if (hr->options.draw_fb)
+		draw_fb_or_texram (hr, true);
+}
+
+static void
+upload_texram (hikaru_renderer_t *hr)
+{
+	unsigned x, y;
+
+	for (y = 0; y < 1024; y++) {
+		uint32_t yoffs = y * 4096;
+		for (x = 0; x < 2048; x++) {
+			uint32_t texel, offs = yoffs + x * 2;
+			texel = rgba4_to_rgba8 (vk_buffer_get (hr->texram[0], 2, offs));
+			vk_surface_put32 (hr->texram_surface, x ^ 1, y, texel);
+			texel = rgba4_to_rgba8 (vk_buffer_get (hr->texram[1], 2, offs));
+			vk_surface_put32 (hr->texram_surface, 1024 + (x ^ 1), y, texel);
+		}
+	}
+	vk_surface_commit (hr->texram_surface);
 
 	if (hr->options.draw_texram)
-		draw_texram (hr);
+		draw_fb_or_texram (hr, false);
 }
 
 /* Interface */
@@ -563,6 +585,7 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	upload_fb (hr);
 	upload_texram (hr);
 }
 
@@ -583,12 +606,13 @@ hikaru_renderer_delete (vk_renderer_t **renderer_)
 {
 	if (renderer_) {
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
-		vk_surface_delete (&hr->texture);
+		vk_surface_delete (&hr->fb_surface);
+		vk_surface_delete (&hr->texram_surface);
 	}
 }
 
 vk_renderer_t *
-hikaru_renderer_new (vk_buffer_t *texram)
+hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 {
 	hikaru_renderer_t *hr = ALLOC (hikaru_renderer_t);
 	if (hr) {
@@ -605,10 +629,14 @@ hikaru_renderer_new (vk_buffer_t *texram)
 
 		/* XXX setup shaders */
 
-		hr->texram = texram;
+		/* Setup machine buffers */
+		hr->fb = fb;
+		hr->texram[0] = texram[0];
+		hr->texram[1] = texram[1];
 
 		/* XXX handle the return value */
-		hr->texture = vk_surface_new (2048, 2048, GL_RGBA8);
+		hr->fb_surface = vk_surface_new (2048, 2048, GL_RGBA8);
+		hr->texram_surface = vk_surface_new (2048, 2048, GL_RGBA8);
 
 		/* Read options from the environment */
 		hr->options.enable_logging =
@@ -617,6 +645,8 @@ hikaru_renderer_new (vk_buffer_t *texram)
 			vk_util_get_bool_option ("HR_ENABLE_2D", true);
 		hr->options.enable_3d =
 			vk_util_get_bool_option ("HR_ENABLE_3D", true);
+		hr->options.draw_fb =
+			vk_util_get_bool_option ("HR_DRAW_FB", false);
 		hr->options.draw_texram =
 			vk_util_get_bool_option ("HR_DRAW_TEXRAM", false);
 

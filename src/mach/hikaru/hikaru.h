@@ -75,8 +75,9 @@ typedef struct {
 
 	/* RAM areas */
 	vk_buffer_t *ram_m, *ram_s;
-	vk_buffer_t *cmdram, *texram;
-	vk_buffer_t *unkram[2];
+	vk_buffer_t *cmdram;
+	vk_buffer_t *texram[2];
+	vk_buffer_t *fb;
 	vk_buffer_t *aica_ram_m;
 	vk_buffer_t *aica_ram_s;
 	vk_buffer_t *mie_ram;

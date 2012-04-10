@@ -155,8 +155,8 @@ typedef struct {
 	vk_device_t base;
 
 	vk_buffer_t *cmdram;
-	vk_buffer_t *texram;
-	vk_buffer_t *unkram[2];
+	vk_buffer_t *texram[2];
+	vk_buffer_t *fb;
 
 	vk_renderer_t *renderer;
 

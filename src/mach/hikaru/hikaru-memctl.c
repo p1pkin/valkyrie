@@ -167,8 +167,8 @@
  *
  * The address space of the external BUS is as follows:
  *
- * 04000000-043FFFFF	Unknown; GPU-related Area (Frame Buffer?)
- * 06000000-063FFFFF	Unknown; GPU-related Area (Frame Buffer?)
+ * 04000000-043FFFFF	Texture RAM Bank 0
+ * 06000000-063FFFFF	Texture RAM Bank 1
  * 0A000000-0A00FFFF	Unknown; ROMBD-related
  * 0C000000-0CFFFFFF	Sound Board 1
  * 0D000000-0DFFFFFF	Sound Board 2 [Optional]
@@ -450,11 +450,11 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 
 	set_ptr (val, size, 0);
 	if (bus_addr >= 0x04000000 && bus_addr <= 0x043FFFFF) {
-		/* Unknown A */
-		set_ptr (val, size, vk_buffer_get (hikaru->unkram[0], size, offs));
+		/* TEXRAM Bank 0 */
+		set_ptr (val, size, vk_buffer_get (hikaru->texram[0], size, offs));
 	} else if (bus_addr >= 0x06000000 && bus_addr <= 0x063FFFFF) {
-		/* Unknown B */
-		set_ptr (val, size, vk_buffer_get (hikaru->unkram[1], size, offs));
+		/* TEXRAM Bank 1 */
+		set_ptr (val, size, vk_buffer_get (hikaru->texram[1], size, offs));
 	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
 		/* Unknown */
 		/* Here's the thing: the value of bits 2 and 3 of 0C00F01C
@@ -523,11 +523,11 @@ memctl_bus_put (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, uint6
 	bool log = false;
 
 	if (bus_addr >= 0x04000000 && bus_addr <= 0x043FFFFF) {
-		/* Unknown, A */
-		vk_buffer_put (hikaru->unkram[0], size, offs, val);
+		/* TEXRAM Bank 0 */
+		vk_buffer_put (hikaru->texram[0], size, offs, val);
 	} else if (bus_addr >= 0x06000000 && bus_addr <= 0x063FFFFF) {
-		/* Unknown, B */
-		vk_buffer_put (hikaru->unkram[1], size, offs, val);
+		/* TEXRAM Bank 1 */
+		vk_buffer_put (hikaru->texram[1], size, offs, val);
 	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
 		/* Unknown */
 		log = true;
