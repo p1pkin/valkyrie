@@ -19,11 +19,11 @@ to '$HOME/.local/share/valkyrie' or something. Create that directory on
 Convert TEXRAM and CMDRAM from vk_buffer_t's to simple byte arrays.
 
 HIKARU
--------
+------
 
 Save state support. This is mandatory.
 
-Implement better AICA support (especially the RTC.)
+Implement better AICA support (especially the RTC and IRQs.)
 
 Implement better MIE support (that is, wrap a Z80 emulator in a
 vk_cpu : z80 class and tape it in the code.)
@@ -41,45 +41,24 @@ a lot more bearable.
 RENDERING
 ---------
 
+Fix text rendering in the BOOTROM.
+
 Figure out how to render the PHARRIER 3D intro screen. Aside from FPU
 bugs, we should be ready to go! This requires (in order of importance):
-
-- Use VBOs or VAOs to render the tri strips; split tri strips based on
-  command adjacency. It should be fairly easy.
-
-- Fix viewport matrix settings: use separate settings for 2D layers and 3D.
-
-- Figuring out the matrix/translation commands. Only 161 is used; other
-  similar commands may actually be light-related. There's some evidence in
-  PHARRIER.
-
-- Implement viewport recall, at least for the scissor test.
 
 - Fix Y coords in the BOOTROM menu. The translation component of the 161
   matrix doesn't seem to fix it; there must be some other offset somewhere
   in the command stream or MMIOs. Again, check against the BRAVEFF menu.
 
-- Fix textures: perhap texheads are `registered' through the IDMA device
-  and later recalled using texhead (0C1,2C1,4C1) commands. Note that
-  if this is true, textures may be access by the GPU directly in slave RAM!
-
-- Fix texture coords: 12 bits are enough to address the whole TEXRAM! Note
-  that vtxnrm commands and texcoord commands should have the same tex
-  coord range. Check if that is the case. Double check by making sure that
-  the BRAVEFF test menu (which is rendered with 2D layers) looks exactly
-  the same as the BOOTROM menu (which is rendered with tri strips.)
-
-- Fix the bitmap layers properly. In particular, figure out their format
-  by comparing the PHARRIER title screen to the youtube video. Also figure
-  out how to enable them.
+- Figure out how the projection matrix is specified.
 
 - Figure out how the fade-in effect is done in the intro screen.
 
-- Don't upload the TEXRAM if there's nothing to be rendered.
+- Implement proper texture caching, for both textures (TEXRAM) and layers
+  (FB). Right now 16% of all cycles are spent uploading the FB texture to
+  OpenGL.
 
-- Make TEXRAM uploading _much_ faster. Right now 16% of all cycles are
-  spent there; it makes no sense. Use dirty rectangles to make it even
-  faster.
+- Implement proper model caching using VBOs.
 
 AIRTRIX
 -------
@@ -91,7 +70,7 @@ BRAVEFF
 -------
 
 Missing MASKROMs. Won't work. It works enough to display the test menu
-though.
+though. Or at least it did some time ago.
 
 Cyber Troops Virtual On 4
 -------------------------
@@ -101,7 +80,8 @@ Not dumped yet.
 PHARRIER
 --------
 
-Render the 3D intro screen using the youtube footage as a reference.
+Render the 3D intro screen using the youtube footage as a reference. Figure
+out why the 161 commands contain garbage info.
 
 Remove the out-of-bound-DMA-bug patch; it may be fucking up the intro
 screen.
