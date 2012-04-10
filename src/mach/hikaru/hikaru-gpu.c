@@ -983,20 +983,22 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 		uint32_t lo = REG1AUNIT (0, bank_offs + 0);
 		uint32_t hi = REG1AUNIT (0, bank_offs + 4);
 		if (lo || hi) {
-			uint32_t flag = (REG1AUNIT (0, 30) >> bank) & 1;
-			uint32_t mult = flag == 0 ? 2 : 4;
-			uint32_t x0 = (lo & 0x1FF) * mult;
-			uint32_t y0 = lo >> 9;
-			uint32_t x1 = (hi & 0x1FF) * mult;
-			uint32_t y1 = hi >> 9;
+			hikaru_gpu_layer_t layer;
 
-			VK_LOG ("GPU LAYER %u: %08X %08X %u (%u) = (%u,%u) (%u,%u) [%X %X %X %X]",
-			        bank, lo, hi, flag, mult,
-			        x0, y0, x1, y1,
+			layer.x0 = (lo & 0x1FF) * 4;
+			layer.y0 = lo >> 9;
+			layer.x1 = (hi & 0x1FF) * 4;
+			layer.y1 = hi >> 9;
+
+			/* XXX determine the format from the MMIOs */
+			layer.format = LAYER_FORMAT_RGBA8888;
+
+			VK_LOG ("GPU LAYER %u: %s [%X %X %X %X]",
+			        bank, get_gpu_layer_str (&layer),
 			        REG1AUNIT (0, 0x30), REG1AUNIT (0, 0x34),
 			        REG1AUNIT (0, 0x38), REG1AUNIT (0, 0x3C));
 
-			hikaru_renderer_draw_layer (gpu->renderer, x0, y0, x1, y1);
+			hikaru_renderer_draw_layer (gpu->renderer, &layer);
 		}
 	}
 }
@@ -1249,18 +1251,6 @@ hikaru_gpu_get_debug_str (vk_device_t *dev)
 	return out;
 }
 
-static int
-hikaru_gpu_save_state (vk_device_t *dev, FILE *fp)
-{
-	return -1;
-}
-
-static int
-hikaru_gpu_load_state (vk_device_t *dev, FILE *fp)
-{
-	return -1;
-}
-
 char *
 get_gpu_viewport_str (hikaru_gpu_viewport_t *viewport)
 {
@@ -1316,7 +1306,7 @@ get_gpu_texhead_str (hikaru_gpu_texhead_t *texhead)
 		"7"
 	};
 	static char out[512];
-	sprintf (out, "slot=%X,%X pos=%X,%X offs=%08X %ux%u %s ni=%X by=%X u4=%X u8=%X uk=%X",
+	sprintf (out, "slot=%X,%X pos=%X,%X offs=%08X %ux%u %s ni=%X by=%X u4=%X u8=%X bank=%X",
 	         texhead->slotx, texhead->sloty,
 	         texhead->slotx*8, texhead->sloty*8,
 	         texhead->sloty*8*4096+texhead->slotx*8*2,
@@ -1324,7 +1314,7 @@ get_gpu_texhead_str (hikaru_gpu_texhead_t *texhead)
 	         name[texhead->format],
 	         texhead->_0C1_nibble, texhead->_0C1_byte,
 	         texhead->_2C1_unk4, texhead->_2C1_unk8,
-	         texhead->_4C1_unk);
+	         texhead->bank);
 	return out;
 }
 
@@ -1339,6 +1329,14 @@ get_gpu_texture_str (hikaru_gpu_texture_t *texture)
 	         texture->sloty*16*4096+texture->slotx*16*2,
 	         texture->width, texture->height, texture->format,
 	         texture->has_mipmap);
+	return out;
+}
+char *
+get_gpu_layer_str (hikaru_gpu_layer_t *layer)
+{
+	static char out[256];
+	sprintf (out, "(%u,%u) (%u,%u) fmt=%u",
+	         layer->x0, layer->y0, layer->x1, layer->y1, layer->format);
 	return out;
 }
 
@@ -1368,6 +1366,18 @@ hikaru_gpu_print_rendering_state (hikaru_gpu_t *gpu)
 			VK_LOG ("GPU RS: texhead %3u: %s", i,
 			        get_gpu_texhead_str (th));
 	}
+}
+
+static int
+hikaru_gpu_save_state (vk_device_t *dev, FILE *fp)
+{
+	return -1;
+}
+
+static int
+hikaru_gpu_load_state (vk_device_t *dev, FILE *fp)
+{
+	return -1;
 }
 
 static void

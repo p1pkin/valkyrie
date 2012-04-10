@@ -29,6 +29,13 @@
 
 vk_renderer_t	*hikaru_renderer_new (vk_buffer_t *texram);
 
+/* 2D */
+
+void		hikaru_renderer_draw_layer (vk_renderer_t *renderer,
+		                            hikaru_gpu_layer_t *layer);
+
+/* 3D */
+
 void		hikaru_renderer_set_viewport (vk_renderer_t *renderer,
 		                              hikaru_gpu_viewport_t *viewport);
 void		hikaru_renderer_set_matrix (vk_renderer_t *renderer,
@@ -51,11 +58,6 @@ void		hikaru_renderer_append_vertex_full (vk_renderer_t *renderer,
 		                                    vec3f_t *normal,
 		                                    vec2f_t *texcoords);
 void		hikaru_renderer_end_vertex_data (vk_renderer_t *renderer);
-
-void		hikaru_renderer_draw_layer (vk_renderer_t *renderer,
-		                            uint32_t x0, uint32_t y0,
-		                            uint32_t x1, uint32_t y1);
-
 void		hikaru_renderer_register_texture (vk_renderer_t *renderer,
 		                                  hikaru_gpu_texture_t *texture);
 

@@ -136,6 +136,16 @@ typedef struct {
 	vec3f_t direction;
 } hikaru_gpu_light_t;
 
+enum {
+	LAYER_FORMAT_RGBA4444,
+	LAYER_FORMAT_RGBA8888
+};
+
+typedef struct {
+	uint32_t x0, y0, x1, y1;
+	unsigned format;
+} hikaru_gpu_layer_t;
+
 typedef struct {
 	unsigned num_lights;
 	hikaru_gpu_light_t lights[8];
@@ -199,5 +209,6 @@ char *get_gpu_viewport_str (hikaru_gpu_viewport_t *);
 char *get_gpu_material_str (hikaru_gpu_material_t *);
 char *get_gpu_texhead_str (hikaru_gpu_texhead_t *);
 char *get_gpu_texture_str (hikaru_gpu_texture_t *);
+char *get_gpu_layer_str (hikaru_gpu_layer_t *);
 
 #endif /* __HIKARU_GPU_PRIVATE_H__ */

@@ -383,18 +383,74 @@ hikaru_renderer_end_vertex_data (vk_renderer_t *renderer)
 
 /* 2D Rendering */
 
+static vk_surface_t *
+upload_layer_rgba4444 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
+{
+	vk_surface_t *surface;
+	uint32_t x, y;
+
+	surface = vk_surface_new (640, 480, GL_RGBA4);
+	if (!surface)
+		return NULL;
+
+	for (y = 0; y < 480; y++) {
+		uint32_t yoffs = (layer->y0 + y) * 4096;
+		for (x = 0; x < 640; x++) {
+			uint32_t offs  = yoffs + (layer->x0 + x) * 2;
+			uint32_t texel = vk_buffer_get (hr->texram, 2, offs);
+			vk_surface_put16 (surface, x ^ 1, y, texel);
+		}
+	}
+	return surface;
+}
+
+static vk_surface_t *
+upload_layer_rgba8888 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
+{
+	vk_surface_t *surface;
+	uint32_t x, y;
+
+	surface = vk_surface_new (640, 480, GL_RGBA8);
+	if (!surface)
+		return NULL;
+
+	for (y = 0; y < 480; y++) {
+		uint32_t yoffs = (layer->y0 + y) * 4096;
+		for (x = 0; x < 640; x++) {
+			uint32_t offs  = yoffs + (layer->x0 + x) * 4;
+			uint32_t texel = vk_buffer_get (hr->texram, 4, offs);
+			vk_surface_put32 (surface, x, y, texel);
+		}
+	}
+	return surface;
+}
+
+static vk_surface_t *
+upload_layer (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
+{
+	vk_surface_t *surface;
+
+	if (layer->format == LAYER_FORMAT_RGBA8888)
+		surface = upload_layer_rgba8888 (hr, layer);
+	else
+		surface = upload_layer_rgba4444 (hr, layer);
+
+	vk_surface_commit (surface);
+
+	return surface;
+}
+
 void
-hikaru_renderer_draw_layer (vk_renderer_t *renderer,
-                            uint32_t x0, uint32_t y0,
-                            uint32_t x1, uint32_t y1)
+hikaru_renderer_draw_layer (vk_renderer_t *renderer, hikaru_gpu_layer_t *layer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+	vk_surface_t *surface;
 
 	if (!hr->options.enable_2d)
 		return;
 
 	if (hr->options.enable_logging)
-		VK_LOG ("HR: rendering layer (%u,%u) (%u,%u)", x0, y0, x1, y1);
+		VK_LOG ("HR: rendering layer: %s", get_gpu_layer_str (layer));
 
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
@@ -407,17 +463,23 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer,
 
 	glMatrixMode (GL_TEXTURE);
 	glLoadIdentity ();
-	glScalef (1.0f/2048, 1.0f/2048, 1.0f);
 
 	glEnable (GL_TEXTURE_2D);
-	vk_surface_bind (hr->texture);
+
+	surface = upload_layer (hr, layer);
+	if (!surface) {
+		VK_ERROR ("HR layer: can't upload layer to OpenGL, skipping");
+		return;
+	}
 
 	glBegin (GL_TRIANGLE_STRIP);
-		glTexCoord2s (x0, y0); glVertex3f (0.0f, 0.0f, 0.0f);
-		glTexCoord2s (x1, y0); glVertex3f (639.0f, 0.0f, 0.0f);
-		glTexCoord2s (x0, y1); glVertex3f (0.0f, 479.0f, 0.0f);
-		glTexCoord2s (x1, y1); glVertex3f (639.0f, 479.0f, 0.0f);
+		glTexCoord2f (0.0f, 0.0f); glVertex3f (0.0f, 0.0f, 0.0f);
+		glTexCoord2f (1.0f, 0.0f); glVertex3f (640.0f, 0.0f, 0.0f);
+		glTexCoord2f (0.0f, 1.0f); glVertex3f (0.0f, 480.0f, 0.0f);
+		glTexCoord2f (1.0f, 1.0f); glVertex3f (640.0f, 480.0f, 0.0f);
 	glEnd ();
+
+	vk_surface_delete (&surface);
 }
 
 /* Texture Upload */
@@ -451,10 +513,10 @@ draw_texram (hikaru_renderer_t *hr)
 	vk_surface_bind (hr->texture);
 
 	glBegin (GL_TRIANGLE_STRIP);
-		glTexCoord2s (0, 0); glVertex3f (0.0f, 0.0f, 0.0f);
-		glTexCoord2s (2047, 0); glVertex3f (639.0f, 0.0f, 0.0f);
-		glTexCoord2s (0, 2047); glVertex3f (0.0f, 479.0f, 0.0f);
-		glTexCoord2s (2047, 2047); glVertex3f (639.0f, 479.0f, 0.0f);
+		glTexCoord2i (0, 0); glVertex3f (0.0f, 0.0f, 0.0f);
+		glTexCoord2i (2047, 0); glVertex3f (639.0f, 0.0f, 0.0f);
+		glTexCoord2i (0, 2047); glVertex3f (0.0f, 479.0f, 0.0f);
+		glTexCoord2i (2047, 2047); glVertex3f (639.0f, 479.0f, 0.0f);
 	glEnd ();
 }
 
@@ -529,8 +591,6 @@ hikaru_renderer_new (vk_buffer_t *texram)
 {
 	hikaru_renderer_t *hr = ALLOC (hikaru_renderer_t);
 	if (hr) {
-		/* setup other stuff here, including programs */
-
 		hr->base.width = 640;
 		hr->base.height = 480;
 
@@ -541,6 +601,8 @@ hikaru_renderer_new (vk_buffer_t *texram)
 
 		/* XXX handle the return value */
 		vk_renderer_init ((vk_renderer_t *) hr);
+
+		/* XXX setup shaders */
 
 		hr->texram = texram;
 

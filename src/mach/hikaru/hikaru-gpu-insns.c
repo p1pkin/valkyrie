@@ -826,19 +826,18 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	case 0x4C1:
 		/* 4C1	Texhead: Set Slot
 		 *
-		 *	nnnn nnnn mmmm mmmm pppp oooo oooo oooo
+		 *	nnnn nnnn mmmm mmmm ----b oooo oooo oooo
 		 *
 		 * n = Slot Y
 		 * m = Slot X
-		 * p = Unknown; perhaps equivalent to byte +0C of the IDMA
-		 *     entries?
+		 * b = AUXTEXRAM bank
 		 *
 		 * NOTE: the parameters are also used in conjunction with
 		 * the GPU IDMA-like device.
 		 *
 		 * See PH:@0C015BA0.
 		 */
-		gpu->texheads.scratch._4C1_unk = (inst[0] >> 12) & 0xF;
+		gpu->texheads.scratch.bank = (inst[0] >> 12) & 0xF;
 		gpu->texheads.scratch.slotx = (inst[0] >> 16) & 0xFF;
 		gpu->texheads.scratch.sloty = inst[0] >> 24;
 
