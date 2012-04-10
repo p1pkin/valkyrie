@@ -1,9 +1,10 @@
-CC := clang
-LD := clang
+CC := gcc-4.7
+LD := gcc-4.7
 
 DEFS := -DVK_HAVE_HIKARU
 
-CFLAGS  := $(DEFS) -I src -I /usr/include/json -O3 -fomit-frame-pointer -Wall -Wno-strict-aliasing
+CFLAGS  := $(DEFS) -I src -I /usr/include/json -O3 -fomit-frame-pointer -flto -Wall
+#CFLAGS  := $(DEFS) -I src -I /usr/include/json -O0 -g -Wall
 LDFLAGS := -lm -lSDL -lGLEW -ljansson
 
 .PHONY: all install clean
