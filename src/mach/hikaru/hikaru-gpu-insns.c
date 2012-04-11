@@ -157,6 +157,10 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			VK_LOG ("GPU CMD %08X: Jump [%08X] %08X",
 			        gpu->cs.pc, inst[0], addr);
 			ASSERT (inst[0] == 0x12);
+			if (addr == gpu->cs.pc) {
+				VK_ERROR ("self-jump, skipping CS");
+				return 1;
+			}
 			gpu->cs.pc = addr;
 		}
 		break;
@@ -171,6 +175,10 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			VK_LOG ("GPU CMD %08X: Jump Rel [%08X %08X] %08X",
 			        gpu->cs.pc, inst[0], inst[1], addr);
 			ASSERT (inst[0] == 0x812);
+			if (addr == gpu->cs.pc) {
+				VK_ERROR ("self-jump, skipping CS");
+				return 1;
+			}
 			gpu->cs.pc = addr;
 		}
 		break;
@@ -185,6 +193,10 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			VK_LOG ("GPU CMD %08X: Call [%08X] %08X",
 			        gpu->cs.pc, inst[0], addr);
 			ASSERT (inst[0] == 0x52);
+			if (addr == gpu->cs.pc) {
+				VK_ERROR ("self-call, skipping CS");
+				return 1;
+			}
 			push_pc (gpu);
 			gpu->cs.pc = addr;
 
@@ -201,6 +213,10 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			VK_LOG ("GPU CMD %08X: Jump Rel [%08X %08X] %08X",
 			        gpu->cs.pc, inst[0], inst[1], addr);
 			ASSERT (inst[0] == 0x852);
+			if (addr == gpu->cs.pc) {
+				VK_ERROR ("self-call, skipping CS");
+				return 1;
+			}
 			push_pc (gpu);
 			gpu->cs.pc = addr;
 		}
@@ -837,7 +853,7 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 *
 		 * See PH:@0C015BA0.
 		 */
-		gpu->texheads.scratch.bank = (inst[0] >> 12) & 0xF;
+		gpu->texheads.scratch.bank = (inst[0] >> 12) & 1;
 		gpu->texheads.scratch.slotx = (inst[0] >> 16) & 0xFF;
 		gpu->texheads.scratch.sloty = inst[0] >> 24;
 
@@ -1260,9 +1276,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			texcoords.x[0] = (inst[4] & 0xFFFF) / 16.0f;
 			texcoords.x[1] = (inst[4] >> 16) / 16.0f;
 
-			hikaru_renderer_append_vertex_full (gpu->renderer,
-			                                    pos, nrm, &texcoords);
-
 			VK_LOG ("GPU CMD %08X: Vertex Normal [%08X %08X %08X %08X %08X %08X %08X %08X] <%f %f %f> <%f %f %f> <%f %f> %u %u %u %u",
 			        gpu->cs.pc,
 				inst[0], inst[1], inst[2], inst[3],
@@ -1271,6 +1284,9 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			        nrm->x[0], nrm->x[1], nrm->x[2],
 				texcoords.x[0], texcoords.x[1],
 			        n, m, p, q);
+
+			hikaru_renderer_append_vertex_full (gpu->renderer,
+			                                    pos, nrm, &texcoords);
 
 			gpu->cs.pc += 32;
 		}
@@ -1295,11 +1311,11 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			pos.x[1] = *(float *) &inst[2];
 			pos.x[2] = *(float *) &inst[3];
 
-			hikaru_renderer_append_vertex (gpu->renderer, &pos);
-
 			VK_LOG ("GPU CMD %08X: Vertex [%08X] { %f %f %f }",
 			        gpu->cs.pc, inst[0],
 			        pos.x[0], pos.x[1], pos.x[2]);
+
+			hikaru_renderer_append_vertex (gpu->renderer, &pos);
 
 			gpu->cs.pc += 16;
 		}
@@ -1324,8 +1340,6 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 				texcoords[i].x[1] = (inst[i+1] >> 16) / 16.0f;
 			}
 
-			hikaru_renderer_append_texcoords (gpu->renderer, texcoords);
-
 			VK_LOG ("GPU CMD %08X: Tex Coord [%08X %08X %08X %08X] <%f %f> <%f %f> <%f %f>",
 			        gpu->cs.pc,
 			        inst[0], inst[1], inst[2], inst[3],
@@ -1333,7 +1347,59 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 			        texcoords[1].x[0], texcoords[1].x[1],
 			        texcoords[2].x[0], texcoords[2].x[1]);
 
+			hikaru_renderer_append_texcoords (gpu->renderer, texcoords);
+
 			gpu->cs.pc += 16;
+		}
+		break;
+	case 0x12C:
+	case 0x12D:
+	case 0xF2C:
+	case 0xF2D:
+		/* 12C	Vertex Unknown
+		 *
+		 *	wwww wwww ---- ---- jjjj oooo oooo oooo
+		 *	xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
+		 *	vvvv vvvv vvvv vvvv uuuu uuuu uuuu uuuu
+		 *	yyyy yyyy yyyy yyyy yyyy yyyy yyyy yyyy
+		 *
+		 * w,j = Unknown
+		 * x,z = Unknown fp
+		 * u,v = Unknown int16_t
+		 */
+		{
+			float x = *(float *) &inst[1];
+			float z = *(float *) &inst[3];
+			int32_t u = (int32_t)(int16_t)(inst[2] & 0xFFFF);
+			int32_t v = (int32_t)(int16_t)(inst[2] >> 16);
+
+			VK_LOG ("GPU CMD %08X: Vertex Unk [%08X %08X %08X %08X] { %f %d %d %f }",
+			        gpu->cs.pc, inst[0], inst[1], inst[2], inst[3],
+			        x, v, u, z);
+
+			gpu->cs.pc += 16;
+		}
+		break;
+	case 0x158:
+	case 0x159:
+	case 0xF58:
+	case 0xF59:
+		/* 158	Tex Coord Unknown
+		 *
+		 *	---- ---- u--- ---- ---- oooo oooo oooo
+		 *	vvvv vvvv vvvv vvvv uuuu uuuu uuuu uuuu
+		 *
+		 * u = Unknown
+		 * v = Tex coords for the previous 12C instruction?
+		 */
+		{
+			uint16_t u = inst[1] & 0xFFFF;
+			uint16_t v = inst[1] >> 16;
+
+			VK_LOG ("GPU CMD %08X: Tex Coord Unk [%08X %08X] { %u %u }",
+			        gpu->cs.pc, inst[0], inst[1], u, v);
+
+			gpu->cs.pc += 8;
 		}
 		break;
 
@@ -1377,7 +1443,8 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		 * F = Fog-related value? See PH:@0C0DA8BC.
 		 * N = Unknown; it can't be zero.
 		 *
-		 * See PH:@0C0173CA.
+		 * See PH:@0C0173CA. For evidence that these commands are
+		 * related, see PH:@0C0EEFBE.
 		 */
 		{
 			unsigned f = inst[0] >> 24;

@@ -1244,7 +1244,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		VK_CPU_LOG (ctx, "BOOTROM game main() is at %08X", PR);
 		break;
 
-#if 0
+#if 1
 	/* AIRTRIX */
 	case 0x0C010E78:
 		VK_CPU_LOG (ctx, "AIRTRIX: main ()");
@@ -1313,24 +1313,15 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		if (R(6) == 0)
 			R(6) = 1;
 		break;
-	case 0x0C010E4E:
-		/* Make the "ADVERTISE" screen 1 frame long */
-		R(1) = 0x100;
-		break;
 	case 0x0C0D522A:
 		T = 1;
 		break;
 	case 0x0C05B53E:
 		T = 0;
 		break;
-	case 0x0C04075C:
-		/* Manipulates the main loop stage: 1 is the 'WARNING' screen,
-		 * 2 is the 'ADVERTISE' screen, etc. */
-		//R(0) = 6;
-		break;
 #endif
 
-#if 1
+#if 0
 	/* PHARRIER */
 	case 0x0C01C0A0:
 		VK_CPU_LOG (ctx, "PHARRIER: sync_fifo_iomain (%X)", R(4));
@@ -1355,7 +1346,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	case 0x0C0CDA1C:
 		/* XXX not required if the MIE hack is active; for debugging
 		 * only! */
-		R(0) = 3;
+		//R(0) = 3;
 		break;
 #endif
 

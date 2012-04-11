@@ -91,11 +91,14 @@ typedef struct {
 enum {
 	FORMAT_RGBA5551 = 0,
 	FORMAT_RGBA4444 = 1,
-	FORMAT_RGBA1111 = 2, /* Or PAL16... */
-	FORMAT_ALPHA8 = 4,
+	FORMAT_RGBA1111 = 2, /* XXX check this */
+	FORMAT_ALPHA8 = 4, /* XXX check this */
 };
 
 typedef struct {
+	/* IDMA */
+	uint32_t bus_addr;
+	uint32_t size;
 	/* 0C1 */
 	uint32_t _0C1_nibble;
 	uint32_t _0C1_byte;
@@ -110,20 +113,9 @@ typedef struct {
 	uint32_t sloty;
 	uint32_t bank;
 	/* Util */
-	uint32_t used : 1;
+	uint32_t has_mipmap;
+	uint32_t used;
 } hikaru_gpu_texhead_t;
-
-typedef struct {
-	uint32_t addr;
-	uint32_t size;
-	uint32_t slotx;
-	uint32_t sloty;
-	uint32_t width;
-	uint32_t height;
-	uint32_t format : 3;
-	uint32_t bank : 1;
-	uint32_t has_mipmap : 1;
-} hikaru_gpu_texture_t;
 
 typedef struct {
 	/* 261 */
@@ -205,10 +197,22 @@ typedef struct {
 
 } hikaru_gpu_t;
 
+void slot_to_coords (uint32_t *, uint32_t *, uint32_t, uint32_t);
 char *get_gpu_viewport_str (hikaru_gpu_viewport_t *);
 char *get_gpu_material_str (hikaru_gpu_material_t *);
 char *get_gpu_texhead_str (hikaru_gpu_texhead_t *);
-char *get_gpu_texture_str (hikaru_gpu_texture_t *);
 char *get_gpu_layer_str (hikaru_gpu_layer_t *);
+
+static inline uint32_t
+coords_to_offs_16 (uint32_t x, uint32_t y)
+{
+	return y * 4096 + x * 2;
+}
+
+static inline uint32_t
+coords_to_offs_32 (uint32_t x, uint32_t y)
+{
+	return y * 4096 + x * 4;
+}
 
 #endif /* __HIKARU_GPU_PRIVATE_H__ */

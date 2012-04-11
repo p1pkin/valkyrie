@@ -58,7 +58,5 @@ void		hikaru_renderer_append_vertex_full (vk_renderer_t *renderer,
 		                                    vec3f_t *normal,
 		                                    vec2f_t *texcoords);
 void		hikaru_renderer_end_vertex_data (vk_renderer_t *renderer);
-void		hikaru_renderer_register_texture (vk_renderer_t *renderer,
-		                                  hikaru_gpu_texture_t *texture);
 
 #endif /* __VK_HIKARU_RENDERER_H__ */

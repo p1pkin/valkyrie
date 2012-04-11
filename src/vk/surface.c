@@ -1,37 +1,53 @@
+/* 
+ * Valkyrie
+ * Copyright (C) 2011, Stefano Teso
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ */
 
 #include <string.h>
+
+/* TODO support mipmaps */
 
 #include "vk/core.h"
 #include "vk/surface.h"
 
-/* Only RGBA data is supported right now; RGBA4 and RGBA8 pixel formats are
- * supported. */
-
-static unsigned
-bpp_for_format (GLuint format)
-{
-	switch (format) {
-	case GL_RGBA4:
-		return 2;
-	case GL_RGBA8:
-		return 4;
-	}
-	return 0;
-}
-
-/* TODO: make subclasses for RGBA4444, RGB565, RGBA5551, RGBA8888 and
- * make the `put' function a class method. */
+static const struct {
+	GLint iformat;	/* Specifies component resolution */
+	GLenum format;	/* Specifies component order */
+	GLenum type;	/* Specifies component layout in memory */
+	unsigned bpp;	/* Bits-per-pixel */
+} format_desc[VK_NUM_SURFACE_FORMATS] = {
+	[VK_SURFACE_FORMAT_RGBA4444]	= { GL_RGBA4, GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4, 2 },
+	[VK_SURFACE_FORMAT_RGBA5551]	= { GL_RGBA8, GL_RGBA, GL_UNSIGNED_SHORT_5_5_5_1, 2 },
+	[VK_SURFACE_FORMAT_RGBA8888]	= { GL_RGBA8, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8, 4 }
+};
 
 vk_surface_t *
-vk_surface_new (unsigned width, unsigned height, GLuint format)
+vk_surface_new (unsigned width, unsigned height, vk_surface_format_t format)
 {
-	unsigned bpp = bpp_for_format (format); /* bytes per pixel */
-	if (!bpp) {
-		VK_ERROR ("invalid format %X", format);
-		return NULL;
-	}
+	unsigned bpp;
+	int ret;
+
 	if (!width || !height) {
 		VK_ERROR ("invalid size (%u,%u)", width, height);
+		return NULL;
+	}
+	if (format >= VK_NUM_SURFACE_FORMATS) {
+		VK_ERROR ("invalid format %u", format);
 		return NULL;
 	}
 
@@ -39,13 +55,15 @@ vk_surface_new (unsigned width, unsigned height, GLuint format)
 	if (!surface)
 		goto fail;
 
+	bpp = format_desc[format].bpp;
+
 	surface->width = width;
 	surface->height = height;
 	surface->pitch = width * bpp;
 	surface->format = format;
 
-	surface->data = (uint8_t *) calloc (1, width * height * bpp);
-	if (!surface->data)
+	ret = posix_memalign (&surface->data, 16, width * height * bpp);
+	if (ret != 0 || !surface->data)
 		goto fail;
 
 	/* Disable surface alignment */
@@ -65,15 +83,10 @@ vk_surface_new (unsigned width, unsigned height, GLuint format)
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-	/* Upload data */
-	glTexImage2D (GL_TEXTURE_2D,	/* target */
-	              0,		/* level */
-	              format,		/* internalFormat */
-	              width, height,
-	              0,		/* border */
-	              GL_RGBA,		/* format */
-	              GL_UNSIGNED_BYTE,	/* type */
-	              surface->data);	/* pixels */
+	/* Upload the actual data */
+	glTexImage2D (GL_TEXTURE_2D, 0, format_desc[format].iformat,
+	              width, height, 0, format_desc[format].format,
+	              format_desc[format].type, surface->data);
 
 	return surface;
 fail:
@@ -113,14 +126,10 @@ vk_surface_commit (vk_surface_t *surface)
 	glBindTexture (GL_TEXTURE_2D, surface->id);
 
 	/* Upload texture data */
-	glTexSubImage2D (GL_TEXTURE_2D, /* target */
-	                 0,		/* level */
-	                 0,		/* xoffset */
-	                 0,		/* yoffset */
-	                 surface->width,
-	                 surface->height,
-	                 GL_RGBA,	/* format */
-	                 GL_UNSIGNED_BYTE,
+	glTexSubImage2D (GL_TEXTURE_2D, 0, 0, 0,
+	                 surface->width, surface->height,
+	                 format_desc[surface->format].format,
+	                 format_desc[surface->format].type,
 	                 surface->data);
 }
 
