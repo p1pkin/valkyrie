@@ -1417,10 +1417,10 @@ I (flt)
 I (ftrc)
 {
 	if (!FPSCR.bit.pr) {
-		FPUL.f = (int32_t) FRN.f; /* float to int32 */
+		FPUL.u = (int32_t) FRN.f; /* float to int32 */
 	} else {
 		assert (!(_RN & 1));
-		FPUL.f = (int32_t) DRN.f; /* double to int32 */
+		FPUL.u = (int32_t) DRN.f; /* double to int32 */
 	}
 }
 
