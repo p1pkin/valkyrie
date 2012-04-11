@@ -1354,8 +1354,12 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		break;
 	case 0x12C:
 	case 0x12D:
+	case 0x12E:
+	case 0x12F:
 	case 0xF2C:
 	case 0xF2D:
+	case 0xF2E:
+	case 0xF2F:
 		/* 12C	Vertex Unknown
 		 *
 		 *	wwww wwww ---- ---- jjjj oooo oooo oooo
@@ -1382,8 +1386,12 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 		break;
 	case 0x158:
 	case 0x159:
+	case 0x15A:
+	case 0x15B:
 	case 0xF58:
 	case 0xF59:
+	case 0xF5A:
+	case 0xF5B:
 		/* 158	Tex Coord Unknown
 		 *
 		 *	---- ---- u--- ---- ---- oooo oooo oooo
