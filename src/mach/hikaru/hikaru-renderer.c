@@ -303,22 +303,22 @@ hikaru_renderer_set_modelview_vertex (vk_renderer_t *renderer,
 		hr->modelview_num_up = 0;
 		if (hr->options.enable_logging) {
 			VK_LOG ("HR == MODELVIEW MATRIX ==");
-			VK_LOG ("HR [ %9.3f %9.3f %9.3f %9.3f ]",
+			VK_LOG ("HR MATRIX [ %9.3f %9.3f %9.3f %9.3f ]",
 			        hr->modelview_matrix.x[0][0],
 			        hr->modelview_matrix.x[1][0],
 			        hr->modelview_matrix.x[2][0],
 			        hr->modelview_matrix.x[3][0]);
-			VK_LOG ("HR [ %9.3f %9.3f %9.3f %9.3f ]",
+			VK_LOG ("HR MATRIX [ %9.3f %9.3f %9.3f %9.3f ]",
 			        hr->modelview_matrix.x[0][1],
 			        hr->modelview_matrix.x[1][1],
 			        hr->modelview_matrix.x[2][1],
 			        hr->modelview_matrix.x[3][1]);
-			VK_LOG ("HR [ %9.3f %9.3f %9.3f %9.3f ]",
+			VK_LOG ("HR MATRIX [ %9.3f %9.3f %9.3f %9.3f ]",
 			        hr->modelview_matrix.x[0][2],
 			        hr->modelview_matrix.x[1][2],
 			        hr->modelview_matrix.x[2][2],
 			        hr->modelview_matrix.x[3][2]);
-			VK_LOG ("HR [ %9.3f %9.3f %9.3f %9.3f ]",
+			VK_LOG ("HR MATRIX [ %9.3f %9.3f %9.3f %9.3f ]",
 			        hr->modelview_matrix.x[0][3],
 			        hr->modelview_matrix.x[1][3],
 			        hr->modelview_matrix.x[2][3],
@@ -500,12 +500,12 @@ hikaru_renderer_end_vertex_data (vk_renderer_t *renderer)
 /* 2D Rendering */
 
 static vk_surface_t *
-upload_layer_rgba4444 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
+upload_layer_rgba5551 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 {
 	vk_surface_t *surface;
 	uint32_t x, y;
 
-	surface = vk_surface_new (640, 480, VK_SURFACE_FORMAT_RGBA4444);
+	surface = vk_surface_new (640, 480, VK_SURFACE_FORMAT_RGBA5551);
 	if (!surface)
 		return NULL;
 
@@ -548,7 +548,7 @@ upload_layer (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 	if (layer->format == LAYER_FORMAT_RGBA8888)
 		surface = upload_layer_rgba8888 (hr, layer);
 	else
-		surface = upload_layer_rgba4444 (hr, layer);
+		surface = upload_layer_rgba5551 (hr, layer);
 
 	vk_surface_commit (surface);
 

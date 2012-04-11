@@ -1049,7 +1049,7 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 
 			format = (REG1AUNIT (0, 0x30) >> (bank - 1)) & 1;
 			if (format == 0) {
-				layer.format = LAYER_FORMAT_RGBA4444;
+				layer.format = LAYER_FORMAT_RGBA5551;
 				shift = 1;
 			} else {
 				layer.format = LAYER_FORMAT_RGBA8888;

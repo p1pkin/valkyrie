@@ -129,7 +129,7 @@ typedef struct {
 } hikaru_gpu_light_t;
 
 enum {
-	LAYER_FORMAT_RGBA4444,
+	LAYER_FORMAT_RGBA5551,
 	LAYER_FORMAT_RGBA8888
 };
 
