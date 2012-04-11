@@ -418,7 +418,7 @@ rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
 
 		if (real_offs < vk_buffer_get_size (hikaru->eprom))
 			set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, real_offs));
-		else
+		//else
 			VK_CPU_LOG (hikaru->sh_current, "ROMBD R%u %08X [%08X]",
 			            size * 8, bus_addr, real_offs);
 
@@ -433,7 +433,7 @@ rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
 
 		if (real_offs < vk_buffer_get_size (hikaru->maskrom))
 			set_ptr (val, size, vk_buffer_get (hikaru->maskrom, size, real_offs));
-		else
+		//else
 			VK_CPU_LOG (hikaru->sh_current, "ROMBD R%u %08X [num=%X offs=%X bsize=%X bmask=%X roffs=%08X]",
 			            size * 8, bus_addr, num, offs, bank_size, bank_mask, real_offs);
 	}

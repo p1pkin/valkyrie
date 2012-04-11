@@ -903,6 +903,8 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	hikaru_gpu_texhead_t texhead;
 	uint32_t exp_size[2];
 
+	memset (&texhead, 0, sizeof (texhead));
+
 	texhead.bus_addr = entry[0];
 	texhead.size	= entry[1];
 	texhead.slotx	= entry[2] & 0xFF;

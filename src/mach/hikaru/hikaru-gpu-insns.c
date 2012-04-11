@@ -1564,7 +1564,8 @@ hikaru_gpu_exec_one (hikaru_gpu_t *gpu)
 	 */
 
 	default:
-		VK_ABORT ("GPU: @%08X: unhandled opcode %03X", gpu->cs.pc, inst[0] & 0xFFF);
+		VK_ERROR ("GPU: @%08X: unhandled opcode %03X", gpu->cs.pc, inst[0] & 0xFFF);
+		exit (1);
 	}
 
 	if (!is_vertex_op (op))

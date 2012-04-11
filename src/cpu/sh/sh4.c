@@ -30,8 +30,6 @@
  * exceptions) or decided by the INTC settings; sh4_ireg_put will make
  * sure to update the sh4.intc.irqs priorities according to the INTC
  * configuration.
- *
- * Finally, 
  */
 
 /* TODO: MMU */
@@ -696,7 +694,9 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 			unsigned ch = (addr >> 4) & 3;
 			DMAC_MASK_ON_DDT;
 			VK_ASSERT (size == 4);
+			/* violated by SGNASCAR @0C071EA8:
 			VK_ASSERT (!(val & 0xFF000000));
+			*/
 			VK_ASSERT (!(ctx->dmac.is_running[ch]));
 		}
 		break;
@@ -1284,12 +1284,6 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		/* Make the 'WARNING' screen faster (well, 656 frames faster) */
 		R(2) = 0x290;
 		break;
-	case 0x0C014D72:
-		VK_CPU_LOG (ctx, "AIRTRIX: huge_shit ()");
-		break;
-	case 0x0C0263EA:
-		VK_CPU_LOG (ctx, "AIRTRIX: game_logic_update_A ()");
-		break;
 #endif
 
 #if 0
@@ -1341,7 +1335,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 		break;
 	case 0x0C011B14:
 		/* Patches a software BUG */
-		R(0) |= 0xFFFFFF;
+		//R(0) |= 0xFFFFFF;
 		break;
 	case 0x0C0CDA1C:
 		/* XXX not required if the MIE hack is active; for debugging
@@ -1352,6 +1346,15 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 
 #if 0
 	/* SGNASCAR */
+	case 0x0C065AD0:
+		VK_CPU_LOG (ctx, "SGNASCAR: sync_wrapper (%X)", R(4));
+		break;
+	case 0x0C0705A0:
+		VK_CPU_LOG (ctx, "SGNASCAR: sync (%X)", R(4));
+		break;
+	case 0x0C071E20:
+		VK_CPU_LOG (ctx, "SGNASCAR: do_dmac (%X,%X,%X,%X)", R(4), R(5), R(6), R(7));
+		break;
 	case 0x0C00BC9A:
 		/* Make the (non-existent) EEPROM data conform the ROM
 		 * information. This is likely a region/hw version check. */
@@ -1365,6 +1368,15 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 			VK_CPU_LOG (ctx, " ### BOOTROM copying ROM data to RAM: [%08X] %08X -> %08X x %08X [was %08X]",
 			            R(6)-8, R(4), R(1), R(3), old);
 		}
+		break;
+	case 0x0C0130CE:
+		/* Skip the "BAD IO BOARD" infinite loop */
+		R(4) = 1;
+		break;
+	case 0x0C06A792:
+		/* Work around bogus ROMBD reads */
+		if (R(6) > 0xFFFFFF)
+			R(6) = 1;
 		break;
 #endif
 	}
