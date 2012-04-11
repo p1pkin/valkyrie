@@ -666,7 +666,7 @@ hikaru_gpu_exec_cs (hikaru_gpu_t *gpu, int cycles)
  *
  *			See PH:@0C01A1A6, PH:@0C01A860.
  *
- * 1A0001B0  RW		Format
+ * 1A0001B0  RW		FB/Layer Format
  *
  *			-------- -------- -------- -----21F
  *
@@ -679,11 +679,13 @@ hikaru_gpu_exec_cs (hikaru_gpu_t *gpu, int cycles)
  *
  *			See PH:@0C01A1EA.
  *
- * 1A0001B4  RW		Unknown Control
+ * 1A0001B4  RW		Layer Enable
  *
- *			-------- -------- -------- ------??
+ *			-------- -------- -------- ------21
  *
- *			Bitfield. See PH:@0C01A124, PH:@0C01A142.
+ *			n = enable layer n
+ *
+ *			See PH:@0C01A124, PH:@0C01A142.
  *
  * 1A0001B8  RW		Unknown Control
  *
@@ -1045,7 +1047,7 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 		if (enabled) {
 			uint32_t format, shift;
 
-			format = (REG1AUNIT (0, 0x30) >> (bank_offs - 1)) & 1;
+			format = (REG1AUNIT (0, 0x30) >> (bank - 1)) & 1;
 			if (format == 0) {
 				layer.format = LAYER_FORMAT_RGBA4444;
 				shift = 1;
@@ -1078,11 +1080,12 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 			 * 7 3 3 7
 			 */
 
-			VK_LOG ("GPU LAYER %u: %s [%X; %X %X %X %X]",
+			VK_LOG ("GPU LAYER %u: %s [%X; %X %X %X %X] fmt=%u",
 			        bank, get_gpu_layer_str (&layer),
 			        REG1A (0x100),
 			        REG1AUNIT (0, 0x30), REG1AUNIT (0, 0x34),
-			        REG1AUNIT (0, 0x38), REG1AUNIT (0, 0x3C));
+			        REG1AUNIT (0, 0x38), REG1AUNIT (0, 0x3C),
+			        layer.format);
 
 			hikaru_renderer_draw_layer (gpu->renderer, &layer);
 		}
