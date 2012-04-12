@@ -4,7 +4,7 @@ TODO
 BEFORE UPLOADING THE TREE
 -------------------------
 
-Fix the copyright in the [ch] files (year and license text.)`
+Fix the copyright in the [ch] files (year and license text.)
 
 Move the slave GPU access to hikaru-gpu.c. Proper support may require the
 introduction of a new vk_device_accessors_t class.
@@ -33,7 +33,7 @@ Implement the three EEPROMs (MAINBD, ROMBD, MIE.)
 SH4
 ---
 
-Check FPU handling; especially FTRV, FIPR, PR, and XF/XD/FV/XMTRX access.
+Check FPU emulation.
 
 Implement simple per-basic-block LLVM translation. This should make debugging
 a lot more bearable.
@@ -41,36 +41,33 @@ a lot more bearable.
 RENDERING
 ---------
 
-Fix text rendering in the BOOTROM.
+Fix text texturing in the BOOTROM menu. This will require rewriting the
+tri-strip triangulation code.
 
-Figure out how to render the PHARRIER 3D intro screen. Aside from FPU
-bugs, we should be ready to go! This requires (in order of importance):
+Figure out how to render 3D. This requires (in order of importance):
 
-- Fix Y coords in the BOOTROM menu. The translation component of the 161
-  matrix doesn't seem to fix it; there must be some other offset somewhere
-  in the command stream or MMIOs. Again, check against the BRAVEFF menu.
-
-- Figure out how the projection matrix is specified.
+- Figure out how the projection matrix is specified. SGNASCAR includes text
+  talking about 'window stacking'. Is that related in any way?
 
 - Figure out how the fade-in effect is done in the intro screen.
 
 - Implement proper texture caching, for both textures (TEXRAM) and layers
-  (FB). Right now 16% of all cycles are spent uploading the FB texture to
-  OpenGL.
+  (FB).
 
 - Implement proper model caching using VBOs.
 
 AIRTRIX
 -------
 
-Find out why it dies after the intro screen. Note that one MASKROM doesn't
-pass the ROMBD test (all the other MASKROMs do.)
+Reaches the title screen, but apparently uploads garbage to CMDRAM.
+
+Note that one MASKROM doesn't pass the ROMBD test (all the other MASKROMs do.)
 
 BRAVEFF
 -------
 
-Missing MASKROMs. Won't work. It works enough to display the test menu
-though. Or at least it did some time ago.
+Missing MASKROMs. Won't work. It works enough to display the intro screen
+and the game test menu though. 
 
 Cyber Troops Virtual On 4
 -------------------------
@@ -80,11 +77,10 @@ Not dumped yet.
 PHARRIER
 --------
 
+Reaches the title screen, but the renderer can't draw any 3D on screen yet.
+
 Render the 3D intro screen using the youtube footage as a reference. Figure
 out why the 161 commands contain garbage info.
-
-Remove the out-of-bound-DMA-bug patch; it may be fucking up the intro
-screen.
 
 PODRACE
 -------
@@ -100,10 +96,7 @@ the BOOTROM to read 01FF0000 bytes from the ROM aperture at 03xxxxxx.
 The problem is that the aperture is only 16MB wide, so the BOOTROM ends
 up reading garbage from the 04xxxxxx MEMCTL device.
 
-Adding a patch to make the memcpy loop respect the bounds make SGNASCAR
-jump to the newly-copied code, but later writes stuff to the BOOTROM
-read-only area.
-
 Note that MASKROMs are not mapped correctly: contrarily to AIRTRIX and
-PHARRIER the CRCs compute by the ROMBD test menu are wrong.
-
+PHARRIER the CRCs computed by the ROMBD test menu are wrong. However, the
+MASKROMs are not even looked at by the crashy code... So the issue is with
+EPROM. The ROM copy loop should not fail. Somehow.
