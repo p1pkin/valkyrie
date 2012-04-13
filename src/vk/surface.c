@@ -62,7 +62,7 @@ vk_surface_new (unsigned width, unsigned height, vk_surface_format_t format)
 	surface->pitch = width * bpp;
 	surface->format = format;
 
-	ret = posix_memalign (&surface->data, 16, width * height * bpp);
+	ret = posix_memalign ((void *) &surface->data, 16, width * height * bpp);
 	if (ret != 0 || !surface->data)
 		goto fail;
 
