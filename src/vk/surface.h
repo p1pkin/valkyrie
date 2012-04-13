@@ -45,6 +45,7 @@ void			 vk_surface_delete (vk_surface_t **surface_);
 void			 vk_surface_clear (vk_surface_t *surface);
 void			 vk_surface_commit (vk_surface_t *surface);
 void			 vk_surface_bind (vk_surface_t *surface);
+void			 vk_surface_draw (vk_surface_t *surface);
 
 static inline void
 vk_surface_put16 (vk_surface_t *surface, unsigned x, unsigned y, uint16_t val)

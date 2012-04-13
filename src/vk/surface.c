@@ -139,3 +139,35 @@ vk_surface_bind (vk_surface_t *surface)
 	if (surface)
 		glBindTexture (GL_TEXTURE_2D, surface->id);
 }
+
+void
+vk_surface_draw (vk_surface_t *surface)
+{
+	/* XXX very fragile; for debug only */
+
+	glMatrixMode (GL_PROJECTION);
+	glPushMatrix ();
+	glLoadIdentity ();
+	glOrtho (0.0f, 640.0f,	/* left, right */
+	         480.0f, 0.0f,	/* bottom, top */
+	         -1.0f, 1.0f);	/* near, far */
+
+	glMatrixMode (GL_MODELVIEW);
+	glPushMatrix ();
+	glLoadIdentity ();
+
+	glEnable (GL_TEXTURE_2D);
+
+	vk_surface_bind (surface);
+
+	glBegin (GL_TRIANGLE_STRIP);
+		glTexCoord2f (0.0f, 0.0f);
+		glVertex3f (0.0f, 0.0f, 0.0f);
+		glTexCoord2f (1.0f, 0.0f);
+		glVertex3f (639.0f, 0.0f, 0.0f);
+		glTexCoord2f (0.0f, 1.0f);
+		glVertex3f (0.0f, 479.0f, 0.0f);
+		glTexCoord2f (1.0f, 1.0f);
+		glVertex3f (639.0f, 479.0f, 0.0f);
+	glEnd ();
+}
