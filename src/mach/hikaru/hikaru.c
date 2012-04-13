@@ -128,6 +128,11 @@
  * ====================
  *
  * An 76X100 secure EEPROM.
+ *
+ * MIE EEPROM
+ * ==========
+ *
+ * See hikaru-mie.c
  */
 
 #include <stdio.h>
@@ -170,7 +175,7 @@
  *
  * [S] xxxx xxxx xxxx xxSx
  *
- * S = slave-to-master communication
+ * S = slave-to-master communication?
  *
  * Note: GPIOIC is never access by the bootrom.
  */
@@ -214,6 +219,8 @@ porta_put_m (sh4_t *ctx, uint16_t val)
 	 *
 	 *  "[...] the NMI interrupt is not detected for a maximum of 6 bus
 	 *   clock cycles after the modification."
+	 *
+	 * Basically it's flipping the NMI pin 0->1->0.
 	 *
 	 * See sections 19.2.1 and 19.2.2 of the SH-4 manual.
 	 */
@@ -443,8 +450,6 @@ hikaru_run_frame (vk_machine_t *mach)
 
 	/* XXX move the main loop into vk_machine */
 
-	vk_renderer_begin_frame (hikaru->base.renderer);
-
 	VK_LOG (" *** VBLANK-OUT %s ***", vk_machine_get_debug_string (mach));
 
 	for (line = 0; line < 480; line++) {
@@ -462,8 +467,6 @@ hikaru_run_frame (vk_machine_t *mach)
 
 	/* this may actually be an hblank-out IRQ */
 	hikaru_gpu_vblank_out (hikaru->gpu);
-
-	vk_renderer_end_frame (hikaru->base.renderer);
 
 	return 0;
 }
@@ -752,10 +755,11 @@ hikaru_set_rombd_config (hikaru_t *hikaru)
 {
 	vk_game_t *game = hikaru->base.game;
 	hikaru_rombd_config_t *config = &hikaru->rombd_config;
-	bool has_rom = true, maskrom_is_stretched = false;
 	uint32_t rombd_offs = 0, eprom_bank_size = 0, maskrom_bank_size = 0;
+	bool has_rom = true, maskrom_is_stretched = false;
 
 	/* We require at least the bootrom to be loaded */
+	/* XXX add a "required" field to the json file */
 	if (!hikaru->bootrom)
 		return -1;
 
@@ -799,14 +803,13 @@ hikaru_set_rombd_config (hikaru_t *hikaru)
 		/* XXX how does MASKROM stretching affect this? */
 		config->maskrom_bank[0] = (rombd_offs == 0) ? 0x20 : 0x30;
 		config->maskrom_bank[1] = (rombd_offs == 0) ? 0x2F : 0x4F;
+		/* Set the remaining configuration btis */
+		config->eprom_bank_size = eprom_bank_size;
+		config->maskrom_bank_size = maskrom_bank_size;
+		config->maskrom_is_stretched = maskrom_is_stretched;
 	}
 	/* The EEPROM bank is constant */
 	config->eeprom_bank = rombd_offs + 0x14;
-
-	/* Set the remaining configuration btis */
-	config->eprom_bank_size = eprom_bank_size;
-	config->maskrom_bank_size = maskrom_bank_size;
-	config->maskrom_is_stretched = maskrom_is_stretched;
 
 	return 0;
 }

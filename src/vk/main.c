@@ -125,10 +125,9 @@ static void
 main_loop (vk_machine_t *mach)
 {
 	while (!process_events ()) {
-		/* XXX move the renderer funcs out of hikaru.c */
-//		vk_renderer_begin_frame (mach->renderer);
+		vk_renderer_begin_frame (mach->renderer);
 		vk_machine_run_frame (mach);
-//		vk_renderer_end_frame (mach->renderer);
+		vk_renderer_end_frame (mach->renderer);
 	}
 }
 
