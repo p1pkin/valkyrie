@@ -170,4 +170,10 @@ vk_surface_draw (vk_surface_t *surface)
 		glTexCoord2f (1.0f, 1.0f);
 		glVertex3f (639.0f, 479.0f, 0.0f);
 	glEnd ();
+
+	glMatrixMode (GL_MODELVIEW);
+	glPopMatrix ();
+
+	glMatrixMode (GL_PROJECTION);
+	glPopMatrix ();
 }
