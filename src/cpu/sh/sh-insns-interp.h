@@ -1599,8 +1599,8 @@ I (fsca)
 	static const float alpha = (2.0f * (float) M_PI) / 65536.0f;
 	float angle = (FPUL.u & 0xFFFF) * alpha;
 	unsigned n = _RN & ~1;
-	FR(n+0).f = cosf (angle);
-	FR(n+1).f = sinf (angle);
+	FR(n+0).f = sinf (angle);
+	FR(n+1).f = cosf (angle);
 }
 
 I (fsrra)
