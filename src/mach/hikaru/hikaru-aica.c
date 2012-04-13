@@ -55,6 +55,14 @@ typedef struct {
 	bool master;
 } hikaru_aica_t;
 
+static void
+hikaru_aica_reset_cpu (hikaru_aica_t *aica)
+{
+	vk_device_t *dev = (vk_device_t *) aica;
+	VK_MACH_LOG (dev->mach, "AICA/%c: resetting ARM cpu",
+	             aica->master ? 'M' : 'S');
+}
+
 static int
 hikaru_aica_get (vk_device_t *device, unsigned size, uint32_t addr, void *val)
 {
@@ -106,11 +114,9 @@ hikaru_aica_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val
 	switch (offs) {
 	case 0x700000 ... 0x703BFF:
 		vk_buffer_put (aica->regs, size, addr & 0x3FFF, val);
+		if (offs == 0x702C00 && (val & 1))
+			hikaru_aica_reset_cpu (aica);
 		break;
-#if 0
-	case 0x702C00:
-		/* ARM Reset */
-#endif
 	case 0x710000:
 	case 0x710004:
 	case 0x710008:
