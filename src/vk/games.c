@@ -360,8 +360,11 @@ vk_game_list_delete (vk_game_list_t **game_list_)
 {
 	if (game_list_) {
 		vk_game_list_t *game_list = *game_list_;
-		free (game_list->entries);
-		game_list->entries = NULL;
-		FREE (game_list_);
+		if (game_list) {
+			free (game_list->entries);
+			game_list->entries = NULL;
+		}
+		free (game_list);
+		*game_list_ = NULL;
 	}
 }
