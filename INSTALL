@@ -1,0 +1,36 @@
+
+Make sure you have development packages for SDL and libjansson installed.
+Under Debian (and likely Ubuntu) it's as simple as:
+
+ $ sudo apt-get install libsdl1.2-dev libjansson-dev
+
+Then just do:
+
+ $ cd path/to/valkyrie
+ $ make
+
+This will generate the bin/valkyrie binary. To run valkyrie, type:
+
+ $ bin/valkyrie -R $PATH_TO_ROM_DIRECTORY -r $ROM_NAME
+
+Example:
+
+ $ bin/valkyrie -R ~/roms/hikaru -r bootrom
+
+You can also install valkyrie for your user with:
+
+ $ make install
+
+This will compile and install a copy of the valkyrie binary in ~/.local/bin
+and a copy of vk-games.json (the game description list used by valkyrie) in
+~/.local/share/valkyrie. After this step, you can just do:
+
+ $ valkyrie -R $PATH_TO_ROM_DIRECtory -r $ROM_NAME
+
+from anywhere in your filesystem.
+
+XXX: due to the (dumb) way the loading code is designed, the ROM_DIRECTORY
+is expected to contain a sub-directory for each game, containing the
+uncompressed ROM images _and_ a copy of (or a symlink to) the BOOTROM image.
+The latter should be named `hikaru_0.X.bin', where X is the bootrom version,
+that is, one of 84, 92 or 96. I *know* it is very rough, patches are welcome.
