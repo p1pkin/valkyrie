@@ -20,16 +20,12 @@
 
 #include "vk/buffer.h"
 
-static unsigned
-get_file_size (FILE *fp)
-{
-	unsigned size, offs;
-	offs = (unsigned) ftell (fp);
-	fseek (fp, 0, SEEK_END);
-	size = (unsigned) ftell (fp);
-	fseek (fp, offs, SEEK_SET);
-	return size;
-}
+struct vk_buffer_t {
+	uint8_t *ptr;
+	unsigned size;
+	uint64_t (* get) (vk_buffer_t *buf, unsigned size, uint32_t addr);
+	void	 (* put) (vk_buffer_t *buf, unsigned size, uint32_t addr, uint64_t val);
+};
 
 static uint64_t
 vk_buffer_le32_get (vk_buffer_t *buf, unsigned size, uint32_t offs)
@@ -114,7 +110,7 @@ vk_buffer_be32_put (vk_buffer_t *buf, unsigned size, uint32_t offs, uint64_t val
 #define vk_buffer_native_get vk_buffer_le32_get
 #define vk_buffer_native_put vk_buffer_le32_put
 #else
-#error "Big endian detected here... Are you sure?"
+#error "Big endian is UNTESTED... Are you sure you want to proceed?"
 #define vk_buffer_native_get vk_buffer_be32_get
 #define vk_buffer_native_put vk_buffer_be32_put
 #endif
@@ -169,6 +165,17 @@ vk_buffer_be32_new (unsigned size, unsigned alignment)
 	return buf;
 }
 
+static unsigned
+get_file_size (FILE *fp)
+{
+	unsigned size, offs;
+	offs = (unsigned) ftell (fp);
+	fseek (fp, 0, SEEK_END);
+	size = (unsigned) ftell (fp);
+	fseek (fp, offs, SEEK_SET);
+	return size;
+}
+
 vk_buffer_t *
 vk_buffer_new_from_file (const char *path, unsigned reqsize)
 {
@@ -205,12 +212,6 @@ fail:
 	return  NULL;
 }
 
-vk_buffer_t *
-vk_buffer_new_from_file_any_size (const char *path)
-{
-	return NULL;
-}
-
 void
 vk_buffer_delete (vk_buffer_t **buf_)
 {
@@ -233,9 +234,24 @@ const void *
 vk_buffer_get_ptr (vk_buffer_t *buf, unsigned offs)
 {
 	if (buf && offs < buf->size)
-		return (const void *) buf->ptr[offs];
+		return (const void *) &buf->ptr[offs];
 	return (const void *) NULL;
 }
+
+uint64_t
+vk_buffer_get (vk_buffer_t *buf, unsigned size, uint32_t addr)
+{
+	VK_ASSERT (buf);
+	return buf->get (buf, size, addr);
+}
+
+void
+vk_buffer_put (vk_buffer_t *buf, unsigned size, uint32_t addr, uint64_t val)
+{
+	VK_ASSERT (buf);
+	buf->put (buf, size, addr, val);
+}
+
 
 void
 vk_buffer_clear (vk_buffer_t *buf)
