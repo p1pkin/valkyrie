@@ -8,7 +8,6 @@
 				{
 					"name" : "bootrom",
 					"type" : "alternative",
-					"endn" : "le32",
 					"data" : [
 						{ "name" : "hikaru_0.84.bin", "size" : 2097152 },
 						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
@@ -24,7 +23,6 @@
 				{
 					"name" : "bootrom",
 					"type" : "alternative",
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
 						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
@@ -34,7 +32,6 @@
 					"name" : "eprom",
 					"type" : "interleave",
 					"amnt" : 2,
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "epr23601a.ic29", "size" : 4194304 },
 						{ "name" : "epr23602a.ic30", "size" : 4194304 }
@@ -44,7 +41,6 @@
 					"name" : "maskrom",
 					"type" : "interleave",
 					"amnt" : 2,
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "mpr-23573.ic37", "size" : 16777216 },
 						{ "name" : "mpr-23577.ic38", "size" : 16777216 },
@@ -65,7 +61,6 @@
 				{
 					"name" : "bootrom",
 					"type" : "alternative",
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
 						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
@@ -75,7 +70,6 @@
 					"name" : "eprom",
 					"type" : "interleave",
 					"amnt" : 2,
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "epr-21994.ic29", "size" : 2097152 },
 						{ "name" : "epr-21995.ic30", "size" : 2097152 },
@@ -94,7 +88,6 @@
 				{
 					"name" : "bootrom",
 					"type" : "alternative",
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
 						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
@@ -104,7 +97,6 @@
 					"name" : "eprom",
 					"type" : "interleave",
 					"amnt" : 2,
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "epr23565a.ic29", "size" : 4194304 },
 						{ "name" : "epr23566a.ic30", "size" : 4194304 },
@@ -120,7 +112,6 @@
 					"name" : "maskrom",
 					"type" : "interleave",
 					"amnt" : 2,
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "mpr-23549.ic37", "size" : 16777216 },
 						{ "name" : "mpr-23553.ic38", "size" : 16777216 },
@@ -149,7 +140,6 @@
 				{
 					"name" : "bootrom",
 					"type" : "alternative",
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
 						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
@@ -159,7 +149,6 @@
 					"name" : "eprom",
 					"type" : "interleave",
 					"amnt" : 2,
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "epr-23174.ic29", "size" : 4194304 },
 						{ "name" : "epr-23175.ic30", "size" : 4194304 },
@@ -176,7 +165,6 @@
 				{
 					"name" : "bootrom",
 					"type" : "alternative",
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
 						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
@@ -186,7 +174,6 @@
 					"name" : "eprom",
 					"type" : "interleave",
 					"amnt" : 2,
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "epr-23485a.ic35", "size" : 4194304 },
 						{ "name" : "epr-23486a.ic36", "size" : 4194304 }
@@ -195,7 +182,6 @@
 				{
 					"name" : "maskrom",
 					"type" : "concatenate",
-					"endn" : "swap16",
 					"data" : [
 						{ "name" : "mpr-23469.ic19", "size" : 16777216 },
 						{ "name" : "mpr-23473.ic20", "size" : 16777216 },

@@ -92,19 +92,17 @@ get_section_size (json_t *data, unsigned ndata, unsigned mode)
 static int
 load_section (json_t *root, vk_game_section_t *section, const char *path, const char *game_name)
 {
-	json_t *name, *type, *endn, *data;
-	const char *name_value, *type_value, *endn_value;
+	json_t *name, *type, *data;
+	const char *name_value, *type_value;
 	unsigned mode, ndata, i;
 	uint32_t total_size, base;
 
 	name = json_object_get (root, "name");
 	type = json_object_get (root, "type");
-	endn = json_object_get (root, "endn");
 	data = json_object_get (root, "data");
 
 	if (!json_is_string (name) ||
-	    !json_is_string (type) ||
-	    !json_is_string (endn))
+	    !json_is_string (type))
 		return -1;
 
 	ndata = json_array_size (data);
@@ -113,9 +111,8 @@ load_section (json_t *root, vk_game_section_t *section, const char *path, const 
 
 	name_value = json_string_value (name);
 	type_value = json_string_value (type);
-	endn_value = json_string_value (endn);
 
-	VK_LOG ("Loading section %s, %s, %s", name_value, type_value, endn_value);
+	VK_LOG ("Loading section %s, %s", name_value, type_value);
 
 	if (!strcmp (type_value, "alternative"))
 		mode = MODE_ALTERNATIVE;
