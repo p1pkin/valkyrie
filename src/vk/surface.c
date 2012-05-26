@@ -144,6 +144,8 @@ void
 vk_surface_draw (vk_surface_t *surface)
 {
 	/* XXX very fragile; for debug only */
+	if (!surface)
+		return;
 
 	glMatrixMode (GL_PROJECTION);
 	glPushMatrix ();
