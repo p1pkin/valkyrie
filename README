@@ -1,0 +1,60 @@
+Valkyrie, Copyright(c) 2011,2012 Stefano Teso
+Released under the GPL v3 License.
+
+
+DISCLAIMER
+==========
+
+Valkyrie is an experimental SEGA Hikaru emulator for GNU/Linux. It was
+written entirely by reverse engineering the little Hikaru software available.
+As of now, this Hikaru emulator is unstable, incomplete, primitive, slow,
+crude, and sometimes hacky.
+
+DON'T EXPECT GAMES TO RUN AT ALL.
+
+Until the time comes, Valkyrie should be considered a ``technological
+preview'', and is really targeted towards developers rather than users. I
+myself consider it just a bit more than a repository for technical information
+of the Hikaru hardware.
+
+If you are not interested in developing valkyrie, please consider waiting
+until it becomes stable and usable enough.
+
+Valkyrie is licensed under the GPL v3 License, see the LICENSE file.
+
+
+CURRENT STATUS AND FUTURE DEVELOPMENTS
+======================================
+
+At the present moment, valkyrie is able to run all known Hikaru BOOTROMs
+(versionsi 0.84, 0.92, 0.96) and the existing complete ROM dumps typically
+up to the title screen; attract mode doesn't work yet. Please see the
+CONTRIBUTING file for hints as to where the biggest emulation issues are.
+
+Concerning future developments, I can only say that I personally have very
+little time to dedicate to Valkyrie. That said, you are free to clone this
+repository and do your own work on your branch, provided that you respect the
+license. If you do work on valkyrie, please contact me so we can possibly
+coordinate our efforts.
+
+You are free to make use the information contained in this source for your
+own project. If you make use of this work in any way, you may want to give
+credit where it is due. You are also encouraged to keep your emulator open
+source, so that other developers (and their users) can benefit from it. You
+are also encouraged to contribute back the technical findings you may
+stumble into.
+
+
+ACKNOWLEDGMENTS
+===============
+
+Thanks to the MAME developers for the hardware description and the initial
+memory map annotated in their skeleton Hikaru driver (as of 2011.) Also
+thanks to the MAME, nullDC, and lxdream developers for keeping/making their
+software open source; part of valkyrie is based on their efforts.
+
+
+CONTACT
+=======
+
+I can be contacted at com DOT gmail AT teso DOT stefano, in reverse order.
