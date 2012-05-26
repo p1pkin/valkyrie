@@ -1,78 +1,115 @@
 TODO
 ====
 
+
 BEFORE UPLOADING THE TREE
 -------------------------
 
 Fix the copyright in the [ch] files (year and license text.)
 
-Move the slave GPU access to hikaru-gpu.c. Proper support may require the
-introduction of a new vk_device_accessors_t class.
-
-Convert VK_*_{LOG,ERROR} from macros to functions; and add the DEVICE
-variants.
-
 Rewrite the JSON file to be more flexible (just like MAME.) Move its location
 to '$HOME/.local/share/valkyrie' or something. Create that directory on
 `make install'.
 
-Convert TEXRAM and CMDRAM from vk_buffer_t's to simple byte arrays.
+
+GENERAL
+-------
+
+A decent build system that should work on Unix/Linux, MacOS X, and windows.
+I'm no expert in this area. CMake or SCons could do the trick.
+
+Save state support. We want something that works across platforms (different
+int size, different endianess), that is somewhat robust against corruptions
+and version updates, and that is easy to read through a hex editor. This boils
+down to a binary file with headers for each section (e.g., master SH4, slave
+SH4, ARM, Z80, etc.) where variables are always stored as sign-extended
+int64_t, and includes a header stating a version number and endianess type.
+
+Convert VK_*_{LOG,ERROR} from macros to functions; and add the *DEVICE*
+variants.
+
+For later, much later: make every vk_machine_t sub-class register its CPUs
+and devices into vk_machine_t, then use a proper event scheduler to drive the
+emulation. This should make things much cleaner and maintainable in the long
+run, but it may be difficult to debug.
+
+There are load of TODO/XXX items in the source.
+
 
 HIKARU
 ------
 
-Save state support. This is mandatory.
+Get 3D displayed on screen.
 
-Implement better AICA support (especially the RTC and IRQs.)
+Move the slave GPU access to hikaru-gpu.c. Proper support may require the
+introduction of a new vk_device_accessors_t class.
 
-Implement better MIE support (that is, wrap a Z80 emulator in a
-vk_cpu : z80 class and tape it in the code.)
+Proper MIE emulation (wrap a Z80 emulator in a vk_cpu_t sub-class and tape
+it to the code.)
+
+Proper AICA emulation (especially the RTC and IRQs.)
 
 Implement the three EEPROMs (MAINBD, ROMBD, MIE.)
 
-SH4
----
+Convert TEXRAM and CMDRAM from vk_buffer_t's to simple byte arrays.
 
-Check FPU emulation.
 
-Implement simple per-basic-block LLVM translation. This should make debugging
-a lot more bearable.
+SH-4
+----
+
+Check FPU emulation. This is necessary to make the Hikaru games push sensible
+values to the graphics hardware.
+
+Implement simple per-basic-block LLVM translation. Then possibly move to
+translate entire routines; the now-dead (?) libcpu project is able to do
+that. May require heuristics as several routines in Hikaru games tend to
+somewhat violate the ABI (for instance using JMP + Load PR magic instead
+of JSR to call subroutines and return.) Little self-modifying code has been
+observed so far. And no MMU emulation required.
+
+Implement vk_cpu_get_reg() and vk_cpu_put_reg(); this would make moving the
+Hikaru-specific patches out of sh4_step() and into hikaru.c.
+
 
 RENDERING
 ---------
 
-Fix text texturing in the BOOTROM menu. This will require rewriting the
-tri-strip triangulation code.
+Figure out how the projection matrix is specified. SGNASCAR includes text
+mentioning 'window stacking'. Is that related in any way?
 
-Figure out how to render 3D. This requires (in order of importance):
+Figure out how the fade-in effect is done in PH intro screen.
 
-- Figure out how the projection matrix is specified. SGNASCAR includes text
-  talking about 'window stacking'. Is that related in any way?
+Implement proper texture caching, for both textures (TEXRAM) and layers
+(FB).
 
-- Figure out how the fade-in effect is done in the intro screen.
+Implement proper model caching using VBOs.
 
-- Implement proper texture caching, for both textures (TEXRAM) and layers
-  (FB).
-
-- Implement proper model caching using VBOs.
 
 AIRTRIX
 -------
 
-Reaches the title screen, but apparently uploads garbage to CMDRAM.
+Reaches the title screen, but apparently uploads garbage to CMDRAM. See the
+arguments to the 12C commands. The modelview matrix is also zero. The most
+likely culpripts are: bad FP emulation, missing IRQs, bad GPU execution timing,
+master-slave communication failures.
 
 Note that one MASKROM doesn't pass the ROMBD test (all the other MASKROMs do.)
+
 
 BRAVEFF
 -------
 
 Missing MASKROMs. Won't work. It works enough to display the intro screen
-and the game test menu though. 
+and the game test menu though. It pushes some 3D data on screen; it may be
+worth to try and render it in wireframe. The modelview matrices unfortunately
+are zeros, IIRC.
+
 
 Cyber Troops Virtual On 4
 -------------------------
 
 Not dumped yet.
+
 
 PHARRIER
 --------
@@ -80,13 +117,15 @@ PHARRIER
 Reaches the title screen, but the renderer can't draw any 3D on screen yet.
 
 Render the 3D intro screen using the youtube footage as a reference. Figure
-out why the 161 commands contain garbage info.
+out why the 161 commands look so weird.
+
 
 PODRACE
 -------
 
 Missing MASKROMS. Won't work. Useful to test MASKROM shrinkage tho (the
 second problem SGNASCAR has.)
+
 
 SGNASCAR
 --------
@@ -100,3 +139,7 @@ Note that MASKROMs are not mapped correctly: contrarily to AIRTRIX and
 PHARRIER the CRCs computed by the ROMBD test menu are wrong. However, the
 MASKROMs are not even looked at by the crashy code... So the issue is with
 EPROM. The ROM copy loop should not fail. Somehow.
+
+It _is_ possible to get it to work, partially, just enable the patch in
+sh4.c::sh4_step ().
+
