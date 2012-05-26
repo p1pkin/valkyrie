@@ -20,8 +20,37 @@
 
 #include <string.h>
 #include <errno.h>
+#include <math.h>
 
+#include "vk/types.h"
 #include "vk/core.h"
+
+bool
+is_valid_mat4x3f (mtx4x3f_t m)
+{
+	unsigned i, j;
+	float norm = 0.0f;
+	/* Compute the Froboenius norm */
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 3; j++)
+			norm += m[i][j] * m[i][j];
+	norm = sqrtf (norm);
+	return (norm > 0.0) && isfinite (norm);
+}
+
+bool
+is_valid_mat4x4f (mtx4x4f_t m)
+{
+	unsigned i, j;
+	float norm = 0.0f;
+	/* Compute the Froboenius norm */
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 3; j++)
+			norm += m[i][j] * m[i][j];
+	norm = sqrtf (norm);
+	return (norm > 0.0) && isfinite (norm);
+}
+
 
 bool
 vk_util_get_bool_option (const char *name, bool fallback)
@@ -157,74 +186,6 @@ get_file_size (FILE *fp)
 	return size;
 }
 
-struct vk_file *
-vk_file_new (const char *path, unsigned flags)
-{
-	struct vk_file *file;
-	char mode[3] = "\0\0\0";
-
-	if (!path) {
-		goto fail;
-	}
-
-	if (!(flags & (VK_FILE_FLAG_READ | VK_FILE_FLAG_WRITE))) {
-		goto fail;
-	}
-
-	file = ALLOC (struct vk_file);
-	if (!file) {
-		goto fail;
-	}
-
-	/* Decide what mode string to pass */
-	mode[0] = (flags & VK_FILE_FLAG_READ) ? 'r' : 'w';
-	if (flags & VK_FILE_FLAG_BINARY) {
-		mode[1] = 'b';
-	}
-
-	file->fp = fopen (path, mode);
-	if (!file->fp) {
-		goto fail;
-	}
-
-	file->path = strdup (path);
-	if (!file->path) {
-		goto fail;
-	}
-
-	file->size = get_file_size (file->fp);
-	file->flags = flags;
-	return file;
-
-fail:
-	vk_file_delete (&file);
-	return NULL;
-}
-
-struct vk_file *
-vk_file_new_with_size (const char *path, size_t size, unsigned flags)
-{
-	return NULL;
-}
-
-void
-vk_file_delete (struct vk_file **file_)
-{
-	if (file_) {
-		struct vk_file *file = *file_;
-		if (file) {
-			if (file->fp) {
-				fclose (file->fp);
-			}
-			file->fp = NULL;
-			free (file->path);
-			file->path = NULL;
-		}
-		free (file);
-		*file_ = NULL;
-	}
-}
-
 int
 vk_load (uint8_t *buf, const char *path, size_t req)
 {
@@ -266,7 +227,7 @@ vk_load (uint8_t *buf, const char *path, size_t req)
 void *
 vk_load_any (const char *path, size_t *_size)
 {
-	FILE *fp;
+	FILE *fp = NULL;
 	size_t size, size2;
 	void *buf = NULL;
 	int ret = -1;

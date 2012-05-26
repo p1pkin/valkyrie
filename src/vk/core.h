@@ -309,19 +309,18 @@ signext_n_64 (const uint64_t in, const unsigned sign_bit)
 /** Prints a formatted message, prefixed by 'ERROR', to stderr */
 #define VK_ERROR(fmt_, args_...) \
 	do { \
-		fprintf (stderr, "ERROR: %s:%d %s(): "fmt_"\n", \
-		         __FILE__, __LINE__, __FUNCTION__, ##args_); \
+		fprintf (stderr, "ERROR: "fmt_"\n", ##args_); \
 	} while (0);
 
 /** Prints a formatted message, prefixed by 'ERROR', to stderr, and exits */
 #define VK_ABORT(fmt_, args_...) \
 	do { \
-		fprintf (stderr, "ERROR: %s:%d %s(): "fmt_"\n", \
+		fprintf (stderr, "FATAL: %s:%d %s(): "fmt_"\n", \
 		         __FILE__, __LINE__, __FUNCTION__, ##args_); \
 		assert (0); \
 	} while (0);
 
-/** If the condition fails, prints a formatted message, prefixed by 'ERROR',
+/** If the condition fails, prints a formatted message, prefixed by 'FATAL',
  * to stderr, and exits */
 #define VK_ASSERT(_cond) \
 	do { \
@@ -339,6 +338,9 @@ typedef enum {
 	VK_NUM_RESET_TYPES,
 } vk_reset_type_t;
 
+bool	is_valid_mat4x3f (mtx4x3f_t mtx);
+bool	is_valid_mat4x4f (mtx4x4f_t mtx);
+
 bool	vk_util_get_bool_option (const char *name, bool fallback);
 
 void	vk_swap_buf (uint8_t *buf, size_t size, vk_swap swap);
@@ -346,23 +348,6 @@ int	vk_memcpy_interleave (uint8_t *dst, uint8_t *src, unsigned unit, unsigned of
 
 void	vk_interleave_buf_2 (uint8_t *dst, uint8_t *a, uint8_t *b, size_t size, size_t part);
 void	vk_interleave_buf_4 (uint8_t *dst, uint8_t *a, uint8_t *b, uint8_t *c, uint8_t *d, size_t size, size_t part);
-
-typedef enum {
-	VK_FILE_FLAG_READ	= (1 << 0),
-	VK_FILE_FLAG_WRITE	= (1 << 1),
-	VK_FILE_FLAG_BINARY	= (1 << 3),
-} vk_file_flags;
-
-typedef struct vk_file {
-	FILE *fp;
-	size_t size;
-	unsigned flags;
-	char *path;
-} vk_file;
-
-struct vk_file	*vk_file_new (const char *path, unsigned flags);
-struct vk_file	*vk_file_new_with_size (const char *path, size_t size, unsigned flags);
-void		 vk_file_delete (struct vk_file **file_);
 
 void	*vk_load_any (const char *path, size_t *_size);
 int	 vk_load (uint8_t *buf, const char *path, size_t req);

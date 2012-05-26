@@ -21,129 +21,119 @@
 #ifndef __HIKARU_GPU_PRIVATE_H__
 #define __HIKARU_GPU_PRIVATE_H__
 
-#include <vk/device.h>
+#include <math.h>
 
-/* All of these are tentative */
+#include "vk/device.h"
+
+/* hikaru-gpu.c, hikaru-gpu-insns.c, hikaru-renderer.c */
+
 #define NUM_VIEWPORTS	8
-#define NUM_MATERIALS	8192
-#define NUM_TEXHEADS	8192
-#define NUM_LIGHTS	1024
 #define NUM_MATRICES	4
+#define NUM_MATERIALS	16384 /* XXX bogus */
+#define NUM_TEXHEADS	16384 /* XXX bogus */
+#define NUM_LIGHTS	1024
+#define NUM_LIGHTSETS	256	/* possibly 32 */
 
-#define VIEWPORT_MASK	(NUM_VIEWPORTS - 1)
-#define MATERIAL_MASK	(NUM_MATERIALS - 1)
-#define TEXHEAD_MASK	(NUM_TEXHEADS - 1)
-#define LIGHT_MASK	(NUM_LIGHTS - 1)
-#define MATRIX_MASK	(NUM_MATRICES - 1)
-
-typedef struct {
-	/* 021 */
-	float persp_x;
-	float persp_y;
-	float persp_unk;
-	/* 221 */
-	vec2s_t center;
-	vec2s_t extents_x;
-	vec2s_t extents_y;
-	/* 421 */
-	float depth_near;
-	float depth_far;
-	unsigned depth_func;
-	/* 621 */
-	uint32_t depthq_type;
-	uint32_t depthq_enabled;
-	uint32_t depthq_unk;
-	vec4b_t	depthq_mask;
-	float depthq_density;
-	float depthq_bias;
-	/* 881 */
-	vec3s_t ambient_color;
-	/* 991 */
-	vec4b_t clear_color;
-	/* Util */
-	uint32_t used : 1;
-} hikaru_gpu_viewport_t;
-
-typedef struct {
-	/* 091, 291 */
-	vec3b_t color[2];
-	/* 491 */
-	uint8_t specularity;
-	vec3b_t shininess;
-	/* 691 */
-	vec3s_t material_color;
-	/* 081 */
-	/* XXX unknown */
-	/* 881 */
-	unsigned mode		: 2;
-	unsigned depth_blend	: 1;
-	unsigned has_texture	: 1;
-	unsigned has_alpha	: 1;
-	unsigned has_highlight	: 1;
-	/* A81 */
-	unsigned bmode		: 2;
-	/* C81 */
-	/* XXX unknown */
-	/* Util */
-	uint32_t used : 1;
-} hikaru_gpu_material_t;
-
+/* Used for texheads and layers */
 enum {
-	FORMAT_RGBA5551 = 0,
-	FORMAT_RGBA4444 = 1,
-	FORMAT_RGBA1111 = 2, /* XXX check this */
-	FORMAT_ALPHA8 = 4, /* XXX check this */
+	HIKARU_FORMAT_RGBA5551 = 0,
+	HIKARU_FORMAT_RGBA4444 = 1,
+	HIKARU_FORMAT_RGBA1111 = 2,
+	HIKARU_FORMAT_ALPHA8 = 4,
+	HIKARU_FORMAT_RGBA8888 = 8,
 };
 
 typedef struct {
-	/* IDMA */
-	uint32_t bus_addr;
-	uint32_t size;
-	/* 0C1 */
-	uint32_t _0C1_nibble;
-	uint32_t _0C1_byte;
-	/* 2C1 */
-	uint32_t format;
-	uint32_t width;
-	uint32_t height;
-	uint32_t _2C1_unk4;
-	uint32_t _2C1_unk8;
-	/* 4C1 */
-	uint32_t slotx;
-	uint32_t sloty;
-	uint32_t bank;
-	/* Util */
-	uint32_t has_mipmap;
-	uint32_t used;
+	float persp_x;			/* 021 */
+	float persp_y;			/* 021 */
+	float persp_znear;		/* 021 */
+	float depth_near;		/* 421 */
+	float depth_far;		/* 421 */
+	float depthq_density;		/* 621 */
+	float depthq_bias;		/* 621 */
+	vec2s_t center;			/* 221 */
+	vec2s_t extents_x;		/* 221 */
+	vec2s_t extents_y;		/* 221 */
+	vec4b_t	depthq_mask;		/* 621 */
+	vec4b_t clear_color;		/* 991 */
+	vec3s_t ambient_color;		/* 881 */
+	uint32_t depth_func	: 3;	/* 421 */
+	uint32_t depthq_type	: 2;	/* 621 */
+	uint32_t depthq_enabled	: 1;	/* 621 */
+	uint32_t depthq_unk	: 1;	/* 621 */
+	uint32_t set		: 1;
+	uint32_t used		: 1;
+	uint32_t uploaded	: 1;
+} hikaru_gpu_viewport_t;
+
+typedef struct {
+	vec3b_t color[2];		/* 091, 291 */
+	vec3s_t material_color;		/* 691 */
+	vec3b_t shininess;		/* 491 */
+	uint8_t specularity;		/* 491 */
+	uint32_t shading_mode	: 2;	/* 881 */
+	uint32_t depth_blend	: 1;	/* 881 */
+	uint32_t has_texture	: 1;	/* 881 */
+	uint32_t has_alpha	: 1;	/* 881 */
+	uint32_t has_highlight	: 1;	/* 881 */
+	uint32_t blending_mode	: 2;	/* A81 */
+	uint32_t set		: 1;
+	uint32_t used		: 1;
+	uint32_t uploaded	: 1;
+} hikaru_gpu_material_t;
+
+typedef struct {
+	uint32_t bus_addr;		/* IDMA */
+	uint32_t size;			/* IDMA */
+	uint32_t width;			/* 2C1 */
+	uint32_t height;		/* 2C1 */
+	uint8_t slotx;			/* 4C1 */
+	uint8_t sloty;			/* 4C1 */
+	uint8_t _0C1_byte;		/* 0C1 */
+	uint32_t _0C1_nibble	: 4;	/* 0C1 */
+	uint32_t format		: 3;	/* 2C1 */
+	uint32_t log_width	: 3;	/* 2C1 */
+	uint32_t log_height	: 3;	/* 2C1 */
+	uint32_t _2C1_unk4	: 3;	/* 2C1 */
+	uint32_t _2C1_unk8	: 3;	/* 2C1 */
+	uint32_t bank		: 1;	/* 4C1 */
+	uint32_t has_mipmap	: 1;
+	uint32_t set		: 1;
+	uint32_t used		: 1;
+	uint32_t uploaded	: 1;
 } hikaru_gpu_texhead_t;
 
 typedef struct {
 	/* 261 */
-	unsigned type;
-	float param_p;
-	float param_q;
+	uint32_t emission_type	: 2;
+	float emission_p;
+	float emission_q;
 	/* 961 */
 	vec3f_t position;
 	/* B61 */
 	vec3f_t direction;
+	/* 051 */
+	uint32_t _051_index	: 8; /* XXX review me */
+	vec3s_t _051_color;
+	uint32_t set		: 1;
+	uint32_t used		: 1;
 } hikaru_gpu_light_t;
 
-enum {
-	LAYER_FORMAT_RGBA5551,
-	LAYER_FORMAT_RGBA8888
-};
+typedef struct {
+	hikaru_gpu_light_t *lights[4];
+	uint32_t set		: 1;
+	uint32_t used		: 1;
+	uint32_t uploaded	: 1;
+} hikaru_gpu_lightset_t;
 
 typedef struct {
 	uint32_t x0, y0, x1, y1;
 	unsigned format;
 } hikaru_gpu_layer_t;
 
-typedef struct {
-	unsigned num_lights;
-	hikaru_gpu_light_t lights[8];
-} hikaru_gpu_lightset_t;
+typedef struct hikaru_gpu_t hikaru_gpu_t;
 
-typedef struct {
+struct hikaru_gpu_t {
 	vk_device_t base;
 
 	vk_buffer_t *cmdram;
@@ -158,50 +148,64 @@ typedef struct {
 	uint8_t regs_1A_unit[2][0x40];
 	uint8_t regs_1A_fifo[0x10];
 
+	unsigned frame_type;
+
 	/* CS Execution State */
 
 	struct {
 		uint32_t pc, sp[2];
 		bool is_running;
-		unsigned frame_type;
+		bool unhandled;
 		int cycles;
-	} cs;
+		struct {
+			void (* handler)(hikaru_gpu_t *, uint32_t *);
+			uint32_t size;
+		} insns[0x1000];
+	} cp;
 
 	/* Rendering State */
 
 	struct {
 		hikaru_gpu_viewport_t table[NUM_VIEWPORTS];
 		hikaru_gpu_viewport_t scratch;
-		int offset;
 	} viewports;
 
 	struct {
 		hikaru_gpu_material_t table[NUM_MATERIALS];
 		hikaru_gpu_material_t scratch;
-		int offset;
+		uint32_t base;
 	} materials;
 
 	struct {
 		hikaru_gpu_texhead_t table[NUM_TEXHEADS];
 		hikaru_gpu_texhead_t scratch;
-		int offset;
+		uint32_t base;
 	} texheads;
 
 	struct {
+		hikaru_gpu_lightset_t sets[NUM_LIGHTSETS];
 		hikaru_gpu_light_t table[NUM_LIGHTS];
 		hikaru_gpu_light_t scratch;
-		int offset;
+		uint32_t base;
 	} lights;
 
-	mtx4x3f_t mtx[NUM_MATRICES];
-
-} hikaru_gpu_t;
+	struct {
+		bool log_dma;
+		bool log_idma;
+		bool log_cp;
+	} options;
+};
 
 void slot_to_coords (uint32_t *, uint32_t *, uint32_t, uint32_t);
-char *get_gpu_viewport_str (hikaru_gpu_viewport_t *);
-char *get_gpu_material_str (hikaru_gpu_material_t *);
-char *get_gpu_texhead_str (hikaru_gpu_texhead_t *);
-char *get_gpu_layer_str (hikaru_gpu_layer_t *);
+
+const char *get_gpu_viewport_str (hikaru_gpu_viewport_t *);
+const char *get_gpu_material_str (hikaru_gpu_material_t *);
+const char *get_gpu_texhead_str (hikaru_gpu_texhead_t *);
+const char *get_gpu_light_str (hikaru_gpu_light_t *);
+const char *get_gpu_layer_str (hikaru_gpu_layer_t *);
+
+void hikaru_gpu_cp_init (hikaru_gpu_t *);
+void hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu);
 
 static inline uint32_t
 coords_to_offs_16 (uint32_t x, uint32_t y)

@@ -18,161 +18,122 @@
  * 02110-1301, USA.
  */
 
+#include <math.h>
+
 #include "mach/hikaru/hikaru-renderer.h"
 #include "vk/surface.h"
 
-/* XXX move all dumped stuff into dump/; also add an VK_DUMP env var */
-/* XXX dump textures on exit if requested */
-/* XXX fix the texcoords to work with GL's tri-strips */
-/* XXX ditch immediate mode; use VBOs instead. */
-/* XXX ditch the fixed pipeline; use shaders instead. */
+/* XXX fix 1111 decoding; it's required by the BOOTROM ASCII texture. */
+/* XXX fix the texcoords. */
 
+/*
+ * Here's the basics. The three entry points to the renderer are:
+ *
+ * - hikaru_renderer_{begin,end}_frame (), called by hikaru.c when the
+ *   appropriate number of core iterations have been done.
+ *
+ * - hikaru_renderer_draw_layer (), called by hikaru-gpu.c just on vblank-out,
+ *   that is, just before end_frame () is called.
+ *
+ * - hikaru_renderer_{set_X, add_vertex_X, end_mesh} (), called by
+ *   hikaru-gpu-insns.c when the corresponding GPU instructions are
+ *   interpreted; which is to say that these calls occur at any time between
+ *   begin_frame () and draw_layer ().
+ *
+ * XXX The order in which things are done is *not* correct: the layer
+ * priority wrt to the 3D meshes have not been figured out yet. This is
+ * partly due to the fact that I *don't know* when the CP is supposed to
+ * execute the command stream (at vblank-in? when 15000058 is written to?
+ * I have found no strong clue about which is true...)
+ *
+ * A mesh set through the add_vertex_X () functions is rendered when
+ * end_mesh () is called, using draw_current_mesh ().
+ *
+ * The set_X () functions merely store the corresponding state (i.e., the
+ * current viewport, modelview matrix, material, texhead, and lightset) into
+ * members of hikaru_renderer_t.
+ *
+ * This state is not uploaded to GL until a call to draw_current_mesh ()
+ * occurs. The actual uploading is done using the upload_current_X ()
+ * functions. We also make sure that the same state is not re-uploaded to
+ * GL, to avoid useless computations.
+ *
+ * XXX of course, the whole thing could be improved quite a bit by any
+ * developer even moderately knowledgeable of GL; unfortunately I don't belong
+ * to that circle, by far :-)
+ */
+
+/* XXX dump textures on exit if requested. */
+/* XXX ditch the fixed pipeline; use shaders instead. */
+/* XXX ditch immediate mode; use VBOs instead. */
+
+/* This is *not* the native hikaru vertex data layout; this is how *we*
+ * arrange stuff for now (and possibly for future VBO use.) */
 typedef struct {
 	vec3f_t pos;		/* 12 bytes */
 	vec3f_t normal;		/* 12 bytes */
 	vec2f_t texcoords;	/* 8 bytes */
 } hikaru_vertex_t;
 
-typedef struct {
-	hikaru_gpu_texhead_t texhead;
-	GLuint id;
-} hikaru_texture_t;
+typedef enum {
+	MESH_TYPE_TRI_LIST,	/* used by commands 1A8 et co. */
+	MESH_TYPE_TRI_STRIP	/* used by commands 158 et co. */
+} hikaru_mesh_type_t;
 
-enum {
-	VERTEX_MODE_NONE = 0,
-	VERTEX_MODE_TRI_LIST,
-	VERTEX_MODE_TRI_STRIP
-};
+typedef struct {
+	hikaru_mesh_type_t type;
+	hikaru_vertex_t *vertices;
+	unsigned index, max;
+} hikaru_mesh_t;
 
 typedef struct {
 	vk_renderer_t base;
 
-	/* Texture data */
 	vk_buffer_t *fb;
 	vk_buffer_t *texram[2];
 
-	/* Shaders */
-	/* TODO */
+	/* Current rendering state */
+	hikaru_gpu_viewport_t current_viewport;
+	struct {
+		mtx4x4f_t mtx;
+		uint32_t set		: 1;
+		uint32_t uploaded	: 1;
+	} current_modelview;
+	hikaru_gpu_texhead_t current_texhead;
+	hikaru_gpu_material_t current_material;
+	hikaru_gpu_lightset_t current_lightset;
 
-	/* Model matrix */
-	mtx4x4f_t modelview_matrix;
-	unsigned modelview_num_up;
-
-	/* Model data */
-	hikaru_vertex_t	vertices[1024];
-	int vertex_upload_mode;
-	int vertex_index;
-	int hack;
+	/* Mesh data */
+	struct {
+		hikaru_mesh_t *array, *current;
+		unsigned index, max;
+	} meshes;
 
 	/* Texture data */
-	vk_surface_t *texhead_surface;
-
-	/* Debug */
-	vk_surface_t *fb_surface;
-	vk_surface_t *texram_surface;
-	vk_surface_t *debug_surface;
+	struct {
+		vk_surface_t *current;
+		vk_surface_t *fb, *texram, *debug;
+	} textures;
 
 	struct {
-		bool enable_logging;
-		bool enable_2d;
-		bool enable_3d;
+		bool log;
+		bool disable_2d;
+		bool disable_3d;
 		bool draw_fb;
 		bool draw_texram;
 		bool force_debug_texture;
+		bool force_wireframe;
 	} options;
 
 } hikaru_renderer_t;
 
-/* 3D Rendering */
+#define LOG(fmt_, args_...) \
+	do { \
+		if (hr->options.log) \
+			fprintf (stdout, "HR: " fmt_"\n", ##args_); \
+	} while (0);
 
-void
-hikaru_renderer_set_viewport (vk_renderer_t *renderer,
-                              hikaru_gpu_viewport_t *viewport)
-{
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-
-	if (!hr->options.enable_3d)
-		return;
-
-	if (hr->options.enable_logging)
-		VK_LOG ("HR: Set VIEWPORT %s",
-		        get_gpu_viewport_str (viewport));
-
-	/* Hikaru's origin is at the top left; x axis extends to the
-	 * right; y axis extends downwards. How come? */
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity ();
-	glOrtho ((GLfloat) viewport->extents_x.x[0],	/* left */
-	         (GLfloat) viewport->extents_x.x[1],	/* right */
-	         -(GLfloat) viewport->extents_y.x[1],	/* bottom */
-	         (GLfloat) viewport->extents_y.x[0],	/* top */
-	         -1.0f, 1.0f);
-
-	glScissor (viewport->extents_x.x[0], /* lower left */
-	           viewport->extents_y.x[0],
-	           viewport->extents_x.x[1] - viewport->extents_x.x[0],
-	           viewport->extents_y.x[1] - viewport->extents_y.x[0]);
-	glEnable (GL_SCISSOR_TEST);
-
-	glClearColor (viewport->clear_color.x[0] / 255.0f,
-	              viewport->clear_color.x[1] / 255.0f,
-	              viewport->clear_color.x[2] / 255.0f,
-	              viewport->clear_color.x[3] / 255.0f);
-	glClear (GL_COLOR_BUFFER_BIT);
-}
-
-void
-hikaru_renderer_set_material (vk_renderer_t *renderer,
-                              hikaru_gpu_material_t *material)
-{
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-
-	if (!hr->options.enable_3d)
-		return;
-
-	if (hr->options.enable_logging)
-		VK_LOG ("HR: Set MATERIAL %s",
-		        get_gpu_material_str (material));
-
-	glColor3f (material->color[1].x[0] / 255.0f,
-	           material->color[1].x[1] / 255.0f,
-	           material->color[1].x[2] / 255.0f);
-
-	if (material->has_texture)
-		glEnable (GL_TEXTURE_2D);
-	else
-		glDisable (GL_TEXTURE_2D);
-}
-
-static vk_surface_t *
-upload_texhead_rgba_16 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
-{
-	vk_buffer_t *texram = hr->texram[texhead->bank];
-	uint32_t basex, basey, x, y;
-	vk_surface_format_t format;
-	vk_surface_t *surface;
-
-	if (texhead->format == FORMAT_RGBA5551)
-		format = VK_SURFACE_FORMAT_RGBA5551;
-	else
-		format = VK_SURFACE_FORMAT_RGBA4444;
-
-	surface = vk_surface_new (texhead->width, texhead->height, format);
-	if (!surface)
-		return NULL;
-
-	slot_to_coords (&basex, &basey, texhead->slotx, texhead->sloty); 
-
-	for (y = 0; y < texhead->height; y++) {
-		uint32_t base = (basey + y) * 4096 + basex * 2;
-		for (x = 0; x < texhead->width; x++) {
-			uint32_t offs  = base + x * 2;
-			uint16_t texel = 0; // vk_buffer_get (texram, 2, offs);
-			vk_surface_put16 (surface, x, y, texel);
-		}
-	}
-	return surface;
-}
+/* Textures */
 
 static uint32_t
 rgba1111_to_rgba4444 (uint8_t pixel)
@@ -185,7 +146,7 @@ rgba1111_to_rgba4444 (uint8_t pixel)
 }
 
 static vk_surface_t *
-upload_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
+decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
 	vk_buffer_t *texram = hr->texram[texhead->bank];
 	uint32_t basex, basey, x, y;
@@ -211,19 +172,166 @@ upload_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 }
 
 static vk_surface_t *
-upload_texhead_a8 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
+decode_texhead_rgba_16 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
 	vk_buffer_t *texram = hr->texram[texhead->bank];
-	uint32_t basex, basey;
+	uint32_t basex, basey, x, y;
+	vk_surface_format_t format;
+	vk_surface_t *surface;
+
+	if (texhead->format == HIKARU_FORMAT_RGBA5551)
+		format = VK_SURFACE_FORMAT_RGBA5551;
+	else
+		format = VK_SURFACE_FORMAT_RGBA4444;
+
+	surface = vk_surface_new (texhead->width, texhead->height, format);
+	if (!surface)
+		return NULL;
 
 	slot_to_coords (&basex, &basey, texhead->slotx, texhead->sloty); 
 
-	/* TODO */
-	(void) texram;
-	(void) basex;
-	(void) basey;
+	for (y = 0; y < texhead->height; y++) {
+		uint32_t base = (basey + y) * 4096 + basex * 2;
+		for (x = 0; x < texhead->width; x++) {
+			uint32_t offs  = base + x * 2;
+			uint16_t texel = vk_buffer_get (texram, 2, offs);
+			vk_surface_put16 (surface, x, y, texel);
+		}
+	}
+	return surface;
+}
 
+static vk_surface_t *
+decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
+{
+	/* TODO */
 	return NULL;
+}
+
+static void
+free_textures (hikaru_renderer_t *hr)
+{
+	(void) hr;
+}
+
+/* 3D Rendering */
+
+static bool
+is_viewport_valid (hikaru_gpu_viewport_t *viewport)
+{
+	if (!isfinite (viewport->persp_x) ||
+	    !isfinite (viewport->persp_y) ||
+	    !isfinite (viewport->persp_znear)) {
+		VK_ERROR ("viewport persp params not finite: %f, %f, %f",
+		          viewport->persp_x, viewport->persp_y,
+		          viewport->persp_znear);
+		return false;
+	}
+	if (!isfinite (viewport->depth_near) ||
+	    !isfinite (viewport->depth_far)) {
+		VK_ERROR ("viewport depth params not finite: %f, %f",
+		          viewport->depth_near, viewport->depth_far);
+		return false;
+	}
+	if (!isfinite (viewport->depthq_density) ||
+	    !isfinite (viewport->depthq_bias)) {
+		VK_ERROR ("viewport depth queue params not finite: %f, %f",
+		          viewport->depthq_density, viewport->depthq_bias);
+		return false;
+	}
+	if (viewport->center[0] < viewport->extents_x[0] ||
+	    viewport->center[0] > viewport->extents_x[1] ||
+	    viewport->extents_x[1] > 640) {
+		VK_ERROR ("viewport extents X invalid: %u < %u < %u",
+		          viewport->extents_x[0], viewport->center[0],
+		          viewport->extents_x[1]);
+		return false;
+	}
+	if (viewport->center[1] < viewport->extents_y[0] ||
+	    viewport->center[1] > viewport->extents_y[1] ||
+	    viewport->extents_y[1] > 512) {
+		VK_ERROR ("viewport extents Y invalid: %u < %u < %u",
+		          viewport->extents_y[0], viewport->center[0],
+		          viewport->extents_y[1]);
+		return false;
+	}
+	if (viewport->persp_znear != viewport->depth_near) {
+		VK_ERROR ("viewport znear 021-421 mismatch: %f != %f",
+		          viewport->persp_znear, viewport->depth_near);
+		/* no need to return false here, this is not critical */
+	}
+	return true;
+}
+
+void
+hikaru_renderer_set_viewport (vk_renderer_t *renderer,
+                              hikaru_gpu_viewport_t *viewport)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	if (hr->options.disable_3d)
+		return;
+
+	LOG ("set viewport %s", get_gpu_viewport_str (viewport));
+
+	VK_ASSERT (viewport->set);
+
+	/* XXX clear the viewport now or in update()? */
+
+	/* Store the current viewport state */
+	if (is_viewport_valid (viewport)) {
+		hr->current_viewport = *viewport;
+		hr->current_viewport.uploaded = 0;
+	}
+}
+
+void
+hikaru_renderer_set_modelview_vector (vk_renderer_t *renderer,
+                                      unsigned n, unsigned m,
+                                      vec3f_t vector)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	if (hr->options.disable_3d)
+		return;
+
+	LOG ("set modelview vector %u (%u): %7.3f %7.3f %7.3f",
+	     n, m, vector[0], vector[1], vector[2]);
+
+	/* XXX no idea what modelview matrices with m index > 0 are for */
+	if (m != 0)
+		return;
+
+	if (isfinite (vector[0]) &&
+	    isfinite (vector[1]) &&
+	    isfinite (vector[2])) {
+		/* It's a row vector; translate to column here */
+		/* XXX use a macro to access the right element here */
+		hr->current_modelview.mtx[0][n] = vector[0];
+		hr->current_modelview.mtx[1][n] = vector[1];
+		hr->current_modelview.mtx[2][n] = vector[2];
+		hr->current_modelview.mtx[3][n] = (n == 3) ? 1.0f : 0.0f;
+
+		hr->current_modelview.uploaded = 0;
+	}
+}
+
+void
+hikaru_renderer_set_material (vk_renderer_t *renderer,
+                              hikaru_gpu_material_t *material)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	if (hr->options.disable_3d)
+		return;
+
+	LOG ("set material %s", get_gpu_material_str (material));
+
+	VK_ASSERT (material->set);
+
+	/* Store the current material state */
+	hr->current_material = *material;
+	hr->current_material.uploaded = 0;
 }
 
 void
@@ -232,275 +340,416 @@ hikaru_renderer_set_texhead (vk_renderer_t *renderer,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	if (!hr->options.enable_3d)
+	if (hr->options.disable_3d)
 		return;
 
-	if (hr->options.enable_logging)
-		VK_LOG ("HR: Set TEXHEAD %s",
-		        get_gpu_texhead_str (texhead));
+	LOG ("set texhead %s", get_gpu_texhead_str (texhead));
 
-	/* Remove any old texhead texture. */
-	vk_surface_delete (&hr->texhead_surface);
+	VK_ASSERT (texhead->set);
 
-	/* Decode/upload the given texhead. */
-	switch (texhead->format) {
-	case FORMAT_RGBA5551:
-	case FORMAT_RGBA4444:
-		hr->texhead_surface = upload_texhead_rgba_16 (hr, texhead);
-		break;
-	case FORMAT_RGBA1111:
-		hr->texhead_surface = upload_texhead_rgba1111 (hr, texhead);
-		break;
-	case FORMAT_ALPHA8:
-		hr->texhead_surface = upload_texhead_a8 (hr, texhead);
-		break;
-	default:
-		VK_ASSERT (0);
-		break;
-	}
-
-	/* If no surface can be generated for the given texhead, bind the
-	 * default 4x4 checkerboard texture. */
-	if (!hr->texhead_surface || hr->options.force_debug_texture)
-		vk_surface_bind (hr->debug_surface);
-	else
-		vk_surface_commit (hr->texhead_surface);
+	/* Store the current texhead state */
+	hr->current_texhead = *texhead;
+	hr->current_texhead.uploaded = 0;
 }
 
 void
-hikaru_renderer_set_light (vk_renderer_t *renderer,
-                           hikaru_gpu_light_t *light)
+hikaru_renderer_set_lightset (vk_renderer_t *renderer,
+                              hikaru_gpu_lightset_t *lightset,
+                              uint32_t enabled_mask)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+	unsigned i;
 
-	if (!hr->options.enable_3d)
+	if (hr->options.disable_3d)
 		return;
 
-	if (hr->options.enable_logging)
-		VK_LOG ("HR: Set LIGHT");
-}
-
-/* XXX rename to _vector */
-void
-hikaru_renderer_set_modelview_vertex (vk_renderer_t *renderer,
-                                      unsigned n, unsigned m,
-                                      vec3f_t *vertex)
-{
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-
-	if (!hr->options.enable_3d)
-		return;
-
-	/* It's a row vertex */
-
-	hr->modelview_matrix.x[0][n] = vertex->x[0];
-	hr->modelview_matrix.x[1][n] = vertex->x[1];
-	hr->modelview_matrix.x[2][n] = vertex->x[2];
-	hr->modelview_matrix.x[3][n] = (n == 3) ? 1.0f : 0.0f;
-
-	hr->modelview_num_up++;
-	if (hr->modelview_num_up == 4) {
-		hr->modelview_num_up = 0;
-		if (hr->options.enable_logging) {
-			VK_LOG ("HR == MODELVIEW MATRIX ==");
-			VK_LOG ("HR MATRIX [ %9.3f %9.3f %9.3f %9.3f ]",
-			        hr->modelview_matrix.x[0][0],
-			        hr->modelview_matrix.x[1][0],
-			        hr->modelview_matrix.x[2][0],
-			        hr->modelview_matrix.x[3][0]);
-			VK_LOG ("HR MATRIX [ %9.3f %9.3f %9.3f %9.3f ]",
-			        hr->modelview_matrix.x[0][1],
-			        hr->modelview_matrix.x[1][1],
-			        hr->modelview_matrix.x[2][1],
-			        hr->modelview_matrix.x[3][1]);
-			VK_LOG ("HR MATRIX [ %9.3f %9.3f %9.3f %9.3f ]",
-			        hr->modelview_matrix.x[0][2],
-			        hr->modelview_matrix.x[1][2],
-			        hr->modelview_matrix.x[2][2],
-			        hr->modelview_matrix.x[3][2]);
-			VK_LOG ("HR MATRIX [ %9.3f %9.3f %9.3f %9.3f ]",
-			        hr->modelview_matrix.x[0][3],
-			        hr->modelview_matrix.x[1][3],
-			        hr->modelview_matrix.x[2][3],
-			        hr->modelview_matrix.x[3][3]);
-		}
-
-		/* Load the modelview matrix */
-		glMatrixMode (GL_MODELVIEW);
-		glLoadMatrixf ((GLfloat *) hr->modelview_matrix.x);
+	for (i = 0; i < 4; i++) {
+		if (enabled_mask & (1 << i))
+			LOG ("set lightset, light %u: %s",
+				i, get_gpu_light_str (lightset->lights[i]));
 	}
-}
 
-/* Apparently hikaru triangle strip vertex-linking rules work just like
- * OpenGL's --- that is, 0-1-2, 2-1-3, etc. right-hand rule. Tex coords
- * are a bit tougher... */
+	VK_ASSERT (lightset->set);
+
+	/* Store the current lightset state */
+	hr->current_lightset = *lightset;
+	hr->current_lightset.uploaded = 0;
+}
 
 static void
-draw_vertices (hikaru_renderer_t *hr)
+upload_current_viewport (hikaru_renderer_t *hr)
 {
-	int i;
-	if (hr->options.enable_logging)
-		VK_LOG ("HR == DRAWING %d VERTICES ==", hr->vertex_index);
+	hikaru_gpu_viewport_t *vp = &hr->current_viewport;
+	if (!vp->uploaded) {
+		vp->uploaded = 1;
 
-	glBegin (GL_TRIANGLE_STRIP);
-	for (i = 0; i < hr->vertex_index; i++) {
-		hikaru_vertex_t *vtx = &hr->vertices[i];
+		/* Setup the projection matrix */
+		/* XXX compute the actual projection */
+		glMatrixMode (GL_PROJECTION);
+		glLoadIdentity ();
+		glOrtho ((GLfloat) vp->extents_x[0],	/* left */
+		         (GLfloat) vp->extents_x[1],	/* right */
+		         -(GLfloat) vp->extents_y[1],	/* bottom */
+		         (GLfloat) vp->extents_y[0],	/* top */
+		         -1.0f, 1.0f);			/* near, far */
+	
+		/* Setup the vp scissor */
+		glScissor (vp->extents_x[0], /* lower left */
+		           vp->extents_y[0],
+		           vp->extents_x[1] - vp->extents_x[0],
+		           vp->extents_y[1] - vp->extents_y[0]);
+		glEnable (GL_SCISSOR_TEST);
+	
+		/* Clear the vp */
+		glClearColor (vp->clear_color[0] / 255.0f,
+		              vp->clear_color[1] / 255.0f,
+		              vp->clear_color[2] / 255.0f,
+		              vp->clear_color[3] / 255.0f);
+		glClear (GL_COLOR_BUFFER_BIT);
+	}
+}
 
-		glTexCoord2fv (vtx->texcoords.x);
-		glVertex3fv (vtx->pos.x);
+static void
+upload_current_modelview (hikaru_renderer_t *hr)
+{
+	if (!hr->current_modelview.uploaded) {
+		hr->current_modelview.uploaded = 1;
 
-		if (hr->options.enable_logging)
-			VK_LOG ("HR VERTEX %d: %9.3f %9.3f %9.3f | %6.3f %6.3f",
-			        i,
-			        vtx->pos.x[0], vtx->pos.x[1], vtx->pos.x[2],
-			        vtx->texcoords.x[0], vtx->texcoords.x[1]);
+		glMatrixMode (GL_MODELVIEW);
+		glLoadMatrixf ((GLfloat *) &hr->current_modelview.mtx[0][0]);
+	}
+}
+
+static void
+upload_current_material (hikaru_renderer_t *hr)
+{
+	hikaru_gpu_material_t *mat = &hr->current_material;
+	if (!mat->uploaded) {
+		mat->uploaded = 1;
+
+		/* XXX we only upload color 1 here, as it is used by the
+		 * BOOTROM menu. We should upload a lot more state to
+		 * uniforms, once the shader renderer lands. */
+
+		glColor3f (mat->color[1][0] / 255.0f,
+		           mat->color[1][1] / 255.0f,
+		           mat->color[1][2] / 255.0f);
+
+		if (mat->has_texture)
+			glEnable (GL_TEXTURE_2D);
+		else
+			glDisable (GL_TEXTURE_2D);
+	}
+}
+
+static void
+upload_current_texhead (hikaru_renderer_t *hr)
+{
+	hikaru_gpu_texhead_t *tex = &hr->current_texhead;
+	if (!tex->uploaded) {
+		vk_surface_t *surface = NULL;
+
+		tex->uploaded = 1;
+
+		/* Delete the old texture */
+		if (hr->textures.current != hr->textures.debug)
+			vk_surface_delete (&hr->textures.current);
+
+		/* XXX implement texhead caching */
+
+		/* Decode the texhead data into a vk_surface */
+		switch (tex->format) {
+		case HIKARU_FORMAT_RGBA5551:
+		case HIKARU_FORMAT_RGBA4444:
+			surface = decode_texhead_rgba_16 (hr, tex);
+			break;
+		case HIKARU_FORMAT_RGBA1111:
+			surface = decode_texhead_rgba1111 (hr, tex);
+			break;
+		case HIKARU_FORMAT_ALPHA8:
+			surface = decode_texhead_a8 (hr, tex);
+			break;
+		default:
+			VK_ASSERT (0);
+			break;
+		}
+
+		/* If no surface can be generated for the given texhead, bind
+		 * the debug texture. */
+		if (!surface || hr->options.force_debug_texture)
+			vk_surface_bind (hr->textures.debug);
+		else {
+			/* Upload the decoded texhead data */
+			hr->textures.current = surface;
+			vk_surface_commit (surface);
+#if 0
+			/* DEBUG */
+			vk_surface_draw (surface);
+#endif
+		}
+	}
+}
+
+static void
+upload_current_lightset (hikaru_renderer_t *hr)
+{
+	hikaru_gpu_lightset_t *ls = &hr->current_lightset;
+	if (!ls->uploaded) {
+		ls->uploaded = 1;
+
+		/* TODO */
+		glDisable (GL_LIGHTING);
+	}
+}
+
+/* This is called prior to drawing a mesh to update the currently tracked
+ * state. */
+static void
+upload_current_state (hikaru_renderer_t *hr)
+{
+	upload_current_viewport (hr);
+	upload_current_modelview (hr);
+	if (hr->options.force_wireframe) {
+		glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
+		glDisable (GL_TEXTURE_2D);
+	} else {
+		upload_current_material (hr);
+		upload_current_texhead (hr);
+		upload_current_lightset (hr);
+	}
+}
+
+static void
+free_mesh (hikaru_mesh_t *mesh)
+{
+	free (mesh->vertices);
+	mesh->vertices = NULL;
+	mesh->index = 0;
+	mesh->max = 0;
+}
+
+static void
+free_meshes (hikaru_renderer_t *hr)
+{
+	unsigned i;
+	for (i = 0; i < hr->meshes.index; i++)
+		free_mesh (&hr->meshes.array[i]);
+	free (hr->meshes.array);
+	hr->meshes.array = NULL;
+	hr->meshes.current = NULL;
+	hr->meshes.index = 0;
+	hr->meshes.max = 0;
+}
+
+#define COPY_VEC2F(d_, s_) \
+		(d_)[0] = (s_)[0]; \
+		(d_)[1] = (s_)[1];
+
+#define COPY_VEC3F(d_, s_) \
+		(d_)[0] = (s_)[0]; \
+		(d_)[1] = (s_)[1]; \
+		(d_)[2] = (s_)[2];
+
+#define DEFAULT_NUM_VERTICES_PER_MESH	32
+
+static void
+mesh_ensure_vertex_buffer (hikaru_mesh_t *mesh)
+{
+	if (mesh->index >= mesh->index) {
+		unsigned n = MAX2 (DEFAULT_NUM_VERTICES_PER_MESH, mesh->max * 2);
+		mesh->vertices = realloc (mesh->vertices, n * sizeof (hikaru_vertex_t));
+		mesh->max = n;
+	}
+}
+
+static void
+mesh_add_position_normal_texcoords (hikaru_mesh_t *mesh, vec3f_t x, vec3f_t n, vec2f_t u)
+{
+	hikaru_vertex_t *vtx;
+
+	VK_ASSERT (mesh);
+	VK_ASSERT (mesh->type == MESH_TYPE_TRI_STRIP);
+
+	mesh_ensure_vertex_buffer (mesh);
+
+	vtx = &mesh->vertices[mesh->index];
+	mesh->index++;
+
+	COPY_VEC3F (vtx->pos, x);
+	COPY_VEC3F (vtx->normal, n);
+	COPY_VEC2F (vtx->texcoords, u);
+}
+
+static void
+mesh_add_position (hikaru_mesh_t *mesh, vec3f_t x)
+{
+	hikaru_vertex_t *vtx;
+
+	VK_ASSERT (mesh);
+	VK_ASSERT (mesh->type == MESH_TYPE_TRI_LIST);
+
+	mesh_ensure_vertex_buffer (mesh);
+
+	vtx = &mesh->vertices[mesh->index];
+	mesh->index++;
+
+	memset (vtx, 0, sizeof (hikaru_vertex_t));
+	COPY_VEC3F (vtx->pos, x);
+}
+
+static void
+mesh_add_texcoords (hikaru_mesh_t *mesh, vec2f_t u[3])
+{
+	int i, j;
+
+	VK_ASSERT (mesh);
+	VK_ASSERT (mesh->type == MESH_TYPE_TRI_LIST);
+	VK_ASSERT (mesh->index >= 3);
+
+	j = mesh->index - 1;
+	for (i = 0; i < 3; i++, j--) {
+		mesh->vertices[j].texcoords[0] = u[i][0];
+		mesh->vertices[j].texcoords[1] = u[i][1];
+	}
+}
+
+static void
+mesh_draw (hikaru_mesh_t *mesh)
+{
+	GLenum gl_type;
+	unsigned i;
+
+	gl_type = (mesh->type == MESH_TYPE_TRI_LIST) ?
+	           GL_TRIANGLES : GL_TRIANGLE_STRIP;
+
+	/* Push the vertices to GL */
+	glBegin (gl_type);
+	for (i = 0; i < mesh->index; i++) {
+		hikaru_vertex_t *v = &mesh->vertices[i];
+		glTexCoord2fv (v->texcoords);
+		if (mesh->type == MESH_TYPE_TRI_STRIP);
+			glNormal3fv (v->normal);
+		glVertex3fv (v->pos);
 	}
 	glEnd ();
 }
 
 static void
-begin_vertices (hikaru_renderer_t *hr)
+draw_current_mesh (hikaru_renderer_t *hr)
 {
-	if (hr->vertex_index < 0) {
-		/* XXX lookup existing VBO or generate a new one. Return
-		 * true if a match was found. */
-		hr->vertex_index = 0;
-		hr->hack = 0;
-		if (hr->options.enable_logging)
-			VK_LOG ("HR == BEGIN VBO ==");
-	}
+	hikaru_mesh_t *mesh = hr->meshes.current;
+	if (!mesh)
+		return;
+	upload_current_state (hr);
+	LOG ("drawing mesh: mode=%d, %d vertices", mesh->type, mesh->index);
+	mesh_draw (hr->meshes.current);
 }
+
+#define DEFAULT_MAX_MESHES 256
 
 static void
-end_vertices (hikaru_renderer_t *hr)
+resize_mesh_pool_if_needed (hikaru_renderer_t *hr)
 {
-	if (hr->vertex_index >= 0) {
-		/* XXX upload the VBO; draw it */
-		if (hr->options.enable_logging)
-			VK_LOG ("HR == END VBO ==");
-		draw_vertices (hr);
-		hr->vertex_index = -1;
+	/* This condition should also be valid the first time new_mesh()
+	 * is called, as realloc() acts as malloc() when its pointer
+	 * argument is NULL. */
+	if (hr->meshes.index >= hr->meshes.max) {
+		unsigned n = MAX2 (DEFAULT_MAX_MESHES, hr->meshes.max * 2);
+		LOG ("allocating mesh pool for %u meshes", n);
+		hr->meshes.array = (hikaru_mesh_t *)
+			realloc (hr->meshes.array, sizeof (hikaru_mesh_t) * n);
+		VK_ASSERT (hr->meshes.array);
+		hr->meshes.max = n;
 	}
 }
 
-void
-hikaru_renderer_append_vertex_full (vk_renderer_t *renderer,
-                                    vec3f_t *pos,
-                                    vec3f_t *normal,
-                                    vec2f_t *texcoords)
+static hikaru_mesh_t *
+add_mesh (hikaru_renderer_t *hr, hikaru_mesh_type_t type)
 {
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-	if (!hr->options.enable_3d)
-		return;
+	hikaru_mesh_t *mesh;
 
-	if (hr->vertex_index < 0)
-		begin_vertices (hr);
+	mesh = &hr->meshes.array[hr->meshes.index];
+	mesh->type = type;
+	mesh->vertices = NULL;
+	mesh->index = 0;
+	mesh->max = 0;
 
-	hr->vertices[hr->vertex_index].pos = *pos;
-	hr->vertices[hr->vertex_index].normal = *normal;
-	hr->vertices[hr->vertex_index].texcoords = *texcoords;
-
-	hr->vertex_index++;
-	hr->hack = 0;
+	hr->meshes.current = mesh;
+	hr->meshes.index++;
+	return mesh;
 }
 
-void
-hikaru_renderer_append_vertex (vk_renderer_t *renderer, vec3f_t *pos)
+static hikaru_mesh_t *
+renderer_get_current_mesh (hikaru_renderer_t *hr,
+                           hikaru_mesh_type_t type,
+                           bool create_if_none)
 {
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-	if (!hr->options.enable_3d)
-		return;
-
-	if (hr->vertex_index < 0)
-		begin_vertices (hr);
-
-	hr->vertices[hr->vertex_index].pos = *pos;
-	hr->vertices[hr->vertex_index].normal.x[0] = 0.0f;
-	hr->vertices[hr->vertex_index].normal.x[1] = 0.0f;
-	hr->vertices[hr->vertex_index].normal.x[2] = 0.0f;
-	hr->vertices[hr->vertex_index].texcoords.x[0] = 0.0f;
-	hr->vertices[hr->vertex_index].texcoords.x[1] = 0.0f;
-	hr->vertex_index++;
-
-	hr->hack++;
-	if (hr->hack == 3) {
-		/* Three consecutive Vertex3f calls; start a new model. This
-		 * is very very hacky. */
-		if (hr->vertex_index != 3) {
-			hikaru_vertex_t temp[3];
-			temp[0] = hr->vertices[hr->vertex_index-3];
-			temp[1] = hr->vertices[hr->vertex_index-2];
-			temp[2] = hr->vertices[hr->vertex_index-1];
-			hr->vertex_index -= 3;
-			end_vertices (hr);
-			begin_vertices (hr);
-			hr->vertices[0] = temp[0];
-			hr->vertices[1] = temp[1];
-			hr->vertices[2] = temp[2];
-			hr->vertex_index = 3;
-		}
-		hr->hack = 0;
+	hikaru_mesh_t *mesh = hr->meshes.current;
+	if (mesh && mesh->type != type) {
+		VK_ABORT ("current mesh type is %u, requested mesh type is %u",
+		          mesh->type, type);
 	}
+	if (!mesh && create_if_none) {
+		resize_mesh_pool_if_needed (hr);
+		mesh = add_mesh (hr, type);
+	}
+	return mesh;
 }
 
 void
-hikaru_renderer_append_texcoords (vk_renderer_t *renderer,
+hikaru_renderer_add_vertex_full (vk_renderer_t *renderer,
+                                 vec3f_t pos,
+                                 vec3f_t normal,
+                                 vec2f_t texcoords)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+	hikaru_mesh_t *mesh;
+	if (hr->options.disable_3d)
+		return;
+	mesh = renderer_get_current_mesh (hr, MESH_TYPE_TRI_STRIP, true);
+	VK_ASSERT (mesh);
+	mesh_add_position_normal_texcoords (mesh, pos, normal, texcoords);
+}
+
+void
+hikaru_renderer_add_vertex (vk_renderer_t *renderer, vec3f_t pos)
+{
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+	hikaru_mesh_t *mesh;
+	if (hr->options.disable_3d)
+		return;
+	mesh = renderer_get_current_mesh (hr, MESH_TYPE_TRI_LIST, true);
+	VK_ASSERT (mesh);
+	mesh_add_position (hr->meshes.current, pos);
+}
+
+void
+hikaru_renderer_add_texcoords (vk_renderer_t *renderer,
                                   vec2f_t texcoords[3])
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-	if (!hr->options.enable_3d)
+	hikaru_mesh_t *mesh; 
+	if (hr->options.disable_3d)
 		return;
-
-	if (hr->vertex_index < 3) {
-		VK_LOG ("HR: bad texcoords call, vertex_index=%d, skipping", hr->vertex_index);
-	} else if (hr->vertex_index == 3) {
-		/* If it's the first */
-		int i, j = hr->vertex_index - 1;
-		for (i = 0; i < 3; i++, j--) {
-			hr->vertices[j].texcoords = texcoords[i];
-		}
-	} else {
-		int j = hr->vertex_index - 1;
-		hr->vertices[j].texcoords = texcoords[2];
-	}
-
-	hr->hack = 0;
+	mesh = renderer_get_current_mesh (hr, MESH_TYPE_TRI_LIST, false);
+	VK_ASSERT (mesh);
+	mesh_add_texcoords (mesh, texcoords);
 }
-
-#if 0
-static void
-draw_tri (hikaru_gpu_t *gpu, vec2s_t *uv0, vec2s_t *uv1, vec2s_t *uv2)
-{
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) gpu->base.mach->renderer;
-
-	int i0 = get_vertex_index (gpu->vertex_index - 1);
-	int i1 = get_vertex_index (gpu->vertex_index - 2);
-	int i2 = get_vertex_index (gpu->vertex_index - 3);
-
-	hikaru_renderer_draw_tri (hr,
-	                          &gpu->vertex_buffer[i0],
-	                          &gpu->vertex_buffer[i1],
-	                          &gpu->vertex_buffer[i2],
-	                          true,
-	                          gpu->current_ms->color[1],
-	                          gpu->current_ms->has_texture,
-	                          uv0, uv1, uv2);
-}
-#endif
 
 void
-hikaru_renderer_end_vertex_data (vk_renderer_t *renderer)
+hikaru_renderer_end_mesh (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-	if (!hr->options.enable_3d)
+	if (hr->options.disable_3d)
 		return;
-	end_vertices (hr);
+	draw_current_mesh (hr);
+	hr->meshes.current = NULL;
 }
 
 /* 2D Rendering */
 
 static vk_surface_t *
-upload_layer_rgba5551 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
+decode_layer_rgba5551 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 {
 	vk_surface_t *surface;
 	uint32_t x, y;
@@ -521,7 +770,7 @@ upload_layer_rgba5551 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 }
 
 static vk_surface_t *
-upload_layer_rgba8888 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
+decode_layer_rgba8888 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 {
 	vk_surface_t *surface;
 	uint32_t x, y;
@@ -545,13 +794,12 @@ upload_layer (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 {
 	vk_surface_t *surface;
 
-	if (layer->format == LAYER_FORMAT_RGBA8888)
-		surface = upload_layer_rgba8888 (hr, layer);
+	if (layer->format == HIKARU_FORMAT_RGBA8888)
+		surface = decode_layer_rgba8888 (hr, layer);
 	else
-		surface = upload_layer_rgba5551 (hr, layer);
+		surface = decode_layer_rgba5551 (hr, layer);
 
 	vk_surface_commit (surface);
-
 	return surface;
 }
 
@@ -561,112 +809,61 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer, hikaru_gpu_layer_t *layer)
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 	vk_surface_t *surface;
 
-	if (!hr->options.enable_2d)
+	if (hr->options.disable_2d)
 		return;
 
-	if (hr->options.enable_logging)
-		VK_LOG ("HR: rendering layer: %s", get_gpu_layer_str (layer));
-
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity ();
-	glOrtho (0.0f, 640.0f,	/* left, right */
-	         480.0f, 0.0f,	/* bottom, top */
-	         -1.0f, 1.0f);	/* near, far */
-
-	glMatrixMode (GL_MODELVIEW);
-	glLoadIdentity ();
-
-	glMatrixMode (GL_TEXTURE);
-	glLoadIdentity ();
+	LOG ("drawing layer %s", get_gpu_layer_str (layer));
 
 	glDisable (GL_SCISSOR_TEST);
-	glEnable (GL_TEXTURE_2D);
+
+	/* XXX cache the layers and use dirty rectangles to upload only the
+	 * quads that changed. */
+	/* XXX change the renderer so that the ortho projection can be
+	 * set up correctly depending on the actual window size. */
 
 	surface = upload_layer (hr, layer);
 	if (!surface) {
-		VK_ERROR ("HR layer: can't upload layer to OpenGL, skipping");
+		VK_ERROR ("HR LAYER: can't upload layer to OpenGL, skipping");
 		return;
 	}
-
-	glBegin (GL_TRIANGLE_STRIP);
-		glTexCoord2f (0.0f, 0.0f); glVertex3f (0.0f, 0.0f, 0.0f);
-		glTexCoord2f (1.0f, 0.0f); glVertex3f (640.0f, 0.0f, 0.0f);
-		glTexCoord2f (0.0f, 1.0f); glVertex3f (0.0f, 480.0f, 0.0f);
-		glTexCoord2f (1.0f, 1.0f); glVertex3f (640.0f, 480.0f, 0.0f);
-	glEnd ();
-
+	vk_surface_draw (surface);
 	vk_surface_delete (&surface);
 }
 
 /* Debug */
 
 static void
-draw_fb_or_texram (hikaru_renderer_t *hr, bool fb)
-{
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity ();
-	glOrtho (0.0f, 640.0f,	/* left, right */
-	         480.0f, 0.0f,	/* bottom, top */
-	         -1.0f, 1.0f);	/* near, far */
-
-	glMatrixMode (GL_MODELVIEW);
-	glLoadIdentity ();
-
-	glMatrixMode (GL_TEXTURE);
-	glLoadIdentity ();
-	glScalef (1.0f/2048, 1.0f/2048, 1.0f);
-
-	glEnable (GL_TEXTURE_2D);
-
-	if (fb)
-		vk_surface_bind (hr->fb_surface);
-	else
-		vk_surface_bind (hr->texram_surface);
-
-	glBegin (GL_TRIANGLE_STRIP);
-		glTexCoord2i (0, 0); glVertex3f (0.0f, 0.0f, 0.0f);
-		glTexCoord2i (2047, 0); glVertex3f (639.0f, 0.0f, 0.0f);
-		glTexCoord2i (0, 2047); glVertex3f (0.0f, 479.0f, 0.0f);
-		glTexCoord2i (2047, 2047); glVertex3f (639.0f, 479.0f, 0.0f);
-	glEnd ();
-}
-
-static void
 upload_fb (hikaru_renderer_t *hr)
 {
-	unsigned x, y;
-
+	uint32_t x, y;
+	VK_ASSERT (hr->textures.fb);
 	for (y = 0; y < 2048; y++) {
 		uint32_t yoffs = y * 4096;
 		for (x = 0; x < 2048; x++) {
 			uint32_t offs = yoffs + x * 2;
 			uint32_t texel = vk_buffer_get (hr->fb, 2, offs);
-			vk_surface_put16 (hr->fb_surface, x ^ 1, y, texel);
+			vk_surface_put16 (hr->textures.fb, x ^ 1, y, texel);
 		}
 	}
-	vk_surface_commit (hr->fb_surface);
-
-	draw_fb_or_texram (hr, true);
+	vk_surface_commit (hr->textures.fb);
 }
 
 static void
 upload_texram (hikaru_renderer_t *hr)
 {
-	unsigned x, y;
-
+	uint32_t x, y;
+	VK_ASSERT (hr->textures.texram);
 	for (y = 0; y < 1024; y++) {
 		uint32_t yoffs = y * 4096;
 		for (x = 0; x < 2048; x++) {
 			uint32_t texel, offs = yoffs + x * 2;
 			texel = vk_buffer_get (hr->texram[0], 2, offs);
-			vk_surface_put16 (hr->texram_surface, x ^ 1, y, texel);
+			vk_surface_put16 (hr->textures.texram, x ^ 1, y, texel);
 			texel = vk_buffer_get (hr->texram[1], 2, offs);
-			vk_surface_put16 (hr->texram_surface, 1024 + (x ^ 1), y, texel);
+			vk_surface_put16 (hr->textures.texram, 1024 + (x ^ 1), y, texel);
 		}
 	}
-	vk_surface_commit (hr->texram_surface);
-
-	draw_fb_or_texram (hr, false);
+	vk_surface_commit (hr->textures.texram);
 }
 
 /* Interface */
@@ -676,19 +873,36 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	/* Setup some state */
-	hr->modelview_num_up = 0;
-	hr->vertex_index = -1;
-	hr->hack = 0;
+	free_meshes (hr);
 
+	hr->current_viewport.set = 0;
+	hr->current_viewport.uploaded = 0;
+
+	hr->current_modelview.set = 0;
+	hr->current_modelview.uploaded = 0;
+
+	hr->current_texhead.set = 0;
+	hr->current_texhead.uploaded = 0;
+
+	hr->current_material.set = 0;
+	hr->current_material.uploaded = 0;
+
+	hr->current_lightset.set = 0;
+	hr->current_lightset.uploaded = 0;
+
+	/* clear the frame buffer to a bright pink color */
 	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	if (hr->options.draw_fb)
+	/* Draw the FB and/or TEXRAM if asked to do so */
+	if (hr->options.draw_fb) {
 		upload_fb (hr);
-
-	if (hr->options.draw_texram)
+		vk_surface_draw (hr->textures.fb);
+	}
+	if (hr->options.draw_texram) {
 		upload_texram (hr);
+		vk_surface_draw (hr->textures.texram);
+	}
 }
 
 static void
@@ -700,7 +914,10 @@ hikaru_renderer_end_frame (vk_renderer_t *renderer)
 static void
 hikaru_renderer_reset (vk_renderer_t *renderer)
 {
-	(void) renderer;
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	free_meshes (hr);
+	free_textures (hr);
 }
 
 static void
@@ -708,17 +925,19 @@ hikaru_renderer_delete (vk_renderer_t **renderer_)
 {
 	if (renderer_) {
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
-		vk_surface_delete (&hr->fb_surface);
-		vk_surface_delete (&hr->texram_surface);
-		vk_surface_delete (&hr->texhead_surface);
-		vk_surface_delete (&hr->debug_surface);
+		vk_surface_delete (&hr->textures.current);
+		vk_surface_delete (&hr->textures.fb);
+		vk_surface_delete (&hr->textures.texram);
+		vk_surface_delete (&hr->textures.debug);
+		free_meshes (hr);
+		free_textures (hr);
 	}
 }
 
 static vk_surface_t *
 build_debug_surface (void)
 {
-	/* Build a colorful, 2x2 checkerboard surface */
+	/* Build a colorful 2x2 checkerboard surface */
 	vk_surface_t *surface = vk_surface_new (2, 2, VK_SURFACE_FORMAT_RGBA4444);
 	if (!surface)
 		return NULL;
@@ -730,11 +949,41 @@ build_debug_surface (void)
 	return surface;
 }
 
+static bool
+build_default_surfaces (hikaru_renderer_t *hr)
+{
+	if (hr->options.draw_fb) {
+		hr->textures.fb = vk_surface_new (
+			2048, 2048, VK_SURFACE_FORMAT_RGBA5551);
+		if (!hr->textures.fb) {
+			VK_ERROR ("HR: failed to create FB surface, turning off");
+			hr->options.draw_fb = false;
+		}
+	}
+
+	if (hr->options.draw_texram) {
+		hr->textures.texram = vk_surface_new (
+			2048, 2048, VK_SURFACE_FORMAT_RGBA5551);
+		if (!hr->textures.texram) {
+			VK_ERROR ("HR: failed to create TEXRAM surface, turning off");
+			hr->options.draw_texram = false;
+		}
+	}
+
+	hr->textures.debug = build_debug_surface ();
+	if (!hr->textures.debug)
+		return false;
+
+	return true;
+}
+
 vk_renderer_t *
 hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 {
 	hikaru_renderer_t *hr = ALLOC (hikaru_renderer_t);
 	if (hr) {
+		int ret;
+
 		hr->base.width = 640;
 		hr->base.height = 480;
 
@@ -743,32 +992,34 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 		hr->base.begin_frame = hikaru_renderer_begin_frame;
 		hr->base.end_frame = hikaru_renderer_end_frame;
 
-		/* XXX handle the return value */
-		vk_renderer_init ((vk_renderer_t *) hr);
+		ret = vk_renderer_init ((vk_renderer_t *) hr);
+		if (ret)
+			return NULL;
 
 		/* Setup machine buffers */
 		hr->fb = fb;
 		hr->texram[0] = texram[0];
 		hr->texram[1] = texram[1];
 
-		/* XXX handle the return value */
-		hr->fb_surface = vk_surface_new (2048, 2048, VK_SURFACE_FORMAT_RGBA4444);
-		hr->texram_surface = vk_surface_new (2048, 2048, VK_SURFACE_FORMAT_RGBA4444);
-		hr->debug_surface = build_debug_surface ();
-
 		/* Read options from the environment */
-		hr->options.enable_logging =
+		hr->options.log =
 			vk_util_get_bool_option ("HR_LOG", false);
-		hr->options.enable_2d =
-			vk_util_get_bool_option ("HR_ENABLE_2D", true);
-		hr->options.enable_3d =
-			vk_util_get_bool_option ("HR_ENABLE_3D", true);
+		hr->options.disable_2d =
+			vk_util_get_bool_option ("HR_DISABLE_2D", false);
+		hr->options.disable_3d =
+			vk_util_get_bool_option ("HR_DISABLE_3D", false);
 		hr->options.draw_fb =
 			vk_util_get_bool_option ("HR_DRAW_FB", false);
 		hr->options.draw_texram =
 			vk_util_get_bool_option ("HR_DRAW_TEXRAM", false);
 		hr->options.force_debug_texture =
 			vk_util_get_bool_option ("HR_FORCE_DEBUG_TEXTURE", false);
+		hr->options.force_wireframe =
+			vk_util_get_bool_option ("HR_FORCE_WIREFRAME", false);
+
+		/* Create a few surfaces */
+		if (!build_default_surfaces (hr))
+			return NULL;
 	}
 	return (vk_renderer_t *) hr;
 }

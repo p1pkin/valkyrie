@@ -58,51 +58,19 @@ typedef union {
 
 /* Vectors */
 
-typedef struct {
-	uint16_t x[2];
-} vec2s_t;
+typedef uint8_t vec3b_t[3];
+typedef uint8_t vec4b_t[4];
 
-typedef struct {
-	uint32_t x[2];
-} vec2i_t;
+typedef uint16_t vec2s_t[2];
+typedef uint16_t vec3s_t[3];
 
-typedef struct {
-	float x[2];
-} vec2f_t;
-
-typedef struct {
-	uint8_t x[3];
-} vec3b_t;
-
-typedef struct {
-	uint16_t x[3];
-} vec3s_t;
-
-typedef struct {
-	float x[3];
-} vec3f_t;
-
-typedef struct {
-	uint8_t x[4];
-} vec4b_t;
-
-typedef struct {
-	float x[3];
-	float n[3];
-} vecnrm3f_t;
+typedef float vec2f_t[2];
+typedef float vec3f_t[3];
 
 /* Matrices */
 
-typedef struct {
-	float x[3][3];
-} mtx3x3f_t;
-
-typedef struct {
-	float x[4][3];
-} mtx4x3f_t;
-
-typedef struct {
-	float x[4][4];
-} mtx4x4f_t;
+typedef float mtx3x3f_t[3][3];
+typedef float mtx4x3f_t[4][3];
+typedef float mtx4x4f_t[4][4];
 
 #endif /* __VK_TYPES_H__ */

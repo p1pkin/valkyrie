@@ -94,6 +94,8 @@ typedef struct {
 } hikaru_t;
 
 vk_machine_t	*hikaru_new (vk_game_t *game);
-void		 hikaru_raise_irq (vk_machine_t *mach, unsigned num, uint16_t porta);
+void		 hikaru_raise_gpu_irq (vk_machine_t *mach);
+void		 hikaru_raise_aica_irq (vk_machine_t *mach);
+void		 hikaru_raise_memctl_irq (vk_machine_t *mach);
 
 #endif /* __VK_HIKARU_H__ */

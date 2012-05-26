@@ -23,79 +23,72 @@
 #include "mach/hikaru/hikaru-gpu.h"
 #include "mach/hikaru/hikaru-gpu-private.h"
 #include "mach/hikaru/hikaru-renderer.h"
-#include "cpu/sh/sh4.h"
 
 /* TODO: figure out what is 4Cxxxxxx; there are a few CALL commands to that
  * bus bank in the BOOTROM command streams. */
-/* TODO: handle slave access */
-/* TODO: figure out the following: 
- * Shading		Flat, Linear, Phong
- * Lighting		Horizontal, Spot, 1024 lights per scene, 4 lights
- *			per polygon, 8 window surfaces. 
- * Effects		Phong Shading, Fog, Depth Queueing, Stencil, Shadow [?]
- *			Motion blur
- */
+/* TODO: handle slave access here */
 
 /*
  * Overview
  * ========
  *
  * Unknown hardware, possibly tailor-made for the Hikaru by SEGA. All ICs are
- * branded SEGA, and the PCI IDs are as well. It is known to handle fire
- * and water effects quite well, but it's unlikely to be equipped with more
- * than a fixed-function pipeline (it was developed in 1998-1999 after all.)
+ * branded SEGA, and the PCI IDs are as well.
  *
  * The GPU includes two distinct PCI IDs: 17C7:11DB and 17C3:11DB. The former
  * is visible from the master SH-4 side, the latter from the slave side.
+ *
+ * The GPU includes at least:
+ *
+ *  - A command processor (CP) which processes geometric primitives, and an
+ *    image generator/rasterizer. The former is controlled by the MMIOs at
+ *    15xxxxxx, the second by the MMIOs at 1Axxxxxx.
+ *
+ *    The CP executes instructions located in CMDRAM. It has an etherogeneous
+ *    32-bit instruction set with variable-lenght instructions. It is capable
+ *    of calling sub-routines, and therefore is likely to hold a stack
+ *    somewhere.
+ *
+ *    The CMDRAM is located at 48000000-403FFFFF in external BUS space,
+ *    14000000-143FFFFF in master SH-4 space, and 10000000-103FFFFF in slave
+ *    SH-4 space.
+ *
+ * NOTE: there may be two command processors. Notice how there are a bunch
+ * of symmetrical graphical-related ICs on the motherboard, and many MMIOs
+ * contain mirrors that get filled with the same values plus an offset, for
+ * instance 150000{18+,38+} and 1500007{4,8}.
+ *
+ *  - An indirect DMA device (IDMA), which is used to load texture data into
+ *    TEXRAM; each texture transferred is accompanied by metadata (size,
+ *    format, etc.) The TEXRAM holds texture data used by the 3D command
+ *    processor.
+ *
+ *    The device can be accessed through the MMIOs at 150000{0C,10,14}.
+ *
+ *  - A DMA device, used to move textures around in FB. In particular, it is
+ *    used to transfer bitmap data directly to the 2D layers, which are then
+ *    composed with the framebuffer data (the result of 3D rendering) and
+ *    displayed on screen by the image generator.
+ *
+ *    The device can be accessed thru the MMIOs at 1A0400{00,04,08,0C}.
  *
  * There are likely two different hardware revisions: the bootrom checks for
  * them by checking the reaction of the hardware (register 15002000) after
  * poking a few registers. See @0C001AC4.
  *
- * The GPU(s) include at least:
+ * XXX the biggest issue right now is figuring out when does CP execution
+ * starts and ends, and the layer priority wrt to the 3D framebuffer.
  *
- *  - A geometry engine (likely the command processor here; located at
- *    150xxxxx) and a rendering engine (likely the texture-related device
- *    at 1A0xxxxx).
  *
- *  - A command stream processor, which executes instructions in CMDRAM,
- *    with an etherogeneous 32-bit ISA and variable-length instructions.
- *    It is capable to call sub-routines, and so is likely to hold a
- *    stack somewhere.
- *
- *    The code is held in CMDRAM, which is at 14300000-143FFFFF in the master
- *    SH-4 address space, 10000000-103FFFFF in slave SH-4 space, and
- *    48000000-483FFFFF in bus address space.
- *
- *    The device can be controlled by the MMIOs at 150000{58,...,8C}.
- *
- *    My guess is that even and odd frames are processed by two different,
- *    identical processors. NOTE that there are a bunch of 'double'
- *    symmetrical ICs on the motherboard, in the GPU-related portion.
- *
- *  - An indirect DMA device which is used to load texture data into TEXRAM;
- *    each texture transferred is accompanied by metadata (size, format,
- *    etc.)
- *
- *    The device can be accessed thru the MMIOs at 150000{0C,10,14}.
- *
- *  - A DMA device, used to move textures around in FB. In particular, it is
- *    used to transfer bitmap data directly to the 2D layers, which are then
- *    composed with the framebuffer data (the result of 3D rendering.)
- *
- *    The device can be accessed thru the MMIOs at 1A0400{00,04,08,0C}.
- */
-
-/*
- * GPU Address Space
- * =================
+ * Address Space
+ * =============
  *
  * The GPU has access to the whole external BUS address space. See
  * hikaru-memctl.c for more details.
  *
  *
- * GPU MMIOs at 15000000
- * =====================
+ * MMIOs at 15000000
+ * =================
  *
  * NOTE: all ports are 32-bit wide, unless otherwise noted.
  *
@@ -112,7 +105,7 @@
  * GPU IDMA
  * --------
  *
- * 1500000C,10,14	Indirect DMA (IDMA) MMIOs
+ * 150000{0C,10,14}	Indirect DMA (IDMA) MMIOs
  *
  * See 'GPU IDMA' below.
  *
@@ -142,16 +135,15 @@
  *
  * NOTE: same as Config A, plus an offset of +80000 or +8000.
  *
- * Command Stream Control
- * ----------------------
+ * Command Processor Control
+ * -------------------------
  *
- * 15000058   W		CS Control; = 3
- *			If both bits 0 and 1 are set, start CS execution
- *
- * 15000070   W		CS Address; = 48000100
- * 15000074   W		CS Processor 0 SP?; = 483F0100
- * 15000078   W		CS Processor 1 SP?; = 483F8100
- * 1500007C   W		CS Abort Execution when 0-then-1 are written?
+ * 15000058   W		CP Control; = 3
+ *			If both bits 0 and 1 are set, start CP execution
+ * 15000070   W		CP Start Address
+ * 15000074   W		CP Processor 0 Stack Pointer?
+ * 15000078   W		CP Processor 1 Stack Pointer?
+ * 1500007C   W		CP Abort Execution when 0-then-1 are written?
  *			 See @0C006AFC.
  *
  * Unknown
@@ -199,6 +191,9 @@
  * Performance Counters
  * --------------------
  *
+ * These ports return the number of primitives of a certain type pushed/
+ * traversed/rendered by the hardware.
+ *
  * 15002800  R		# of Opaque Primitives
  * 15002804  R		# of 'Shadow A' Primitives
  * 15002808  R		# of 'Shadow B' Primitives
@@ -223,8 +218,8 @@
  * 15040E00   W		Unknown; = 0
  *
  *
- * GPU MMIOs at 18001000
- * =====================
+ * MMIOs at 18001000
+ * =================
  *
  * NOTE: these ports are always read twice.
  *
@@ -237,8 +232,8 @@
  * 1800101C   W		Unknown; = F3000000
  *
  *
- * GPU MMIOs at 1A000000
- * =====================
+ * MMIOs at 1A000000
+ * =================
  *
  * NOTE: these ports are always read twice.
  *
@@ -362,12 +357,6 @@
  * Framebuffer/2D Layer Control
  * ----------------------------
  *
- * Unit 0 and 1 MMIOs are identical. The values stored in unit 0 MMIOs are
- * copied into unit 1 MMIOs in @0C00689E.
- *
- * Each bank supposedly specifies a layer. No idea why there are two units
- * though.
- *
  * 1A000100  RW		Unknown control
  *
  *			-------- -------- -------- ----uuuu
@@ -379,8 +368,13 @@
  *			NOTE: perhaps it selects between FB unit 0 and unit 1
  *			for on a per-layer basis?
  *
- * 1A000180-1A0001BF	FB Unit 0 MMIOs
- * 1A000200-1A00023F	FB Unit 1 MMIOs
+ * 1A000180-1A0001BF	FB Unit 0 MMIOs (four banks)
+ * 1A000200-1A00023F	FB Unit 1 MMIOs (four banks)
+ *
+ * Unit 0 and 1 MMIOs are identical. The values stored in unit 0 MMIOs are
+ * copied into unit 1 MMIOs in @0C00689E. Each bank supposedly specifies a
+ * layer or a framebuffer(/backbuffer?) location in the FB. No idea why there
+ * are two units though.
  *
  * See '2D Layers' below.
  *
@@ -399,7 +393,7 @@
  * Unknown
  * -------
  *
- * 1A08006C  R		Unknown
+ * 1A08006C  R		Unknown, See AT:@0C697A5E.
  *
  * 1A0A1600   W		Unknown (seems related 15040E00, see PHARRIER)
  */
@@ -444,7 +438,7 @@
  * anything related to the 1A00xxxx registers (including texture FIFO, etc.)
  * When raised, they set bit 8 in 15000088.
  *
- * [1] This bit is checked in @0C001C08 and updates (0, GBR) and implies
+ * [1] This bit is checked at @0C001C08 and updates (0, GBR) and implies
  *     1A000000 = 1.
  */
 
@@ -467,9 +461,10 @@ typedef enum {
 } _1a_irq_t;
 
 static void
-hikaru_gpu_update_irqs (hikaru_gpu_t *gpu) 
+hikaru_gpu_update_irq_status (hikaru_gpu_t *gpu) 
 {
 	vk_cpu_t *cpu = ((hikaru_t *) gpu->base.mach)->sh_current;
+
 	/* Update 1A000018 from 1A0000[08,0C,10,14] */
 	REG1A (0x18) = (REG1A (0x18) & ~0xF) |
 	               (REG1A (0x08) & 1) |
@@ -481,14 +476,12 @@ hikaru_gpu_update_irqs (hikaru_gpu_t *gpu)
 	if (REG1A (0x18) & 0xF)
 		REG15 (0x88) |= 0x80;
 
-	/* XXX move this to hikaru.c */
-
 	/* Raise IRL2 and lower bit 5 of the PDTRA, if the IRQs are
 	 * not masked. */
 	if (REG15 (0x88) & REG15 (0x84)) {
 		VK_CPU_LOG (cpu, " ## sending GPU IRQ to CPU: %02X/%02X",
 		            REG15 (0x84), REG15 (0x88));
-		hikaru_raise_irq (gpu->base.mach, SH4_IESOURCE_IRL2, 0x40);
+		hikaru_raise_gpu_irq (gpu->base.mach);
 	}
 }
 
@@ -504,7 +497,7 @@ hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A)
 	if (_1A & 8)
 		REG1A (0x14) |= 1;
 	REG15 (0x88) |= _15;
-	hikaru_gpu_update_irqs (gpu);
+	hikaru_gpu_update_irq_status (gpu);
 }
 
 /*
@@ -547,34 +540,39 @@ hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A)
  * new data (subroutine) to continue processing.
  *
  * When execution ends:
- * XXX CHECK ALL THIS AGAIN PLEASE
- *  1A00000C bit 0 is set
+ *  1A00000C bit 0 is set XXX CHECK ME
  *  1A000018 bit 1 is set as a consequence
  *  15000088 bit 7 is set as a consequence
  *  15000088 bit 1 is set; a GPU IRQ is raised (if not masked by 15000084)
- *  15002000 bit 0 is set on some HW revisions
- *  1A000024 bit 0 is cleared if some additional condition occurred
+ *  15002000 bit 0 is set on some HW revisions XXX CHECK ME
+ *  1A000024 bit 0 is cleared if some additional condition occurred XXX CHECK ME
  *
  * 15002000 and 1A000024 signal different things; see the termination
  * condition in sync()
+ *
+ * Guesstimate: 15000088 bit 1 is set when the CP ends verifying/processing
+ * the CS; 15002000 is cleared when the CP submits the completely rasterized
+ * frame buffer to the GPU 1A; 1A000024 is cleared when the GPU 1A is done
+ * compositing the framebuffer with the 2D layers and has displayed them
+ * on-screen.
  */
 
 static void
-hikaru_gpu_update_cs_status (hikaru_gpu_t *gpu)
+hikaru_gpu_update_cp_status (hikaru_gpu_t *gpu)
 {
 	/* Check the GPU 15 execute bits */
 	if (REG15 (0x58) == 3) {
-		gpu->cs.is_running = true;
+		gpu->cp.is_running = true;
 
-		gpu->cs.pc = REG15 (0x70);
-		gpu->cs.sp[0] = REG15 (0x74);
-		gpu->cs.sp[1] = REG15 (0x78);
+		gpu->cp.pc = REG15 (0x70);
+		gpu->cp.sp[0] = REG15 (0x74);
+		gpu->cp.sp[1] = REG15 (0x78);
 	} else
 		REG1A (0x24) = 0; /* XXX really? */
 }
 
-static void
-hikaru_gpu_end_processing (hikaru_gpu_t *gpu)
+void
+hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu)
 {
 	/* Turn off the busy bits */
 	REG15 (0x58) &= ~3;
@@ -582,33 +580,6 @@ hikaru_gpu_end_processing (hikaru_gpu_t *gpu)
 
 	/* Notify that GPU 15 is done and needs feeding */
 	hikaru_gpu_raise_irq (gpu, _15_IRQ_DONE, _1A_IRQ_DONE);
-}
-
-int hikaru_gpu_exec_one (hikaru_gpu_t *gpu);
-
-static void
-hikaru_gpu_exec_cs (hikaru_gpu_t *gpu, int cycles)
-{
-	/* XXX the second condition shouldn't be needed if is_running is
-	 * updated properly... */
-	if (!gpu->cs.is_running || REG15 (0x58) != 3)
-		return 0;
-
-	gpu->materials.offset = 0;
-	gpu->texheads.offset = 0;
-	gpu->lights.offset = 0;
-
-	/* XXX hack, no idea how fast the GPU is or how much time each
-	 * command takes. */
-	gpu->cs.cycles = cycles;
-	while (gpu->cs.cycles > 0) {
-		if (hikaru_gpu_exec_one (gpu)) {
-			hikaru_gpu_end_processing (gpu);
-			gpu->cs.cycles = 0;
-			break;
-		}
-		gpu->cs.cycles--;
-	}
 }
 
 /*
@@ -834,8 +805,26 @@ hikaru_gpu_exec_cs (hikaru_gpu_t *gpu, int cycles)
 void
 slot_to_coords (uint32_t *basex, uint32_t *basey, uint32_t slotx, uint32_t sloty)
 {
-	*basex = (slotx - 0x80) * 16;
-	*basey = (sloty - 0xC0) * 16;
+	if (slotx < 0x80 || sloty < 0xC0) {
+		/*
+		 * This case is triggered by the following CP code, used by
+		 * the BOOTROM:
+		 *
+		 * GPU CMD 480008B0: Texhead: Set Unknown [000100C1]
+		 * GPU CMD 480008B4: Texhead: Set Format/Size [C08002C1]
+		 * GPU CMD 480008B8: Texhead: Set Slot [0000C4C1]
+		 * GPU CMD 480008BC: Commit Texhead [000010C4] n=0 e=1
+		 * GPU CMD 480008C0: Recall Texhead [000010C3] () n=0 e=1
+		 *
+		 * Note how the params to 2C1 and 4C1 are swapped.
+		 */
+		VK_ERROR ("GPU: invalid slot %X,%X", slotx, sloty);
+		*basex = 0;
+		*basey = 0;
+	} else {
+		*basex = (slotx - 0x80) * 16;
+		*basey = (sloty - 0xC0) * 16;
+	}
 }
 
 static uint32_t
@@ -918,6 +907,11 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	exp_size[0] = texhead.width * texhead.height * 2;
 	exp_size[1] = calc_full_texture_size (&texhead);
 
+	/* Adjust the width for the RGBA1111 format; yes, it's actually 2,
+	 * not 4. Er, maybe. XXX */
+	if (texhead.format == HIKARU_FORMAT_RGBA1111)
+		texhead.width *= 2;
+
 	/* XXX this check isn't clever enough to figure out that AIRTRIX
 	 * texture blobs _do_ have a mipmap. However even if we miss a
 	 * mipmap or two, it shouldn't be that big of a problem. */
@@ -941,10 +935,10 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 		/* continue anyway */
 	}
 
-	if (texhead.format != FORMAT_RGBA5551 &&
-	    texhead.format != FORMAT_RGBA4444 &&
-	    texhead.format != FORMAT_RGBA1111 &&
-	    texhead.format != FORMAT_ALPHA8) {
+	if (texhead.format != HIKARU_FORMAT_RGBA5551 &&
+	    texhead.format != HIKARU_FORMAT_RGBA4444 &&
+	    texhead.format != HIKARU_FORMAT_RGBA1111 &&
+	    texhead.format != HIKARU_FORMAT_ALPHA8) {
 		VK_ERROR ("GPU IDMA: unknown texhead format: %s",
 		          get_gpu_texhead_str (&texhead));
 		/* continue anyway */
@@ -1003,7 +997,9 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 	}
 }
 
-/* XXX convert to begin/step/end */
+/* XXX convert to begin/step/end; according to PHARRIER, the DMA operation
+ * should take more or less C cycles for each texel, where C is a small
+ * constant. */
 static void
 hikaru_gpu_begin_dma (hikaru_gpu_t *gpu)
 {
@@ -1051,10 +1047,10 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 
 			format = (REG1AUNIT (0, 0x30) >> (bank - 1)) & 1;
 			if (format == 0) {
-				layer.format = LAYER_FORMAT_RGBA5551;
+				layer.format = HIKARU_FORMAT_RGBA5551;
 				shift = 1;
 			} else {
-				layer.format = LAYER_FORMAT_RGBA8888;
+				layer.format = HIKARU_FORMAT_RGBA8888;
 				shift = 2;
 			}
 
@@ -1062,25 +1058,6 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 			layer.y0 = lo >> 9;
 			layer.x1 = (hi & 0x1FF) << shift;
 			layer.y1 = hi >> 9;
-
-			/*
-			 * BOOTROM
-			 *
-			 * 3 ; 0 1 3 6
-			 *
-			 * BRAVEFF
-			 *
-			 * 0 ; 1 1 3 6
-			 *
-			 * AIRTRIX (16 bpp)
-			 *
-			 * 1 3 3 6	-> warning
-			 * 1 2 0 3	warning -> sega + white
-			 * 1 3 0 3 	sega + white
-			 *
-			 * PHARRIER (32 bpp)
-			 * 7 3 3 7
-			 */
 
 			VK_LOG ("GPU LAYER %u: %s [%X; %X %X %X %X] fmt=%u",
 			        bank, get_gpu_layer_str (&layer),
@@ -1101,6 +1078,8 @@ hikaru_gpu_hblank_in (vk_device_t *dev, unsigned line)
 {
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
 
+	/* Update the line counter; we ignore the _putative_ pixel counter
+	 * as it doesn't seem to be used so far. */
 	REG1A(0x1C) = (REG1A(0x1C) & ~0x003FF800) | (line << 11);
 }
 
@@ -1119,13 +1098,12 @@ hikaru_gpu_vblank_out (vk_device_t *dev)
 	hikaru_gpu_render_bitmap_layers (gpu);
 }
 
+void hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles);
+
 static int
 hikaru_gpu_exec (vk_device_t *dev, int cycles)
 {
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
-
-	if (!gpu->renderer)
-		gpu->renderer = dev->mach->renderer;
 
 	/* Exec the DMA */
 	/* XXX */
@@ -1133,8 +1111,9 @@ hikaru_gpu_exec (vk_device_t *dev, int cycles)
 	/* Exec the IDMA */
 	hikaru_gpu_step_idma (gpu);
 
-	/* Exec the CS */
-	hikaru_gpu_exec_cs (gpu, cycles);
+	/* Exec the CP */
+	if (REG15 (0x58) == 3)
+		hikaru_gpu_cp_exec (gpu, cycles);
 
 	return 0;
 }
@@ -1157,9 +1136,8 @@ hikaru_gpu_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 				set_ptr (val, 2, REG15 (addr));
 				return 0;
 			}
-		case 0x88:
-			break;
 		case 0x14:
+		case 0x88:
 			break;
 		default:
 			return -1;
@@ -1221,17 +1199,17 @@ hikaru_gpu_put (vk_device_t *device, size_t size, uint32_t addr, uint64_t val)
 		case 0x94:
 		case 0x98:
 			break;
-		case 0x58: /* Control */
+		case 0x58: /* CP Control */
 			REG15 (0x58) = val;
-			hikaru_gpu_update_cs_status (gpu);
+			hikaru_gpu_update_cp_status (gpu);
 			return 0;
 		case 0x84: /* IRQ mask */
 			REG15 (addr) = val;
-			hikaru_gpu_update_irqs (gpu);
+			hikaru_gpu_update_irq_status (gpu);
 			return 0;
 		case 0x88: /* IRQ status */
 			REG15 (addr) &= val;
-			hikaru_gpu_update_irqs (gpu);
+			hikaru_gpu_update_irq_status (gpu);
 			return 0;
 		default:
 			return -1;
@@ -1259,11 +1237,11 @@ hikaru_gpu_put (vk_device_t *device, size_t size, uint32_t addr, uint64_t val)
 			 * the other bits. */
 			VK_ASSERT (val == 1);
 			REG1A(addr) &= ~val;
-			hikaru_gpu_update_irqs (gpu);
+			hikaru_gpu_update_irq_status (gpu);
 			return 0;
 		case 0x24:
 			REG1A (addr) = val;
-			hikaru_gpu_update_cs_status (gpu);
+			hikaru_gpu_update_cp_status (gpu);
 			return 0;
 		case 0x80 ... 0xC0: /* Display Config? */
 		case 0xC4: /* Unknown control */
@@ -1303,17 +1281,12 @@ hikaru_gpu_reset (vk_device_t *dev, vk_reset_type_t type)
 	memset (gpu->regs_1A_unit[0], 0, 0x40);
 	memset (gpu->regs_1A_fifo, 0, 0x10);
 
-	memset (&gpu->cs, 0, sizeof (gpu->cs));
-
 	memset (&gpu->viewports, 0, sizeof (gpu->viewports));
 	memset (&gpu->materials, 0, sizeof (gpu->materials));
 	memset (&gpu->texheads, 0, sizeof (gpu->texheads));
 	memset (&gpu->lights, 0, sizeof (gpu->lights));
-	memset (&gpu->mtx, 0, sizeof (gpu->mtx));
 
-	gpu->viewports.scratch.used = 1;
-	gpu->materials.scratch.used = 1;
-	gpu->texheads.scratch.used = 1;
+	gpu->cp.is_running = 0;
 }
 
 const char *
@@ -1323,55 +1296,52 @@ hikaru_gpu_get_debug_str (vk_device_t *dev)
 	static char out[256];
 
 	sprintf (out, "@%08X %u 15:58=%u 1A:24=%u 15:84=%X 15:88=%X 1A:18=%X",
-	         gpu->cs.pc, (unsigned) gpu->cs.is_running,
+	         gpu->cp.pc, (unsigned) gpu->cp.is_running,
 	         REG15 (0x58), REG1A (0x24),
 	         REG15 (0x84), REG15 (0x88), REG1A (0x18));
 
-	return out;
+	return (const char *) out;
 }
 
-char *
+const char *
 get_gpu_viewport_str (hikaru_gpu_viewport_t *viewport)
 {
 	static char out[512];
-	sprintf (out, "(%7.3f %7.3f %7.3f) (%u,%u) (%u,%u) (%u,%u) (%u %5.3f %5.3f) (%u %5.3f %5.3f)",
-	         viewport->persp_x, viewport->persp_y, viewport->persp_unk,
-	         viewport->center.x[0], viewport->center.x[1],
-	         viewport->extents_x.x[0], viewport->extents_x.x[1],
-	         viewport->extents_y.x[0], viewport->extents_y.x[1],
+
+	sprintf (out, "(%8.3f %8.3f %8.3f) (%u,%u) (%u,%u) (%u,%u) (%u %5.3f %5.3f) (%u %5.3f %5.3f)",
+	         viewport->persp_x, viewport->persp_y, viewport->persp_znear,
+	         viewport->center[0], viewport->center[1],
+	         viewport->extents_x[0], viewport->extents_x[1],
+	         viewport->extents_y[0], viewport->extents_y[1],
 	         viewport->depth_func, viewport->depth_near, viewport->depth_far,
 	         viewport->depthq_type, viewport->depthq_density, viewport->depthq_bias);
-	return out;
+
+	return (const char *) out;
 }
 
-char *
+const char *
 get_gpu_material_str (hikaru_gpu_material_t *material)
 {
 	static char out[512];
-	sprintf (out, "C0=#%02X%02X%02X C1=#%02X%02X%02X S=%u,#%02X%02X%02X MC=#%04X,%04X,%04X M=%u Z=%u T=%u A=%u H=%u B=%u",
-	         material->color[0].x[0],
-	         material->color[0].x[1],
-	         material->color[0].x[2],
-	         material->color[1].x[0],
-	         material->color[1].x[1],
-	         material->color[1].x[2],
+
+	sprintf (out, "Col0=#%02X%02X%02X Col1=#%02X%02X%02X Shin=%u,#%02X%02X%02X Mat=#%04X,%04X,%04X ShadingMode=%u ZBlend=%u Tex=%u Alpha=%u High=%u BlendMode=%u",
+	         material->color[0][0], material->color[0][1], material->color[0][2],
+	         material->color[1][0], material->color[1][1], material->color[1][2],
 	         material->specularity,
-	         material->shininess.x[0],
-	         material->shininess.x[1],
-	         material->shininess.x[2],
-	         material->material_color.x[0],
-	         material->material_color.x[1],
-	         material->material_color.x[2],
-	         material->mode,
-	         material->depth_blend,
-	         material->has_texture,
-	         material->has_alpha,
-	         material->has_highlight,
-	         material->bmode);
-	return out;
+	         material->shininess[0],
+	         material->shininess[1],
+	         material->shininess[2],
+	         material->material_color[0],
+	         material->material_color[1],
+	         material->material_color[2],
+	         material->shading_mode, material->depth_blend,
+	         material->has_texture, material->has_alpha,
+	         material->has_highlight, material->blending_mode);
+
+	return (const char *) out;
 }
 
-char *
+const char *
 get_gpu_texhead_str (hikaru_gpu_texhead_t *texhead)
 {
 	static const char *name[8] = {
@@ -1386,8 +1356,10 @@ get_gpu_texhead_str (hikaru_gpu_texhead_t *texhead)
 	};
 	static char out[512];
 	uint32_t basex, basey;
+
 	slot_to_coords (&basex, &basey, texhead->slotx, texhead->sloty);
-	sprintf (out, "slot=%X,%X pos=%X,%X offs=%08X %ux%u %s ni=%X by=%X u4=%X u8=%X bank=%X",
+
+	sprintf (out, "slot=(%X,%X) pos=(%X,%X) offs=%08X %ux%u %s ni=%X by=%X u4=%X u8=%X bank=%X",
 	         texhead->slotx, texhead->sloty, basex, basey,
 	         basey*4096 + basex*2,
 	         texhead->width, texhead->height,
@@ -1395,16 +1367,30 @@ get_gpu_texhead_str (hikaru_gpu_texhead_t *texhead)
 	         texhead->_0C1_nibble, texhead->_0C1_byte,
 	         texhead->_2C1_unk4, texhead->_2C1_unk8,
 	         texhead->bank);
-	return out;
+
+	return (const char *) out;
 }
 
-char *
+const char *
+get_gpu_light_str (hikaru_gpu_light_t *light)
+{
+	static char out[512];
+
+	sprintf (out, "(%5.3f %5.3f %u) (%7.3f 7.3%f 7.3%f) (%7.3f %7.3f %7.3f)",
+	         light->emission_p, light->emission_q, light->emission_type,
+	         light->position[0], light->position[1], light->position[2],
+	         light->direction[0], light->direction[1], light->direction[2]);
+
+	return (const char *) out;
+};
+
+const char *
 get_gpu_layer_str (hikaru_gpu_layer_t *layer)
 {
 	static char out[256];
 	sprintf (out, "(%u,%u) (%u,%u) fmt=%u",
 	         layer->x0, layer->y0, layer->x1, layer->y1, layer->format);
-	return out;
+	return (const char *) out;
 }
 
 static void
@@ -1412,26 +1398,39 @@ hikaru_gpu_print_rendering_state (hikaru_gpu_t *gpu)
 {
 	unsigned i;
 
+	VK_LOG ("GPU Rendering State:");
+
 	for (i = 0; i < NUM_VIEWPORTS; i++) {
 		hikaru_gpu_viewport_t *vp;
 		vp = &gpu->viewports.table[i];
 		if (vp->used)
-			VK_LOG ("GPU RS: viewport %3u: %s", i,
+			VK_LOG ("viewport %3u: %s", i,
 			        get_gpu_viewport_str (vp));
 	}
 	for (i = 0; i < NUM_MATERIALS; i++) {
 		hikaru_gpu_material_t *mat;
 		mat = &gpu->materials.table[i];
 		if (mat->used)
-			VK_LOG ("GPU RS: material %3u: %s", i,
+			VK_LOG ("material %3u: %s", i,
 			        get_gpu_material_str (mat));
 	}
 	for (i = 0; i < NUM_TEXHEADS; i++) {
 		hikaru_gpu_texhead_t *th;
 		th = &gpu->texheads.table[i];
 		if (th->used)
-			VK_LOG ("GPU RS: texhead %3u: %s", i,
+			VK_LOG ("texhead %3u: %s", i,
 			        get_gpu_texhead_str (th));
+	}
+	for (i = 0; i < NUM_LIGHTSETS; i++) {
+//		if (ls->used) {
+			unsigned j;
+			for (j = 0; j < 4; j++) {
+				if (!gpu->lights.sets[i].lights[j])
+					continue;
+				VK_LOG ("lightset %u/%u: %s", i, j,
+				        get_gpu_light_str (gpu->lights.sets[i].lights[j]));
+			}
+//		}
 	}
 }
 
@@ -1459,12 +1458,14 @@ hikaru_gpu_delete (vk_device_t **dev_)
 }
 
 vk_device_t *
-hikaru_gpu_new (vk_machine_t *mach, vk_buffer_t *cmdram, vk_buffer_t *fb)
+hikaru_gpu_new (vk_machine_t *mach,
+                vk_buffer_t *cmdram,
+                vk_buffer_t *fb,
+                vk_buffer_t *texram[2],
+                vk_renderer_t *renderer)
 {
 	hikaru_gpu_t *gpu = ALLOC (hikaru_gpu_t);
 	if (gpu) {
-		hikaru_t *hikaru = (hikaru_t *) mach;
-
 		gpu->base.mach = mach;
 
 		gpu->base.delete	= hikaru_gpu_delete;
@@ -1477,8 +1478,18 @@ hikaru_gpu_new (vk_machine_t *mach, vk_buffer_t *cmdram, vk_buffer_t *fb)
 
 		gpu->cmdram = cmdram;
 		gpu->fb = fb;
-		gpu->texram[0] = hikaru->texram[0];
-		gpu->texram[1] = hikaru->texram[1];
+		gpu->texram[0] = texram[0];
+		gpu->texram[1] = texram[1];
+		gpu->renderer = renderer;
+
+		gpu->options.log_dma =
+			vk_util_get_bool_option ("GPU_LOG_DMA", false);
+		gpu->options.log_idma =
+			vk_util_get_bool_option ("GPU_LOG_IDMA", false);
+		gpu->options.log_cp =
+			vk_util_get_bool_option ("GPU_LOG_CP", false);
+
+		hikaru_gpu_cp_init (gpu);
 	}
 	return (vk_device_t *) gpu;
 }

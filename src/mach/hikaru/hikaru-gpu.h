@@ -23,12 +23,15 @@
 
 #include "vk/buffer.h"
 #include "vk/device.h"
+#include "vk/renderer.h"
 
 #include "mach/hikaru/hikaru.h"
 
 vk_device_t	*hikaru_gpu_new (vk_machine_t *mach,
 		                 vk_buffer_t *cmdram,
-		                 vk_buffer_t *texram);
+		                 vk_buffer_t *fb,
+		                 vk_buffer_t *texram[2],
+		                 vk_renderer_t *renderer);
 void		 hikaru_gpu_vblank_out (vk_device_t *dev);
 void		 hikaru_gpu_vblank_in (vk_device_t *dev);
 void		 hikaru_gpu_hblank_in (vk_device_t *dev, unsigned line);

@@ -39,24 +39,25 @@ void		hikaru_renderer_draw_layer (vk_renderer_t *renderer,
 void		hikaru_renderer_set_viewport (vk_renderer_t *renderer,
 		                              hikaru_gpu_viewport_t *viewport);
 void		hikaru_renderer_set_matrix (vk_renderer_t *renderer,
-		                            mtx4x4f_t *mtx);
+		                            mtx4x4f_t mtx);
 void		hikaru_renderer_set_material (vk_renderer_t *renderer,
  		                              hikaru_gpu_material_t *material);
 void		hikaru_renderer_set_texhead (vk_renderer_t *renderer,
 		                             hikaru_gpu_texhead_t *texhead);
-void		hikaru_renderer_set_light (vk_renderer_t *renderer,
-		                           hikaru_gpu_light_t *light);
-void		hikaru_renderer_set_modelview_vertex (vk_renderer_t *renderer,
+void		hikaru_renderer_set_lightset (vk_renderer_t *renderer,
+		                              hikaru_gpu_lightset_t *lightset,
+		                              uint32_t enabled_mask);
+void		hikaru_renderer_set_modelview_vector (vk_renderer_t *renderer,
 		                                      unsigned m, unsigned n,
-		                                      vec3f_t *vertex);
-void		hikaru_renderer_append_vertex (vk_renderer_t *renderer,
-		                               vec3f_t *pos);
-void		hikaru_renderer_append_texcoords (vk_renderer_t *renderer,
-		                                  vec2f_t *texcoords);
-void		hikaru_renderer_append_vertex_full (vk_renderer_t *renderer,
-		                                    vec3f_t *pos,
-		                                    vec3f_t *normal,
-		                                    vec2f_t *texcoords);
-void		hikaru_renderer_end_vertex_data (vk_renderer_t *renderer);
+		                                      vec3f_t vector);
+void		hikaru_renderer_add_vertex (vk_renderer_t *renderer,
+		                            vec3f_t pos);
+void		hikaru_renderer_add_texcoords (vk_renderer_t *renderer,
+		                               vec2f_t texcoords[3]);
+void		hikaru_renderer_add_vertex_full (vk_renderer_t *renderer,
+		                                 vec3f_t pos,
+		                                 vec3f_t normal,
+		                                 vec2f_t texcoords);
+void		hikaru_renderer_end_mesh (vk_renderer_t *renderer);
 
 #endif /* __VK_HIKARU_RENDERER_H__ */

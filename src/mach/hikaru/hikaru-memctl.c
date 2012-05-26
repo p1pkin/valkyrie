@@ -82,15 +82,13 @@
  *
  * Fields	Meaning			Values			References
  * -----------------------------------------------------------------------
- * +0x00	I = ID			 0 = Master		@0C00B88C
- *					~0 = Slave
- * +0x04	u = Unknown		1			@0C0016A4
- *		s = DMA status					@0C001728
- *		E = BUS error bits, Master			@0C001988
- *		F = BUS error bits, Slave			@0C001CC4
- * +0x10	a = Controls 14xxxxxx	48 [m]			@0C0016A4
- *					00 [s]			@0C001CC4
- *		b = Controls 15xxxxxx?	00 [m]			@0C0016A4
+ * +0x00	I = ID (0 for master, ~0 for slave)
+ * +0x04	u = Unknown
+ *		s = DMA status
+ *		E = BUS error bits, Master
+ *		F = BUS error bits, Slave
+ * +0x10	a = Controls 14000080+
+ *		b = Controls 15000000?
  *					40 [m]			@0C00BDFC
  *		c = Controls 16xxxxxx	40 [m]			@0C0016A4
  *					02 [m]			@0C00BDFC
@@ -138,14 +136,20 @@
  *		    A2 to access the SNDBD2:027028BC
  *		    See @0C001748
  *
- * Note: other interesting evidence is at PH:@0C0124B8.
+ * NOTE: other interesting evidence is at PH:@0C0124B8.
  *
- * Note: accessing 3C may alter other registers; for instance, the code at
+ * NOTE: accessing 3C may alter other registers; for instance, the code at
  * @0C001748  saves/restores 04000018 before accessing 0400003C.
  *
- * Note: accessing the bus (apertures) may give rise to errors, both during
+ * NOTE: accessing the bus (apertures) may give rise to errors, both during
  * DMA operation and during normal access; these errors get reported in
  * fields E and F.
+ *
+ * NOTE: 0400001E (field 'o') may be related to cache and/or master-slave
+ * syncrhonization. See PH:@0C0D6740 and its only caller.
+ *
+ * NOTE: direct access to the external BUS is likely prohibited when the DMA
+ * is running. See the IRL2 handler, AICA case.
  *
  *
  * DMA Operation
@@ -158,7 +162,7 @@
  *
  * See @0C008640 for more details XXX
  *
- * Note: it may be the case that bit 12 and the error field are mutually
+ * NOTE: it may be the case that bit 12 and the error field are mutually
  * exclusive.
  *
  *
@@ -179,7 +183,7 @@
  * 4C000000-4C3FFFFF	GPU Unknown
  * 70000000-71FFFFFF	Master RAM
  *
- * Note: apparently the external bus is 31 bits wide or less. The MSB is
+ * NOTE: apparently the external bus is 31 bits wide or less. The MSB is
  * used in mysterious ways. For instance, the code uses the MEMCTL DMA to
  * read ROM data, but accesses the following ranges:
  *
@@ -418,8 +422,8 @@ rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
 
 		if (real_offs < vk_buffer_get_size (hikaru->eprom))
 			set_ptr (val, size, vk_buffer_get (hikaru->eprom, size, real_offs));
-		//else
-			VK_CPU_LOG (hikaru->sh_current, "ROMBD R%u %08X [%08X]",
+		else
+			VK_CPU_LOG (hikaru->sh_current, "ROMBD out-of-bounds R%u %08X [%08X]",
 			            size * 8, bus_addr, real_offs);
 
 	} else if (bank >= config->maskrom_bank[0] &&
@@ -433,8 +437,8 @@ rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
 
 		if (real_offs < vk_buffer_get_size (hikaru->maskrom))
 			set_ptr (val, size, vk_buffer_get (hikaru->maskrom, size, real_offs));
-		//else
-			VK_CPU_LOG (hikaru->sh_current, "ROMBD R%u %08X [num=%X offs=%X bsize=%X bmask=%X roffs=%08X]",
+		else
+			VK_CPU_LOG (hikaru->sh_current, "ROMBD out-of-bounds R%u %08X [num=%X offs=%X bsize=%X bmask=%X roffs=%08X]",
 			            size * 8, bus_addr, num, offs, bank_size, bank_mask, real_offs);
 	}
 	return 0;
@@ -505,6 +509,7 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 	} else if (bank == hikaru->rombd_config.eeprom_bank && offs == 0) {
 		/* ROMBD EEPROM */
 		set_ptr (val, size, 0xFFFFFFFF);
+		log = true;
 	} else {
 		VK_CPU_ERROR (hikaru->sh_current, "MEMCTL W%u %08X = %X", size * 8, bus_addr, val);
 		return -1;
@@ -551,6 +556,7 @@ memctl_bus_put (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, uint6
 		vk_buffer_put (hikaru->ram_m, size, bus_addr & 0x01FFFFFF, val);
 	} else if (bank == hikaru->rombd_config.eeprom_bank && offs == 0) {
 		/* ROMBD EEPROM */
+		log = true;
 	} else {
 		VK_CPU_ERROR (hikaru->sh_current, "MEMCTL W%u %08X = %X", size * 8, bus_addr, val);
 		return -1;
@@ -653,16 +659,17 @@ hikaru_memctl_exec (vk_device_t *dev, int cycles)
 
 	/* DMA is running */
 	if (ctl & 1) {
-		int count;
+		int todo;
 
-		VK_LOG (" ### MEMCTL DMA: %08X -> %08X x %08X", src, dst, len);
+		VK_LOG ("MEMCTL DMA: %08X -> %08X x %08X", src, dst, len);
 
-		count = MIN2 ((int) len, cycles);
-		len -= count;
+		/* Assume one word per cycle */
+		todo = MIN2 ((int) len, cycles);
+		len -= todo;
 
 		VK_ASSERT ((len & 0xFF000000) == 0);
 
-		while (count--) {
+		while (todo--) {
 			uint32_t tmp;
 			memctl_bus_get (memctl, 4, src & 0x7FFFFFFF, &tmp);
 			memctl_bus_put (memctl, 4, dst & 0x7FFFFFFF, tmp);
@@ -675,8 +682,8 @@ hikaru_memctl_exec (vk_device_t *dev, int cycles)
 			ctl = 0;
 			/* Set DMA done, clear error flags */
 			vk_buffer_put (memctl->regs, 2, 0x04, 0x1000);
-			/* Raise IRL1 */
-			hikaru_raise_irq (memctl->base.mach, SH4_IESOURCE_IRL1, 0);
+			/* Raise an IRQ */
+			hikaru_raise_memctl_irq (memctl->base.mach);
 		}
 
 		/* Write the values back */

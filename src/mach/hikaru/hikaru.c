@@ -415,12 +415,30 @@ static vk_device_t unk_s = {
  * For more informations on the GPU IRQs, see hikaru-gpu.c
  */
 
-void
+static void
 hikaru_raise_irq (vk_machine_t *mach, unsigned num, uint16_t porta)
 {
 	hikaru_t *hikaru = (hikaru_t *) mach;
 	vk_cpu_set_irq_state (hikaru->sh_m, num, VK_IRQ_STATE_RAISED);
 	hikaru->porta_m &= ~porta;
+}
+
+void
+hikaru_raise_gpu_irq (vk_machine_t *mach)
+{
+	hikaru_raise_irq (mach, SH4_IESOURCE_IRL2, 0x40);
+}
+
+void
+hikaru_raise_aica_irq (vk_machine_t *mach)
+{
+	hikaru_raise_irq (mach, SH4_IESOURCE_IRL2, 0x80);
+}
+
+void
+hikaru_raise_memctl_irq (vk_machine_t *mach)
+{
+	hikaru_raise_irq (mach, SH4_IESOURCE_IRL1, 0);
 }
 
 /* XXX this should really be 200 MHz; downclocked to 50 MHz to make debugging
@@ -432,12 +450,15 @@ hikaru_run_cycles (vk_machine_t *mach, int cycles)
 {
 	hikaru_t *hikaru = (hikaru_t *) mach;
 
+	/* Run the master */
 	hikaru->sh_current = hikaru->sh_m;
 	vk_cpu_run (hikaru->sh_m, cycles);
-	
+
+	/* Run the slave */
 	hikaru->sh_current = hikaru->sh_s;
 	vk_cpu_run (hikaru->sh_s, cycles);
 
+	/* Run the MEMCTL and GPU */
 	vk_device_exec (hikaru->memctl_m, cycles);
 	vk_device_exec (hikaru->gpu, cycles);
 }
@@ -467,6 +488,9 @@ hikaru_run_frame (vk_machine_t *mach)
 
 	/* this may actually be an hblank-out IRQ */
 	hikaru_gpu_vblank_out (hikaru->gpu);
+
+	/* XXX AICA */
+	hikaru_raise_irq (mach, SH4_IESOURCE_IRL2, 0x80);
 
 	return 0;
 }
@@ -758,6 +782,8 @@ hikaru_set_rombd_config (hikaru_t *hikaru)
 	uint32_t rombd_offs = 0, eprom_bank_size = 0, maskrom_bank_size = 0;
 	bool has_rom = true, maskrom_is_stretched = false;
 
+	/* The fields computed here are used in hikaru-memctl.c::rombd_get () */
+
 	/* We require at least the bootrom to be loaded */
 	/* XXX add a "required" field to the json file */
 	if (!hikaru->bootrom)
@@ -901,9 +927,11 @@ hikaru_init (hikaru_t *hikaru)
 	if (!hikaru->mie)
 		goto fail;
 
-	hikaru->gpu = hikaru_gpu_new (mach, hikaru->cmdram, hikaru->fb);
 	hikaru->base.renderer = hikaru_renderer_new (hikaru->fb,
 	                                             hikaru->texram);
+
+	hikaru->gpu = hikaru_gpu_new (mach, hikaru->cmdram, hikaru->fb,
+	                              hikaru->texram, hikaru->base.renderer);
 
 	if (!hikaru->gpu || !hikaru->base.renderer)
 		goto fail;
@@ -945,10 +973,10 @@ hikaru_new (vk_game_t *game)
 	VK_ASSERT (game);
 
 	hikaru = ALLOC (hikaru_t);
-	mach = (vk_machine_t *) hikaru;
 	if (!hikaru)
 		return NULL;
 
+	mach = (vk_machine_t *) hikaru;
 	strcpy (mach->name, "SEGA Hikaru");
 
 	mach->game = game;
