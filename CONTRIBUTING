@@ -1,0 +1,63 @@
+CONTRIBUTION GUIDELINES
+=======================
+
+
+So you want to contribute to Valkyrie? That's great! I welcome all kinds of
+contributions, as long as they conform these simple and easy to follow rules:
+
+ * C only.
+
+ * Follow the existing coding style.
+
+ * Keep it simple and readable.
+
+ * No need to optimize anything unless it's first well understood and works
+   as expected, or the optimization is really trivial.
+
+ * No code that never gets executed. Untestable code should be considered
+   broken by default.
+
+ * Document any hardware findings in the source itself.
+
+
+Contributions I'd gladly welcome
+--------------------------------
+
+ * Fix one of the TODOs in the code. To get a complete list just do:
+
+	$ find path/to/valkyrie -name '*.[ch]' | xargs egrep -n --color 'TODO|XXX'
+
+ * Fix any of the points in the TODO file.
+
+ * Miscellanous bug fixes and emulation improvements.
+
+ * A JIT SH-4 core based on LLVM. Please contact me if you are interested
+   in working on it.
+
+ * OpenGL cleanup. I am no OpenGL expert, I'd really love some help with
+   that. But please, keep the renderer compatible with GL 3.0; it's the
+   latest GL version that I can actually run/test myself.
+
+ * Improve the memory system (vk_buffer and vk_mmap). The current architecture
+   works okay, and should help with making valkyrie work on both big endian and
+   little endian hosts; however it's also quite slow.
+
+ * Windows port. I don't own a Windows machine. Put all the OS-dependent
+   code in vk/os.[ch] and you'll make me happy.
+
+ * Use the valkyrie infrastructure to build your own machine emulator. Feel
+   free to add a subdirectory under src/machine and write your driver there.
+
+
+Contributions I'd rather not see
+--------------------------------
+
+ * A Direct3D renderer. D3D doesn't play along with linux. And OpenGL works
+   wonders in Windows. There's no need for duplicated efforts.
+
+ * Complex optimizations to the SH-4 interpeter. Once the JIT engine will be
+   there, the interpreter will have no real use. There's no point in having
+   a fast interpreter when the JIT engine will run circles around it anyway.
+
+ * A GUI. The time will come (maybe), but it's still way too early.
+
