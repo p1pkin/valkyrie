@@ -85,6 +85,7 @@ vk_cpu_delete (vk_cpu_t **cpu_)
 {
 	if (cpu_) {
 		vk_cpu_t *cpu = *cpu_;
+		VK_ASSERT (cpu != NULL);
 		VK_ASSERT (cpu->delete != NULL);
 		cpu->delete (cpu_);
 	}
