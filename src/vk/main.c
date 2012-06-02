@@ -1,21 +1,19 @@
 /* 
  * Valkyrie
  * Copyright (C) 2011, Stefano Teso
- * 
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
+ *
+ * Valkyrie is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Valkyrie is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
+ * along with Valkyrie.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /* TODO: move to a scheduler-based system, so that machines register their
@@ -243,7 +241,7 @@ int
 main (const int argc, char **argv)
 {
 	fprintf (stdout, "Valkyrie, Copyright(C) 2011,2012 Stefano Teso\n");
-	fprintf (stdout, "Version %u.%u. Released under the GPL2 License.\n",
+	fprintf (stdout, "Version %u.%u. Released under the GPL3 License.\n",
 	         VK_VERSION_MAJOR, VK_VERSION_MINOR);
 	if (VK_VERSION_MINOR % 2)
 		fprintf (stdout, " ** Warning: this is an experimental snapshot. **\n");
