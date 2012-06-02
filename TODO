@@ -1,17 +1,6 @@
 TODO
 ====
 
-
-BEFORE UPLOADING THE TREE
--------------------------
-
-Fix the copyright in the [ch] files (year and license text.)
-
-Rewrite the JSON file to be more flexible (just like MAME.) Move its location
-to '$HOME/.local/share/valkyrie' or something. Create that directory on
-`make install'.
-
-
 GENERAL
 -------
 
@@ -28,12 +17,16 @@ int64_t, and includes a header stating a version number and endianess type.
 Convert VK_*_{LOG,ERROR} from macros to functions; and add the *DEVICE*
 variants.
 
+Rewrite the JSON file to be more flexible (just like MAME.) Move its location
+to '$HOME/.local/share/valkyrie' or something. Create that directory on
+`make install'.
+
 For later, much later: make every vk_machine_t sub-class register its CPUs
 and devices into vk_machine_t, then use a proper event scheduler to drive the
 emulation. This should make things much cleaner and maintainable in the long
 run, but it may be difficult to debug.
 
-There are load of TODO/XXX items in the source.
+There are load of TODO/XXX items in the source, grep them!
 
 
 HIKARU
