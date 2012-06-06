@@ -9,13 +9,24 @@ Then just do:
  $ cd path/to/valkyrie
  $ make
 
-This will generate the bin/valkyrie binary. To run valkyrie, type:
+This will generate the bin/valkyrie binary. To run the bootrom with valkyrie,
+type:
 
- $ bin/valkyrie -R $PATH_TO_ROM_DIRECTORY -r $ROM_NAME
+ $ bin/valkyrie -R $PATH_TO_ROM_DIRECTORY -r hikaru_0.92
 
-Example:
+If you want to run a game, you have to also enable a hack that fakes the
+IO board a little bit better, as follows:
 
- $ bin/valkyrie -R ~/roms/hikaru -r bootrom
+ $ MIE_HACK=1 bin/valkyrie -R $PATH_TO_ROM_DIRECTORY -r airtrix
+
+If you forget to enable the hack, the game will either get stuck, or endlessly
+display an "I/O board initializing" screen.
+
+If you are a developer, and want to display on screen the contents of the
+frame buffer or texture RAM, to see what gets uploaded, then set the
+HR_DRAW_FB or HR_DRAW_TEXRAM environment variables, as follows:
+
+ $ MIE_HACK=1 HR_DRAW_TEXRAM=1 bin/valkyrie -R $PATH_TO_ROM_DIRECTORY -r airtrix
 
 You can also install valkyrie for your user with:
 
