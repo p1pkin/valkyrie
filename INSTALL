@@ -39,9 +39,13 @@ and a copy of vk-games.json (the game description list used by valkyrie) in
  $ valkyrie -R $PATH_TO_ROM_DIRECtory -r $ROM_NAME
 
 from anywhere in your filesystem.
-
+ 
 XXX: due to the (dumb) way the loading code is designed, the ROM_DIRECTORY
 is expected to contain a sub-directory for each game, containing the
 uncompressed ROM images _and_ a copy of (or a symlink to) the BOOTROM image.
 The latter should be named `hikaru_0.X.bin', where X is the bootrom version,
 that is, one of 84, 92 or 96. I *know* it is very rough, patches are welcome.
+
+XXX: while valkyrie can run all three BOOTROM versions, it only supports
+loading games using version 0.92; so make sure you are linking version 0.92
+in the ROM directories!
