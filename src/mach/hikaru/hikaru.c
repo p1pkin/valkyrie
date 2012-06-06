@@ -838,6 +838,244 @@ hikaru_set_rombd_config (hikaru_t *hikaru)
 	return 0;
 }
 
+/* XXX actually make sh4_t opaque and add accessors for the registers; that's
+ * going to be needed for any possible future debugger anyway. */
+#define R(n_)	ctx->r[n_]
+#define PR	ctx->pr
+#define T	ctx->sr.bit.t
+
+static void
+patch_bootrom_092 (vk_cpu_t *cpu, uint32_t pc)
+{
+	sh4_t *ctx = (sh4_t *) cpu;
+
+	switch (pc) {
+	/* Patches */
+	case 0x0C00BFB2:
+		/* Makes the EEPROM check pass */
+		R(0) = 0xF;
+		break;
+	/* Log Points */
+	case 0x0C0010A4:
+		VK_CPU_LOG (ctx, "BOOTROM about to jump to IRQ handler @%08X", R(5))
+		break;
+	case 0x0C00B90A:
+		VK_CPU_LOG (ctx, "BOOTROM JUMPING TO ROM CODE! (%X)", R(11));
+		break;
+	case 0x0C0069E0:
+		VK_CPU_LOG (ctx, "BOOTROM sync (%X)", R(4));
+		break;
+	case 0x0C00BD18:
+		VK_CPU_LOG (ctx, "BOOTROM set_errno_and_init_machine_extended (%X)", R(4));
+		break;
+	case 0x0C00BC5C:
+		VK_CPU_LOG (ctx, "BOOTROM authenticate_rom (%X, %X, %X)", R(6), R(7), R(8));
+		break;
+	case 0x0C00BC9E:
+		VK_CPU_LOG (ctx, "BOOTROM authenticate_rom () : values read from EPROM %X: %X %X",
+		            R(5), R(3), R(1));
+		break;
+	case 0x0C004E46:
+		VK_CPU_LOG (ctx, "BOOTROM rombd_do_crc (%X, %X, %X)", R(4), R(5), R(6));
+		break;
+	case 0x0C0100E4:
+		VK_CPU_LOG (ctx, "BOOTROM game main() is at %08X", PR);
+		break;
+	}
+}
+
+static uint32_t
+patch_airtrix (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
+{
+	sh4_t *ctx = (sh4_t *) cpu;
+
+	patch_bootrom_092 (cpu, pc);
+
+	switch (pc) {
+	/* AIRTRIX */
+	case 0x0C010E78:
+		VK_CPU_LOG (ctx, "AIRTRIX: main ()");
+		break;
+	case 0x0C697A40:
+		VK_CPU_LOG (ctx, "AIRTRIX: sync (%X)", R(4));
+		break;
+	case 0x0C697CDC:
+		VK_CPU_LOG (ctx, "AIRTRIX: flush_list_to_15000010_idma ()");
+		break;
+	case 0x0C697D48:
+		VK_CPU_LOG (ctx, "AIRTRIX: flush_list_to_1A040000_fifo ()");
+		break;
+	case 0x0C697C3C:
+		VK_CPU_LOG (ctx, "AIRTRIX: update_controls ()");
+		break;
+	case 0x0C6996A0:
+		VK_CPU_LOG (ctx, "AIRTRIX: print_warning (%X)", R(4));
+		break;
+	case 0x0C0310CC:
+		VK_CPU_LOG (ctx, "AIRTRIX: upload_textures_from_table_with_dma_and_idma (%X)", R(4));
+		break;
+	case 0x0C699A60:
+		VK_CPU_LOG (ctx, "AIRTRIX: do_memctl_dma_and_idma (%X,%X,%X,%X)", R(4),R(5),R(6),R(7));
+		break;
+	case 0x0C699580:
+	case 0x0C699760:
+		VK_CPU_LOG (ctx, "AIRTRIX: upload_texture (%X,%X,%X)", R(4),R(5),R(6));
+		break;
+	case 0x0C699200:
+		VK_CPU_LOG (ctx, "AIRTRIX: texture_foo (%X,%X,%X,%X,SP,SP+4)", R(4),R(5),R(6),R(7));
+		break;
+	case 0x0C699140:
+		VK_CPU_LOG (ctx, "AIRTRIX: clear_layer (%X,%X)", R(4),R(5));
+		break;
+	case 0x0C010F9A:
+		/* Make the 'WARNING' screen faster (well, 656 frames faster) */
+		R(2) = 0x290;
+		break;
+	}
+	return inst;
+}
+
+static uint32_t
+patch_braveff (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
+{
+	sh4_t *ctx = (sh4_t *) cpu;
+
+	/* A lot of code in BRAVEFF is busted because of missing MASKROMs.
+	 * The following patches rectify some bad checks. */
+
+	patch_bootrom_092 (cpu, pc);
+
+	switch (pc) {
+	case 0x0C0D3F00:
+		VK_CPU_LOG (ctx, "BRAVEFF: sync (%X)", R(4));
+		break;
+	case 0x0C0D51C0:
+		VK_CPU_LOG (ctx, "BRAVEFF: do_dmac (%X, %X, %X, %X)", R(4), R(5), R(6), R(7));
+		break;
+	case 0x0C07A0C4:
+		VK_CPU_LOG (ctx, "BRAVEFF: print_at_cursor (@%X)", R(15));
+		break;
+	case 0x0C0766BA:
+		/* Trick the faulty aica_stuff () functions into doing a
+		 * non-zero DMAC transfer to the AICA; this makes the DMAC
+		 * not write to random sections of the address space. This
+		 * issue is likely related to the lack of MASKROMs. */
+		if (R(6) == 0)
+			R(6) = 1;
+		break;
+	case 0x0C0D522A:
+		T = 1;
+		break;
+	case 0x0C05B53E:
+		T = 0;
+		break;
+	}
+	return inst;
+}
+
+static uint32_t
+patch_pharrier (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
+{
+	sh4_t *ctx = (sh4_t *) cpu;
+
+	patch_bootrom_092 (cpu, pc);
+
+	switch (pc) {
+	case 0x0C01C0A0:
+		VK_CPU_LOG (ctx, "PHARRIER: sync_fifo_iomain (%X)", R(4));
+		break;
+	case 0x0C0125C0:
+		VK_CPU_LOG (ctx, "PHARRIER: sync (%X)", R(4));
+		break;
+	case 0x0C0198D4:
+		VK_CPU_LOG (ctx, "PHARRIER: cotan (%d)", R(4));
+		break;
+	case 0x0C0C96C0:
+		VK_CPU_LOG (ctx, "PHARRIER: print_to_cursor (%X)", R(4));
+		break;
+	case 0x0C01C322:
+		/* Patches an AICA-related while (1) into a NOP */
+		return 0x0009;
+	case 0x0C011B14:
+		/* Patches a software BUG */
+		//R(0) |= 0xFFFFFF;
+		break;
+	case 0x0C0CDA1C:
+		/* XXX not required if the MIE hack is active; for debugging
+		 * only! */
+		//R(0) = 3;
+		break;
+	}
+	return inst;
+}
+
+static uint32_t
+patch_sgnascar (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
+{
+	sh4_t *ctx = (sh4_t *) cpu;
+
+	patch_bootrom_092 (cpu, pc);
+
+	switch (pc) {
+	case 0x0C065AD0:
+		VK_CPU_LOG (ctx, "SGNASCAR: sync_wrapper (%X)", R(4));
+		break;
+	case 0x0C0705A0:
+		VK_CPU_LOG (ctx, "SGNASCAR: sync (%X)", R(4));
+		break;
+	case 0x0C071E20:
+		VK_CPU_LOG (ctx, "SGNASCAR: do_dmac (%X,%X,%X,%X)", R(4), R(5), R(6), R(7));
+		break;
+	case 0x0C00BC9A:
+		/* Make the (non-existent) EEPROM data conform the ROM
+		 * information. This is likely a region/hw version check. */
+		R(3) = 0xFF;
+		break;
+	case 0x0C00B8BE:
+		/* Patches a BOOTROM ?bug? */
+		{
+			uint32_t old = R(3);
+			R(3) = MIN2 (R(3), 0x04000000 - (R(4) & 0x1FFFFFFF));
+			VK_CPU_LOG (ctx, " ### BOOTROM copying ROM data to RAM: [%08X] %08X -> %08X x %08X [was %08X]",
+			            R(6)-8, R(4), R(1), R(3), old);
+		}
+		break;
+	case 0x0C0130CE:
+		/* Skip the "BAD IO BOARD" infinite loop */
+		R(4) = 1;
+		break;
+	case 0x0C06A792:
+		/* Work around bogus ROMBD reads */
+		if (R(6) > 0xFFFFFF)
+			R(6) = 1;
+		break;
+	}
+	return inst;
+}
+
+/* Install game-specific patches into the master SH-4 */
+static void
+hikaru_install_game_patches (hikaru_t *hikaru)
+{
+	vk_cpu_t *cpu = hikaru->sh_m;
+	vk_game_t *game = hikaru->base.game;
+	bool patched = true;
+
+	if (!strcmp (game->name, "airtrix"))
+		vk_cpu_install_patch (cpu, patch_airtrix);
+	else if (!strcmp (game->name, "braveff"))
+		vk_cpu_install_patch (cpu, patch_braveff);
+	else if (!strcmp (game->name, "pharrier"))
+		vk_cpu_install_patch (cpu, patch_pharrier);
+	else if (!strcmp (game->name, "sgnascar"))
+		vk_cpu_install_patch (cpu, patch_sgnascar);
+	else
+		patched = false;
+
+	if (patched)
+		VK_LOG ("Installed patches for '%s'", game->name);
+}
+
 static void
 hikaru_delete (vk_machine_t **mach_)
 {
@@ -882,6 +1120,8 @@ hikaru_init (hikaru_t *hikaru)
 {
 	vk_machine_t *mach = (vk_machine_t *) hikaru;
 	vk_game_t *game = mach->game;
+
+	VK_ASSERT (mach->game != NULL);
 
 	unk_m.mach = mach;
 	unk_s.mach = mach;
@@ -954,6 +1194,8 @@ hikaru_init (hikaru_t *hikaru)
 
 	sh4_set_porta_handlers (hikaru->sh_m, porta_get_m, porta_put_m);
 	sh4_set_porta_handlers (hikaru->sh_s, porta_get_s, porta_put_s);
+
+	hikaru_install_game_patches (hikaru);
 
 	return 0;
 

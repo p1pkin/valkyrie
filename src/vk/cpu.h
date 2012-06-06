@@ -38,11 +38,14 @@ typedef enum {
 
 typedef struct vk_cpu_t vk_cpu_t;
 
+typedef uint32_t (* vk_cpu_patch_t)(vk_cpu_t *, uint32_t, uint32_t);
+
 struct vk_cpu_t {
 	vk_machine_t	*mach;
 	vk_mmap_t	*mmap;
 	vk_cpu_state_t	 state;
 	int remaining;
+	vk_cpu_patch_t	patch;
 
 	void		 (* delete) (vk_cpu_t **cpu_);
 	void		 (* reset) (vk_cpu_t *cpu, vk_reset_type_t type);
@@ -145,6 +148,23 @@ vk_cpu_put (vk_cpu_t *cpu, unsigned size, uint32_t addr, uint64_t val)
 {
 	VK_ASSERT (cpu != NULL);
 	return vk_mmap_put (cpu->mmap, size, addr, val);
+}
+
+static void
+vk_cpu_install_patch (vk_cpu_t *cpu, vk_cpu_patch_t patch)
+{
+	VK_ASSERT (cpu != NULL);
+	VK_ASSERT (patch != NULL);
+	cpu->patch = patch;
+}
+
+static inline uint32_t
+vk_cpu_patch (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
+{
+	VK_ASSERT (cpu);
+	if (cpu->patch)
+		return cpu->patch (cpu, pc, inst);
+	return inst;
 }
 
 #endif /* __VK_CPU_H__ */
