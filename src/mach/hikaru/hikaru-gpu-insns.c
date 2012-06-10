@@ -1602,11 +1602,12 @@ I (mesh_add_position_normal)
 
 /* EE8	Tex Coord
  *
- *	-------- -------- ----oooo oooooooC
+ *	-------- -------x ----oooo oooooooC
  *	vvvvvvvv vvvvvvvv uuuuuuuu uuuuuuuu
  *	vvvvvvvv vvvvvvvv uuuuuuuu uuuuuuuu
  *	vvvvvvvv vvvvvvvv uuuuuuuu uuuuuuuu
  *
+ * x = Unknown, used in the BOOTROM CRT test screen
  * u,v = Texture coordinates
  * C = Selects CW/CCW winding?
  *
@@ -1637,7 +1638,7 @@ I (mesh_add_texcoords)
 
 	hikaru_renderer_add_texcoords (gpu->renderer, texcoords);
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
+	gpu->cp.unhandled |= !!(inst[0] & 0xFFFEF000);
 }
 
 /* 158	Tex Coord Unknown
