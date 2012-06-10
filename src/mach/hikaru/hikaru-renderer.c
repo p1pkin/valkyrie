@@ -23,9 +23,6 @@
 #include "mach/hikaru/hikaru-renderer.h"
 #include "vk/surface.h"
 
-/* XXX fix 1111 decoding; it's required by the BOOTROM ASCII texture. */
-/* XXX fix the texcoords. */
-
 /*
  * Here's the basics. The three entry points to the renderer are:
  *
