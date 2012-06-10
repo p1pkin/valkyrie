@@ -1995,11 +1995,12 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 		}
 
 		op = inst[0] & 0xFFF;
+		if (!is_vertex_op (op))
+			hikaru_renderer_end_mesh (gpu->renderer);
+
 		handler = gpu->cp.insns[op].handler;
 		VK_ASSERT (handler);
 		handler (gpu, inst);
-		if (!is_vertex_op (op))
-			hikaru_renderer_end_mesh (gpu->renderer);
 
 		if (gpu->cp.unhandled) {
 			print_unhandled (gpu, inst, gpu->cp.insns[op].size / 4);
