@@ -32,7 +32,12 @@ There are load of TODO/XXX items in the source, grep them!
 HIKARU
 ------
 
-Get 3D displayed on screen.
+Get 3D displayed on screen. A couple of useful references taken from youtube:
+
+ braveff:	http://www.youtube.com/watch?v=rwzzj7dzxE8
+ pharrier:	http://www.youtube.com/watch?v=_kED3wt6p90
+		http://www.youtube.com/watch?v=VCVnNBkeRX8
+ sgnascar:	http://www.youtube.com/watch?v=N2rPqafQr84
 
 Move the slave GPU access to hikaru-gpu.c. Proper support may require the
 introduction of a new vk_device_accessors_t class.
