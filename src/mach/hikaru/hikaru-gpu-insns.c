@@ -2009,8 +2009,6 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 
 		if (gpu->cp.insns[op].size)
 			gpu->cp.pc += gpu->cp.insns[op].size;
-		else
-			gpu->cp.pc += 4;
 
 		gpu->cp.cycles--;
 	}
