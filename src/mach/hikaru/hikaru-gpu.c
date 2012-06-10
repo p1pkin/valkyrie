@@ -905,11 +905,6 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	exp_size[0] = texhead.width * texhead.height * 2;
 	exp_size[1] = calc_full_texture_size (&texhead);
 
-	/* Adjust the width for the RGBA1111 format; yes, it's actually 2,
-	 * not 4. Er, maybe. XXX */
-	if (texhead.format == HIKARU_FORMAT_RGBA1111)
-		texhead.width *= 2;
-
 	/* XXX this check isn't clever enough to figure out that AIRTRIX
 	 * texture blobs _do_ have a mipmap. However even if we miss a
 	 * mipmap or two, it shouldn't be that big of a problem. */
@@ -1174,7 +1169,7 @@ hikaru_gpu_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 }
 
 static int
-hikaru_gpu_put (vk_device_t *device, size_t size, uint32_t addr, uint64_t val)
+hikaru_gpu_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val)
 {
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) device;
 

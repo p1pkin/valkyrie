@@ -83,7 +83,7 @@ typedef enum {
 typedef struct {
 	hikaru_mesh_type_t type;
 	hikaru_vertex_t *vertices;
-	unsigned index, max;
+	unsigned index, tindex, max;
 } hikaru_mesh_t;
 
 typedef struct {
@@ -142,7 +142,7 @@ rgba1111_to_rgba4444 (uint8_t pixel)
 	uint32_t g = (pixel & 2) ? 0xF : 0;
 	uint32_t b = (pixel & 4) ? 0xF : 0;
 	uint32_t a = (pixel & 8) ? 0xF : 0;
-	return r | (g << 4) | (b << 8) | (a << 12);
+	return (r << 12) | (g << 8) | (b << 4) | a;
 }
 
 static vk_surface_t *
@@ -152,20 +152,32 @@ decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 	uint32_t basex, basey, x, y;
 	vk_surface_t *surface;
 
-	surface = vk_surface_new (texhead->width, texhead->height, VK_SURFACE_FORMAT_RGBA4444);
+	surface = vk_surface_new (texhead->width, texhead->height*2, VK_SURFACE_FORMAT_RGBA4444);
 	if (!surface)
 		return NULL;
 
 	slot_to_coords (&basex, &basey, texhead->slotx, texhead->sloty); 
 
-	for (y = 0; y < texhead->height; y++) {
-		for (x = 0; x < texhead->width; x += 2) {
+	for (y = 0; y < texhead->height; y ++) {
+		for (x = 0; x < texhead->width; x += 4) {
 			uint32_t offs = (basey + y) * 4096 + (basex + x);
-			uint8_t texels = vk_buffer_get (texram, 1, offs);
-			vk_surface_put16 (surface, x + 0, y,
-			                  rgba1111_to_rgba4444 (texels & 15));
-			vk_surface_put16 (surface, x + 1, y,
-			                  rgba1111_to_rgba4444 (texels >> 4));
+			uint32_t texels = vk_buffer_get (texram, 4, offs);
+			vk_surface_put16 (surface, x + 0, y*2 + 0,
+			                  rgba1111_to_rgba4444 (texels >> 28));
+			vk_surface_put16 (surface, x + 1, y*2 + 0,
+			                  rgba1111_to_rgba4444 (texels >> 24));
+			vk_surface_put16 (surface, x + 0, y*2 + 1,
+			                  rgba1111_to_rgba4444 (texels >> 20));
+			vk_surface_put16 (surface, x + 1, y*2 + 1,
+			                  rgba1111_to_rgba4444 (texels >> 16));
+			vk_surface_put16 (surface, x + 2, y*2 + 0,
+			                  rgba1111_to_rgba4444 (texels >> 12));
+			vk_surface_put16 (surface, x + 3, y*2 + 0,
+			                  rgba1111_to_rgba4444 (texels >>  8));
+			vk_surface_put16 (surface, x + 2, y*2 + 1,
+			                  rgba1111_to_rgba4444 (texels >>  4));
+			vk_surface_put16 (surface, x + 3, y*2 + 1,
+			                  rgba1111_to_rgba4444 (texels >>  0));
 		}
 	}
 	return surface;
@@ -525,6 +537,7 @@ free_mesh (hikaru_mesh_t *mesh)
 	free (mesh->vertices);
 	mesh->vertices = NULL;
 	mesh->index = 0;
+	mesh->tindex = 0;
 	mesh->max = 0;
 }
 
@@ -555,7 +568,7 @@ free_meshes (hikaru_renderer_t *hr)
 static void
 mesh_ensure_vertex_buffer (hikaru_mesh_t *mesh)
 {
-	if (mesh->index >= mesh->index) {
+	if (mesh->index+10 >= mesh->max) {
 		unsigned n = MAX2 (DEFAULT_NUM_VERTICES_PER_MESH, mesh->max * 2);
 		mesh->vertices = realloc (mesh->vertices, n * sizeof (hikaru_vertex_t));
 		mesh->max = n;
@@ -600,24 +613,33 @@ mesh_add_position (hikaru_mesh_t *mesh, vec3f_t x)
 static void
 mesh_add_texcoords (hikaru_mesh_t *mesh, vec2f_t u[3])
 {
-	int i, j;
+	int i;
 
 	VK_ASSERT (mesh);
 	VK_ASSERT (mesh->type == MESH_TYPE_TRI_LIST);
 	VK_ASSERT (mesh->index >= 3);
 
-	j = mesh->index - 1;
-	for (i = 0; i < 3; i++, j--) {
-		mesh->vertices[j].texcoords[0] = u[i][0];
-		mesh->vertices[j].texcoords[1] = u[i][1];
+	if(mesh->index - mesh->tindex < 3) {
+		int dt = mesh->index - mesh->tindex - 3;
+		mesh_ensure_vertex_buffer (mesh);
+		for(i=0; i<3; i++)
+			mesh->vertices[mesh->tindex+(2-i)] = mesh->vertices[mesh->tindex+(2-i)+dt];
+		mesh->index = mesh->tindex + 3;
 	}
+	for (i = 0; i < 3; i++) {
+		mesh->vertices[mesh->tindex + i].texcoords[0] = u[2-i][0];
+		mesh->vertices[mesh->tindex + i].texcoords[1] = u[2-i][1];
+	}
+	mesh->tindex = mesh->tindex + 3;
 }
 
 static void
-mesh_draw (hikaru_mesh_t *mesh)
+mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	GLenum gl_type;
 	unsigned i;
+	float tmx = hr->textures.current ? 1.0/hr->textures.current->width : 1.0;
+	float tmy = hr->textures.current ? 1.0/hr->textures.current->height : 1.0;
 
 	gl_type = (mesh->type == MESH_TYPE_TRI_LIST) ?
 	           GL_TRIANGLES : GL_TRIANGLE_STRIP;
@@ -626,7 +648,8 @@ mesh_draw (hikaru_mesh_t *mesh)
 	glBegin (gl_type);
 	for (i = 0; i < mesh->index; i++) {
 		hikaru_vertex_t *v = &mesh->vertices[i];
-		glTexCoord2fv (v->texcoords);
+
+		glTexCoord2f (v->texcoords[0]*tmx, v->texcoords[1]*tmy);
 		if (mesh->type == MESH_TYPE_TRI_STRIP);
 			glNormal3fv (v->normal);
 		glVertex3fv (v->pos);
@@ -642,7 +665,7 @@ draw_current_mesh (hikaru_renderer_t *hr)
 		return;
 	upload_current_state (hr);
 	LOG ("drawing mesh: mode=%d, %d vertices", mesh->type, mesh->index);
-	mesh_draw (hr->meshes.current);
+	mesh_draw (hr, hr->meshes.current);
 }
 
 #define DEFAULT_MAX_MESHES 256
@@ -672,6 +695,7 @@ add_mesh (hikaru_renderer_t *hr, hikaru_mesh_type_t type)
 	mesh->type = type;
 	mesh->vertices = NULL;
 	mesh->index = 0;
+	mesh->tindex = 0;
 	mesh->max = 0;
 
 	hr->meshes.current = mesh;
@@ -729,6 +753,7 @@ hikaru_renderer_add_texcoords (vk_renderer_t *renderer,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 	hikaru_mesh_t *mesh; 
+
 	if (hr->options.disable_3d)
 		return;
 	mesh = renderer_get_current_mesh (hr, MESH_TYPE_TRI_LIST, false);
