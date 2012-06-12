@@ -178,12 +178,12 @@ parse_global_opts (int argc, char **argv)
 }
 
 static vk_machine_t *
-get_machine_for_game (vk_game_t *game)
+get_machine_for_game (vk_game_t *game, const char *game_name)
 {
 	char *mach = game->mach;
 	if (!strcmp (mach, "hikaru"))
 		return hikaru_new (game);
-	VK_ERROR ("unrecognized machine '%s'", mach);
+	VK_ERROR ("unrecognized game '%s'", game_name);
 	return NULL;
 }
 
@@ -261,7 +261,7 @@ main (const int argc, char **argv)
 		goto fail;
 	}
 
-	mach = get_machine_for_game (game);
+	mach = get_machine_for_game (game, options.rom_name);
 	if (!mach) {
 		VK_LOG ("failed to create machine");
 		goto fail;
