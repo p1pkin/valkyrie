@@ -84,31 +84,36 @@ typedef struct {
 } hikaru_mesh_t;
 
 typedef struct {
+	mtx4x4f_t mtx;
+	uint32_t set		: 1;
+	uint32_t uploaded	: 1;
+} hikaru_gpu_modelview_t;
+
+typedef struct {
 	vk_renderer_t base;
 
 	vk_buffer_t *fb;
 	vk_buffer_t *texram[2];
 
 	/* Current rendering state */
-	hikaru_gpu_viewport_t current_viewport;
 	struct {
-		mtx4x4f_t mtx;
-		uint32_t set		: 1;
-		uint32_t uploaded	: 1;
-	} current_modelview;
-	hikaru_gpu_texhead_t current_texhead;
-	hikaru_gpu_material_t current_material;
-	hikaru_gpu_lightset_t current_lightset;
+		hikaru_gpu_viewport_t	viewport;
+		hikaru_gpu_modelview_t	modelview;
+		hikaru_gpu_texhead_t	texhead;
+		hikaru_gpu_material_t	material;
+		hikaru_gpu_lightset_t	lightset;
+		hikaru_mesh_t		*mesh;
+		vk_surface_t		*texture;
+	} current;
 
 	/* Mesh data */
 	struct {
-		hikaru_mesh_t *array, *current;
+		hikaru_mesh_t *array;
 		unsigned index, max;
 	} meshes;
 
 	/* Texture data */
 	struct {
-		vk_surface_t *current;
 		vk_surface_t *fb, *texram, *debug;
 	} textures;
 
@@ -289,8 +294,8 @@ hikaru_renderer_set_viewport (vk_renderer_t *renderer,
 
 	/* Store the current viewport state */
 	if (is_viewport_valid (viewport)) {
-		hr->current_viewport = *viewport;
-		hr->current_viewport.uploaded = 0;
+		hr->current.viewport = *viewport;
+		hr->current.viewport.uploaded = 0;
 	}
 }
 
@@ -316,12 +321,11 @@ hikaru_renderer_set_modelview_vector (vk_renderer_t *renderer,
 	    isfinite (vector[2])) {
 		/* It's a row vector; translate to column here */
 		/* XXX use a macro to access the right element here */
-		hr->current_modelview.mtx[0][n] = vector[0];
-		hr->current_modelview.mtx[1][n] = vector[1];
-		hr->current_modelview.mtx[2][n] = vector[2];
-		hr->current_modelview.mtx[3][n] = (n == 3) ? 1.0f : 0.0f;
-
-		hr->current_modelview.uploaded = 0;
+		hr->current.modelview.mtx[0][n] = vector[0];
+		hr->current.modelview.mtx[1][n] = vector[1];
+		hr->current.modelview.mtx[2][n] = vector[2];
+		hr->current.modelview.mtx[3][n] = (n == 3) ? 1.0f : 0.0f;
+		hr->current.modelview.uploaded = 0;
 	}
 }
 
@@ -339,8 +343,8 @@ hikaru_renderer_set_material (vk_renderer_t *renderer,
 	VK_ASSERT (material->set);
 
 	/* Store the current material state */
-	hr->current_material = *material;
-	hr->current_material.uploaded = 0;
+	hr->current.material = *material;
+	hr->current.material.uploaded = 0;
 }
 
 void
@@ -357,8 +361,8 @@ hikaru_renderer_set_texhead (vk_renderer_t *renderer,
 	VK_ASSERT (texhead->set);
 
 	/* Store the current texhead state */
-	hr->current_texhead = *texhead;
-	hr->current_texhead.uploaded = 0;
+	hr->current.texhead = *texhead;
+	hr->current.texhead.uploaded = 0;
 }
 
 void
@@ -381,14 +385,14 @@ hikaru_renderer_set_lightset (vk_renderer_t *renderer,
 	VK_ASSERT (lightset->set);
 
 	/* Store the current lightset state */
-	hr->current_lightset = *lightset;
-	hr->current_lightset.uploaded = 0;
+	hr->current.lightset = *lightset;
+	hr->current.lightset.uploaded = 0;
 }
 
 static void
 upload_current_viewport (hikaru_renderer_t *hr)
 {
-	hikaru_gpu_viewport_t *vp = &hr->current_viewport;
+	hikaru_gpu_viewport_t *vp = &hr->current.viewport;
 	if (!vp->uploaded) {
 		vp->uploaded = 1;
 
@@ -421,18 +425,18 @@ upload_current_viewport (hikaru_renderer_t *hr)
 static void
 upload_current_modelview (hikaru_renderer_t *hr)
 {
-	if (!hr->current_modelview.uploaded) {
-		hr->current_modelview.uploaded = 1;
+	if (!hr->current.modelview.uploaded) {
+		hr->current.modelview.uploaded = 1;
 
 		glMatrixMode (GL_MODELVIEW);
-		glLoadMatrixf ((GLfloat *) &hr->current_modelview.mtx[0][0]);
+		glLoadMatrixf ((GLfloat *) &hr->current.modelview.mtx[0][0]);
 	}
 }
 
 static void
 upload_current_material (hikaru_renderer_t *hr)
 {
-	hikaru_gpu_material_t *mat = &hr->current_material;
+	hikaru_gpu_material_t *mat = &hr->current.material;
 	if (!mat->uploaded) {
 		mat->uploaded = 1;
 
@@ -454,15 +458,15 @@ upload_current_material (hikaru_renderer_t *hr)
 static void
 upload_current_texhead (hikaru_renderer_t *hr)
 {
-	hikaru_gpu_texhead_t *tex = &hr->current_texhead;
+	hikaru_gpu_texhead_t *tex = &hr->current.texhead;
 	if (!tex->uploaded) {
 		vk_surface_t *surface = NULL;
 
 		tex->uploaded = 1;
 
 		/* Delete the old texture */
-		if (hr->textures.current != hr->textures.debug)
-			vk_surface_delete (&hr->textures.current);
+		if (hr->current.texture != hr->textures.debug)
+			vk_surface_delete (&hr->current.texture);
 
 		/* XXX implement texhead caching */
 
@@ -489,7 +493,7 @@ upload_current_texhead (hikaru_renderer_t *hr)
 			vk_surface_bind (hr->textures.debug);
 		else {
 			/* Upload the decoded texhead data */
-			hr->textures.current = surface;
+			hr->current.texture = surface;
 			vk_surface_commit (surface);
 #if 0
 			/* DEBUG */
@@ -502,7 +506,7 @@ upload_current_texhead (hikaru_renderer_t *hr)
 static void
 upload_current_lightset (hikaru_renderer_t *hr)
 {
-	hikaru_gpu_lightset_t *ls = &hr->current_lightset;
+	hikaru_gpu_lightset_t *ls = &hr->current.lightset;
 	if (!ls->uploaded) {
 		ls->uploaded = 1;
 
@@ -546,9 +550,10 @@ free_meshes (hikaru_renderer_t *hr)
 		free_mesh (&hr->meshes.array[i]);
 	free (hr->meshes.array);
 	hr->meshes.array = NULL;
-	hr->meshes.current = NULL;
 	hr->meshes.index = 0;
 	hr->meshes.max = 0;
+
+	hr->current.mesh = NULL;
 }
 
 #define COPY_VEC2F(d_, s_) \
@@ -634,9 +639,15 @@ static void
 mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	GLenum gl_type;
+	float tmx = 1.0f, tmy = 1.0f;
+	bool has_tex;
 	unsigned i;
-	float tmx = hr->textures.current ? 1.0/hr->textures.current->width : 1.0;
-	float tmy = hr->textures.current ? 1.0/hr->textures.current->height : 1.0;
+
+	has_tex = hr->current.material.has_texture && hr->current.texture;
+	if (has_tex) {
+		tmx = 1.0f / hr->current.texture->width;
+		tmy = 1.0f / hr->current.texture->height;
+	}
 
 	gl_type = (mesh->type == MESH_TYPE_TRI_LIST) ?
 	           GL_TRIANGLES : GL_TRIANGLE_STRIP;
@@ -646,7 +657,8 @@ mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	for (i = 0; i < mesh->index; i++) {
 		hikaru_vertex_t *v = &mesh->vertices[i];
 
-		glTexCoord2f (v->texcoords[0]*tmx, v->texcoords[1]*tmy);
+		if (has_tex)
+			glTexCoord2f (v->texcoords[0]*tmx, v->texcoords[1]*tmy);
 		if (mesh->type == MESH_TYPE_TRI_STRIP);
 			glNormal3fv (v->normal);
 		glVertex3fv (v->pos);
@@ -657,12 +669,12 @@ mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 static void
 draw_current_mesh (hikaru_renderer_t *hr)
 {
-	hikaru_mesh_t *mesh = hr->meshes.current;
+	hikaru_mesh_t *mesh = hr->current.mesh;
 	if (!mesh)
 		return;
 	upload_current_state (hr);
 	LOG ("drawing mesh: mode=%d, %d vertices", mesh->type, mesh->index);
-	mesh_draw (hr, hr->meshes.current);
+	mesh_draw (hr, hr->current.mesh);
 }
 
 #define DEFAULT_MAX_MESHES 256
@@ -695,8 +707,8 @@ add_mesh (hikaru_renderer_t *hr, hikaru_mesh_type_t type)
 	mesh->tindex = 0;
 	mesh->max = 0;
 
-	hr->meshes.current = mesh;
 	hr->meshes.index++;
+	hr->current.mesh = mesh;
 	return mesh;
 }
 
@@ -705,7 +717,7 @@ renderer_get_current_mesh (hikaru_renderer_t *hr,
                            hikaru_mesh_type_t type,
                            bool create_if_none)
 {
-	hikaru_mesh_t *mesh = hr->meshes.current;
+	hikaru_mesh_t *mesh = hr->current.mesh;
 	if (mesh && mesh->type != type) {
 		VK_ABORT ("current mesh type is %u, requested mesh type is %u",
 		          mesh->type, type);
@@ -741,7 +753,7 @@ hikaru_renderer_add_vertex (vk_renderer_t *renderer, vec3f_t pos)
 		return;
 	mesh = renderer_get_current_mesh (hr, MESH_TYPE_TRI_LIST, true);
 	VK_ASSERT (mesh);
-	mesh_add_position (hr->meshes.current, pos);
+	mesh_add_position (mesh, pos);
 }
 
 void
@@ -765,7 +777,7 @@ hikaru_renderer_end_mesh (vk_renderer_t *renderer)
 	if (hr->options.disable_3d)
 		return;
 	draw_current_mesh (hr);
-	hr->meshes.current = NULL;
+	hr->current.mesh = NULL;
 }
 
 /* 2D Rendering */
@@ -895,22 +907,11 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
+	/* Erase the current rendering state*/
+	memset (&hr->current, 0, sizeof (hr->current));
+
+	/* Delete all meshes (XXX actually cache them) */
 	free_meshes (hr);
-
-	hr->current_viewport.set = 0;
-	hr->current_viewport.uploaded = 0;
-
-	hr->current_modelview.set = 0;
-	hr->current_modelview.uploaded = 0;
-
-	hr->current_texhead.set = 0;
-	hr->current_texhead.uploaded = 0;
-
-	hr->current_material.set = 0;
-	hr->current_material.uploaded = 0;
-
-	hr->current_lightset.set = 0;
-	hr->current_lightset.uploaded = 0;
 
 	/* clear the frame buffer to a bright pink color */
 	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
@@ -947,7 +948,7 @@ hikaru_renderer_delete (vk_renderer_t **renderer_)
 {
 	if (renderer_) {
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
-		vk_surface_delete (&hr->textures.current);
+		vk_surface_delete (&hr->current.texture);
 		vk_surface_delete (&hr->textures.fb);
 		vk_surface_delete (&hr->textures.texram);
 		vk_surface_delete (&hr->textures.debug);
