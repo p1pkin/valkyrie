@@ -43,11 +43,11 @@ vk_surface_new (unsigned width, unsigned height, vk_surface_format_t format)
 	int ret;
 
 	if (!width || !height) {
-		VK_ERROR ("invalid size (%u,%u)", width, height);
+		VK_ERROR ("invalid surface size (%u,%u)", width, height);
 		return NULL;
 	}
 	if (format >= VK_NUM_SURFACE_FORMATS) {
-		VK_ERROR ("invalid format %u", format);
+		VK_ERROR ("invalid surface format %u", format);
 		return NULL;
 	}
 
