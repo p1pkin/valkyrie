@@ -388,8 +388,6 @@ I (sync)
  * n = Unknown
  * b = set only if n is non-zero
  *
- * It may be related to 781.
- *
  * See PH:@0C015B50. Probably related to 781, see PH:@0C038952.
  */
 
@@ -1533,9 +1531,9 @@ I (mesh_add_position)
  *
  * j,u,w = Unknown
  *
- * The last three words contain vertex data in some (fixed point?) format,
- * for three vertices. The format looks like 10/10/10 or something. There's
- * also sign bits involved.
+ * Given that it's followed by set_texcoords_unk, which likely specifies
+ * only *one* (u.v) pair, this instruction likely specifies a single point in
+ * some format.
  */
 
 I (mesh_add_position_unk)
@@ -1602,14 +1600,15 @@ I (mesh_add_position_normal)
 
 /* EE8	Tex Coord
  *
- *	-------- -------x ----oooo oooooooC
+ *	-------- -------x ----WWWo oooooooC
  *	vvvvvvvv vvvvvvvv uuuuuuuu uuuuuuuu
  *	vvvvvvvv vvvvvvvv uuuuuuuu uuuuuuuu
  *	vvvvvvvv vvvvvvvv uuuuuuuu uuuuuuuu
  *
  * x = Unknown, used in the BOOTROM CRT test screen
+ * C = Unknown
+ * W = Unknown
  * u,v = Texture coordinates
- * C = Selects CW/CCW winding?
  *
  * This command specifies the texture coordinates for a triangle. The vertex
  * positions are determined by the preceding 'Vertex' instructions. The nth
@@ -1643,20 +1642,26 @@ I (mesh_add_texcoords)
 
 /* 158	Tex Coord Unknown
  *
- *	-------- u------- ----oooo oooooooo
+ *	-------- x------- ----WWWo oooooooC
  *	vvvvvvvv vvvvvvvv uuuuuuuu uuuuuuuu
  *
- * u = Unknown
- * v = Tex coords for the previous 12C instruction?
+ * x = Unknown
+ * W = Unknown
+ * C = Unknown
+ * u,v = Texture coordinates
  */
 
 I (mesh_add_texcoords_unk)
 {
-	uint16_t u = inst[1] & 0xFFFF;
-	uint16_t v = inst[1] >> 16;
+	vec2f_t texcoords;
 
-	VK_LOG ("GPU CP %08X: Tex Coord Unk [%08X %08X] { %u %u }",
-	        gpu->cp.pc, inst[0], inst[1], u, v);
+	texcoords[0] = texcoord_to_float (inst[1] & 0xFFFF);
+	texcoords[1] = texcoord_to_float (inst[1] >> 16);
+
+	VK_LOG ("GPU CP %08X: Tex Coord Unk [%08X %08X] <%f %f>",
+	        gpu->cp.pc, inst[0], inst[1], texcoords[0], texcoords[1]);
+
+	/* TODO: call the renderer */
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFF7FF000);
 }
