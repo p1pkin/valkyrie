@@ -393,7 +393,7 @@ static void
 upload_current_viewport (hikaru_renderer_t *hr)
 {
 	hikaru_gpu_viewport_t *vp = &hr->current.viewport;
-	if (!vp->uploaded) {
+	if (vp && !vp->uploaded) {
 		vp->uploaded = 1;
 
 		/* Setup the projection matrix */
@@ -437,7 +437,7 @@ static void
 upload_current_material (hikaru_renderer_t *hr)
 {
 	hikaru_gpu_material_t *mat = &hr->current.material;
-	if (!mat->uploaded) {
+	if (mat && !mat->uploaded) {
 		mat->uploaded = 1;
 
 		/* XXX we only upload color 1 here, as it is used by the
@@ -459,7 +459,7 @@ static void
 upload_current_texhead (hikaru_renderer_t *hr)
 {
 	hikaru_gpu_texhead_t *tex = &hr->current.texhead;
-	if (!tex->uploaded) {
+	if (tex && !tex->uploaded) {
 		vk_surface_t *surface = NULL;
 
 		tex->uploaded = 1;
@@ -507,7 +507,7 @@ static void
 upload_current_lightset (hikaru_renderer_t *hr)
 {
 	hikaru_gpu_lightset_t *ls = &hr->current.lightset;
-	if (!ls->uploaded) {
+	if (ls && !ls->uploaded) {
 		ls->uploaded = 1;
 
 		/* TODO */
