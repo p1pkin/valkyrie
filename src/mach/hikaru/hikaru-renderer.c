@@ -124,7 +124,6 @@ typedef struct {
 		bool draw_fb;
 		bool draw_texram;
 		bool force_debug_texture;
-		bool force_wireframe;
 	} options;
 
 } hikaru_renderer_t;
@@ -522,14 +521,9 @@ upload_current_state (hikaru_renderer_t *hr)
 {
 	upload_current_viewport (hr);
 	upload_current_modelview (hr);
-	if (hr->options.force_wireframe) {
-		glPolygonMode (GL_FRONT_AND_BACK, GL_LINE);
-		glDisable (GL_TEXTURE_2D);
-	} else {
-		upload_current_material (hr);
-		upload_current_texhead (hr);
-		upload_current_lightset (hr);
-	}
+	upload_current_material (hr);
+	upload_current_texhead (hr);
+	upload_current_lightset (hr);
 }
 
 static void
@@ -1037,8 +1031,6 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 			vk_util_get_bool_option ("HR_DRAW_TEXRAM", false);
 		hr->options.force_debug_texture =
 			vk_util_get_bool_option ("HR_FORCE_DEBUG_TEXTURE", false);
-		hr->options.force_wireframe =
-			vk_util_get_bool_option ("HR_FORCE_WIREFRAME", false);
 
 		/* Create a few surfaces */
 		if (!build_default_surfaces (hr))
