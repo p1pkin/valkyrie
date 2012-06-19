@@ -99,8 +99,21 @@ process_events (void)
 		switch (event.type) {
 		case SDL_KEYDOWN:
 			vk_input_set_key (event.key.keysym.sym, true);
-			if (event.key.keysym.sym == SDLK_ESCAPE)
+			/* XXX use CTRL+[1,5] for saving, SHIFT+[1,5] for
+			 * loading */
+			switch (event.key.keysym.sym) {
+			case SDLK_ESCAPE:
 				quit = true;
+				break;
+			case SDLK_F1:
+				load_or_save_state (mach, true);
+				break;
+			case SDLK_F2:
+				load_or_save_state (mach, false);
+				break;
+			default:
+				break;
+			}
 			break;
 		case SDL_KEYUP:
 			vk_input_set_key (event.key.keysym.sym, false);
@@ -110,12 +123,6 @@ process_events (void)
 			break;
 		}
 	}
-	/* XXX move save state handling into SDL_KEYDOWN */
-	/* XXX use CTRL+[1,5] for saving, SHIFT+[1,5] for loading */
-	if (vk_input_get_key (SDLK_F1))
-		load_or_save_state (mach, true);
-	else if (vk_input_get_key (SDLK_F2))
-		load_or_save_state (mach, false);
 	return quit;
 }
 
