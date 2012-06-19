@@ -239,7 +239,7 @@ I (movls4)
 I (mova)
 {
 	/* FIXME: only add 2 in a delay slot */
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 	R0 = ((PC + 4) & ~3) + (_UIMM8 * 4);
 }
 
@@ -552,7 +552,7 @@ I (macl)
 	}
 
 	if (S == 1) {
-		assert (0);
+		VK_CPU_ASSERT (ctx, false);
 		res0 = MACL + res0;
 		if (MACL > res0) {
 			res2 ++;
@@ -805,7 +805,7 @@ I (shlr16)
 
 I (bt)
 {
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 	if (T != 0) {
 		PC = PC + (_SIMM8 << 1) + 4;
 		PC = PC - 2;
@@ -814,7 +814,7 @@ I (bt)
 
 I (bf)
 {
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 	if (T == 0) {
 		PC = PC + (_SIMM8 << 1) + 4;
 		PC = PC - 2;
@@ -823,7 +823,7 @@ I (bf)
 
 I (bts)
 {
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 	if (T != 0) {
 		uint32_t pc;
 		pc = PC;
@@ -835,7 +835,7 @@ I (bts)
 
 I (bfs)
 {
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 	if (T == 0) {
 		uint32_t pc;
 		pc = PC;
@@ -849,7 +849,7 @@ I (bra)
 {
 	uint32_t pc;
 
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 
 	pc = PC;
 	PC = PC + (_SIMM12 << 1) + 4;
@@ -862,7 +862,7 @@ I (braf)
 {
 	uint32_t pc = PC;
 
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 
 	PC = PC + RN + 4;
 
@@ -874,7 +874,7 @@ I (bsr)
 {
 	uint32_t pc;
 
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 
 	pc = PC;
 	PR = PC + 4;
@@ -888,7 +888,7 @@ I (bsrf)
 {
 	uint32_t pc;
 
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 
 	pc = PC;
 	PR = PC + 4;
@@ -902,8 +902,8 @@ I (jmp)
 {
 	uint32_t pc;
 
-	assert (!ctx->in_slot);
-	assert (!(RN & 1));
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !(RN & 1));
 
 	pc = PC;
 	PC = RN;
@@ -916,7 +916,7 @@ I (jsr)
 {
 	uint32_t pc;
 
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 
 	pc = PC;
 	PC = RN;
@@ -930,7 +930,7 @@ I (rts)
 {
 	uint32_t pc;
 
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 
 	pc = PC;
 	PC = PR;// + 4;
@@ -1032,7 +1032,7 @@ I (rte)
 {
 	uint32_t pc;
 
-	assert (!ctx->in_slot);
+	VK_CPU_ASSERT (ctx, !ctx->in_slot);
 
 #ifdef IS_SH2
 	pc = PC;
@@ -1382,13 +1382,13 @@ I (frchg)
 
 I (fldi0)
 {
-	assert (!FPSCR.bit.pr);
+	VK_CPU_ASSERT (ctx, !FPSCR.bit.pr);
 	FRN.f = 0.0f;
 }
 
 I (fldi1)
 {
-	assert (!FPSCR.bit.pr);
+	VK_CPU_ASSERT (ctx, !FPSCR.bit.pr);
 	FRN.f = 1.0f;
 }
 
@@ -1407,7 +1407,7 @@ I (flt)
 	if (!FPSCR.bit.pr) {
 		FRN.f = (float) (int32_t) FPUL.u; /* int32 to float */
 	} else {
-		assert (!(_RN & 1));
+		VK_CPU_ASSERT (ctx, !(_RN & 1));
 		DRN.f = (double) (int32_t) FPUL.u; /* int32 to double */
 	}
 }
@@ -1417,22 +1417,22 @@ I (ftrc)
 	if (!FPSCR.bit.pr) {
 		FPUL.u = (int32_t) FRN.f; /* float to int32 */
 	} else {
-		assert (!(_RN & 1));
+		VK_CPU_ASSERT (ctx, !(_RN & 1));
 		FPUL.u = (int32_t) DRN.f; /* double to int32 */
 	}
 }
 
 I (fcnvsd)
 {
-	assert (!(_RN & 1));
-	assert (!FPSCR.bit.pr);
+	VK_CPU_ASSERT (ctx, !(_RN & 1));
+	VK_CPU_ASSERT (ctx, !FPSCR.bit.pr);
 	DRN.f = FPUL.f;
 }
 
 I (fcnvds)
 {
-	assert (!(_RN & 1));
-	assert (!FPSCR.bit.pr);
+	VK_CPU_ASSERT (ctx, !(_RN & 1));
+	VK_CPU_ASSERT (ctx, !FPSCR.bit.pr);
 	FPUL.f = DRN.f;
 }
 
@@ -1525,7 +1525,7 @@ I (fneg)
 	if (!FPSCR.bit.pr) {
 		FRN.f = -FRN.f;
 	} else {
-		assert (!(_RN & 1));
+		VK_CPU_ASSERT (ctx, !(_RN & 1));
 		DRN.f = -DRN.f;
 	}
 }
@@ -1535,7 +1535,7 @@ I (fabs)
 	if (!FPSCR.bit.pr) {
 		FRN.u = FRN.u & 0x7FFFFFFF;
 	} else {
-		assert (!(_RN & 1));
+		VK_CPU_ASSERT (ctx, !(_RN & 1));
 		DRN.u = DRN.u & 0x7FFFFFFFFFFFFFFFull;
 	}
 }
@@ -1545,8 +1545,8 @@ I (fadd)
 	if (!FPSCR.bit.pr) {
 		FRN.f += FRM.f;
 	} else {
-		assert (!(_RN & 1));
-		assert (!(_RM & 1));
+		VK_CPU_ASSERT (ctx, !(_RN & 1));
+		VK_CPU_ASSERT (ctx, !(_RM & 1));
 		DRN.f += DRM.f;
 	}
 }
@@ -1556,8 +1556,8 @@ I (fsub)
 	if (!FPSCR.bit.pr) {
 		FRN.f -= FRM.f;
 	} else {
-		assert (!(_RN & 1));
-		assert (!(_RM & 1));
+		VK_CPU_ASSERT (ctx, !(_RN & 1));
+		VK_CPU_ASSERT (ctx, !(_RM & 1));
 		DRN.f -= DRM.f;
 	}
 }
@@ -1567,8 +1567,8 @@ I (fmul)
 	if (!FPSCR.bit.pr) {
 		FRN.f *= FRM.f;
 	} else {
-		assert (!(_RN & 1));
-		assert (!(_RM & 1));
+		VK_CPU_ASSERT (ctx, !(_RN & 1));
+		VK_CPU_ASSERT (ctx, !(_RM & 1));
 		DRN.f *= DRM.f;
 	}
 }
@@ -1578,21 +1578,23 @@ I (fdiv)
 	if (!FPSCR.bit.pr) {
 		FRN.f /= FRM.f;
 	} else {
-		assert (!(_RN & 1));
-		assert (!(_RM & 1));
+		VK_CPU_ASSERT (ctx, !(_RN & 1));
+		VK_CPU_ASSERT (ctx, !(_RM & 1));
 		DRN.f /= DRM.f;
 	}
 }
 
 I (fmac)
 {
+	VK_CPU_ASSERT (ctx, FPSCR.bit.pr == 0);
 	FRN.f += FRM.f * FR(0).f;
 }
 
+static const float fsca_alpha = (2.0f * (float) M_PI) / 65536.0f;
+
 I (fsca)
 {
-	static const float alpha = (2.0f * (float) M_PI) / 65536.0f;
-	float angle = (FPUL.u & 0xFFFF) * alpha;
+	float angle = (FPUL.u & 0xFFFF) * fsca_alpha;
 	unsigned n = _RN & ~1;
 	FR(n+0).f = sinf (angle);
 	FR(n+1).f = cosf (angle);
@@ -1611,7 +1613,7 @@ I (fsqrt)
 	if (!FPSCR.bit.pr) {
 		FRN.f = sqrtf (FRN.f);
 	} else {
-		assert (!(_RN & 1));
+		VK_CPU_ASSERT (ctx, !(_RN & 1));
 		DRN.f = sqrt (DRN.f);
 	}
 }
@@ -1670,8 +1672,8 @@ I (fcmpeq)
 	if (!FPSCR.bit.pr) {
 		T = FRN.f == FRM.f;
 	} else {
-		assert (!(_RN & 1));
-		assert (!(_RM & 1));
+		VK_CPU_ASSERT (ctx, !(_RN & 1));
+		VK_CPU_ASSERT (ctx, !(_RM & 1));
 		T = DRN.f == DRM.f;
 	}
 }
@@ -1681,8 +1683,8 @@ I (fcmpgt)
 	if (!FPSCR.bit.pr) {
 		T = FRN.f > FRM.f;
 	} else {
-		assert (!(_RN & 1));
-		assert (!(_RM & 1));
+		VK_CPU_ASSERT (ctx, !(_RN & 1));
+		VK_CPU_ASSERT (ctx, !(_RM & 1));
 		T = DRN.f > DRM.f;
 	}
 }
