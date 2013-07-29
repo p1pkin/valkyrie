@@ -190,7 +190,6 @@ get_machine_for_game (vk_game_t *game, const char *game_name)
 	char *mach = game->mach;
 	if (!strcmp (mach, "hikaru"))
 		return hikaru_new (game);
-	VK_ERROR ("unrecognized game '%s'", game_name);
 	return NULL;
 }
 
@@ -262,13 +261,13 @@ main (const int argc, char **argv)
 
 	game = vk_game_new (game_list, options.rom_path, options.rom_name);
 	if (!game) {
-		VK_ERROR ("failed to load '%s'", options.rom_name);
+		VK_ERROR ("failed to load '%s': can't load game files", options.rom_name);
 		goto fail;
 	}
 
 	mach = get_machine_for_game (game, options.rom_name);
 	if (!mach) {
-		VK_LOG ("failed to create machine");
+		VK_ERROR ("failed to load '%s': game name not in game list", options.rom_name);
 		goto fail;
 	}
 
