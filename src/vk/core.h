@@ -57,17 +57,6 @@
 #endif
 
 typedef enum {
-	VK_SIGNEXT_NONE,
-	VK_SIGNEXT_8_16,
-	VK_SIGNEXT_8_32,
-	VK_SIGNEXT_16_32,
-	VK_ZEROEXT_8_16,
-	VK_ZEROEXT_8_32,
-	VK_ZEROEXT_16_32,
-	VK_NUM_SIGNEXT_MODES,
-} vk_signext;
-
-typedef enum {
 	VK_SWAP_NONE	= 0,
 	VK_SWAP_BSWAP16	= (1 << 0),
 	VK_SWAP_BSWAP32	= (1 << 1),
