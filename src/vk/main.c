@@ -218,7 +218,7 @@ get_home_dir (void)
 static vk_game_list_t *
 load_game_list (void)
 {
-	vk_game_list_t *list;
+	vk_game_list_t *list = NULL;
 	char *paths[3], *home;
 	unsigned i;
 
@@ -228,11 +228,8 @@ load_game_list (void)
 	asprintf (&paths[1], "%s/vk-games.json", home);
 	asprintf (&paths[2], "%s/.local/share/valkyrie/vk-games.json", home);
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 3 && !list; i++)
 		list = vk_game_list_new (paths[i]);
-		if (list)
-			break;
-	}
 
 	if (list)
 		VK_LOG ("loading game list from '%s'", paths[i]);
