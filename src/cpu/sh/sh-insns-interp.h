@@ -1610,51 +1610,49 @@ I (fsqrt)
 
 I (fipr)
 {
-	CHECK_FP
-//	if (FPSCR.bit.pr) {
-		unsigned n = _RN & ~3;
-		unsigned m = _RM & ~3;
+	unsigned n = _RN & ~3;
+	unsigned m = (_RN & 3) << 2;
 
-		FR(n+3).f = FR(n+0).f * FR(m+0).f +
-		            FR(n+1).f * FR(m+1).f +
-		            FR(n+2).f * FR(m+2).f +
-		            FR(n+3).f * FR(m+3).f;
-//	} else {
-//		VK_CPU_ASSERT (ctx, 0);
-//	}
+	CHECK_FP
+
+	/* XXX FPSCR.bit.pr */
+
+	FR(n+3).f = FR(n+0).f * FR(m+0).f +
+	            FR(n+1).f * FR(m+1).f +
+	            FR(n+2).f * FR(m+2).f +
+	            FR(n+3).f * FR(m+3).f;
 }
 
 I (ftrv)
 {
+	unsigned n = _RN & ~3;
+	float res[4];
+
 	CHECK_FP
-//	if (FPSCR.bit.pr) {
-		unsigned n = _RN & ~3;
-		float res[4];
 
-		res[0] = XF(0).f  * FR(n+0).f +
-		         XF(4).f  * FR(n+1).f +
-		         XF(8).f  * FR(n+2).f +
-		         XF(12).f * FR(n+3).f;
-		res[1] = XF(1).f  * FR(n+0).f +
-		         XF(5).f  * FR(n+1).f +
-		         XF(7).f  * FR(n+2).f +
-		         XF(13).f * FR(n+3).f;
-		res[2] = XF(2).f  * FR(n+0).f +
-		         XF(6).f  * FR(n+1).f +
-		         XF(10).f * FR(n+2).f +
-		         XF(14).f * FR(n+3).f;
-		res[3] = XF(3).f  * FR(n+0).f +
-		         XF(7).f  * FR(n+1).f +
-		         XF(11).f * FR(n+2).f +
-		         XF(15).f * FR(n+3).f;
+	/* XXX FPSCR.bit.pr */
 
-		FR(n+0).f = res[0];
-		FR(n+1).f = res[1];
-		FR(n+2).f = res[2];
-		FR(n+3).f = res[3];
-//	} else {
-//		VK_CPU_ASSERT (ctx, 0);
-//	}
+	res[0] = XF(0).f  * FR(n+0).f +
+	         XF(4).f  * FR(n+1).f +
+	         XF(8).f  * FR(n+2).f +
+	         XF(12).f * FR(n+3).f;
+	res[1] = XF(1).f  * FR(n+0).f +
+	         XF(5).f  * FR(n+1).f +
+	         XF(9).f  * FR(n+2).f +
+	         XF(13).f * FR(n+3).f;
+	res[2] = XF(2).f  * FR(n+0).f +
+	         XF(6).f  * FR(n+1).f +
+	         XF(10).f * FR(n+2).f +
+	         XF(14).f * FR(n+3).f;
+	res[3] = XF(3).f  * FR(n+0).f +
+	         XF(7).f  * FR(n+1).f +
+	         XF(11).f * FR(n+2).f +
+	         XF(15).f * FR(n+3).f;
+
+	FR(n+0).f = res[0];
+	FR(n+1).f = res[1];
+	FR(n+2).f = res[2];
+	FR(n+3).f = res[3];
 }
 
 I (fcmpeq)
