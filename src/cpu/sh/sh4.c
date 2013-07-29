@@ -1019,7 +1019,7 @@ sh4_set_irq_state (vk_cpu_t *cpu, unsigned num, vk_irq_state_t state)
 	return 0;
 }
 
-void
+static void
 sh4_process_irqs (vk_cpu_t *cpu)
 {
 	sh4_t *ctx = (sh4_t *) cpu;
@@ -1240,7 +1240,7 @@ sh4_run (vk_cpu_t *cpu, int cycles)
 	return -cpu->remaining;
 }
 
-void
+static void
 sh4_set_state (vk_cpu_t *cpu, vk_cpu_state_t state)
 {
 	/* TODO: standby, deep sleep, etc. */
