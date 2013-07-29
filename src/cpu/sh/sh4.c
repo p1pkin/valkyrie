@@ -1173,9 +1173,8 @@ setup_insns_handlers (void)
 {
 	unsigned i;
 
-	for (i = 0; i < 65536; i++) {
+	for (i = 0; i < 65536; i++)
 		insns[i] = sh4_interp_invalid;
-	}
 
 	setup_insns_handlers_from_table (insns_desc_sh2, NUMELEM (insns_desc_sh2));
 	setup_insns_handlers_from_table (insns_desc_sh4, NUMELEM (insns_desc_sh4));
