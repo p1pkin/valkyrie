@@ -1202,7 +1202,7 @@ I (ldcdbr)
 I (ldcrbank)
 {
 	CHECK_PM
-	R(_RM & 7) = RN;
+	RBANK(_RM & 7) = RN;
 }
 
 I (stcssr)
@@ -1232,7 +1232,7 @@ I (stcdbr)
 I (stcrbank)
 {
 	CHECK_PM
-	RN = R(_RM & 7);
+	RN = RBANK(_RM & 7);
 }
 
 I (ldcmssr)
@@ -1259,7 +1259,7 @@ I (ldcmdbr)
 I (ldcmrbank)
 {
 	CHECK_PM
-	RBANK (RM & 7) = R32 (ctx, RN);
+	RBANK (_RM & 7) = R32 (ctx, RN);
 	RN += 4;
 }
 
@@ -1295,7 +1295,7 @@ I (stcmrbank)
 {
 	CHECK_PM
 	RN -= 4;
-	W32 (ctx, RN, RBANK (RM & 7));
+	W32 (ctx, RN, RBANK (_RM & 7));
 }
 
 /*****************************************************************************
