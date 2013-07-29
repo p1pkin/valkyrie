@@ -60,7 +60,8 @@ typedef enum {
 	VK_SWAP_NONE	= 0,
 	VK_SWAP_BSWAP16	= (1 << 0),
 	VK_SWAP_BSWAP32	= (1 << 1),
-	VK_NUM_SWAP_TYPES,
+
+	VK_NUM_SWAP_TYPES
 } vk_swap;
 
 #define ALLOC(type_) \
@@ -322,7 +323,7 @@ typedef enum {
 	VK_RESET_TYPE_HARD,
 	VK_RESET_TYPE_SOFT,
 
-	VK_NUM_RESET_TYPES,
+	VK_NUM_RESET_TYPES
 } vk_reset_type_t;
 
 bool	is_valid_mat4x3f (mtx4x3f_t mtx);
