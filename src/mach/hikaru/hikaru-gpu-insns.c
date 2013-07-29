@@ -474,7 +474,7 @@ I (vp_set_extents)
 	        gpu->cp.pc, inst[0], inst[1], inst[2], inst[3],
 	        center[0], center[1],
 	        extents_x[0], extents_x[1],
-	        extents_y[0], extents_y[1])
+	        extents_y[0], extents_y[1]);
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
 	gpu->cp.unhandled |= !!(inst[2] & 0xC0008000);
