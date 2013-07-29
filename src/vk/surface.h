@@ -21,8 +21,9 @@
 #ifndef __VK_SURFACE_H__
 #define __VK_SURFACE_H__
 
-#include <stdint.h>
 #include <GL/glew.h>
+
+#include "vk/types.h"
 
 typedef enum {
 	VK_SURFACE_FORMAT_RGBA4444,
