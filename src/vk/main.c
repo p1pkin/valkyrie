@@ -210,7 +210,8 @@ get_home_dir (void)
 	path = getenv ("HOME");
 	if (!path) {
 		struct passwd *pwd = getpwuid (getuid ());
-		path = pwd->pw_dir;
+		if (pwd)
+			path = pwd->pw_dir;
 	}
 	return path;
 }
