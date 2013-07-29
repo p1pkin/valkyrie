@@ -139,11 +139,14 @@ typedef struct {
 static uint32_t
 rgba1111_to_rgba4444 (uint8_t pixel)
 {
-	uint32_t r = (pixel & 1) ? 0xF : 0;
-	uint32_t g = (pixel & 2) ? 0xF : 0;
-	uint32_t b = (pixel & 4) ? 0xF : 0;
-	uint32_t a = (pixel & 8) ? 0xF : 0;
-	return (r << 12) | (g << 8) | (b << 4) | a;
+	static const uint32_t table[16] = {
+		0x0000, 0xF000, 0x0F00, 0xFF00,
+		0x00F0, 0xF0F0, 0x0FF0, 0xFFF0,
+		0x000F, 0xF00F, 0x0F0F, 0xFF0F,
+		0x00FF, 0xF0FF, 0x0FFF, 0xFFFF,
+	};
+
+	return table[pixel & 15];
 }
 
 static vk_surface_t *
