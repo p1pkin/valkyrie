@@ -19,18 +19,8 @@
 #ifndef __VK_SH_INSNS_INTERP_H__
 #define __VK_SH_INSNS_INTERP_H__
 
-#ifndef I
-#error "I macro not defined"
-#endif
-
-#ifndef IDEF
-#error "IDEF macro not defined"
-#endif
-
-#ifndef IS_SH2
-#ifndef IS_SH4
-#error "invalid"
-#endif
+#if !defined(I) || !defined(IDEF) || !(defined(IS_SH2) || defined(IS_SH4))
+#error "required macro not defined"
 #endif
 
 typedef struct {
