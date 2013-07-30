@@ -227,12 +227,12 @@ vk_buffer_get_size (vk_buffer_t *buf)
 	return buf ? buf->size : 0;
 }
 
-const void *
+void *
 vk_buffer_get_ptr (vk_buffer_t *buf, unsigned offs)
 {
 	if (buf && offs < buf->size)
-		return (const void *) buf->ptr[offs];
-	return (const void *) NULL;
+		return (void *) &buf->ptr[offs];
+	return (void *) NULL;
 }
 
 void

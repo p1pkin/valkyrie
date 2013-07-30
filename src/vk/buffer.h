@@ -67,7 +67,7 @@ vk_buffer_t	*vk_buffer_le32_new (unsigned size, unsigned alignment);
 vk_buffer_t	*vk_buffer_be32_new (unsigned size, unsigned alignment);
 void		 vk_buffer_destroy (vk_buffer_t **buffer_);
 unsigned	 vk_buffer_get_size (vk_buffer_t *buf);
-const void	*vk_buffer_get_ptr (vk_buffer_t *buf, unsigned offs);
+void		*vk_buffer_get_ptr (vk_buffer_t *buf, unsigned offs);
 void		 vk_buffer_clear (vk_buffer_t *buffer);
 void		 vk_buffer_print (vk_buffer_t *buffer);
 void		 vk_buffer_print_some (vk_buffer_t *, unsigned lo, unsigned hi);
