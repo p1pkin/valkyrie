@@ -656,7 +656,7 @@ mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 		if (has_tex)
 			glTexCoord2f (v->texcoords[0]*tmx, v->texcoords[1]*tmy);
-		if (mesh->type == MESH_TYPE_TRI_STRIP);
+		if (mesh->type == MESH_TYPE_TRI_STRIP)
 			glNormal3fv (v->normal);
 		glVertex3fv (v->pos);
 	}
