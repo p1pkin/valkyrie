@@ -90,12 +90,12 @@ vk_surface_new (unsigned width, unsigned height, vk_surface_format_t format)
 
 	return surface;
 fail:
-	vk_surface_delete (&surface);
+	vk_surface_destroy (&surface);
 	return NULL;
 }
 
 void
-vk_surface_delete (vk_surface_t **surface_)
+vk_surface_destroy (vk_surface_t **surface_)
 {
 	if (surface_) {
 		vk_surface_t *surface = *surface_;

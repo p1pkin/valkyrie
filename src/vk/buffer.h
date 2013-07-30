@@ -65,7 +65,7 @@ vk_buffer_t	*vk_buffer_new_from_file (const char *path, unsigned size);
 vk_buffer_t	*vk_buffer_new_from_file_any_size (const char *path);
 vk_buffer_t	*vk_buffer_le32_new (unsigned size, unsigned alignment);
 vk_buffer_t	*vk_buffer_be32_new (unsigned size, unsigned alignment);
-void		 vk_buffer_delete (vk_buffer_t **buffer_);
+void		 vk_buffer_destroy (vk_buffer_t **buffer_);
 unsigned	 vk_buffer_get_size (vk_buffer_t *buf);
 const void	*vk_buffer_get_ptr (vk_buffer_t *buf, unsigned offs);
 void		 vk_buffer_clear (vk_buffer_t *buffer);

@@ -186,7 +186,7 @@ hikaru_mie_load_state (vk_device_t *dev, FILE *fp)
 }
 
 static void
-hikaru_mie_delete (vk_device_t **dev_)
+hikaru_mie_destroy (vk_device_t **dev_)
 {
 	if (dev_) {
 		hikaru_mie_t *mie = (hikaru_mie_t *) *dev_;
@@ -202,7 +202,7 @@ hikaru_mie_new (vk_machine_t *mach)
 	if (mie) {
 		mie->base.mach = mach;
 
-		mie->base.delete	= hikaru_mie_delete;
+		mie->base.destroy	= hikaru_mie_destroy;
 		mie->base.reset		= hikaru_mie_reset;
 		mie->base.exec		= hikaru_mie_exec;
 		mie->base.get		= hikaru_mie_get;

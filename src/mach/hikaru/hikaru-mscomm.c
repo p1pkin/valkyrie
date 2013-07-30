@@ -125,7 +125,7 @@ hikaru_mscomm_load_state (vk_device_t *dev, FILE *fp)
 }
 
 static void
-hikaru_mscomm_delete (vk_device_t **dev_)
+hikaru_mscomm_destroy (vk_device_t **dev_)
 {
 	if (dev_) {
 		hikaru_mscomm_t *mscomm = (hikaru_mscomm_t *) *dev_;
@@ -141,7 +141,7 @@ hikaru_mscomm_new (vk_machine_t *mach)
 	if (comm) {
 		comm->base.mach = mach;
 
-		comm->base.delete	= hikaru_mscomm_delete;
+		comm->base.destroy	= hikaru_mscomm_destroy;
 		comm->base.reset	= hikaru_mscomm_reset;
 		comm->base.exec		= hikaru_mscomm_exec;
 		comm->base.get		= hikaru_mscomm_get;

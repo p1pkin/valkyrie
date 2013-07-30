@@ -52,12 +52,12 @@ vk_region_print (vk_region_t *region)
 }
 
 void
-vk_region_delete (vk_region_t **region_)
+vk_region_destroy (vk_region_t **region_)
 {
 	if (region_) {
 		vk_region_t *region = *region_;
 		if (region && (region->flags & VK_REGION_DIRECT))
-			vk_buffer_delete (&region->data.buffer);
+			vk_buffer_destroy (&region->data.buffer);
 		free (region);
 		*region_ = NULL;
 	}

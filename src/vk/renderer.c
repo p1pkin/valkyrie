@@ -78,7 +78,7 @@ vk_shader_compile (vk_shader_t *shader)
 }
 
 void
-vk_shader_delete (vk_shader_t **shader_)
+vk_shader_destroy (vk_shader_t **shader_)
 {
 	if (shader_) {
 		vk_shader_t *shader = *shader_;
@@ -114,7 +114,7 @@ vk_shader_new_from_file (const char *path, GLenum type)
 	return shader;
 
 fail:
-	vk_shader_delete (&shader);
+	vk_shader_destroy (&shader);
 	return NULL;
 }
 
@@ -156,7 +156,7 @@ vk_shader_program_new_from_files (const char *vs_path,
 	return program;
 
 fail:
-	vk_shader_program_delete (&program);
+	vk_shader_program_destroy (&program);
 	return NULL;
 }
 
@@ -174,19 +174,19 @@ vk_renderer_set_shader_program (vk_renderer_t *renderer, vk_shader_program_t *pr
 }
 
 void
-vk_shader_program_delete (vk_shader_program_t **program_)
+vk_shader_program_destroy (vk_shader_program_t **program_)
 {
 	if (program_) {
 		vk_shader_program_t *program = *program_;
 		if (program) {
 			GLint id;
 
-			/* Make sure we don't delete the current program */
+			/* Make sure we don't destroy the current program */
 			glGetIntegerv (GL_CURRENT_PROGRAM, &id);
 			VK_ASSERT (program->id != id);
 
-			vk_shader_delete (&program->vs);
-			vk_shader_delete (&program->fs);
+			vk_shader_destroy (&program->vs);
+			vk_shader_destroy (&program->fs);
 
 			glDeleteProgram (program->id);
 		}
@@ -298,7 +298,7 @@ vk_renderer_new (unsigned width, unsigned height)
 
 	renderer->begin_frame = NULL;
 	renderer->end_frame = NULL;
-	renderer->delete = NULL;
+	renderer->destroy = NULL;
 
 	vk_renderer_init (renderer);
 

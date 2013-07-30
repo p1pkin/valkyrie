@@ -199,7 +199,7 @@ finalize (void)
 	/* XXX free the game list and the game data */
 	VK_LOG ("Finalizing");
 	if (mach)
-		vk_machine_delete (&mach);
+		vk_machine_destroy (&mach);
 }
 
 static char *

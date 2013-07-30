@@ -1440,7 +1440,7 @@ hikaru_gpu_load_state (vk_device_t *dev, FILE *fp)
 }
 
 static void
-hikaru_gpu_delete (vk_device_t **dev_)
+hikaru_gpu_destroy (vk_device_t **dev_)
 {
 	if (dev_) {
 		hikaru_gpu_t *gpu = (hikaru_gpu_t *) *dev_;
@@ -1461,7 +1461,7 @@ hikaru_gpu_new (vk_machine_t *mach,
 	if (gpu) {
 		gpu->base.mach = mach;
 
-		gpu->base.delete	= hikaru_gpu_delete;
+		gpu->base.destroy	= hikaru_gpu_destroy;
 		gpu->base.reset		= hikaru_gpu_reset;
 		gpu->base.exec		= hikaru_gpu_exec;
 		gpu->base.get		= hikaru_gpu_get;

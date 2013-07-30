@@ -47,7 +47,7 @@ struct vk_cpu_t {
 	int remaining;
 	vk_cpu_patch_t	patch;
 
-	void		 (* delete) (vk_cpu_t **cpu_);
+	void		 (* destroy) (vk_cpu_t **cpu_);
 	void		 (* reset) (vk_cpu_t *cpu, vk_reset_type_t type);
 	int		 (* run) (vk_cpu_t *cpu, int cycles);
 	void		 (* set_state) (vk_cpu_t *cpu, vk_cpu_state_t state);
@@ -82,13 +82,13 @@ struct vk_cpu_t {
 	} while (0);
 
 static inline void
-vk_cpu_delete (vk_cpu_t **cpu_)
+vk_cpu_destroy (vk_cpu_t **cpu_)
 {
 	if (cpu_) {
 		vk_cpu_t *cpu = *cpu_;
 		VK_ASSERT (cpu != NULL);
-		VK_ASSERT (cpu->delete != NULL);
-		cpu->delete (cpu_);
+		VK_ASSERT (cpu->destroy != NULL);
+		cpu->destroy (cpu_);
 	}
 }
 

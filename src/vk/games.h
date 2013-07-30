@@ -47,10 +47,10 @@ typedef struct {
 } vk_game_list_t;
 
 vk_game_t	*vk_game_new (vk_game_list_t *list, const char *path, const char *name);
-void		 vk_game_delete (vk_game_t **game_);
+void		 vk_game_destroy (vk_game_t **game_);
 vk_buffer_t	*vk_game_get_section_data (vk_game_t *game, const char *name);
 
 vk_game_list_t	*vk_game_list_new (const char *path);
-void		 vk_game_list_delete (vk_game_list_t **game_list_);
+void		 vk_game_list_destroy (vk_game_list_t **game_list_);
 
 #endif /* __VK_GAMES_H __ */

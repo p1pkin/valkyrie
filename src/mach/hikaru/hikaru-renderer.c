@@ -468,7 +468,7 @@ upload_current_texhead (hikaru_renderer_t *hr)
 
 		/* Delete the old texture */
 		if (hr->current.texture != hr->textures.debug)
-			vk_surface_delete (&hr->current.texture);
+			vk_surface_destroy (&hr->current.texture);
 
 		/* XXX implement texhead caching */
 
@@ -858,7 +858,7 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer, hikaru_gpu_layer_t *layer)
 		return;
 	}
 	vk_surface_draw (surface);
-	vk_surface_delete (&surface);
+	vk_surface_destroy (&surface);
 }
 
 /* Debug */
@@ -941,14 +941,14 @@ hikaru_renderer_reset (vk_renderer_t *renderer)
 }
 
 static void
-hikaru_renderer_delete (vk_renderer_t **renderer_)
+hikaru_renderer_destroy (vk_renderer_t **renderer_)
 {
 	if (renderer_) {
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
-		vk_surface_delete (&hr->current.texture);
-		vk_surface_delete (&hr->textures.fb);
-		vk_surface_delete (&hr->textures.texram);
-		vk_surface_delete (&hr->textures.debug);
+		vk_surface_destroy (&hr->current.texture);
+		vk_surface_destroy (&hr->textures.fb);
+		vk_surface_destroy (&hr->textures.texram);
+		vk_surface_destroy (&hr->textures.debug);
 		free_meshes (hr);
 		free_textures (hr);
 	}
@@ -1007,7 +1007,7 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 		hr->base.width = 640;
 		hr->base.height = 480;
 
-		hr->base.delete = hikaru_renderer_delete;
+		hr->base.destroy = hikaru_renderer_destroy;
 		hr->base.reset = hikaru_renderer_reset;
 		hr->base.begin_frame = hikaru_renderer_begin_frame;
 		hr->base.end_frame = hikaru_renderer_end_frame;

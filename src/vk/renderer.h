@@ -45,18 +45,18 @@ struct vk_renderer_t {
 	unsigned height;
 	vk_shader_program_t *program;
 
-	void	(* delete)(vk_renderer_t **renderer_);
+	void	(* destroy)(vk_renderer_t **renderer_);
 	void	(* reset)(vk_renderer_t *renderer);
 	void	(* begin_frame)(vk_renderer_t *renderer);
 	void	(* end_frame)(vk_renderer_t *renderer);
 };
 
 vk_shader_t		*vk_shader_new_from_file (const char *path, GLenum type);
-void			 vk_shader_delete (vk_shader_t **shader_);
+void			 vk_shader_destroy (vk_shader_t **shader_);
 
 vk_shader_program_t	*vk_shader_program_new_from_files (const char *vs_path, const char *fs_path);
 vk_shader_program_t	*vk_shader_program_new_passthru (void);
-void			 vk_shader_program_delete (vk_shader_program_t **program_);
+void			 vk_shader_program_destroy (vk_shader_program_t **program_);
 
 vk_renderer_t		*vk_renderer_new (unsigned width, unsigned height);
 int			 vk_renderer_init (vk_renderer_t *renderer);
@@ -73,10 +73,10 @@ vk_renderer_reset (vk_renderer_t *renderer)
 }
 
 static inline void
-vk_renderer_delete (vk_renderer_t **renderer_)
+vk_renderer_destroy (vk_renderer_t **renderer_)
 {
 	if (renderer_)
-		(*renderer_)->delete (renderer_);
+		(*renderer_)->destroy (renderer_);
 }
 
 #endif /* __VK_REND_H__ */

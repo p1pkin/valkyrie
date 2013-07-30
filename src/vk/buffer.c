@@ -141,7 +141,7 @@ vk_buffer_new (unsigned size, unsigned alignment)
 	return buf;
 
 fail:
-	vk_buffer_delete (&buf);
+	vk_buffer_destroy (&buf);
 	return NULL;
 }
 
@@ -197,7 +197,7 @@ vk_buffer_new_from_file (const char *path, unsigned reqsize)
 
 	return buffer;
 fail:
-	vk_buffer_delete (&buffer);
+	vk_buffer_destroy (&buffer);
 	if (fp)
 		fclose (fp);
 	return  NULL;
@@ -210,7 +210,7 @@ vk_buffer_new_from_file_any_size (const char *path)
 }
 
 void
-vk_buffer_delete (vk_buffer_t **buf_)
+vk_buffer_destroy (vk_buffer_t **buf_)
 {
 	if (buf_) {
 		vk_buffer_t *buf = *buf_;

@@ -160,7 +160,7 @@ hikaru_aica_save_state (vk_device_t *dev, FILE *fp)
 }
 
 static void
-hikaru_aica_delete (vk_device_t **dev_)
+hikaru_aica_destroy (vk_device_t **dev_)
 {
 	/* TODO */
 }
@@ -173,7 +173,7 @@ hikaru_aica_new (vk_machine_t *mach, vk_buffer_t *ram, bool master)
 	if (aica) {
 		aica->base.mach = mach;
 
-		aica->base.delete	= hikaru_aica_delete;
+		aica->base.destroy	= hikaru_aica_destroy;
 		aica->base.reset	= hikaru_aica_reset;
 		aica->base.exec		= hikaru_aica_exec;
 		aica->base.get		= hikaru_aica_get;

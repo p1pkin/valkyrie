@@ -1415,11 +1415,11 @@ sh4_set_porta_handlers (vk_cpu_t *cpu,
 }
 
 static void
-sh4_delete (vk_cpu_t **cpu_)
+sh4_destroy (vk_cpu_t **cpu_)
 {
 	if (cpu_) {
 		sh4_t *ctx = (sh4_t *) *cpu_;
-		vk_buffer_delete (&ctx->iregs);
+		vk_buffer_destroy (&ctx->iregs);
 		free (ctx);
 		*cpu_ = NULL;
 	}
@@ -1440,7 +1440,7 @@ sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master, bool le)
 	ctx->base.reset			= sh4_reset;
 	ctx->base.set_irq_state		= sh4_set_irq_state;
 	ctx->base.get_debug_string	= sh4_get_debug_string;
-	ctx->base.delete		= sh4_delete;
+	ctx->base.destroy		= sh4_destroy;
 
 	ctx->config.master = master;
 	ctx->config.little_endian = le;
@@ -1453,6 +1453,6 @@ sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master, bool le)
 
 	return (vk_cpu_t *) ctx;
 fail:
-	vk_cpu_delete ((vk_cpu_t **) &ctx);
+	vk_cpu_destroy ((vk_cpu_t **) &ctx);
 	return NULL;
 }

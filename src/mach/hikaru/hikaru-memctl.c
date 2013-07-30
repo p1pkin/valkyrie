@@ -714,12 +714,12 @@ hikaru_memctl_load_state (vk_device_t *dev, FILE *fp)
 }
 
 static void
-hikaru_memctl_delete (vk_device_t **dev_)
+hikaru_memctl_destroy (vk_device_t **dev_)
 {
 	if (dev_) {
 		hikaru_memctl_t *memctl = (hikaru_memctl_t *) *dev_;
 		if (memctl)
-			vk_buffer_delete (&memctl->regs);
+			vk_buffer_destroy (&memctl->regs);
 		free (memctl);
 		*dev_ = NULL;
 	}
@@ -740,7 +740,7 @@ hikaru_memctl_new (vk_machine_t *mach, bool master)
 
 	memctl->base.mach = mach;
 
-	memctl->base.delete	= hikaru_memctl_delete;
+	memctl->base.destroy	= hikaru_memctl_destroy;
 	memctl->base.reset	= hikaru_memctl_reset;
 	memctl->base.exec	= hikaru_memctl_exec;
 	memctl->base.get	= hikaru_memctl_get;
@@ -751,6 +751,6 @@ hikaru_memctl_new (vk_machine_t *mach, bool master)
 	return device;
 
 fail:
-	hikaru_memctl_delete (&device);
+	hikaru_memctl_destroy (&device);
 	return NULL;
 }

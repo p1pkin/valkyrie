@@ -33,7 +33,7 @@ struct vk_machine_t {
 	vk_game_t	*game;
 	vk_renderer_t	*renderer;
 
-	void		 (* delete)(vk_machine_t **mach_);
+	void		 (* destroy)(vk_machine_t **mach_);
 	int		 (* parse_args) (vk_machine_t *mach, int argc, char **argv);
 	int		 (* load_game) (vk_machine_t *mach, vk_game_t *game);
 	void		 (* reset) (vk_machine_t *mach, vk_reset_type_t type);
@@ -65,10 +65,10 @@ struct vk_machine_t {
 	VK_ASSERT (cond_)
 
 static inline void
-vk_machine_delete (vk_machine_t **mach_)
+vk_machine_destroy (vk_machine_t **mach_)
 {
 	if (mach_)
-		(*mach_)->delete (mach_);
+		(*mach_)->destroy (mach_);
 }
 
 static inline int

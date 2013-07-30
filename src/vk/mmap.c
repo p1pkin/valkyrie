@@ -152,12 +152,12 @@ vk_mmap_new (vk_machine_t *mach, unsigned num)
 	return mmap;
 
 fail:
-	vk_mmap_delete (&mmap);
+	vk_mmap_destroy (&mmap);
 	return NULL;
 }
 
 void
-vk_mmap_delete (vk_mmap_t **mmap_)
+vk_mmap_destroy (vk_mmap_t **mmap_)
 {
 	if (mmap_) {
 		vk_mmap_t *mmap = *mmap_;

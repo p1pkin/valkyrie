@@ -27,7 +27,7 @@ struct vk_device_t {
 	vk_machine_t *mach;
 	unsigned flags;
 
-	void	(* delete)(vk_device_t **dev_);
+	void	(* destroy)(vk_device_t **dev_);
 	void	(* reset)(vk_device_t *dev, vk_reset_type_t type);
 	int	(* exec)(vk_device_t *dev, int cycles);
 	int	(* get)(vk_device_t *dev, unsigned size, uint32_t addr, void *val);
@@ -37,10 +37,10 @@ struct vk_device_t {
 };
 
 static inline void
-vk_device_delete (vk_device_t **dev_)
+vk_device_destroy (vk_device_t **dev_)
 {
 	if (dev_) {
-		(*dev_)->delete (dev_);
+		(*dev_)->destroy (dev_);
 	}
 }
 

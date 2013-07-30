@@ -164,7 +164,7 @@ load_section (json_t *root, vk_game_section_t *section, const char *path, const 
 			}
 			if (i & 1)
 				base += vk_buffer_get_size (buf) * 2;
-			vk_buffer_delete (&buf);
+			vk_buffer_destroy (&buf);
 		}
 		break;
 	case MODE_CONCATENATE:
@@ -183,7 +183,7 @@ load_section (json_t *root, vk_game_section_t *section, const char *path, const 
 				vk_buffer_put (section->buffer, 1, j+base, byte);
 			}
 			base += vk_buffer_get_size (buffer);
-			vk_buffer_delete (&buffer);
+			vk_buffer_destroy (&buffer);
 		}
 		break;
 	}
@@ -245,18 +245,18 @@ vk_game_new (vk_game_list_t *game_list, const char *path, const char *name)
 
 	return game;
 fail:
-	vk_game_delete (&game);
+	vk_game_destroy (&game);
 	return NULL;
 }
 
 void
-vk_game_delete (vk_game_t **game_)
+vk_game_destroy (vk_game_t **game_)
 {
 	if (game_) {
 		vk_game_t *game = *game_;
 		unsigned i;
 		for (i = 0; i < game->nsections; i++)
-			vk_buffer_delete (&game->sections[i].buffer);
+			vk_buffer_destroy (&game->sections[i].buffer);
 		free (game->sections);
 		free (game);
 		*game_ = NULL;
@@ -346,12 +346,12 @@ vk_game_list_new (const char *path)
 
 	return list;
 fail:
-	//vk_game_list_delete (&list);
+	//vk_game_list_destroy (&list);
 	return NULL;
 }
 
 void
-vk_game_list_delete (vk_game_list_t **game_list_)
+vk_game_list_destroy (vk_game_list_t **game_list_)
 {
 	if (game_list_) {
 		vk_game_list_t *game_list = *game_list_;

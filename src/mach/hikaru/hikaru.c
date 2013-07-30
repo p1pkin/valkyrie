@@ -1077,7 +1077,7 @@ hikaru_install_game_patches (hikaru_t *hikaru)
 }
 
 static void
-hikaru_delete (vk_machine_t **mach_)
+hikaru_destroy (vk_machine_t **mach_)
 {
 	if (mach_) {
 
@@ -1087,28 +1087,28 @@ hikaru_delete (vk_machine_t **mach_)
 			/* dump everything we got before quitting */
 			hikaru_dump ((vk_machine_t *) hikaru);
 
-			vk_device_delete (&hikaru->memctl_m);
-			vk_device_delete (&hikaru->memctl_s);
-			vk_device_delete (&hikaru->mscomm);
-			vk_device_delete (&hikaru->mie);
-			vk_device_delete (&hikaru->gpu);
+			vk_device_destroy (&hikaru->memctl_m);
+			vk_device_destroy (&hikaru->memctl_s);
+			vk_device_destroy (&hikaru->mscomm);
+			vk_device_destroy (&hikaru->mie);
+			vk_device_destroy (&hikaru->gpu);
 
-			vk_cpu_delete (&hikaru->sh_m);
-			vk_cpu_delete (&hikaru->sh_s);
+			vk_cpu_destroy (&hikaru->sh_m);
+			vk_cpu_destroy (&hikaru->sh_s);
 
-			vk_mmap_delete (&hikaru->mmap_m);
-			vk_mmap_delete (&hikaru->mmap_s);
+			vk_mmap_destroy (&hikaru->mmap_m);
+			vk_mmap_destroy (&hikaru->mmap_s);
 
-			vk_buffer_delete (&hikaru->ram_m);
-			vk_buffer_delete (&hikaru->ram_s);
-			vk_buffer_delete (&hikaru->cmdram);
-			vk_buffer_delete (&hikaru->fb);
-			vk_buffer_delete (&hikaru->texram[0]);
-			vk_buffer_delete (&hikaru->texram[1]);
-			vk_buffer_delete (&hikaru->aica_ram_m);
-			vk_buffer_delete (&hikaru->aica_ram_s);
-			vk_buffer_delete (&hikaru->bram);
-			vk_buffer_delete (&hikaru->mie_ram);
+			vk_buffer_destroy (&hikaru->ram_m);
+			vk_buffer_destroy (&hikaru->ram_s);
+			vk_buffer_destroy (&hikaru->cmdram);
+			vk_buffer_destroy (&hikaru->fb);
+			vk_buffer_destroy (&hikaru->texram[0]);
+			vk_buffer_destroy (&hikaru->texram[1]);
+			vk_buffer_destroy (&hikaru->aica_ram_m);
+			vk_buffer_destroy (&hikaru->aica_ram_s);
+			vk_buffer_destroy (&hikaru->bram);
+			vk_buffer_destroy (&hikaru->mie_ram);
 		}
 		free (hikaru);
 		*mach_ = NULL;
@@ -1200,7 +1200,7 @@ hikaru_init (hikaru_t *hikaru)
 	return 0;
 
 fail:
-	hikaru_delete (&mach);
+	hikaru_destroy (&mach);
 	return -1;
 }
 
@@ -1221,7 +1221,7 @@ hikaru_new (vk_game_t *game)
 
 	mach->game = game;
 
-	mach->delete		= hikaru_delete;
+	mach->destroy		= hikaru_destroy;
 	mach->parse_args	= hikaru_parse_args;
 	mach->reset		= hikaru_reset;
 	mach->run_frame		= hikaru_run_frame;
@@ -1230,7 +1230,7 @@ hikaru_new (vk_game_t *game)
 	mach->get_debug_string	= hikaru_get_debug_string;
 
 	if (hikaru_init (hikaru))
-		hikaru_delete (&mach);
+		hikaru_destroy (&mach);
 
 	return mach;
 }
