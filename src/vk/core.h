@@ -305,7 +305,7 @@ signext_n_64 (const uint64_t in, const unsigned sign_bit)
 	do { \
 		fprintf (stderr, "FATAL: %s:%d %s(): "fmt_"\n", \
 		         __FILE__, __LINE__, __FUNCTION__, ##args_); \
-		assert (0); \
+		abort (); \
 	} while (0);
 
 /** If the condition fails, prints a formatted message, prefixed by 'FATAL',
