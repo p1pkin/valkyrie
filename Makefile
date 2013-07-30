@@ -21,7 +21,7 @@ VK_OBJ := \
 	src/vk/main.o
 
 SH4_OBJ := \
-	src/cpu/sh/sh4.c
+	src/cpu/sh/sh4.o
 
 HIKARU_OBJ := \
 	$(SH4_OBJ) \
