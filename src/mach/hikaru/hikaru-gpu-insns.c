@@ -254,12 +254,6 @@ print_unhandled (hikaru_gpu_t *gpu, uint32_t *inst, unsigned num_words)
 	VK_ERROR ("GPU CP: @%08X: unhandled instruction %s", gpu->cp.pc, info);
 }
 
-static inline uint32_t
-exp16 (uint32_t base)
-{
-	return 16 << base;
-}
-
 #define I(name_) \
 	static void hikaru_gpu_inst_##name_ (hikaru_gpu_t *gpu, uint32_t *inst)
 
@@ -1032,8 +1026,8 @@ I (tex_set_unk_0C1)
 
 I (tex_set_format)
 {
-	gpu->texheads.scratch.width	= exp16 ((inst[0] >> 16) & 7);
-	gpu->texheads.scratch.height	= exp16 ((inst[0] >> 19) & 7);
+	gpu->texheads.scratch.width	= ((inst[0] >> 16) & 7) << 16;
+	gpu->texheads.scratch.height	= ((inst[0] >> 19) & 7) << 16;
 	gpu->texheads.scratch.format	= (inst[0] >> 26) & 7;
 	gpu->texheads.scratch.log_width	= (inst[0] >> 16) & 7;
 	gpu->texheads.scratch.log_height= (inst[0] >> 19) & 7;
