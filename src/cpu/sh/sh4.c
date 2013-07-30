@@ -315,14 +315,113 @@ sh4_intc_update_priorities (sh4_t *ctx)
 
 /* DMA Controller */
 
-/* TODO: DTR mode */
-/* TODO: DMAC Address error on:
- * - DAR is in Area 7
- * - non-existant on-chip address */
-/* TODO: validate RS settings against SAR and DAR */
+/* XXX DTR mode */
+/* XXX validate RS settings against SAR and DAR */
+/* XXX raise a DMA AE if any access error occurs. */
+/* XXX synchronization with the TMU if required */
+/* XXX most of this stuff can be set at write time */
 
-static const uint32_t ts_mask[8] = { 7, 0, 1, 3, 31, ~0, ~0, ~0 };
 static const uint32_t ts_incr[8] = { 8, 1, 2, 4, 32, 0, 0, 0 };
+
+#define DMAC_DO_TRANSFER(size_) \
+	do { \
+		for (; cycles > 0 && tcr > 0; cycles--, tcr--) { \
+			uint64_t tmp; \
+			if (sm == 2) \
+				sar -= size_; \
+			if (dm == 2) \
+				dar -= size_; \
+			if ((size_) == 32) { \
+				sh4_get (ctx, 8, sar, &tmp); \
+				sh4_put (ctx, 8, dar, tmp); \
+				sh4_get (ctx, 8, sar+8, &tmp); \
+				sh4_put (ctx, 8, dar+8, tmp); \
+				sh4_get (ctx, 8, sar+16, &tmp); \
+				sh4_put (ctx, 8, dar+16, tmp); \
+				sh4_get (ctx, 8, sar+24, &tmp); \
+				sh4_put (ctx, 8, dar+24, tmp); \
+			} else { \
+				sh4_get (ctx, size_, sar, &tmp); \
+				sh4_put (ctx, size_, dar, tmp); \
+			} \
+			if (sm == 1) \
+				sar += size_; \
+			if (dm == 1) \
+				dar += size_; \
+		} \
+	} while (0)
+
+static void
+sh4_dmac_run_channel (sh4_t *ctx, unsigned ch, int cycles)
+{
+	uint32_t offs = ch * 0x10;
+	uint32_t sar  = IREG_GET (4, DMAC_SAR0 + offs);
+	uint32_t dar  = IREG_GET (4, DMAC_DAR0 + offs);
+	uint32_t tcr  = IREG_GET (4, DMAC_TCR0 + offs);
+	uint32_t chcr = IREG_GET (4, DMAC_CHCR0 + offs);
+
+	uint32_t ts = (chcr >> 4) & 7;
+	uint32_t sm = (chcr >> 12) & 3;
+	uint32_t dm = (chcr >> 14) & 3;
+
+	VK_CPU_LOG (ctx, "DMAC ch%u: %08X->%08X x %X [%uB, sm=%u, dm=%u]",
+	            ch, sar, dar, tcr, ts_incr[ts], sm, dm);
+
+	switch (ts) {
+	case 0: /* 8 bytes */
+		DMAC_DO_TRANSFER (8);
+		break;
+	case 1: /* 1 byte */
+		DMAC_DO_TRANSFER (1);
+		break;
+	case 2: /* 2 bytes */
+		DMAC_DO_TRANSFER (2);
+		break;
+	case 3: /* 4 bytes */
+		DMAC_DO_TRANSFER (4);
+		break;
+	case 4: /* 32 bytes */
+		DMAC_DO_TRANSFER (32);
+		break;
+	default:
+		VK_ASSERT (!"invalid DMAC transfer size");
+		break;
+	}
+
+	IREG_PUT (4, DMAC_SAR0 + offs, sar);
+	IREG_PUT (4, DMAC_DAR0 + offs, dar);
+	IREG_PUT (4, DMAC_TCR0 + offs, tcr);
+
+	if (tcr == 0) {
+		chcr |= 2; /* TE */
+		if (chcr & 4) { /* IE */
+			unsigned num;
+			num = (ch == 0) ? SH4_IESOURCE_DMTE0 :
+			      (ch == 1) ? SH4_IESOURCE_DMTE1 :
+			      (ch == 2) ? SH4_IESOURCE_DMTE2 :
+			      SH4_IESOURCE_DMTE3;
+			sh4_set_irq_state ((vk_cpu_t *) ctx, num,
+			                   VK_IRQ_STATE_RAISED);
+		}
+		ctx->dmac.is_running[ch] = false;
+		IREG_PUT (4, DMAC_CHCR0 + offs, chcr);
+	}
+}
+
+static void
+sh4_dmac_run (sh4_t *ctx, int cycles)
+{
+	/* TODO: priorities (DMAOR.PR). Are they really that important? */
+
+	if (ctx->dmac.is_running[0])
+		sh4_dmac_run_channel (ctx, 0, cycles);
+	if (ctx->dmac.is_running[1])
+		sh4_dmac_run_channel (ctx, 1, cycles);
+	if (ctx->dmac.is_running[2])
+		sh4_dmac_run_channel (ctx, 2, cycles);
+	if (ctx->dmac.is_running[3])
+		sh4_dmac_run_channel (ctx, 3, cycles);
+}
 
 static void
 sh4_dmac_update_channel_state (sh4_t *ctx, unsigned ch, uint32_t request_type)
@@ -347,12 +446,13 @@ sh4_dmac_update_channel_state (sh4_t *ctx, unsigned ch, uint32_t request_type)
 		VK_ASSERT (sm != 3);
 		VK_ASSERT (dm != 3);
 		VK_ASSERT (rs != 1 && rs != 7 && rs != 15);
+//		VK_ASSERT (AREA (dar) != 7);
 
 		/* Check the addresses and update AE if needed; bail out and
 		 * send an Address Error exception. We only do it here,
 		 * because tick_channel () can't alter the addresses as to
 		 * raise an AE if they are correct here (by induction.) */
-		if ((sar | dar) & ts_mask[ts]) {
+		if ((sar | dar) & (ts_incr[ts] - 1)) {
 			VK_CPU_LOG (ctx, "DMAC: raising DMA address error");
 			sh4_set_irq_state ((vk_cpu_t *) ctx,
 			                   SH4_IESOURCE_DMAE,
@@ -379,104 +479,6 @@ sh4_dmac_update_state (sh4_t *ctx, uint32_t request_type)
 	sh4_dmac_update_channel_state (ctx, 1, request_type);
 	sh4_dmac_update_channel_state (ctx, 2, request_type);
 	sh4_dmac_update_channel_state (ctx, 3, request_type);
-}
-
-static void
-sh4_dmac_tick_channel (sh4_t *ctx, unsigned ch)
-{
-	if (ctx->dmac.is_running[ch]) {
-		uint32_t offs = ch * 0x10;
-		uint32_t dmaor = IREG_GET (4, DMAC_DMAOR);
-		uint32_t sar  = IREG_GET (4, DMAC_SAR0 + offs);
-		uint32_t dar  = IREG_GET (4, DMAC_DAR0 + offs);
-		uint32_t tcr  = IREG_GET (4, DMAC_TCR0 + offs);
-		uint32_t chcr = IREG_GET (4, DMAC_CHCR0 + offs);
-		uint32_t ts = (chcr >> 4) & 7;
-		uint32_t sm = (chcr >> 12) & 3;
-		uint32_t dm = (chcr >> 14) & 3;
-		uint64_t tmp;
-
-		/* TODO: raise a DMA AE if any error occurs. */
-
-		switch (ts) {
-		case 0: /* 8 bytes */
-			sh4_get (ctx, 8, sar, &tmp);
-			sh4_put (ctx, 8, dar, tmp);
-			break;
-		case 1: /* 1 byte */
-			sh4_get (ctx, 1, sar, &tmp);
-			sh4_put (ctx, 1, dar, tmp);
-			break;
-		case 2: /* 2 bytes */
-			sh4_get (ctx, 2, sar, &tmp);
-			sh4_put (ctx, 2, dar, tmp);
-			break;
-		case 3: /* 4 bytes */
-			sh4_get (ctx, 4, sar, &tmp);
-			sh4_put (ctx, 4, dar, tmp);
-			break;
-		case 4: /* 32 bytes */
-			sh4_get (ctx, 4, sar+0, &tmp);
-			sh4_put (ctx, 4, dar+0, tmp);
-			sh4_get (ctx, 4, sar+4, &tmp);
-			sh4_put (ctx, 4, dar+4, tmp);
-			sh4_get (ctx, 4, sar+8, &tmp);
-			sh4_put (ctx, 4, dar+8, tmp);
-			sh4_get (ctx, 4, sar+12, &tmp);
-			sh4_put (ctx, 4, dar+12, tmp);
-			break;
-		}
-
-		switch (sm) {
-		case 1:
-			sar += ts_incr[ts];
-			break;
-		case 2:
-			sar -= ts_incr[ts];
-			break;
-		}
-
-		switch (dm) {
-		case 1:
-			dar += ts_incr[ts];
-			break;
-		case 2:
-			dar -= ts_incr[ts];
-			break;
-		}
-
-		tcr --;
-		if (tcr == 0) {
-			chcr |= 2; /* TE */
-			if (chcr & 4) { /* IE */
-				unsigned num;
-				num = (ch == 0) ? SH4_IESOURCE_DMTE0 :
-				      (ch == 1) ? SH4_IESOURCE_DMTE1 :
-				      (ch == 2) ? SH4_IESOURCE_DMTE2 :
-				      SH4_IESOURCE_DMTE3;
-				sh4_set_irq_state ((vk_cpu_t *) ctx, num,
-				                   VK_IRQ_STATE_RAISED);
-			}
-			ctx->dmac.is_running[ch] = false;
-		}
-
-		IREG_PUT (4, DMAC_SAR0 + offs, sar);
-		IREG_PUT (4, DMAC_DAR0 + offs, dar);
-		IREG_PUT (4, DMAC_TCR0 + offs, tcr);
-		IREG_PUT (4, DMAC_CHCR0 + offs, chcr);
-		IREG_PUT (4, DMAC_DMAOR, dmaor);
-	}
-}
-
-static void
-sh4_dmac_tick (sh4_t *ctx)
-{
-	/* TODO: priorities (DMAOR.PR). Are they really that important? */
-
-	sh4_dmac_tick_channel (ctx, 0);
-	sh4_dmac_tick_channel (ctx, 1);
-	sh4_dmac_tick_channel (ctx, 2);
-	sh4_dmac_tick_channel (ctx, 3);
 }
 
 /* Timer Unit */
@@ -1221,9 +1223,7 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	inst = vk_cpu_patch ((vk_cpu_t *) ctx, pc & 0x1FFFFFFF, inst);
 
 	insns[inst] (ctx, inst);
-	//sh4_bsc_tick (ctx);
-	//sh4_sci_tick (ctx);
-	sh4_dmac_tick (ctx);
+
 	ctx->base.remaining --;
 }
 
@@ -1248,7 +1248,9 @@ sh4_run (vk_cpu_t *cpu, int cycles)
 		sh4_step (ctx, PC);
 		PC += 2;
 	}
+	/* XXX BSC, SCI */
 	sh4_tmu_run (ctx, cycles);
+	sh4_dmac_run (ctx, cycles);
 	return -cpu->remaining;
 }
 
