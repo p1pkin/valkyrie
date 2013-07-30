@@ -850,7 +850,7 @@ sh4_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 		ret = sh4_ireg_get (ctx, size, addr, val);
 	else if (IS_STORE_QUEUE (addr))
 		ret = sh4_sq_get (ctx, size, addr, val);
-	else if (addr >= 0xF0000000 && addr < 0xF80000000) {
+	else if (addr >= 0xF0000000 && addr < 0xF8000000) {
 		VK_CPU_LOG (ctx, "ONCHIP R%d @%08X", 8*size, addr);
 		set_ptr (val, size, 0);
 		return 0;
@@ -869,7 +869,7 @@ sh4_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 
 	if (IS_ON_CHIP (addr))
 		ret = sh4_ireg_put (ctx, size, addr, val);
-	else if (addr >= 0xF0000000 && addr < 0xF80000000) {
+	else if (addr >= 0xF0000000 && addr < 0xF8000000) {
 		VK_CPU_ABORT (ctx, "ONCHIP W%d @%08X = %llX", 8*size, addr, val);
 		return 0;
 	} else if (IS_STORE_QUEUE (addr))
