@@ -27,13 +27,15 @@ typedef enum {
 	VK_CPU_STATE_SLEEP,
 	VK_CPU_STATE_STANDBY,
 	VK_CPU_STATE_RUN,
-	VK_NUM_CPU_STATES,
+
+	VK_NUM_CPU_STATES
 } vk_cpu_state_t;
 
 typedef enum {
 	VK_IRQ_STATE_CLEAR,
 	VK_IRQ_STATE_RAISED,
-	VK_NUM_IRQ_STATES,
+
+	VK_NUM_IRQ_STATES
 } vk_irq_state_t;
 
 typedef struct vk_cpu_t vk_cpu_t;
