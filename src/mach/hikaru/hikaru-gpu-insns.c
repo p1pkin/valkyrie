@@ -152,6 +152,39 @@
  */
 
 static void
+disasm (hikaru_gpu_t *gpu, uint32_t *inst, unsigned nwords, const char *fmt, ...)
+{
+	char out[256], *tmp = out;
+	va_list args;
+	unsigned i;
+
+	VK_ASSERT (gpu);
+	VK_ASSERT (inst);
+	VK_ASSERT (nwords <= 8);
+
+	if (!gpu->options.log_cp)
+		return;
+
+	va_start (args, fmt);
+	tmp += sprintf (tmp, "CP @%08X : ", gpu->cp.pc);
+	for (i = 0; i < 8; i++) {
+		if (i < nwords)
+			tmp += sprintf (tmp, "%08X ", inst[i]);
+		else
+			tmp += sprintf (tmp, "........ ");
+	}
+	if (gpu->cp.unhandled)
+		tmp += sprintf (tmp, " *UNHANDLED* ");
+	vsnprintf (tmp, sizeof (out), fmt, args);
+	va_end (args);
+
+	VK_LOG ("%s", out);
+}
+
+#define DISASM(nwords_, fmt_, args_...) \
+	disasm (gpu, inst, nwords_, fmt_, ##args_) \
+
+static void
 check_self_loop (hikaru_gpu_t *gpu, uint32_t target)
 {
 	/* XXX at some point we'll need something better than this */
@@ -244,16 +277,6 @@ texcoord_to_float (uint32_t x)
 	return u / 16.0f;
 }
 
-void
-print_unhandled (hikaru_gpu_t *gpu, uint32_t *inst, unsigned num_words)
-{
-	static char info[256];
-	uint32_t i, offs;
-	for (i = 0, offs = 0; i < num_words; i++)
-		offs += sprintf (&info[offs], "%08X ", inst[i]);
-	VK_ERROR ("GPU CP: @%08X: unhandled instruction %s", gpu->cp.pc, info);
-}
-
 #define I(name_) \
 	static void hikaru_gpu_inst_##name_ (hikaru_gpu_t *gpu, uint32_t *inst)
 
@@ -264,7 +287,7 @@ print_unhandled (hikaru_gpu_t *gpu, uint32_t *inst, unsigned num_words)
 
 I (nop)
 {
-	VK_LOG ("GPU CP %08X: Nop [%08X]", gpu->cp.pc, inst[0]);
+	DISASM (1, "nop");
 
 	gpu->cp.unhandled |= (inst[0] != 0);
 }
@@ -286,7 +309,7 @@ I (jump)
 	if (inst[0] & 0x800)
 		addr += gpu->cp.pc;
 
-	VK_LOG ("GPU CP %08X: Jump [%08X] %08X", gpu->cp.pc, inst[0], addr);
+	DISASM (2, "jump @%08X", addr);
 
 	check_self_loop (gpu, addr);
 	gpu->cp.pc = addr;
@@ -311,7 +334,7 @@ I (call)
 	if (inst[0] & 0x800)
 		addr += gpu->cp.pc;
 
-	VK_LOG ("GPU CP %08X: Call [%08X] %08X", gpu->cp.pc, inst[0], addr);
+	DISASM (2, "call @%08X", addr);
 
 	check_self_loop (gpu, addr);
 	push_pc (gpu);
@@ -327,8 +350,7 @@ I (call)
 
 I (ret)
 {
-	VK_LOG ("GPU CP %08X: Return [%08X]",
-	        gpu->cp.pc, inst[0]);
+	DISASM (1, "ret");
 
 	pop_pc (gpu);
 
@@ -342,8 +364,7 @@ I (ret)
 
 I (kill)
 {
-	VK_LOG ("GPU CP %08X: Kill [%08X]",
-	        gpu->cp.pc, inst[0]);
+	DISASM (1, "kill");
 
 	gpu->cp.is_running = false;
 
@@ -372,7 +393,7 @@ I (kill)
 
 I (sync)
 {
-	VK_LOG ("GPU CP %08X: Sync [%08X]", gpu->cp.pc, inst[0]);
+	DISASM (1, "sync7");
 }
 
 /* 181	Set Unknown
@@ -390,8 +411,7 @@ I (unk_181)
 	unsigned b = (inst[0] >> 24) & 1;
 	unsigned n = (inst[0] >> 16) & 0xFF;
 
-	VK_LOG ("GPU CP %08X: Unknown: set 181 [%08X] b=%u n=%u",
-	        gpu->cp.pc, inst[0], b, n);
+	DISASM (1, "sync1");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFE00F000);
 }
@@ -417,8 +437,7 @@ I (vp_set_projection)
 	gpu->viewports.scratch.persp_y		= *(float *) &inst[2];
 	gpu->viewports.scratch.persp_znear	= *(float *) &inst[3];
 
-	VK_LOG ("GPU CP %08X: Viewport: Set Projection [%08X %08X %08X %08X] px=%f py=%f znear=%f",
-	        gpu->cp.pc, inst[0], inst[1], inst[2], inst[3],
+	DISASM (4, "vp: set projection [px=%f py=%f znear=%f]",
 	        gpu->viewports.scratch.persp_x,
 	        gpu->viewports.scratch.persp_y,
 	        gpu->viewports.scratch.persp_znear);
@@ -464,8 +483,7 @@ I (vp_set_extents)
 	gpu->viewports.scratch.extents_y[0] = extents_y[0];
 	gpu->viewports.scratch.extents_y[1] = extents_y[1];
 
-	VK_LOG ("GPU CP %08X: Viewport: Set Extents [%08X %08X %08X %08X] center=<%u,%u> x=<%u,%u> y=<%u,%u> ]",
-	        gpu->cp.pc, inst[0], inst[1], inst[2], inst[3],
+	DISASM (4, "vp: set extents [center=(%u,%u) x=(%u,%u) y=(%u,%u)]",
 	        center[0], center[1],
 	        extents_x[0], extents_x[1],
 	        extents_y[0], extents_y[1]);
@@ -501,8 +519,7 @@ I (vp_set_depth)
 	gpu->viewports.scratch.depth_far  = *(float *) &inst[2];
 	gpu->viewports.scratch.depth_func = inst[3] >> 29;
 
-	VK_LOG ("GPU CP %08X: Viewport: Set Depth Range [%08X %08X %08X %08X] func=%u near=%f far=%f",
-	        gpu->cp.pc, inst[0], inst[1], inst[2], inst[3],
+	DISASM (4, "vp: set depth [func=%u range=(%f,%f)]",
 	        gpu->viewports.scratch.depth_func,
 	        gpu->viewports.scratch.depth_near,
 	        gpu->viewports.scratch.depth_far);
@@ -554,8 +571,7 @@ I (vp_set_depth_queue)
 	gpu->viewports.scratch.depthq_density	= *(float *) &inst[2];
 	gpu->viewports.scratch.depthq_bias	= *(float *) &inst[3];
 
-	VK_LOG ("GPU CP %08X: Viewport: Set Depth Queue [%08X %08X %08X %08X] type=%u enabled=%u unk=%u mask=<%X %X %X %X> density=%f bias=%f",
-	        gpu->cp.pc, inst[0], inst[1], inst[2], inst[3],
+	DISASM (4, "vp: set depth queue [type=%u ena=%u unk=%u mask=(%X %X %X %X) density=%f bias=%f]",
 		gpu->viewports.scratch.depthq_type,
 		gpu->viewports.scratch.depthq_enabled,
 		gpu->viewports.scratch.depthq_unk,
@@ -589,8 +605,7 @@ I (vp_set_ambient_color)
 	gpu->viewports.scratch.ambient_color[1] = color[1];
 	gpu->viewports.scratch.ambient_color[2] = color[2];
 
-	VK_LOG ("GPU CP %08X: Viewport: Set Ambient Color [%08X %08X] color=<%u %u %u>",
-	        gpu->cp.pc, inst[0], inst[1],
+	DISASM (2, "vp: set ambient [color=(%u %u %u)]",
 	        color[2], color[1], color[0]);
 }
 
@@ -622,8 +637,7 @@ I (vp_set_clear_color)
 	gpu->viewports.scratch.clear_color[2] = color[2];
 	gpu->viewports.scratch.clear_color[3] = color[3];
 
-	VK_LOG ("GPU CP %08X: Viewport: Set Clear Color [%08X %08X] color=<%u %u %u %u>",
-	        gpu->cp.pc, inst[0], inst[1],
+	DISASM (2, "vp: set clear [color=(%u %u %u %u)]",
 	        color[0], color[1], color[2], color[3]);
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
@@ -643,8 +657,7 @@ I (vp_commit)
 {
 	uint32_t index = inst[0] >> 16;
 
-	VK_LOG ("GPU CP %08X: Commit Viewport #%u [%08X]",
-	        gpu->cp.pc, index, inst[0]);
+	DISASM (1, "vp: commit @%u", index);
 
 	if (index >= NUM_VIEWPORTS) {
 		VK_ERROR ("GPU CP: viewport commit index exceeds MAX (%u >= %u), skipping",
@@ -673,8 +686,7 @@ I (vp_recall)
 {
 	uint32_t index = inst[0] >> 16;
 
-	VK_LOG ("GPU CP %08X: Recall Viewport #%u [%08X]",
-	        gpu->cp.pc, index, inst[0]);
+	DISASM (1, "vp: recall @%u", index);
 
 	if (index >= NUM_VIEWPORTS) {
 		VK_ERROR ("GPU CP: viewport recall index exceeds MAX (%u >= %u), skipping",
@@ -725,8 +737,7 @@ I (modelview_set_vector)
 	v[1] = *(float *) &inst[2];
 	v[2] = *(float *) &inst[3];
 
-	VK_LOG ("GPU CP %08X: Matrix: Vector [%08X %08X %08X %08X] %u %u <%f %f %f>",
-	        gpu->cp.pc, inst[0], inst[1], inst[2], inst[3],
+	DISASM (4, "mtx: set vector [%u %u (%f %f %f)]",
 	        n, m, v[0], v[1], v[2]);
 
 	hikaru_renderer_set_modelview_vector (gpu->renderer, n, m, v);
@@ -757,8 +768,7 @@ I (mat_set_color_0_1)
 	gpu->materials.scratch.color[i][1] = (inst[1] >> 8) & 0xFF;
 	gpu->materials.scratch.color[i][2] = (inst[1] >> 16) & 0xFF;
 
-	VK_LOG ("GPU CP %08X: Material: Set Color %X [%08X %08X] <R=%u G=%u B=%u>",
-	        gpu->cp.pc, i, inst[0], inst[1],
+	DISASM (2, "mat: set color %u [color=(%u %u %u)]", i,
 	        gpu->materials.scratch.color[i][0],
 	        gpu->materials.scratch.color[i][1],
 	        gpu->materials.scratch.color[i][2]);
@@ -792,10 +802,8 @@ I (mat_set_shininess)
 	gpu->materials.scratch.shininess[2] = shininess[2];
 	gpu->materials.scratch.specularity = specularity;
 
-	VK_LOG ("GPU CP %08X: Material: Set Shininess [%08X %08X] specularity=%u shininess=<%u %u %u>",
-	        gpu->cp.pc, inst[0], inst[1],
-	        specularity, shininess[2],
-	        shininess[1], shininess[0]);
+	DISASM (2, "mat: set shininess [%u (%u %u %u)]",
+	        specularity, shininess[2], shininess[1], shininess[0]);
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
 }
@@ -820,8 +828,7 @@ I (mat_set_material_color)
 	gpu->materials.scratch.material_color[1] = color[1];
 	gpu->materials.scratch.material_color[2] = color[2];
 
-	VK_LOG ("GPU CP %08X: Material: Set Material Color [%08X %08X] color=<%u %u %u>",
-	        gpu->cp.pc, inst[0], inst[1],
+	DISASM (2, "mat: set material [(%u %u %u)]",
 	        color[0], color[1], color[2]);
 
 	gpu->cp.unhandled |= !!(inst[0] & 0x0000F000);
@@ -839,8 +846,7 @@ I (mat_set_unk_081)
 	unsigned n = (inst[0] >> 12) & 1;
 	unsigned m = (inst[0] >> 16) & 0xF;
 
-	VK_LOG ("GPU CP %08X: Material: Set Unknown [%08X] %u %u",
-	        gpu->cp.pc, inst[0], n, m);
+	DISASM (1, "mat: set unknown [%u %u]", n, m);
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFF0E000);
 }
@@ -868,8 +874,7 @@ I (mat_set_flags)
 	gpu->materials.scratch.has_alpha	= (inst[0] >> 20) & 1;
 	gpu->materials.scratch.has_highlight	= (inst[0] >> 21) & 1;
 
-	VK_LOG ("GPU CP %08X: Material: Set Flags [%08X] mode=%u zblend=%u tex=%u alpha=%u highl=%u",
-	        gpu->cp.pc, inst[0],
+	DISASM (1, "mat: set flags [mode=%u zblend=%u tex=%u alpha=%u highl=%u",
 		gpu->materials.scratch.shading_mode,
 		gpu->materials.scratch.depth_blend,
 		gpu->materials.scratch.has_texture,
@@ -892,7 +897,8 @@ I (mat_set_blending)
 {
 	gpu->materials.scratch.blending_mode = (inst[0] >> 16) & 3;
 
-	VK_LOG ("GPU CP %08X: Material: Set Blending Mode [%08X]", gpu->cp.pc, inst[0]);
+	DISASM (1, "mat: set blending mode [mode=%u]",
+	        gpu->materials.scratch.blending_mode);
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFFCF000);
 }
@@ -909,7 +915,7 @@ I (mat_set_blending)
 
 I (mat_set_unk_C81)
 {
-	VK_LOG ("GPU CP %08X: Material: Set C81 [%08X]", gpu->cp.pc, inst[0]);
+	DISASM (1, "mat: set unknown");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFC0F000);
 }
@@ -929,8 +935,7 @@ I (mat_commit)
 	uint32_t offset  = inst[0] >> 16;
 	uint32_t index   = offset + gpu->materials.base;
 
-	VK_LOG ("GPU CP %08X: Commit Material #%u (%u) [%08X]",
-	        gpu->cp.pc, index, gpu->materials.base, inst[0]);
+	DISASM (1, "mat: commit @%u [offs=%u]", index, offset);
 
 	if (index >= NUM_MATERIALS) {
 		VK_ERROR ("GPU CP: material commit index exceeds MAX (%u >= %u), skipping",
@@ -964,9 +969,10 @@ I (mat_recall)
 	uint32_t make_active = (inst[0] >> 12) & 1;
 	uint32_t index = gpu->materials.base + offset;
 
-	VK_LOG ("GPU CP %08X: %s #%u (%u) [%08X]",
-	        gpu->cp.pc, make_active ? "Recall Material" : "Set Material Offs",
-	        index, gpu->materials.base, inst[0]);
+	if (make_active)
+		DISASM (1, "mat: recall @%u [offset=%u]", index, offset);
+	else
+		DISASM (1, "mat: set offset %u", offset);
 
 	if (!make_active)
 		gpu->materials.base = offset;
@@ -1004,8 +1010,7 @@ I (tex_set_unk_0C1)
 	gpu->texheads.scratch._0C1_nibble	= (inst[0] >> 16) & 0xF;
 	gpu->texheads.scratch._0C1_byte		= (inst[0] >> 20) & 0xFF;
 
-	VK_LOG ("GPU CP %08X: Texhead: Set Unknown [%08X]",
-	        gpu->cp.pc, inst[0]);
+	DISASM (1, "tex: set unknown");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xF000F000);
 }
@@ -1039,8 +1044,7 @@ I (tex_set_format)
 	                                  ((inst[0] >> 22) & 15);
 	gpu->texheads.scratch._2C1_unk8	= inst[0] >> 29;
 
-	VK_LOG ("GPU CP %08X: Texhead: Set Format/Size [%08X]",
-	        gpu->cp.pc, inst[0]);
+	DISASM (1, "tex: set format");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0x00003000);
 }
@@ -1065,7 +1069,10 @@ I (tex_set_slot)
 	gpu->texheads.scratch.slotx = (inst[0] >> 16) & 0xFF;
 	gpu->texheads.scratch.sloty = inst[0] >> 24;
 
-	VK_LOG ("GPU CP %08X: Texhead: Set Slot [%08X]", gpu->cp.pc, inst[0]);
+	DISASM (1, "tex: set slot [%u,%u]",
+	        gpu->texheads.scratch.bank,
+	        gpu->texheads.scratch.slotx,
+	        gpu->texheads.scratch.sloty);
 
 	gpu->cp.unhandled |= !!(inst[0] & 0x0000E000);
 }
@@ -1085,8 +1092,7 @@ I (tex_commit)
 	uint32_t offset  = inst[0] >> 16;
 	uint32_t index   = offset + gpu->texheads.base;
 
-	VK_LOG ("GPU CP %08X: Commit Texhead #%u (%u) [%08X]",
-	        gpu->cp.pc, index, gpu->texheads.base, inst[0]);
+	DISASM (1, "tex: commit @%u [offset=%u]", index, offset);
 
 	if (index >= NUM_TEXHEADS) {
 		VK_ERROR ("GPU CP: texhead commit index exceedes MAX (%u >= %u), skipping",
@@ -1117,9 +1123,10 @@ I (tex_recall)
 	uint32_t make_active = (inst[0] >> 12) & 1;
 	uint32_t index = gpu->texheads.base + offset;
 
-	VK_LOG ("GPU CP %08X: %s #%u (%u) [%08X]",
-	        gpu->cp.pc, make_active ? "Recall Texhead" : "Set Texhead Offs",
-	        index, gpu->texheads.base, inst[0]);
+	if (make_active)
+		DISASM (1, "tex: recall @%u [offset=%u]", index, offset);
+	else
+		DISASM (1, "tex: set offset [offset=%u]", offset);
 
 	if (!make_active)
 		gpu->texheads.base = offset;
@@ -1197,8 +1204,7 @@ I (lit_set_type)
 	gpu->lights.scratch.emission_p		= *(float *) &inst[1];
 	gpu->lights.scratch.emission_q		= *(float *) &inst[2];
 
-	VK_LOG ("GPU CP %08X: Light: Set Type/Extents [%08X %08X %08X %08X] type=%u p=%f q=%f",
-	        gpu->cp.pc, inst[0], inst[1], inst[2], inst[3],
+	DISASM (4, "lit: set extents [type=%u p=%f q=%f]",
 	        gpu->lights.scratch.emission_type,
 	        gpu->lights.scratch.emission_p,
 	        gpu->lights.scratch.emission_q);
@@ -1230,9 +1236,7 @@ I (lit_set_position)
 	gpu->lights.scratch.position[1] = *(float *) &inst[2];
 	gpu->lights.scratch.position[2] = *(float *) &inst[3];
 
-	VK_LOG ("GPU CP %08X: Light: Set Position [%08X %08X %08X %08X] <%f %f %f>",
-	        gpu->cp.pc,
-	        inst[0], inst[1], inst[2], inst[3],
+	DISASM (4, "lit: set position [%f %f %f]",
 	        gpu->lights.scratch.position[0],
 	        gpu->lights.scratch.position[1],
 	        gpu->lights.scratch.position[2]);
@@ -1262,8 +1266,7 @@ I (lit_set_direction)
 	gpu->lights.scratch.direction[1] = *(float *) &inst[2];
 	gpu->lights.scratch.direction[2] = *(float *) &inst[3];
 
-	VK_LOG ("GPU CP %08X: Light: Set Direction [%08X %08X %08X %08X] <%f %f %f>",
-	        gpu->cp.pc, inst[0], inst[1], inst[2], inst[3],
+	DISASM (4, "lit: set direction [%f %f %f]",
 	        gpu->lights.scratch.direction[0],
 	        gpu->lights.scratch.direction[1],
 	        gpu->lights.scratch.direction[2]);
@@ -1292,8 +1295,7 @@ I (lit_set_unk_051)
 	color[1] = (inst[1] >> 10) & 0x3FF;
 	color[2] = (inst[1] >> 20) & 0x3FF;
 
-	VK_LOG ("GPU CP %08X: Light: Set Color [%08X %08X] %u <%u %u %u>",
-	        gpu->cp.pc, inst[0], inst[1],
+	DISASM (2, "lit: set color [%u (%u %u %u)]",
 	        index, color[2], color[1], color[0]);
 
 	gpu->lights.scratch._051_index = index;
@@ -1318,8 +1320,7 @@ I (lit_set_unk_051)
 
 I (lit_set_unk_451)
 {
-	VK_LOG ("GPU CP %08X: Light: Set Unknown 451 [%08X %08X]",
-	        gpu->cp.pc, inst[0], inst[1]);
+	DISASM (2, "lit: set unknown");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFEFFF000);
 }
@@ -1334,8 +1335,7 @@ I (lit_set_unk_451)
 
 I (lit_set_unk_561)
 {
-	VK_LOG ("GPU CP %08X: Light: Set Unknown 561 [%08X %08X %08X %08X]",
-	        gpu->cp.pc, inst[0], inst[1], inst[2], inst[3]);
+	DISASM (4, "lit: set unknown");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFFCF000);
 }
@@ -1347,7 +1347,7 @@ I (lit_set_unk_561)
 
 I (lit_unk_006)
 {
-	VK_LOG ("GPU CP %08X: Light: Unknown 006 [%08X]", gpu->cp.pc, inst[0]);
+	DISASM (1, "lit: unknown");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
 }
@@ -1361,7 +1361,7 @@ I (lit_unk_006)
 
 I (lit_unk_046)
 {
-	VK_LOG ("GPU CP %08X: Light: Unknown 046 [%08X]", gpu->cp.pc, inst[0]);
+	DISASM (1, "lit: unknown");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFFEF000);
 }
@@ -1377,8 +1377,7 @@ I (lit_commit)
 {
 	unsigned index = inst[0] >> 16;
 
-	VK_LOG ("GPU CP %08X: Commit Light #%u [%08X]",
-	        gpu->cp.pc, index, inst[0]);
+	DISASM (1, "lit: commit @%u", index);
 
 	if (index >= NUM_LIGHTS) {
 		VK_ERROR ("GPU CP: light commit index exceeds MAX (%u >= %u), skipping",
@@ -1415,8 +1414,7 @@ I (lit_commit_set)
 	uint32_t light3 = inst[2] >> 16;
 	uint32_t index = offset + gpu->lights.base;
 
-	VK_LOG ("GPU CP %08X: Commit Lightset #%u (%u) [%08X %08X %08X %08X]",
-	        gpu->cp.pc, index, gpu->lights.base, inst[0], inst[1], inst[2], inst[3]);
+	DISASM (4, "lit: commit set @%u [base=%u]", index, gpu->lights.base);
 
 	if (index >= NUM_LIGHTSETS) {
 		VK_ERROR ("GPU CP: lightset commit index exceeds MAX (%u >= %u), skipping",
@@ -1461,9 +1459,7 @@ I (lit_recall_set)
 	uint32_t enabled_mask = (inst[0] >> 24) & 0xF;
 	uint32_t index = gpu->lights.base + offset;
 
-	VK_LOG ("GPU CP %08X: %s #%u (%u) [%08X]",
-	        gpu->cp.pc, make_active ? "Recall Lightset" : "Set Lightset Offs",
-	        index, gpu->lights.base, inst[0]);
+	DISASM (1, "lit: recall @%u", index);
 
 	if (!make_active)
 		gpu->lights.base = offset;
@@ -1507,9 +1503,7 @@ I (mesh_add_position)
 	pos[1] = *(float *) &inst[2];
 	pos[2] = *(float *) &inst[3];
 
-	VK_LOG ("GPU CP %08X: Vertex [%08X] { %f %f %f }",
-	        gpu->cp.pc, inst[0],
-	        pos[0], pos[1], pos[2]);
+	DISASM (4, "mesh: push pos d [%f %f %f]", pos[0], pos[1], pos[2]);
 
 	hikaru_renderer_add_vertex (gpu->renderer, pos);
 
@@ -1532,8 +1526,7 @@ I (mesh_add_position)
 
 I (mesh_add_position_unk)
 {
-	VK_LOG ("GPU CP %08X: Vertex Unk [%08X %08X %08X %08X]",
-	        gpu->cp.pc, inst[0], inst[1], inst[2], inst[3]);
+	DISASM (4, "mesh: push pos s");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0x007F0000);
 }
@@ -1579,14 +1572,10 @@ I (mesh_add_position_normal)
 	texcoords[0] = texcoord_to_float (inst[4] & 0xFFFF);
 	texcoords[1] = texcoord_to_float (inst[4] >> 16);
 
-	VK_LOG ("GPU CP %08X: Vertex Normal [%08X %08X %08X %08X %08X %08X %08X %08X] <%f %f %f> <%f %f %f> <%f %f> %u %u %u %u",
-	        gpu->cp.pc,
-		inst[0], inst[1], inst[2], inst[3],
-		inst[4], inst[5], inst[6], inst[7],
+	DISASM (8, "mesh: push all d [(%f %f %f) (%f %f %f) (%f %f)]",
 	        pos[0], pos[1], pos[2],
 	        nrm[0], nrm[1], nrm[2],
-		texcoords[0], texcoords[1],
-	        n, m, p, q);
+		texcoords[0], texcoords[1]);
 
 	hikaru_renderer_add_vertex_full (gpu->renderer,
 	                                 pos, nrm, texcoords);
@@ -1622,9 +1611,7 @@ I (mesh_add_texcoords)
 		texcoords[i][1] = texcoord_to_float (inst[i+1] >> 16);
 	}
 
-	VK_LOG ("GPU CP %08X: Tex Coord [%08X %08X %08X %08X] <%f %f> <%f %f> <%f %f>",
-	        gpu->cp.pc,
-	        inst[0], inst[1], inst[2], inst[3],
+	DISASM (4, "mesh: push tc 3 [(%f %f) (%f %f) (%f %f)]",
 	        texcoords[0][0], texcoords[0][1],
 	        texcoords[1][0], texcoords[1][1],
 	        texcoords[2][0], texcoords[2][1]);
@@ -1652,8 +1639,7 @@ I (mesh_add_texcoords_unk)
 	texcoords[0] = texcoord_to_float (inst[1] & 0xFFFF);
 	texcoords[1] = texcoord_to_float (inst[1] >> 16);
 
-	VK_LOG ("GPU CP %08X: Tex Coord Unk [%08X %08X] <%f %f>",
-	        gpu->cp.pc, inst[0], inst[1], texcoords[0], texcoords[1]);
+	DISASM (2, "mesh: push tc 1 [(%f %f)]", texcoords[0], texcoords[1]);
 
 	/* TODO: call the renderer */
 
@@ -1679,8 +1665,7 @@ I (commit_alpha_threshold)
 	int32_t thresh_lo = inst[1] & 0xFF;
 	int32_t thresh_hi = signext_n_32 ((inst[1] >> 8), 23);
 
-	VK_LOG ("GPU CP %08X: Commit Alpha Threshold [%08X %08X] %u <%X %X>",
-	        gpu->cp.pc, inst[0], inst[1],
+	DISASM (2, "unk: set alpha thresh [%u (%f %f)]",
 	        n, thresh_lo, thresh_hi);
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFC0F000);
@@ -1706,8 +1691,7 @@ I (commit_ramp)
 	uint32_t a = inst[1] & 0xFFFF;
 	uint32_t b = inst[1] >> 16;
 
-	VK_LOG ("GPU CP %08X: Commit Ramp Data [%08X %08X] %u %u <%X %X>",
-	        gpu->cp.pc, inst[0], inst[1], n, m, a, b);
+	DISASM (2, "unk: set ramp [%u %u (%f %f)]", n, m, a, b);
 
 	gpu->cp.unhandled |= !!(inst[0] & 0x0000F000);
 }
@@ -1728,8 +1712,7 @@ I (commit_ramp)
 
 I (commit_addr_lo)
 {
-	VK_LOG ("GPU CP %08X: Set Lo Addresses [%08X %08X %08X %08X]",
-	        gpu->cp.pc, inst[0], inst[1], inst[2], inst[3]);
+	DISASM (4, "unk: set lo addr");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
 	gpu->cp.unhandled |= (inst[3] != 0);
@@ -1751,8 +1734,7 @@ I (commit_addr_lo)
 
 I (commit_addr_hi)
 {
-	VK_LOG ("GPU CP %08X: Set Hi Addresses [%08X %08X %08X %08X]",
-	        gpu->cp.pc, inst[0], inst[1], inst[2], inst[3]);
+	DISASM (4, "unk: set hi addr");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
 	gpu->cp.unhandled |= (inst[3] != 0);
@@ -1773,8 +1755,7 @@ I (unk_6D1)
 	unsigned b = inst[1] & 0xFFFF;
 	unsigned c = inst[1] >> 16;
 
-	VK_LOG ("GPU CP %08X: Unknown: Set 6D1 [%08X %08X] <%u %u %u>",
-	        gpu->cp.pc, inst[0], inst[1], a, b, c);
+	DISASM (2, "unk: unknown [(%u %u %u)]", a, b, c);
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFFFCF000);
 }
@@ -1790,7 +1771,7 @@ I (unk_6D1)
 
 I (unk_101)
 {
-	VK_LOG ("GPU CP %08X: Unknown: Set 101 [%08X]", gpu->cp.pc, inst[0]);
+	DISASM (1, "unk: set 101");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xF000F000);
 }
@@ -1804,7 +1785,7 @@ I (unk_101)
 
 I (unk_X01)
 {
-	VK_LOG ("GPU CP %08X: Unknown: Set %03X [%08X]", gpu->cp.pc, inst[0] & 0xFFF, inst[0]);
+	DISASM (1, "unk: set x01");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFF00F000);
 }
@@ -1831,7 +1812,7 @@ I (unk_X03)
 	/* sub == 2 : disabled */
 	/* sub == C : enabled */
 
-	VK_LOG ("GPU CP %08X: Recall X03 [%08X]", gpu->cp.pc, inst[0]);
+	DISASM (1, "unk: recall x03");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0x00FFF000);
 }
@@ -1849,7 +1830,7 @@ I (unk_X03)
 
 I (unk_E88)
 {
-	VK_LOG ("GPU CP %08X: Unknown E88 [%08X]", gpu->cp.pc, inst[0]);
+	DISASM (1, "unk: unknown");
 
 	gpu->cp.unhandled |= !!(inst[0] & 0xFF7FF000);
 }
@@ -2003,7 +1984,6 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 		handler (gpu, inst);
 
 		if (gpu->cp.unhandled) {
-			print_unhandled (gpu, inst, gpu->cp.insns[op].size / 4);
 			/* We try to carry on anyway */
 		}
 
