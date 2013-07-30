@@ -489,37 +489,50 @@ sh4_dmac_tick (sh4_t *ctx)
 #define TMU_TCR(n_)	(TMU_TCR0 + (n_) * 12)
 
 static void
-sh4_tmu_tick_channel (sh4_t *ctx, unsigned ch)
+sh4_tmu_run_channel (sh4_t *ctx, unsigned ch, int cycles)
 {
-	if (ctx->tmu.is_running[ch]) {
-		/* TODO: frequency scaling */
-		--ctx->tmu.counter[ch];
+	uint32_t counter = ctx->tmu.counter[ch];
+
+	for (; cycles > 0; cycles--, counter--) {
 		/* Check for underflow */
-		if (ctx->tmu.counter[ch] == 0) {
+		if (counter == 0) {
+			uint16_t tcr;
+
 			/* Set UNF */
-			uint16_t tcr = IREG_GET (2, TMU_TCR (ch));
+			tcr = IREG_GET (2, TMU_TCR (ch));
 			IREG_PUT (2, TMU_TCR (ch), tcr | 0x100);
-			/* Set the timer again */
-			ctx->tmu.counter[ch] = IREG_GET (4, TMU_TCOR (ch));
+
+			/* Reload the timer */
+			counter = IREG_GET (4, TMU_TCOR (ch));
+
 			/* Raise an IRQ if UNIE is set */
 			if (tcr & 0x20) {
-				unsigned num = (ch == 0) ? SH4_IESOURCE_TUNI0 :
-				               (ch == 1) ? SH4_IESOURCE_TUNI1 :
-				               SH4_IESOURCE_TUNI2;
-				VK_CPU_LOG (ctx, "TMU: firing ch%u IRQ!", ch);
-				sh4_set_irq_state ((vk_cpu_t *) ctx, num,
+				static const unsigned nums[3] = {
+					SH4_IESOURCE_TUNI0,
+					SH4_IESOURCE_TUNI1,
+					SH4_IESOURCE_TUNI2,
+				};
+
+				VK_CPU_LOG (ctx, "TMU: rising ch%u IRQ", ch);
+
+				sh4_set_irq_state ((vk_cpu_t *) ctx, nums[ch],
 				                   VK_IRQ_STATE_RAISED);
 			}
 		}
 	}
+
+	ctx->tmu.counter[ch] = counter;
 }
 
 static void
-sh4_tmu_tick (sh4_t *ctx)
+sh4_tmu_run (sh4_t *ctx, int cycles)
 {
-	sh4_tmu_tick_channel (ctx, 0);
-	sh4_tmu_tick_channel (ctx, 1);
-	sh4_tmu_tick_channel (ctx, 2);
+	if (ctx->tmu.is_running[0])
+		sh4_tmu_run_channel (ctx, 0, cycles);
+	if (ctx->tmu.is_running[1])
+		sh4_tmu_run_channel (ctx, 1, cycles);
+	if (ctx->tmu.is_running[2])
+		sh4_tmu_run_channel (ctx, 2, cycles);
 }
 
 static void
@@ -1210,7 +1223,6 @@ sh4_step (sh4_t *ctx, uint32_t pc)
 	insns[inst] (ctx, inst);
 	//sh4_bsc_tick (ctx);
 	//sh4_sci_tick (ctx);
-	sh4_tmu_tick (ctx);
 	sh4_dmac_tick (ctx);
 	ctx->base.remaining --;
 }
@@ -1236,6 +1248,7 @@ sh4_run (vk_cpu_t *cpu, int cycles)
 		sh4_step (ctx, PC);
 		PC += 2;
 	}
+	sh4_tmu_run (ctx, cycles);
 	return -cpu->remaining;
 }
 
