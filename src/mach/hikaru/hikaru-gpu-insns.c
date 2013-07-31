@@ -151,6 +151,8 @@
  * candidates are bits 0-4, 12-15 and 24-31 of the vertex instructions.
  */
 
+#define UNHANDLED gpu->cp.unhandled
+
 static void
 disasm (hikaru_gpu_t *gpu, uint32_t *inst, unsigned nwords, const char *fmt, ...)
 {
@@ -173,7 +175,7 @@ disasm (hikaru_gpu_t *gpu, uint32_t *inst, unsigned nwords, const char *fmt, ...
 		else
 			tmp += sprintf (tmp, "........ ");
 	}
-	if (gpu->cp.unhandled)
+	if (UNHANDLED)
 		tmp += sprintf (tmp, " *UNHANDLED* ");
 	vsnprintf (tmp, sizeof (out), fmt, args);
 	va_end (args);
@@ -189,7 +191,7 @@ check_self_loop (hikaru_gpu_t *gpu, uint32_t target)
 {
 	/* XXX at some point we'll need something better than this */
 	if (target == gpu->cp.pc) {
-		VK_ERROR ("GPU CP: @%08X: self-jump, terminating", target);
+		VK_ERROR ("CP: @%08X: self-jump, terminating", target);
 		gpu->cp.is_running = false;
 	}
 }
@@ -213,348 +215,273 @@ pop_pc (hikaru_gpu_t *gpu)
 }
 
 static bool
-is_vertex_op (uint32_t op)
+ispositive (float x)
 {
-	switch (op) {
-		/* Nop */
-	case 0x000:
-		/* Vertex Unk */
-	case 0x128 ... 0x12F:
-	case 0xF28 ... 0xF2F:
-		/* Vertex */
-	case 0x1A8 ... 0x1AF:
-	case 0xFA8 ... 0xFAF:
-		/* Vertex Normal */
-	case 0x1B8 ... 0x1BF:
-	case 0xFB8 ... 0xFBF:
-		/* Tex Coord */
-	case 0xEE8:
-	case 0xEE9:
-		/* Tex Coord Unk */
-	case 0x158 ... 0x15F:
-	case 0xF58 ... 0xF5F:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static float
-texcoord_to_float (uint32_t x)
-{
-	int32_t u = (x & 0x8000) ? (x | 0xFFFF8000) : x;
-	return u / 16.0f;
+	return isfinite (x) && x >= 0.0f;
 }
 
 #define I(name_) \
 	static void hikaru_gpu_inst_##name_ (hikaru_gpu_t *gpu, uint32_t *inst)
 
-/* 000	Nop
- *
- *	-------- -------- ----oooo oooooooo
- */
+/****************************************************************************
+ Control Flow
+****************************************************************************/
 
-I (nop)
+I (invalid)
 {
-	DISASM (1, "nop");
-
-	gpu->cp.unhandled |= (inst[0] != 0);
+	UNHANDLED |= true;
 }
 
-/* 012	Jump [Mod: Relative]
+/* 000	Nop
  *
- *	-------- -------- ----mooo oooooooo
+ *	-------- -------- -------o oooooooo
+ */
+
+I (0x000)
+{
+	UNHANDLED |= (inst[0] != 0);
+
+	DISASM (1, "nop");
+}
+
+/* 012	Jump
+ *
+ *	-------- -------- ----R--o oooooooo
  *	AAAAAAAA AAAAAAAA AAAAAAAA AAAAAAAA
  *
- * m = Modifier: 0 = Absolute, 1 = Relative
+ * R = Relative
  * A = Address or Offset in 32-bit words.
  */
 
-I (jump)
+I (0x012)
 {
 	uint32_t addr;
 
 	addr = inst[1] * 4;
 	if (inst[0] & 0x800)
 		addr += gpu->cp.pc;
-
-	DISASM (2, "jump @%08X", addr);
 
 	check_self_loop (gpu, addr);
 	gpu->cp.pc = addr;
 
-	gpu->cp.unhandled |= ((inst[0] & 0xFFFFF7FF) != 0x12);
+	UNHANDLED |= !!(inst[0] & 0xFFFFF600);
+
+	DISASM (2, "jump @%08X", addr);
 }
 
-/* 052	Call [Mod: Relative]
+/* 052	Call
  *
- *	-------- -------- ----mooo oooooooo
+ *	-------- -------- ----R--o oooooooo
  *	AAAAAAAA AAAAAAAA AAAAAAAA AAAAAAAA
  *
- * m = Modifier: 0 = Absolute, 1 = Relative
+ * R = Relative
  * A = Address or Offset in 32-bit words.
  */
 
-I (call)
+I (0x052)
 {
 	uint32_t addr;
 
 	addr = inst[1] * 4;
 	if (inst[0] & 0x800)
 		addr += gpu->cp.pc;
-
-	DISASM (2, "call @%08X", addr);
 
 	check_self_loop (gpu, addr);
 	push_pc (gpu);
-	gpu->cp.pc = addr;
 
-	gpu->cp.unhandled |= ((inst[0] & 0xFFFFF7FF) != 0x52);
+	UNHANDLED |= !!(inst[0] & 0xFFFFF600);
+
+	DISASM (2, "call @%08X", addr);
+	gpu->cp.pc = addr;
 }
 
 /* 082	Return
  *
- *	-------- -------- ----oooo oooooooo
+ *	-------- -------- -------o oooooooo
  */
 
-I (ret)
+I (0x082)
 {
-	DISASM (1, "ret");
-
 	pop_pc (gpu);
 
-	gpu->cp.unhandled |= (inst[0] != 0x82);
+	UNHANDLED |= !!(inst[0] & 0xFFFFFE00);
+
+	DISASM (1, "ret");
 }
 
 /* 1C2	Kill
  *
- *	-------- -------- ----oooo oooooooo
+ *	-------- -------- -------o oooooooo
  */
 
-I (kill)
+I (0x1C2)
 {
-	DISASM (1, "kill");
-
 	gpu->cp.is_running = false;
 
-	gpu->cp.unhandled |= (inst[0] != 0x1C2);
+	UNHANDLED |= !!(inst[0] & 0xFFFFFE00);
+
+	DISASM (1, "kill");
+
 }
 
-/* 781	Sync
- *
- *	-----puq -----P-Q ----oooo oooooooo
- *
- * p,q,P,Q,u = Unknown
- *
- * The values p, q, P, Q are determined by the values of ports 1A00001C and
- * 1A000020 prior to the command upload (XXX when exactly? in sync()?). Its
- * parameter is stored in (56, GBR).
- *
- * This command typically lies between the viewport/material/texhead/light
- * setup instructions at the beginning of the command stream and the
- * actual rendering commands. It _may_ act like a fence of some sorts,
- * delaying rendering until some external event (such as v-blanking) occurs.
- *
- * It may be related to 181.
- *
- * See @0C0065D6, PH:@0C016336, PH:@0C038952.
- */
+/****************************************************************************
+ Viewports
+****************************************************************************/
 
-I (sync)
-{
-	DISASM (1, "sync7");
-}
-
-/* 181	Set Unknown
+/* 021	Viewport: Set Z Clip
  *
- *	-------b nnnnnnnn ----oooo oooooooo
- *
- * n = Unknown
- * b = set only if n is non-zero
- *
- * See PH:@0C015B50. Probably related to 781, see PH:@0C038952.
- */
-
-I (unk_181)
-{
-	unsigned b = (inst[0] >> 24) & 1;
-	unsigned n = (inst[0] >> 16) & 0xFF;
-
-	DISASM (1, "sync1");
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFE00F000);
-}
-
-
-/* 021	Viewport: Set Projection
- *
- * 	-------- -------- ----oooo oooooooo
+ *	-------- -------- -----00o oooooooo
  *	pppppppp pppppppp pppppppp pppppppp
  *	qqqqqqqq qqqqqqqq qqqqqqqq qqqqqqqq
  *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
  *
- * p = (display height / 2) * tanf (angle / 2)
- * q = (display height / 2) * tanf (angle / 2)
- * z = depth kappa (used also in 421, 621)
+ * F = far depth clipping plane
+ * f = far depth clipping plane, again
+ * n = near depth clipping plane
+ *
+ * Both f and F are computed as:
+ *
+ *  (height / 2) / tanf(some_angle / 2)
+ *
+ * which assuming some_angle is fovy, is the formula for computing the far clipping
+ * planes. I have no idea why there are two identical entries tho.
  *
  * See PH:@0C01587C, PH:@0C0158A4, PH:@0C0158E8.
- */
-
-I (vp_set_projection)
-{
-	gpu->viewports.scratch.persp_x		= *(float *) &inst[1];
-	gpu->viewports.scratch.persp_y		= *(float *) &inst[2];
-	gpu->viewports.scratch.persp_znear	= *(float *) &inst[3];
-
-	DISASM (4, "vp: set projection [px=%f py=%f znear=%f]",
-	        gpu->viewports.scratch.persp_x,
-	        gpu->viewports.scratch.persp_y,
-	        gpu->viewports.scratch.persp_znear);
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
-	gpu->cp.unhandled |= !isfinite (gpu->viewports.scratch.persp_x);
-	gpu->cp.unhandled |= !isfinite (gpu->viewports.scratch.persp_y);
-	gpu->cp.unhandled |= !isfinite (gpu->viewports.scratch.persp_znear);
-}
-
-/* 221	Viewport: Set Extents
  *
- *	-------- -------- ----oooo oooooooo
+ *
+ * 221	Viewport: Set XY Clip
+ *
+ *	-------- -------- -----01o oooooooo
  *	jjjjjjjj jjjjjjjj cccccccc cccccccc
  *	--YYYYYY YYYYYYYY -XXXXXXX XXXXXXXX
  *	--yyyyyy yyyyyyyy -xxxxxxx xxxxxxxx
  *
- * c,j = center (X,Y) coordinates
- * x,y = extent (X,Y) minima
- * X,Y = extent (X,Y) maxima
+ * c,j = center?
+ * x,y = left, bottom clipping planes
+ * X,Y = right, top clipping planes
  *
  * NOTE: according to the code, X can be at most 640, Y can be at most 512;
  * and at least one of x and y must be zero.
  *
  * See PH:@0C015924
- */
-
-I (vp_set_extents)
-{
-	vec2s_t center, extents_x, extents_y;
-
-	center[0]	= inst[1] & 0xFFFF;
-	center[1]	= inst[1] >> 16;
-	extents_x[0]	= inst[2] & 0x7FFF;
-	extents_x[1]	= inst[3] & 0x7FFF;
-	extents_y[0]	= (inst[2] >> 16) & 0x3FFF;
-	extents_y[1]	= (inst[3] >> 16) & 0x3FFF;
-
-	gpu->viewports.scratch.center[0] = center[0];
-	gpu->viewports.scratch.center[1] = center[1];
-	gpu->viewports.scratch.extents_x[0] = extents_x[0];
-	gpu->viewports.scratch.extents_x[1] = extents_x[1];
-	gpu->viewports.scratch.extents_y[0] = extents_y[0];
-	gpu->viewports.scratch.extents_y[1] = extents_y[1];
-
-	DISASM (4, "vp: set extents [center=(%u,%u) x=(%u,%u) y=(%u,%u)]",
-	        center[0], center[1],
-	        extents_x[0], extents_x[1],
-	        extents_y[0], extents_y[1]);
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
-	gpu->cp.unhandled |= !!(inst[2] & 0xC0008000);
-	gpu->cp.unhandled |= !!(inst[3] & 0xC0008000);
-	gpu->cp.unhandled |= (extents_x[1] > 640 ||
-	                      extents_y[1] > 512);
-	gpu->cp.unhandled |= (center[0] < extents_x[0] ||
-	                      center[0] > extents_x[1]);
-	gpu->cp.unhandled |= (center[1] < extents_y[0] ||
-	                      center[1] > extents_y[1]);
-}
-
-/* 421	Viewport: Set Depth Test/Range
  *
- *	-------- -------- ----oooo oooooooo
+ *
+ * 421	Viewport: Set Z Buffer Config
+ *
+ *	-------- -------- -----10o oooooooo
  *	nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn
  *	ffffffff ffffffff ffffffff ffffffff
  *	FFF----- -------- -------- --------
  *
- * n = depth near; used also in 021 and 621
- * f = depth far
- * F = depth test function?
+ * n = depth buffer minimum
+ * f = depth buffer maximum
+ * F = depth function
  *
  * See PH:@0C015AA6
- */
-
-I (vp_set_depth)
-{
-	gpu->viewports.scratch.depth_near = *(float *) &inst[1];
-	gpu->viewports.scratch.depth_far  = *(float *) &inst[2];
-	gpu->viewports.scratch.depth_func = inst[3] >> 29;
-
-	DISASM (4, "vp: set depth [func=%u range=(%f,%f)]",
-	        gpu->viewports.scratch.depth_func,
-	        gpu->viewports.scratch.depth_near,
-	        gpu->viewports.scratch.depth_far);
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
-	gpu->cp.unhandled |= !!(inst[3] & 0x1FFFFFFF);
-	gpu->cp.unhandled |= !isfinite (gpu->viewports.scratch.depth_near) ||
-	                     !isfinite (gpu->viewports.scratch.depth_far);
-	gpu->cp.unhandled |= gpu->viewports.scratch.depth_near >=
-	                     gpu->viewports.scratch.depth_far;
-	gpu->cp.unhandled |= (gpu->viewports.scratch.depth_near < 0.0f) ||
-	                     (gpu->viewports.scratch.depth_far < 0.0f);
-}
-
-/* 621	Viewport: Set Depth Queue
  *
- *	-------- ----ttDu ----oooo oooooooo
+ *
+ * 621	Viewport: Set Z Queue Config
+ *
+ *	-------- ----ttDu -----11o oooooooo
  *	AAAAAAAA BBBBBBBB GGGGGGGG RRRRRRRR
  *	dddddddd dddddddd dddddddd dddddddd 
  *	gggggggg gggggggg gggggggg gggggggg
  *
- * t = depth queue type (function)
- * D = disable depth queue?
+ * t = Type
+ * D = Disable?
  * u = Unknown
  * RGBA = color/mask?
- * f = depth density [1]
- * g = depth bias [2]
  *
- * [1] Computed as 1.0f (constant), 1.0f / zdelta, or
- *     1.0f / sqrt (zdelta**2); where zdelta = zend - zstart.
+ * f = queue density
  *
- * [2] Computed as depth_near / depth_far.
+ *	Computed as 1.0f (constant), 1.0f / zdelta, or 1.0f / sqrt (zdelta**2);
+ *	where zdelta = zmax - zmin.
  *
- * XXX I'm not attaching any particular meaning to 'density' and 'bias' here;
- * they are just placeholders.
+ * g = queue bias
+ *
+ *	Computed as depth_near / depth_far.
  *
  * See PH:@0C0159C4, PH:@0C015A02, PH:@0C015A3E.
  */
 
-I (vp_set_depth_queue)
+I (0x021)
 {
-	gpu->viewports.scratch.depthq_type	= (inst[0] >> 18) & 3;
-	gpu->viewports.scratch.depthq_enabled	= ((inst[0] >> 17) & 1) ? 0 : 1;
-	gpu->viewports.scratch.depthq_unk	= (inst[0] >> 16) & 1;
-	gpu->viewports.scratch.depthq_mask[0]	= inst[1] & 0xFF;
-	gpu->viewports.scratch.depthq_mask[1]	= (inst[1] >> 8) & 0xFF;
-	gpu->viewports.scratch.depthq_mask[2]	= (inst[1] >> 16) & 0xFF;
-	gpu->viewports.scratch.depthq_mask[3]	= inst[1] >> 24;
-	gpu->viewports.scratch.depthq_density	= *(float *) &inst[2];
-	gpu->viewports.scratch.depthq_bias	= *(float *) &inst[3];
+	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
 
-	DISASM (4, "vp: set depth queue [type=%u ena=%u unk=%u mask=(%X %X %X %X) density=%f bias=%f]",
-		gpu->viewports.scratch.depthq_type,
-		gpu->viewports.scratch.depthq_enabled,
-		gpu->viewports.scratch.depthq_unk,
-		gpu->viewports.scratch.depthq_mask[0],
-		gpu->viewports.scratch.depthq_mask[1],
-		gpu->viewports.scratch.depthq_mask[2],
-		gpu->viewports.scratch.depthq_mask[3],
-		gpu->viewports.scratch.depthq_density,
-		gpu->viewports.scratch.depthq_bias);
+	switch ((inst[0] >> 8) & 7) {
+	case 0:
+		vp->persp_x	= *(float *) &inst[1];
+		vp->persp_y	= *(float *) &inst[2];
+		vp->persp_znear	= *(float *) &inst[3];
+
+		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
+		UNHANDLED |= !ispositive (vp->persp_x);
+		UNHANDLED |= !ispositive (vp->persp_y);
+		UNHANDLED |= !ispositive (vp->persp_znear);
+
+		DISASM (4, "vp: set projection [px=%f py=%f znear=%f]",
+		        gpu->viewports.scratch.persp_x,
+		        gpu->viewports.scratch.persp_y,
+		        gpu->viewports.scratch.persp_znear);
+		break;
+
+	case 2:
+		vp->center[0]		= inst[1] & 0xFFFF;
+		vp->center[1]		= inst[1] >> 16;
+		vp->extents_x[0]	= inst[2] & 0x7FFF;
+		vp->extents_x[1]	= inst[3] & 0x7FFF;
+		vp->extents_y[0]	= (inst[2] >> 16) & 0x3FFF;
+		vp->extents_y[1]	= (inst[3] >> 16) & 0x3FFF;
+	
+		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
+		UNHANDLED |= !!(inst[2] & 0xC0008000);
+		UNHANDLED |= !!(inst[3] & 0xC0008000);
+	
+		DISASM (4, "vp: set extents [center=(%u,%u) x=(%u,%u) y=(%u,%u)]",
+		        vp->center[0], vp->center[1],
+		        vp->extents_x[0], vp->extents_x[1],
+		        vp->extents_y[0], vp->extents_y[1]);
+		break;
+
+	case 4:
+		vp->depth_near = *(float *) &inst[1];
+		vp->depth_far  = *(float *) &inst[2];
+		vp->depth_func = inst[3] >> 29;
+
+		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
+		UNHANDLED |= !!(inst[3] & 0x1FFFFFFF);
+
+		DISASM (4, "vp: set depth [func=%u range=(%f,%f)]",
+		        vp->depth_func, vp->depth_near, vp->depth_far);
+		break;
+
+	case 6:
+		vp->depthq_type		= (inst[0] >> 18) & 3;
+		vp->depthq_enabled	= ((inst[0] >> 17) & 1) ^ 1;
+		vp->depthq_unk		= (inst[0] >> 16) & 1;
+		vp->depthq_mask[0]	= inst[1] & 0xFF;
+		vp->depthq_mask[1]	= (inst[1] >> 8) & 0xFF;
+		vp->depthq_mask[2]	= (inst[1] >> 16) & 0xFF;
+		vp->depthq_mask[3]	= inst[1] >> 24;
+		vp->depthq_density	= *(float *) &inst[2];
+		vp->depthq_bias		= *(float *) &inst[3];
+
+		UNHANDLED |= !!(inst[0] & 0xFFF0F800);
+		UNHANDLED |= !ispositive(vp->depthq_density);
+		UNHANDLED |= !ispositive(vp->depthq_bias);
+	
+		DISASM (4, "vp: set depth queue [type=%u ena=%u unk=%u mask=(%X %X %X %X) density=%f bias=%f]",
+			vp->depthq_type, vp->depthq_enabled, vp->depthq_unk,
+			vp->depthq_mask[0], vp->depthq_mask[1],
+			vp->depthq_mask[2], vp->depthq_mask[3],
+			vp->depthq_density, vp->depthq_bias);
+		break;
+	}
 }
 
-/* 811	Viewport: Set Ambient Color
+/* 011	Viewport: Set Ambient Color
  *
- *	rrrrrrrr rrrrrrrr ----oooo oooooooo
+ *	rrrrrrrr rrrrrrrr ----1--o oooooooo
  *	bbbbbbbb bbbbbbbb gggggggg gggggggg
  *
  * r,g,b = color
@@ -562,25 +489,25 @@ I (vp_set_depth_queue)
  * See PH:@0C037840.
  */
 
-I (vp_set_ambient_color)
+I (0x011)
 {
-	vec3s_t color;
+	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
 
-	color[0] = inst[0] >> 16;
-	color[1] = inst[1] & 0xFFFF;
-	color[2] = inst[1] >> 16;
+	vp->ambient_color[0] = inst[0] >> 16;
+	vp->ambient_color[1] = inst[1] & 0xFFFF;
+	vp->ambient_color[2] = inst[1] >> 16;
 
-	gpu->viewports.scratch.ambient_color[0] = color[0];
-	gpu->viewports.scratch.ambient_color[1] = color[1];
-	gpu->viewports.scratch.ambient_color[2] = color[2];
+	UNHANDLED |= !!(inst[0] & 0x0000F600);
+	UNHANDLED |= !(inst[0] & 0x00000800);
 
 	DISASM (2, "vp: set ambient [color=(%u %u %u)]",
-	        color[2], color[1], color[0]);
+	        vp->ambient_color[2], vp->ambient_color[1],
+	        vp->ambient_color[0]);
 }
 
-/* 991	Viewport: Set Clear Color
+/* 191	Viewport: Set Clear Color
  *
- *	-------- -------- ----oooo oooooooo
+ *	-------- -------- ----1--o oooooooo
  *	-------a gggggggg bbbbbbbb rrrrrrrr
  *
  * a,r,g,b = color.
@@ -592,82 +519,79 @@ I (vp_set_ambient_color)
  * See PH:@0C016368, PH:@0C016396, PH:@0C037760.
  */
 
-I (vp_set_clear_color)
+I (0x191)
 {
-	vec4b_t color;
+	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
 
-	color[0] = inst[1] & 0xFF;
-	color[1] = (inst[1] >> 8) & 0xFF;
-	color[2] = (inst[1] >> 16) & 0xFF;
-	color[3] = ((inst[1] >> 24) & 1) ? 0xFF : 0;
+	vp->clear_color[0] = inst[1] & 0xFF;
+	vp->clear_color[1] = (inst[1] >> 8) & 0xFF;
+	vp->clear_color[2] = (inst[1] >> 16) & 0xFF;
+	vp->clear_color[3] = ((inst[1] >> 24) & 1) ? 0xFF : 0;
 
-	gpu->viewports.scratch.clear_color[0] = color[0];
-	gpu->viewports.scratch.clear_color[1] = color[1];
-	gpu->viewports.scratch.clear_color[2] = color[2];
-	gpu->viewports.scratch.clear_color[3] = color[3];
+	UNHANDLED |= !!(inst[0] & 0xFFFFF600);
+	UNHANDLED |= !(inst[0] & 0x00000800);
+	UNHANDLED |= !!(inst[0] & 0xFE000000);
 
 	DISASM (2, "vp: set clear [color=(%u %u %u %u)]",
-	        color[0], color[1], color[2], color[3]);
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
-	gpu->cp.unhandled |= !!(inst[0] & 0xFE000000);
+	        vp->clear_color[0], vp->clear_color[1],
+	        vp->clear_color[2], vp->clear_color[3]);
 }
 
 /* 004	Commit Viewport
  *
- *	-------- -----iii ----oooo oooooooo
+ *	-------- -----iii -------o oooooooo
  *
  * i = Index
  *
  * See PH:@0C015AD0.
  */
 
-I (vp_commit)
+I (0x004)
 {
 	uint32_t index = inst[0] >> 16;
+
+	UNHANDLED |= !!(inst[0] & 0xFFF8FE00);
 
 	DISASM (1, "vp: commit @%u", index);
 
 	if (index >= NUM_VIEWPORTS) {
-		VK_ERROR ("GPU CP: viewport commit index exceeds MAX (%u >= %u), skipping",
+		VK_ERROR ("CP: viewport commit index exceeds MAX (%u >= %u), skipping",
 		          index, NUM_VIEWPORTS);
-		gpu->cp.unhandled |= true;
+		UNHANDLED = true;
 		return;
 	}
 
 	gpu->viewports.table[index] = gpu->viewports.scratch;
 	gpu->viewports.table[index].set = true;
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFF8F000);
 }
 
 /* 003	Recall Viewport
  *
- *	-------- -----iii -xx-oooo oooooooo
+ *	-------- -----iii -UU----o oooooooo
  *
  * i = Index
- * x = Unknown (2003 and 4003 variants are used in BRAVEFF title screen)
+ * U = Unknown (2003 and 4003 variants are used in BRAVEFF title screen)
  *
  * See PH:@0C015AF6, PH:@0C015B12, PH:@0C015B32.
  */
 
-I (vp_recall)
+I (0x003)
 {
 	uint32_t index = inst[0] >> 16;
 
 	DISASM (1, "vp: recall @%u", index);
 
 	if (index >= NUM_VIEWPORTS) {
-		VK_ERROR ("GPU CP: viewport recall index exceeds MAX (%u >= %u), skipping",
+		VK_ERROR ("CP: viewport recall index exceeds MAX (%u >= %u), skipping",
 		          index, NUM_VIEWPORTS);
-		gpu->cp.unhandled |= true;
+		UNHANDLED |= true;
 		return;
 	}
 
 	if (!gpu->viewports.table[index].set) {
-		VK_ERROR ("GPU CP: recalled viewport was not set (%u), skipping",
+		VK_ERROR ("CP: recalled viewport was not set (%u), skipping",
 		          index);
-		gpu->cp.unhandled |= true;
+		UNHANDLED |= true;
 		return;
 	}
 
@@ -675,231 +599,302 @@ I (vp_recall)
 	hikaru_renderer_set_viewport (gpu->renderer,
 	                              &gpu->viewports.table[index]);
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFF89000);
+	UNHANDLED |= !!(inst[0] & 0xFFF89E00);
 }
+
+/****************************************************************************
+ Matrices
+****************************************************************************/
 
 /* 161	Set Matrix Vector
  *
- *	-------- ----mmnn ----oooo oooooooo
+ *	-------- ----UPnn ----000o oooooooo
  *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
  *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
  *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
  *
- * m = Unknown
- * n = Vector index
- * x,y,z = Vector elements
+ * U = Unknown
+ * P = Push
+ * n = Element index
+ * x,y,z = Elements
  *
- * This command sets a row vector of the current modelview matrix. Typically
- * four of these commands follow and set the whole 4x3 modelview matrix;
- * however these commands can be used to update just one row at a time.
+ * This command sets a column vector of the current modelview matrix. Typically
+ * four of these commands follow and set the whole 4x3 modelview matrix.
+ *
+ * Clearly the fourth row is fixed to (0, 0, 0, 1).
  *
  * See @0C008080.
+ *
+ *
+ * 561	Set Light Vector 1
+ *
+ *	-------- ------nn ----010o oooooooo
+ *	-------- -------- -------- --------
+ *	-------- -------- -------- --------
+ *	-------- -------- -------- --------
+ *
+ * No idea.
+ *
+ *
+ * 961	Set Light Vector 2
+ *
+ *	-------- -------e nnnn100o oooooooo
+ *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
+ *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
+ *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
+ *
+ * e = Unknown
+ * n = Unknown
+ * x,y,z = position (XXX not necessarily)
+ *
+ * Variants include 16961, 10961, 8961. Apparently the 8961 variant makes use
+ * of the 194 ramp data.
+ *
+ *
+ * B61	Set Light Vector 3
+ *
+ *	-------- -------- Unnn110o oooooooo
+ *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
+ *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
+ *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
+ *
+ * U = Unknown
+ * n = Unknown
+ * x,y,z = direction (XXX not quite)
  */
 
-I (modelview_set_vector)
+I (0x161)
 {
-	unsigned m = (inst[0] >> 18) & 3;
-	unsigned n = (inst[0] >> 16) & 3;
-	vec3f_t v;
+	switch ((inst[0] >> 8) & 0xF) {
 
-	v[0] = *(float *) &inst[1];
-	v[1] = *(float *) &inst[2];
-	v[2] = *(float *) &inst[3];
+	case 1: {
+			uint32_t push = (inst[0] >> 18) & 1;
+			uint32_t elem = (inst[0] >> 16) & 3;
+			vec3f_t v;
 
-	DISASM (4, "mtx: set vector [%u %u (%f %f %f)]",
-	        n, m, v[0], v[1], v[2]);
+			v[0] = *(float *) &inst[1];
+			v[1] = *(float *) &inst[2];
+			v[2] = *(float *) &inst[3];
 
-	hikaru_renderer_set_modelview_vector (gpu->renderer, n, m, v);
+			DISASM (4, "mtx: set vector [%c %u (%f %f %f)]",
+			        push ? 'P' : ' ', elem, v[0], v[1], v[2]);
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFF0F000);
-	gpu->cp.unhandled |= !isfinite (v[0]);
-	gpu->cp.unhandled |= !isfinite (v[1]);
-	gpu->cp.unhandled |= !isfinite (v[2]);
+			hikaru_renderer_set_modelview_vector (gpu->renderer, elem, 0, v);
+
+			UNHANDLED |= !!(inst[0] & 0xFFF0F000);
+			UNHANDLED |= !isfinite (v[0]);
+			UNHANDLED |= !isfinite (v[1]);
+			UNHANDLED |= !isfinite (v[2]);
+		}
+		break;
+
+	case 5:
+		DISASM (4, "lit: set unknown");
+
+		UNHANDLED |= !!(inst[0] & 0xFFFCF000);
+		break;
+
+	case 9:
+		DISASM (4, "lit: set unknown [%f %f %f]",
+		        *(float *) &inst[1], *(float *) &inst[2], *(float *) &inst[3]);
+
+		UNHANDLED |= !!(inst[0] & 0xFFFE0000);
+		break;
+
+	case 0xB:
+		DISASM (4, "lit: set unknown [%f %f %f]",
+		        *(float *) &inst[1], *(float *) &inst[2], *(float *) &inst[3]);
+
+		UNHANDLED |= !!(inst[0] & 0xFFFF0000);
+		break;
+	}
 }
 
-/* 091	Material: Set Color 0
- * 291	Material: Set Color 1
+/****************************************************************************
+ Materials
+****************************************************************************/
+
+/* 091	Material: Set Primary Color
  *
- *	-------- -------- ----oooo oooooooo
+ *	-------- -------- -----00o oooooooo
+ *	uuuuuuuu bbbbbbbb gggggggg rrrrrrrr
+ *
+ * u = Unknown, seen in BRAVEFF title screen.
+ * r,g,b = RGB color
+ *
+ * See PH:@0C0CF742.
+ *
+ *
+ * 291	Material: Set Secondary Color
+ *
+ *	-------- -------- -----01o oooooooo
  *	uuuuuuuu bbbbbbbb gggggggg rrrrrrrr
  *
  * r,g,b = RGB color
- * u = set but unused? Seen in BRAVEFF title screen.
  *
  * See PH:@0C0CF742.
- */
-
-I (mat_set_color_0_1)
-{
-	uint32_t i = (inst[0] >> 9) & 1;
-
-	gpu->materials.scratch.color[i][0] = inst[1] & 0xFF;
-	gpu->materials.scratch.color[i][1] = (inst[1] >> 8) & 0xFF;
-	gpu->materials.scratch.color[i][2] = (inst[1] >> 16) & 0xFF;
-
-	DISASM (2, "mat: set color %u [color=(%u %u %u)]", i,
-	        gpu->materials.scratch.color[i][0],
-	        gpu->materials.scratch.color[i][1],
-	        gpu->materials.scratch.color[i][2]);
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
-}
-
-/* 491	Material: Set Shininess
  *
- *	-------- -------- ----oooo oooooooo
+ *
+ * 491	Material: Set Shininess
+ *
+ *	-------- -------- -----10o oooooooo
  *	ssssssss bbbbbbbb gggggggg rrrrrrrr
  *
  * s = Specular shininess
  *
  * See PH:@0C0CF798, PH:@0C01782C.
- */
-
-I (mat_set_shininess)
-{
-	uint8_t specularity;
-	vec3b_t shininess;
-
-	shininess[0] = inst[1] & 0xFF;
-	shininess[1] = (inst[1] >> 8) & 0xFF;
-	shininess[2] = (inst[1] >> 16) & 0xFF;
-
-	specularity = inst[1] >> 24;
-
-	gpu->materials.scratch.shininess[0] = shininess[0];
-	gpu->materials.scratch.shininess[1] = shininess[1];
-	gpu->materials.scratch.shininess[2] = shininess[2];
-	gpu->materials.scratch.specularity = specularity;
-
-	DISASM (2, "mat: set shininess [%u (%u %u %u)]",
-	        specularity, shininess[2], shininess[1], shininess[0]);
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
-}
-
-/* 691	Material: Set Material Color
  *
- *	rrrrrrrr rrrrrrrr ----oooo oooooooo
+ *
+ * 691	Material: Set Material Color
+ *
+ *	rrrrrrrr rrrrrrrr -----11o oooooooo
  *	bbbbbbbb bbbbbbbb gggggggg gggggggg
  *
  * See PH:@0C0CF7CC.
  */
 
-I (mat_set_material_color)
+I (0x091)
 {
-	vec3s_t color;
+	hikaru_gpu_material_t *mat = &gpu->materials.scratch;
+	uint32_t i;
 
-	color[0] = inst[0] >> 16;
-	color[1] = inst[1] & 0xFFFF;
-	color[2] = inst[1] >> 16;
+	switch ((inst[0] >> 8) & 7) {
+	case 0:
+	case 2:
+		i = (inst[0] >> 9) & 1;
 
-	gpu->materials.scratch.material_color[0] = color[0];
-	gpu->materials.scratch.material_color[1] = color[1];
-	gpu->materials.scratch.material_color[2] = color[2];
+		mat->color[i][0] = inst[1] & 0xFF;
+		mat->color[i][1] = (inst[1] >> 8) & 0xFF;
+		mat->color[i][2] = (inst[1] >> 16) & 0xFF;
+	
+		DISASM (2, "mat: set color %u [color=(%u %u %u)]", i,
+		        mat->color[i][0], mat->color[i][1], mat->color[i][2]);
+	
+		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
+		break;
 
-	DISASM (2, "mat: set material [(%u %u %u)]",
-	        color[0], color[1], color[2]);
+	case 4:
+		mat->shininess[0] = inst[1] & 0xFF;
+		mat->shininess[1] = (inst[1] >> 8) & 0xFF;
+		mat->shininess[2] = (inst[1] >> 16) & 0xFF;
+		mat->specularity = inst[1] >> 24;
+	
+		DISASM (2, "mat: set shininess [%u (%u %u %u)]",
+		        mat->specularity, mat->shininess[2],
+		        mat->shininess[1], mat->shininess[0]);
+	
+		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
+		break;
 
-	gpu->cp.unhandled |= !!(inst[0] & 0x0000F000);
+	case 6:
+		mat->material_color[0] = inst[0] >> 16;
+		mat->material_color[1] = inst[1] & 0xFFFF;
+		mat->material_color[2] = inst[1] >> 16;
+	
+		DISASM (2, "mat: set material [(%u %u %u)]",
+		        mat->material_color[0], mat->material_color[1],
+		        mat->material_color[2]);
+	
+		UNHANDLED |= !!(inst[0] & 0x0000F800);
+		break;
+	}
 }
 
 /* 081	Material: Set Unknown
  *
- *	-------- ----mmmm ---noooo oooooooo
+ *	-------- ----mmmm ---n000o oooooooo
  *
  * n, m = Unknown
- */
-
-I (mat_set_unk_081)
-{
-	unsigned n = (inst[0] >> 12) & 1;
-	unsigned m = (inst[0] >> 16) & 0xF;
-
-	DISASM (1, "mat: set unknown [%u %u]", n, m);
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFF0E000);
-}
-
-/* 881	Material: Set Flags
  *
- *	-------- --hatzSS ----oooo oooooooo
  *
- * S = Shading mode
+ * 881	Material: Set Flags
+ *
+ *	-------- --hatzSS ----100o oooooooo
+ *
+ * S = Shading mode (flat, linear, phong)
  * z = Depth blend (fog)
  * t = Enable texture
  * a = Alpha mode
  * h = Highlight mode
  *
- * Shading mode should include Flat, Linear, Phong.
- *
  * See PH:@0C0CF700.
- */
-
-I (mat_set_flags)
-{
-	gpu->materials.scratch.shading_mode	= (inst[0] >> 16) & 3;
-	gpu->materials.scratch.depth_blend	= (inst[0] >> 18) & 1;
-	gpu->materials.scratch.has_texture	= (inst[0] >> 19) & 1;
-	gpu->materials.scratch.has_alpha	= (inst[0] >> 20) & 1;
-	gpu->materials.scratch.has_highlight	= (inst[0] >> 21) & 1;
-
-	DISASM (1, "mat: set flags [mode=%u zblend=%u tex=%u alpha=%u highl=%u",
-		gpu->materials.scratch.shading_mode,
-		gpu->materials.scratch.depth_blend,
-		gpu->materials.scratch.has_texture,
-		gpu->materials.scratch.has_alpha,
-		gpu->materials.scratch.has_highlight);
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFC0F000);
-}
-
-/* A81	Material: Set Blending Mode
  *
- *	-------- -------mm ----oooo oooooooo
+ *
+ * A81	Material: Set Blending Mode
+ *
+ *	-------- ------mm ----101o oooooooo
  *
  * m = Blending Mode
  *
  * See PH:@0C0CF7FA.
- */
-
-I (mat_set_blending)
-{
-	gpu->materials.scratch.blending_mode = (inst[0] >> 16) & 3;
-
-	DISASM (1, "mat: set blending mode [mode=%u]",
-	        gpu->materials.scratch.blending_mode);
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFCF000);
-}
-
-/* C81	Material: Set Unknown
  *
- *	-------- --xuuuuu ----oooo oooooooo
  *
- * x,u = Unknown
+ * C81	Material: Set Unknown
+ *
+ *	-------- --U----- ----110o oooooooo
+ *
+ * U = Unknown
  *
  * It may be related to command 154, see PH:@0C0CF872 and
  * PH:@0C0CF872.
+ *
+ * These can come in pairs, see e.g., AT:@0C0380AC.
  */
 
-I (mat_set_unk_C81)
+I (0x081)
 {
-	DISASM (1, "mat: set unknown");
+	hikaru_gpu_material_t *mat = &gpu->materials.scratch;
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFC0F000);
+	switch ((inst[0] >> 8) & 0xF) {
+	case 0:
+		DISASM (1, "mat: set unknown");
+
+		UNHANDLED |= !!(inst[0] & 0xFFF0E000);
+		break;
+
+	case 8:
+		mat->shading_mode	= (inst[0] >> 16) & 3;
+		mat->depth_blend	= (inst[0] >> 18) & 1;
+		mat->has_texture	= (inst[0] >> 19) & 1;
+		mat->has_alpha		= (inst[0] >> 20) & 1;
+		mat->has_highlight	= (inst[0] >> 21) & 1;
+
+		DISASM (1, "mat: set flags [mode=%u zblend=%u tex=%u alpha=%u highl=%u",
+			mat->shading_mode,
+			mat->depth_blend,
+			mat->has_texture,
+			mat->has_alpha,
+			mat->has_highlight);
+
+		UNHANDLED |= !!(inst[0] & 0xFFC0F000);
+		break;
+
+	case 0xA:
+		mat->blending_mode = (inst[0] >> 16) & 3;
+
+		DISASM (1, "mat: set blending mode [mode=%u]", mat->blending_mode);
+
+		UNHANDLED |= !!(inst[0] & 0xFFFCF000);
+		break;
+
+	case 0xC:
+		DISASM (1, "mat: set unknown");
+
+		UNHANDLED |= !!(inst[0] & 0xFFC0F000);
+		break;
+	}
 }
 
 /* 084	Commit Material
  *
- *	------nn nnnnnnnn ---uoooo oooooooo
+ *	------nn nnnnnnnn ---1---o oooooooo
  *
  * n = Index
- * u = Unknown; always 1?
  *
  * See PH:@0C0153D4, PH:@0C0CF878.
  */
 
-I (mat_commit)
+I (0x084)
 {
 	uint32_t offset  = inst[0] >> 16;
 	uint32_t index   = offset + gpu->materials.base;
@@ -907,7 +902,7 @@ I (mat_commit)
 	DISASM (1, "mat: commit @%u [offs=%u]", index, offset);
 
 	if (index >= NUM_MATERIALS) {
-		VK_ERROR ("GPU CP: material commit index exceeds MAX (%u >= %u), skipping",
+		VK_ERROR ("CP: material commit index exceeds MAX (%u >= %u), skipping",
 		          index, NUM_MATERIALS);
 		return;
 	}
@@ -915,24 +910,22 @@ I (mat_commit)
 	gpu->materials.table[index] = gpu->materials.scratch;
 	gpu->materials.table[index].set = true;
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFC00E000);
-	gpu->cp.unhandled |= ((inst[0] & 0x1000) != 0x1000);
-	gpu->cp.unhandled |= (offset > 0x3FF);
+	UNHANDLED |= !!(inst[0] & 0xFC00E000);
+	UNHANDLED |= !(inst[0] & 0x1000);
+	UNHANDLED |= offset > NUM_MATERIALS;
 }
 
 /* 083	Recall Material
  *
- *	nnnnnnnn nnnnnnnn ---Moooo oooooooo
+ *	---nnnnn nnnnnnnn ---A---o oooooooo
  *
  * n = Index
- * M = Modifier: 0 = set base only, 1 = recall for real
+ * A = Active
  *
  * See @0C00657C, PH:@0C0CF882.
- *
- * XXX n here is likely too large.
  */
 
-I (mat_recall)
+I (0x083)
 {
 	uint32_t offset = inst[0] >> 16;
 	uint32_t make_active = (inst[0] >> 12) & 1;
@@ -947,46 +940,41 @@ I (mat_recall)
 		gpu->materials.base = offset;
 	else {
 		if (index >= NUM_MATERIALS) {
-			VK_ERROR ("GPU CP: material recall index exceeds MAX (%u >= %u), skipping",
+			VK_ERROR ("CP: material recall index exceeds MAX (%u >= %u), skipping",
 			          index, NUM_MATERIALS);
-			gpu->cp.unhandled |= true;
+			UNHANDLED |= true;
 			return;
 		}
 		if (!gpu->materials.table[index].set) {
-			VK_ERROR ("GPU CP: recalled material was not set (%u), skipping",
+			VK_ERROR ("CP: recalled material was not set (%u), skipping",
 			          index);
-			gpu->cp.unhandled |= true;
+			UNHANDLED |= true;
 			return;
 		}
 		hikaru_renderer_set_material (gpu->renderer,
 		                              &gpu->materials.table[index]);
 	}
 
-	gpu->cp.unhandled |= !!(inst[0] & 0x0000E000);
+	UNHANDLED |= !!(inst[0] & 0x0000E000);
 }
 
-/* 0C1	Texhead: Set Unknown
+/****************************************************************************
+ Texheads
+****************************************************************************/
+
+/* 0C1	Texhead: Set Bias
  *
- *	----mmmm mmmmnnnn ----oooo oooooooo
+ *	----BBBB BBBB---E -----00o oooooooo
  *
- * m, n = Unknown
+ * B = Unknown parameter, some form of texture bias? e.g., for mipmapping.
+ * E = Enabled.
  *
  * See PH:@0C015B7A.
- */
-
-I (tex_set_unk_0C1)
-{
-	gpu->texheads.scratch._0C1_nibble	= (inst[0] >> 16) & 0xF;
-	gpu->texheads.scratch._0C1_byte		= (inst[0] >> 20) & 0xFF;
-
-	DISASM (1, "tex: set unknown");
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xF000F000);
-}
-
-/* 2C1	Texhead: Set Format/Size
  *
- *	888FFFll llHHHWWW uu--oooo oooooooo
+ *
+* 2C1	Texhead: Set Format/Size
+ *
+ *	888FFFll llHHHWWW uu---01o oooooooo
  *
  * 8 = Unknown		[argument on stack]
  * F = Format		[argument R7]
@@ -996,31 +984,11 @@ I (tex_set_unk_0C1)
  * u = Unknown		[upper two bits of argument R4]
  *
  * See PH:@0C015BCC.
- */
-
-I (tex_set_format)
-{
-	gpu->texheads.scratch.width	= 16 << ((inst[0] >> 16) & 7);
-	gpu->texheads.scratch.height	= 16 << ((inst[0] >> 19) & 7);
-	gpu->texheads.scratch.format	= (inst[0] >> 26) & 7;
-	gpu->texheads.scratch.log_width	= (inst[0] >> 16) & 7;
-	gpu->texheads.scratch.log_height= (inst[0] >> 19) & 7;
-
-	if (gpu->texheads.scratch.format == HIKARU_FORMAT_RGBA1111)
-		gpu->texheads.scratch.width *= 2; /* pixels per word */
-
-	gpu->texheads.scratch._2C1_unk4	= (((inst[0] >> 14) & 3) << 4) |
-	                                  ((inst[0] >> 22) & 15);
-	gpu->texheads.scratch._2C1_unk8	= inst[0] >> 29;
-
-	DISASM (1, "tex: set format");
-
-	gpu->cp.unhandled |= !!(inst[0] & 0x00003000);
-}
-
-/* 4C1	Texhead: Set Slot
  *
- *	nnnnnnnn mmmmmmmm ---boooo oooooooo
+ *
+ * 4C1	Texhead: Set Slot
+ *
+ *	nnnnnnnn mmmmmmmm ---b-10o oooooooo
  *
  * n = Slot Y
  * m = Slot X
@@ -1032,18 +1000,52 @@ I (tex_set_format)
  * See PH:@0C015BA0.
  */
 
-I (tex_set_slot)
+I (0x0C1)
 {
-	gpu->texheads.scratch.bank  = (inst[0] >> 12) & 1;
-	gpu->texheads.scratch.slotx = (inst[0] >> 16) & 0xFF;
-	gpu->texheads.scratch.sloty = inst[0] >> 24;
+	hikaru_gpu_texhead_t *th = &gpu->texheads.scratch;
 
-	DISASM (1, "tex: set slot [%u,%u]",
-	        gpu->texheads.scratch.bank,
-	        gpu->texheads.scratch.slotx,
-	        gpu->texheads.scratch.sloty);
+	switch ((inst[0] >> 8) & 7) {
+	case 0:
+		th->_0C1_nibble	= (inst[0] >> 16) & 1;
+		th->_0C1_byte	= (inst[0] >> 20) & 0xFF;
 
-	gpu->cp.unhandled |= !!(inst[0] & 0x0000E000);
+		DISASM (1, "tex: set bias [ena=%u %X]",
+		        th->_0C1_nibble, th->_0C1_byte);
+
+		UNHANDLED |= !!(inst[0] & 0xF00EF800);
+		break;
+
+	case 2:
+		th->width	= 16 << ((inst[0] >> 16) & 7);
+		th->height	= 16 << ((inst[0] >> 19) & 7);
+		th->format	= (inst[0] >> 26) & 7;
+		th->log_width	= (inst[0] >> 16) & 7; /* XXX remove */
+		th->log_height	= (inst[0] >> 19) & 7; /* XXX remove */
+		th->_2C1_unk4	= (((inst[0] >> 14) & 3) << 4) |
+	                           ((inst[0] >> 22) & 15);
+		th->_2C1_unk8	= inst[0] >> 29;
+
+		/* XXX move this to the renderer */
+		if (th->format == HIKARU_FORMAT_RGBA1111)
+			th->width *= 2; /* pixels per word */
+
+		DISASM (1, "tex: set format [%ux%u fmt=%u]",
+		        th->width, th->height, th->format);
+
+		UNHANDLED |= !!(inst[0] & 0x00003800);
+		break;
+
+	case 4:
+		th->bank  = (inst[0] >> 12) & 1;
+		th->slotx = (inst[0] >> 16) & 0xFF;
+		th->sloty = inst[0] >> 24;
+
+		DISASM (1, "tex: set slot [%u,%u]",
+		        th->bank, th->slotx, th->sloty);
+
+		UNHANDLED |= !!(inst[0] & 0x0000E000);
+		break;
+	}
 }
 
 /* 0C4	Commit Texhead
@@ -1056,7 +1058,7 @@ I (tex_set_slot)
  * See PH:@0C01545C. 
  */
 
-I (tex_commit)
+I (0x0C4)
 {
 	uint32_t offset  = inst[0] >> 16;
 	uint32_t index   = offset + gpu->texheads.base;
@@ -1064,7 +1066,7 @@ I (tex_commit)
 	DISASM (1, "tex: commit @%u [offset=%u]", index, offset);
 
 	if (index >= NUM_TEXHEADS) {
-		VK_ERROR ("GPU CP: texhead commit index exceedes MAX (%u >= %u), skipping",
+		VK_ERROR ("CP: texhead commit index exceedes MAX (%u >= %u), skipping",
 		          index, NUM_MATERIALS);
 		return;
 	}
@@ -1072,8 +1074,8 @@ I (tex_commit)
 	gpu->texheads.table[index] = gpu->texheads.scratch;
 	gpu->texheads.table[index].set = true;
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFC00E000);
-	gpu->cp.unhandled |= ((inst[0] & 0x1000) != 0x1000);
+	UNHANDLED |= !!(inst[0] & 0xFC00E000);
+	UNHANDLED |= ((inst[0] & 0x1000) != 0x1000);
 }
 
 /* 0C3	Recall Texhead
@@ -1086,7 +1088,7 @@ I (tex_commit)
  * XXX n here is likely too large.
  */
 
-I (tex_recall)
+I (0x0C3)
 {
 	uint32_t offset = inst[0] >> 16;
 	uint32_t make_active = (inst[0] >> 12) & 1;
@@ -1101,15 +1103,15 @@ I (tex_recall)
 		gpu->texheads.base = offset;
 	else {
 		if (index >= NUM_TEXHEADS) {
-			VK_ERROR ("GPU CP: texhead recall index exceeds MAX (%u >= %u), skipping",
+			VK_ERROR ("CP: texhead recall index exceeds MAX (%u >= %u), skipping",
 			          index, NUM_TEXHEADS);
-			gpu->cp.unhandled |= true;
+			UNHANDLED |= true;
 			return;
 		}
 		if (!gpu->texheads.table[index].set) {
-			VK_ERROR ("GPU CP: recalled texhead was not set (%u), skipping",
+			VK_ERROR ("CP: recalled texhead was not set (%u), skipping",
 			          index);
-			gpu->cp.unhandled |= true;
+			UNHANDLED |= true;
 			return;
 		}
 		gpu->texheads.table[index].used = true;
@@ -1117,10 +1119,14 @@ I (tex_recall)
 		                             &gpu->texheads.table[index]);
 	}
 
-	gpu->cp.unhandled |= !!(inst[0] & 0x0000E000);
+	UNHANDLED |= !!(inst[0] & 0x0000E000);
 }
 
-/* 261	Set Light Type/Unknown
+/****************************************************************************
+ Lights
+****************************************************************************/
+
+/* 061	Set Light Type/Unknown
  *
  *	-------- ------tt ----oooo oooooooo
  *	pppppppp pppppppp pppppppp pppppppp
@@ -1167,158 +1173,83 @@ I (tex_recall)
  * square, reciprocal, reciprocal2, linear.
  */
 
-I (lit_set_type)
+I (0x061)
 {
-	gpu->lights.scratch.emission_type	= (inst[0] >> 16) & 3;
-	gpu->lights.scratch.emission_p		= *(float *) &inst[1];
-	gpu->lights.scratch.emission_q		= *(float *) &inst[2];
+	hikaru_gpu_light_t *lit = &gpu->lights.scratch;
 
-	DISASM (4, "lit: set extents [type=%u p=%f q=%f]",
-	        gpu->lights.scratch.emission_type,
-	        gpu->lights.scratch.emission_p,
-	        gpu->lights.scratch.emission_q);
+	lit->emission_type	= (inst[0] >> 16) & 3;
+	lit->emission_p		= *(float *) &inst[1];
+	lit->emission_q		= *(float *) &inst[2];
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFCF000);
+	DISASM (4, "lit: set type [type=%u p=%f q=%f]",
+	        lit->emission_type, lit->emission_p, lit->emission_q);
+
+	UNHANDLED |= !!(inst[0] & 0xFFFCF000);
+	UNHANDLED |= !ispositive (lit->emission_p);
+	UNHANDLED |= !ispositive (lit->emission_q);
 }
 
-/*
- * 961	Set Light Position
+/* 051	Light: Set Color-like
  *
- *	-------- -------e nnnnoooo oooooooo
- *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
- *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
- *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
- *
- * e = Unknown
- * n = Unknown
- * x,y,z = position
- *
- * Variants include 16961, 10961, 8961. Apparently the 8961 variant makes use
- * of the 194 ramp data.
- *
- * NOTE: the position can be (NaN,NaN,NaN = (Inf,Inf,Inf)?
- */
-
-I (lit_set_position)
-{
-	gpu->lights.scratch.position[0] = *(float *) &inst[1];
-	gpu->lights.scratch.position[1] = *(float *) &inst[2];
-	gpu->lights.scratch.position[2] = *(float *) &inst[3];
-
-	DISASM (4, "lit: set position [%f %f %f]",
-	        gpu->lights.scratch.position[0],
-	        gpu->lights.scratch.position[1],
-	        gpu->lights.scratch.position[2]);
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFE0000);
-}
-
-/*
- * B61	Set Light Direction
- *
- *	-------- -------- nnnnoooo oooooooo
- *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
- *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
- *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
- *
- * n = Unknown
- * x,y,z = direction
- *
- * Variants include 8B61.
- *
- * NOTE: the direction can be (0,0,0) or (NaN,NaN,NaN) = (Inf,Inf,Inf)?
- */
-
-I (lit_set_direction)
-{
-	gpu->lights.scratch.direction[0] = *(float *) &inst[1];
-	gpu->lights.scratch.direction[1] = *(float *) &inst[2];
-	gpu->lights.scratch.direction[2] = *(float *) &inst[3];
-
-	DISASM (4, "lit: set direction [%f %f %f]",
-	        gpu->lights.scratch.direction[0],
-	        gpu->lights.scratch.direction[1],
-	        gpu->lights.scratch.direction[2]);
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFF0000);
-}
-
-/* 051	Light: Set Unknown (Color? Ramp?)
- *
- *	-------- nnnnnnnn ----oooo oooooooo
+ *	-------- nnnnnnnn -----0-o oooooooo
  *	--aaaaaa aaaabbbb bbbbbbcc cccccccc
  *
  * n = Index? Index into the 194 ramp data?
  * a,b,c = Color? = FP * 255.0f and then truncated and clamped to [0,FF].
  *
- * See PH:@0C0178C6; for a,b,c computation see PH:@0C03DC66.
- */
-
-I (lit_set_unk_051)
-{
-	vec3s_t color;
-	uint32_t index;
-
-	index = (inst[0] >> 16) & 0xFF;
-	color[0] = inst[1] & 0x3FF;
-	color[1] = (inst[1] >> 10) & 0x3FF;
-	color[2] = (inst[1] >> 20) & 0x3FF;
-
-	DISASM (2, "lit: set color [%u (%u %u %u)]",
-	        index, color[2], color[1], color[0]);
-
-	gpu->lights.scratch._051_index = index;
-	gpu->lights.scratch._051_color[0] = color[0];
-	gpu->lights.scratch._051_color[1] = color[1];
-	gpu->lights.scratch._051_color[2] = color[2];
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFF00F000);
-	gpu->cp.unhandled |= !!(inst[1] & 0xC0000000);
-}
-
-/* 451	Light: Set Unknown
+ * This may well be a 10-10-10 color format.
  *
- *	-------u -------- ----oooo oooooooo
- *	-------- -------- -------- --------
+ * See PH:@0C0178C6; for a,b,c computation see PH:@0C03DC66.
+ *
+ *
+ * 451	Light: Set Color-like 2
+ *
+ *	-------u -------- -----1-o oooooooo
+ *	???????? ???????? ???????? ????????
  *
  * u = Unknown
+ * ? = Color-like if B61 was called on this light, garbage otherwise.
  *
- * See PH:@0C017A7C, PH:@0C017B6C, PH:@0C017C58,
- * PH:@0C017CD4, PH:@0C017D64, 
+ * See PH:@0C017A7C, PH:@0C017B6C, PH:@0C017C58, PH:@0C017CD4, PH:@0C017D64.
  */
 
-I (lit_set_unk_451)
+I (0x051)
 {
-	DISASM (2, "lit: set unknown");
+	hikaru_gpu_light_t *lit = &gpu->lights.scratch;
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFEFFF000);
-}
+	switch ((inst[0] >> 8) & 7) {
+	case 0:
+		lit->_051_index    = (inst[0] >> 16) & 0xFF;
+		lit->_051_color[0] = inst[1] & 0x3FF;
+		lit->_051_color[1] = (inst[1] >> 10) & 0x3FF;
+		lit->_051_color[2] = (inst[1] >> 20) & 0x3FF;
 
-/* 561	Light: Set Unknown
- *
- *	-------- ------nn ----oooo oooooooo
- *	-------- -------- -------- --------
- *	-------- -------- -------- --------
- *	-------- -------- -------- --------
- */
+		DISASM (2, "lit: set color-like [%u (%u %u %u)]",
+		        lit->_051_index, lit->_051_color[2],
+		        lit->_051_color[1], lit->_051_color[0]);
 
-I (lit_set_unk_561)
-{
-	DISASM (4, "lit: set unknown");
+		UNHANDLED |= !!(inst[0] & 0xFF00F000);
+		UNHANDLED |= !!(inst[1] & 0xC0000000);
+		break;
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFCF000);
+	case 4:
+		DISASM (2, "lit: set unknown");
+
+		UNHANDLED |= !!(inst[0] & 0xFEFFF000);
+		break;
+	}
 }
 
 /* 006	Light: Unknown
  *
- *	-------- -------- ----oooo oooooooo
+ *	-------- -------- -------o oooooooo
  */
 
-I (lit_unk_006)
+I (0x006)
 {
 	DISASM (1, "lit: unknown");
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
+	UNHANDLED |= !!(inst[0] & 0xFFFFF000);
 }
 
 /* 046	Light: Unknown
@@ -1328,11 +1259,11 @@ I (lit_unk_006)
  * n = Unknown
  */
 
-I (lit_unk_046)
+I (0x046)
 {
 	DISASM (1, "lit: unknown");
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFEF000);
+	UNHANDLED |= !!(inst[0] & 0xFFFEF000);
 }
 
 /* 104	Commit Light
@@ -1342,14 +1273,14 @@ I (lit_unk_046)
  * n = Index
  */
 
-I (lit_commit)
+I (0x104)
 {
 	unsigned index = inst[0] >> 16;
 
 	DISASM (1, "lit: commit @%u", index);
 
 	if (index >= NUM_LIGHTS) {
-		VK_ERROR ("GPU CP: light commit index exceeds MAX (%u >= %u), skipping",
+		VK_ERROR ("CP: light commit index exceeds MAX (%u >= %u), skipping",
 		          index, NUM_LIGHTS);
 		return;
 	}
@@ -1357,36 +1288,36 @@ I (lit_commit)
 	gpu->lights.table[index] = gpu->lights.scratch;
 	gpu->lights.table[index].set = true;
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFC00F000);
+	UNHANDLED |= !!(inst[0] & 0xFC00F000);
 }
 
 /* 064  Commit Lightset
  *
- *      -------- nnnnnnnn ---Moooo oooooooo
- *      bbbbbbbb bbbbbbbb aaaaaaaa aaaaaaaa
- *      dddddddd dddddddd cccccccc cccccccc
+ *      -------- nnnnnnnn ---M---o oooooooo
+ *      ------bb bbbbbbbb ------aa aaaaaaaa
+ *      ------dd dddddddd ------cc cccccccc
  *      -------- -------- -------- --------
  *
- * M = Unknown
- * n = Index
- * a,b,c,d = indices of four light vectors
+ * M = Unknown (0 in the BOOTROM, 1 elsewhere)
+ * n = Lightset index
+ * a,b,c,d = Indices of four lights
  *
  * See PH:@0C017DF0.
  */
 
-I (lit_commit_set)
+I (0x064)
 {
 	uint32_t offset = (inst[0] >> 16) & 0xFF;
-	uint32_t light0 = inst[1] & 0xFFFF;
-	uint32_t light1 = inst[1] >> 16;
-	uint32_t light2 = inst[2] & 0xFFFF;
-	uint32_t light3 = inst[2] >> 16;
+	uint32_t light0 = inst[1] & 0x3FF;
+	uint32_t light1 = (inst[1] >> 16) & 0x3FF;
+	uint32_t light2 = inst[2] & 0x3FF;
+	uint32_t light3 = (inst[2] >> 16) & 0x3FF;
 	uint32_t index = offset + gpu->lights.base;
 
 	DISASM (4, "lit: commit set @%u [base=%u]", index, gpu->lights.base);
 
 	if (index >= NUM_LIGHTSETS) {
-		VK_ERROR ("GPU CP: lightset commit index exceeds MAX (%u >= %u), skipping",
+		VK_ERROR ("CP: lightset commit index exceeds MAX (%u >= %u), skipping",
 		          index, NUM_LIGHTSETS);
 		return;
 	}
@@ -1394,7 +1325,7 @@ I (lit_commit_set)
 	    !gpu->lights.table[light1].set ||
 	    !gpu->lights.table[light2].set ||
 	    !gpu->lights.table[light3].set) {
-		VK_ERROR ("GPU CP: lightset commit includes unset lights (%u,%u,%u,%u), skipping",
+		VK_ERROR ("CP: lightset commit includes unset lights (%u,%u,%u,%u), skipping",
 		          light0, light1, light2, light3);
 		return;
 	}
@@ -1405,23 +1336,20 @@ I (lit_commit_set)
 	gpu->lights.sets[index].lights[3] = &gpu->lights.table[light3];
 	gpu->lights.sets[index].set = true;
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFF00E000);
-	/* XXX used by the BOOTROM; possibly disables lighting */
-	gpu->cp.unhandled |= ((inst[0] & 0x1000) != 0x1000);
+	UNHANDLED |= !!(inst[0] & 0xFF00E000);
+	UNHANDLED |= ((inst[0] & 0x1000) != 0x1000);
 }
 
 /* 043	Recall Lightset
  *
- *	----EEEE NNNNNNNN ---Moooo oooooooo
+ *	----DDDD nnnnnnnn ---A---o oooooooo
  *
- * M = Unknown (always set?)
- * E = Bitmask specifying which lights in the set are enabled?
+ * A = Active
+ * D = Disabled lights mask
  * n = Index
- *
- * There doesn't seem like to be any base/offset mechanics for lightsets.
  */
 
-I (lit_recall_set)
+I (0x043)
 {
 	uint32_t make_active = (inst[0] >> 12) & 1;
 	uint32_t offset = (inst[0] >> 16) & 0xFF;
@@ -1434,15 +1362,15 @@ I (lit_recall_set)
 		gpu->lights.base = offset;
 	else {
 		if (index >= NUM_LIGHTSETS) {
-			VK_ERROR ("GPU CP: lightset recall index exceeds MAX (%u >= %u), skipping",
+			VK_ERROR ("CP: lightset recall index exceeds MAX (%u >= %u), skipping",
 			          index, NUM_LIGHTSETS);
-			gpu->cp.unhandled |= true;
+			UNHANDLED |= true;
 			return;
 		}
 		if (!gpu->lights.sets[index].set) {
-			VK_ERROR ("GPU CP: recalled lightset was not set (%u), skipping",
+			VK_ERROR ("CP: recalled lightset was not set (%u), skipping",
 			          index);
-			gpu->cp.unhandled |= true;
+			UNHANDLED |= true;
 			return;
 		}
 		gpu->lights.sets[index].used = true;
@@ -1451,20 +1379,196 @@ I (lit_recall_set)
 		                              enabled_mask);
 	}
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xF000E000);
+	UNHANDLED |= !!(inst[0] & 0xF000E000);
 }
 
-/* 1AC	Vertex
+/****************************************************************************
+ Meshes
+****************************************************************************/
+
+static float
+texcoord_to_float (uint32_t x)
+{
+	int32_t u = (x & 0x8000) ? (x | 0xFFFF8000) : x;
+	return u / 16.0f;
+}
+
+/* 101	Mesh: Set Unknown
  *
- *	wwwwwwww -------- jjjjoooo oooooooo
+ *	----nnuu uuuuuuuu ----000o oooooooo
+ *
+ * n, u = Unknown
+ *
+ * 3FF is exactly the number of lights... Perhaps 'set sunlight'?
+ *
+ * See @0C008040, PH:@0C016418, PH:@0C016446.
+ *
+ *
+ * 301	Mesh: Set Unknown
+ *
+ *	-------- unnnnnnn ----oooo oooooooo
+ *
+ * u, n = Unknown, n != 1
+ *
+ *
+ * 501	Mesh: Set Unknown                                                             
+ *                                                                             
+ *	-------- ---ppppp -----oo oooooooo
+ *                                                                             
+ * p = Param, unknown.                                                         
+ *                                                                             
+ * Used by the BOOTROM.                                                        
+ *                                                                             
+ * See AT:@0C0C841C, the table that holds the constant parameters to the 501   
+ * command, set by the routine AT:@0C049BA6 in variable AT:@0C61404C, which    
+ * is wrapped into the 501 command in AT:@0C049D08.                            
+ *
+ *
+ * 901	Mesh: Set Precision (Static)
+ *
+ *	-------- pppppppp ----100o oooooooo
+ *
+ * Information kindly provided by CaH4e3.
+ */
+
+I (0x101)
+{
+	uint32_t log;
+	float precision;
+
+	switch ((inst[0] >> 8) & 0xF) {
+	case 1:
+		DISASM (1, "mesh: set unknown [%u]", (inst[0] >> 16) & 0x3FF);
+	
+		UNHANDLED |= !!(inst[0] & 0xF000F000);
+		break;
+
+	case 3:
+		DISASM (1, "mesh: set unknown [%u]", (inst[0] >> 16) & 0xFF);
+	
+		UNHANDLED |= !!(inst[0] & 0xFF00F000);
+		break;
+
+	case 5:
+		DISASM (1, "mesh: set unknown [%u]", (inst[0] >> 16) & 0x1F);
+	
+		UNHANDLED |= !!(inst[0] & 0xFFE0F000);
+		break;
+
+	case 9:
+		log = (inst[0] >> 16) & 0xFF;
+		precision = 1.0f / (1 << (0x8F - log - 2));
+
+		DISASM (1, "mesh: set precision s [%u %f]", log, precision);
+	
+		UNHANDLED |= !!(inst[0] & 0xFF00F000);
+		break;
+	}
+}
+
+/* 12x	Mesh: Push Position (Static)
+ * 1Ax	Mesh: Push Position (Dynamic)
+ * 1Bx	Mesh: Push All (Position, Normal, Texcoords) (Dynamic)
+ *
+ *
+ * They appear to have a common 1-word header:
+ *
+ *	AAAAAAAA U------- yyySuuuo DooNopPW
+ *
+ * A = Per-vertex alpha.
+ *
+ *	See the CRT test screen, it's pretty clear what happens there.
+ *
+ * U = Enable per-vertex updates.
+ *
+ * y = Unknown
+ *
+ * S = Enables normal interpolation?
+ *
+ * u = Per-vertex update flags.
+ *
+ *     Three vertices specify the to-be-drawn triangle. These three bits
+ *     specify which of them should actually be pushed to the hardware,
+ *     or pushed and rendered. The exact semantics are not known.
+ *
+ *     Only the values 7 and 0 have been observed. When u is 7, all three
+ *     vertices are sent to the hardware, and a triangle is drawn. When u
+ *     is 0 all vertices are pushed to the buffer, but none is rendered.
+ *
+ *     If U is 0, then it is as if u = 7.
+ *
+ * D = Dynamic or static mesh
+ *
+ *     Dynamic meshes are specified using floating-point data; static meshes
+ *     are specified using fixed-point data with variable precision. See
+ *     command 901. Information kindly contributed by CaH4e3.
+ *
+ * N = Has normal
+ *
+ * p = Texcoord pivot? Apparently only used by 1Bx, which includes texcoord
+ *     info.
+ *
+ * P = Position pivot
+ *
+ *     When 0, the vertex is linked to the previous two according to the
+ *     winding bit. When 1, the vertex at offset -2 is kept unchanged in the
+ *     vertex buffer, and acts as a pivot for building a triangle fan.
+ *
+ * W = Winding.
+ *
+ *     Triangle winding specifies whether the vertices composing the
+ *     to-be-drawn triangle are to be in the order (0, -1, -2), and W is 0
+ *     in this case, or (0, -2, -1), and W is 1 in this case.
+ *
+ *     If vertex in position -2 is a pivot, it is treated as if it wasn't.
+ *
+ * For 12x, the rest of the instruction looks like:
+ *
+ *	-------- -------- -------- --------
+ *	xxxxxxxx xxxxxxxx ???????? ????????
+ *	yyyyyyyy yyyyyyyy ???????? ????????
+ *	zzzzzzzz zzzzzzzz ???????? ????????
+ *
+ * x,y,z = Vertex position.
+ * ? = Normal in fixed-point? The sum of the three fields over distinct
+ *     vectors in a mesh isn't constant tho.
+ *
+ * For 1BX, the rest of the instruction looks like:
+ *
+ *	-------- -------- -------- --------
  *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
  *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
  *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
  *
  * x,y,z = Vertex position
+ *
+ * For 1BX, the rest of the instruction looks like:
+ *
+ *	-------- -------- -------- --------
+ *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
+ *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
+ *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
+ *	ssssssss ssssssss tttttttt tttttttt
+ *	uuuuuuuu uuuuuuuu uuuuuuuu uuuuuuuu
+ *	vvvvvvvv vvvvvvvv vvvvvvvv vvvvvvvv
+ *	wwwwwwww wwwwwwww wwwwwwww wwwwwwww
+ *
+ * x,y,z = Position
+ * u,v,w = Normal
+ * s,t = Texcoords
+ *
+ * Information on the existence of static/dynamic mesh varieties, and info on
+ * the fixed-point decoding kindly provided by CaH4e3.
  */
 
-I (mesh_add_position)
+I (0x12C)
+{
+	DISASM (4, "mesh: push pos s");
+
+	UNHANDLED |= !!(inst[0] & 0x007F0000);
+}
+
+I (0x1AC)
 {
 	vec3f_t pos;
 
@@ -1476,50 +1580,10 @@ I (mesh_add_position)
 
 	hikaru_renderer_add_vertex (gpu->renderer, pos);
 
-	gpu->cp.unhandled |= !!(inst[0] & 0x00FF0000);
+	UNHANDLED |= !!(inst[0] & 0x00FF0000);
 }
 
-/* 12C	Vertex Unk [Fixed-Point Triangle]
- *
- *	wwwwwwww u------- jjjjoooo oooobbbb
- *	???????? ???????? ???????? ????????
- *	???????? ???????? ???????? ????????
- *	???????? ???????? ???????? ????????
- *
- * j,u,w = Unknown
- *
- * Given that it's followed by set_texcoords_unk, which likely specifies
- * only *one* (u.v) pair, this instruction likely specifies a single point in
- * some format.
- */
-
-I (mesh_add_position_unk)
-{
-	DISASM (4, "mesh: push pos s");
-
-	gpu->cp.unhandled |= !!(inst[0] & 0x007F0000);
-}
-
-/* 1BC  Vertex Normal
- *
- *	pppppppp mmmmnnnn qqqqoooo oooooooo
- *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
- *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
- *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
- *	ssssssss ssssssss tttttttt tttttttt
- *	uuuuuuuu uuuuuuuu uuuuuuuu uuuuuuuu
- *	vvvvvvvv vvvvvvvv vvvvvvvv vvvvvvvv
- *	wwwwwwww wwwwwwww wwwwwwww wwwwwwww
- *
- * x,y,z = Vertex position
- * u,v,w = Vertex normal
- * s,t = Vertex texcoords
- * n,m,p,q = Unknown
- * 1 vs F = Unknown
- * 8 vs 9 vs ... vs F = Unknown (vertex linking/winding info?)
- */
-
-I (mesh_add_position_normal)
+I (0x1B8)
 {
 	unsigned n, m, p, q;
 	vec3f_t pos, nrm;
@@ -1550,27 +1614,20 @@ I (mesh_add_position_normal)
 	                                 pos, nrm, texcoords);
 }
 
-/* EE8	Tex Coord
+/* 0E8	Mesh: Push Texcoords 3
  *
  *	-------- -------x ----WWWo oooooooC
  *	vvvvvvvv vvvvvvvv uuuuuuuu uuuuuuuu
  *	vvvvvvvv vvvvvvvv uuuuuuuu uuuuuuuu
  *	vvvvvvvv vvvvvvvv uuuuuuuu uuuuuuuu
  *
- * x = Unknown, used in the BOOTROM CRT test screen
- * C = Unknown
- * W = Unknown
- * u,v = Texture coordinates
+ * The interaction of U, u, P, W, with the ones specified by the push position/
+ * push all instructions is still unknown.
  *
- * This command specifies the texture coordinates for a triangle. The vertex
- * positions are determined by the preceding 'Vertex' instructions. The nth
- * word here specifies the tex coords for the (current_vertex_index - n)th
- * vertex.
- *
- * The texcoord format seems to be some signed 12.4 variant (perhaps 11.4)
+ * u, v = Texcoords for three points.
  */
 
-I (mesh_add_texcoords)
+I (0x0E8)
 {
 	vec2f_t texcoords[3];
 	unsigned i;
@@ -1580,44 +1637,112 @@ I (mesh_add_texcoords)
 		texcoords[i][1] = texcoord_to_float (inst[i+1] >> 16);
 	}
 
-	DISASM (4, "mesh: push tc 3 [(%f %f) (%f %f) (%f %f)]",
+	DISASM (4, "mesh: push txc 3 [(%f %f) (%f %f) (%f %f)]",
 	        texcoords[0][0], texcoords[0][1],
 	        texcoords[1][0], texcoords[1][1],
 	        texcoords[2][0], texcoords[2][1]);
 
 	hikaru_renderer_add_texcoords (gpu->renderer, texcoords);
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFEF000);
+	UNHANDLED |= !!(inst[0] & 0xFFFEF000);
 }
 
-/* 158	Tex Coord Unknown
+/* 158	Mesh: Push Texcoords 1
  *
- *	-------- x------- ----WWWo oooooooC
+ *	-------- ?------- ----???o ooooo??C
  *	vvvvvvvv vvvvvvvv uuuuuuuu uuuuuuuu
  *
- * x = Unknown
- * W = Unknown
- * C = Unknown
- * u,v = Texture coordinates
+ * u, v = Texcoords for one point.
  */
 
-I (mesh_add_texcoords_unk)
+I (0x158)
 {
 	vec2f_t texcoords;
 
 	texcoords[0] = texcoord_to_float (inst[1] & 0xFFFF);
 	texcoords[1] = texcoord_to_float (inst[1] >> 16);
 
-	DISASM (2, "mesh: push tc 1 [(%f %f)]", texcoords[0], texcoords[1]);
+	DISASM (2, "mesh: push txc 1 [(%f %f)]", texcoords[0], texcoords[1]);
 
 	/* TODO: call the renderer */
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFF7FF000);
+	UNHANDLED |= !!(inst[0] & 0xFF7FF000);
 }
+
+/****************************************************************************
+ Unknown
+****************************************************************************/
+
+/* 181	Unknown: Sync
+ *
+ *	-------E nnnnnnnn -----00o oooooooo [181]
+ *
+ * E = Enable
+ * n = Unknown
+ *
+ * E is set only if n is non-zero.
+ *
+ * See PH:@0C015B50. Probably related to 781, see PH:@0C038952.
+ *
+ *
+ *	-----p-q -----P-Q -----11o oooooooo [781]
+ *
+ * p, q, P, Q = Unknown
+ *
+ * The values p, q, P, Q are determined by the values of ports 1A00001C and
+ * 1A000020 prior to the command upload (XXX when exactly? in sync()?). Its
+ * parameter is stored in (56, GBR).
+ *
+ * This command typically lies between the viewport/material/texhead/light
+ * setup instructions at the beginning of the command stream and the
+ * actual rendering commands. It _may_ act like a fence of some sorts,
+ * delaying rendering until some external event (such as v-blanking) occurs.
+ *
+ * CaH4e3 suggests the two are related to screen transitions. He's probably
+ * right. :-)
+ *
+ * See @0C0065D6, PH:@0C016336, PH:@0C038952, PH:@0C015B50.
+ */
+
+I (0x181)
+{
+	switch ((inst[0] >> 8) & 7) {
+	case 1:
+		DISASM (1, "unk: sync 1");
+
+		UNHANDLED |= !!(inst[0] & 0xFE00F800);
+		break;
+	case 7:
+		DISASM (1, "unk: sync 7");
+
+		UNHANDLED |= !!(inst[0] & 0xFAFAF800);
+		break;
+	}
+}
+
+/* 088	Flush
+ *
+ *	-------- U------- ----xxxo oooooooo
+ *
+ * U = Unknown
+ * x = Unknown
+ *
+ * Always comes as the last instruction. Perhaps some kind of 'flush all'
+ * or 'raise IRQ' command or something like that. If it is a 'flush all'
+ * command, it may set some GPU ports not set by 1C2 (1A000024 perhaps.)
+ */
+
+I (0x088)
+{
+	DISASM (1, "unk: unknown");
+
+	UNHANDLED |= !!(inst[0] & 0xFF7FF000);
+}
+
 
 /* 154	Commit Alpha Threshold
  *
- *	-------- --nnnnnn ----oooo oooooooo
+ *	-------- --nnnnnn -------o oooooooo
  *	hhhhhhhh hhhhhhhh hhhhhhhh llllllll
  *
  * n = Unknown
@@ -1628,7 +1753,7 @@ I (mesh_add_texcoords_unk)
  * command C81, see PH:@0C0CF872 and PH:@0C0CF872.
  */
 
-I (commit_alpha_threshold)
+I (0x154)
 {
 	unsigned n = (inst[0] >> 16) & 0x3F;
 	int32_t thresh_lo = inst[1] & 0xFF;
@@ -1637,12 +1762,12 @@ I (commit_alpha_threshold)
 	DISASM (2, "unk: set alpha thresh [%u (%f %f)]",
 	        n, thresh_lo, thresh_hi);
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFC0F000);
+	UNHANDLED |= !!(inst[0] & 0xFFC0F000);
 }
 
 /* 194	Commit Ramp Data
  *
- *	nnnnnnnn mmmmmmmm ----oooo oooooooo
+ *	nnnnnnnn mmmmmmmm -------o oooooooo
  *	aaaaaaaa aaaaaaaa bbbbbbbb bbbbbbbb
  *
  * NOTE: these come in groups of 8. The data for each group
@@ -1653,7 +1778,7 @@ I (commit_alpha_threshold)
  * See PH:@0C017A3E.
  */
 
-I (commit_ramp)
+I (0x194)
 {
 	uint32_t n = (inst[0] >> 24) & 0xFF;
 	uint32_t m = (inst[0] >> 19) & 0x1F;
@@ -1662,63 +1787,47 @@ I (commit_ramp)
 
 	DISASM (2, "unk: set ramp [%u %u (%f %f)]", n, m, a, b);
 
-	gpu->cp.unhandled |= !!(inst[0] & 0x0000F000);
+	UNHANDLED |= !!(inst[0] & 0x0000F000);
 }
 
 /* 3A1	Set Lo Addresses
  *
- *	-------- -------- ----oooo oooooooo
+ *	-------- -------- -----01o oooooooo
  *	llllllll llllllll llllllll llllllll
  *	LLLLLLLL LLLLLLLL LLLLLLLL LLLLLLLL
  *      -------- -------- -------- --------
  *
- * l,L = Low addresses?
  *
- * Comes in a pair with 5A1.
+ * 5A1	Set Hi Addresses
  *
- * See PH:@0C016308
- */
-
-I (commit_addr_lo)
-{
-	DISASM (4, "unk: set lo addr");
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
-	gpu->cp.unhandled |= (inst[3] != 0);
-}
-
-/* 5A1	Set Hi Addresses
- *
- *	-------- -------- ----oooo oooooooo
+ *	-------- -------- -----10o oooooooo
  *	uuuuuuuu uuuuuuuu uuuuuuuu uuuuuuuu
  *	UUUUUUUU UUUUUUUU UUUUUUUU UUUUUUUU
  *      -------- -------- -------- --------
  *
- * h,H = High addresses?
+ * l,L,h,H = Addresses? Possibly watermarks?
  *
- * Comes in a pair with 3A1.
- *
- * See PH:@0C016308
+ * See PH:@0C016308 for both.
  */
 
-I (commit_addr_hi)
+I (0x1A1)
 {
-	DISASM (4, "unk: set hi addr");
+	DISASM (4, "unk: set address");
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFFF000);
-	gpu->cp.unhandled |= (inst[3] != 0);
+	UNHANDLED |= !!(inst[0] & 0xFFFFF000);
+	UNHANDLED |= (inst[3] != 0);
 }
 
-/* 6D1	Unknown
+/* 0D1	Set Unknown
  *
- *	-------- ------nn ----oooo oooooooo
+ *	???????? ??????aa -----11o oooooooo
  *	bbbbbbbb bbbbbbbb cccccccc cccccccc
  *
  * These come in quartets. May be related to matrices. See PH:@0C015C3E. Note
  * that the values b and c here come from FPU computations, see PH:@0C0FF970.
  */
 
-I (unk_6D1)
+I (0x0D1)
 {
 	unsigned a = inst[0] >> 16;
 	unsigned b = inst[1] & 0xFFFF;
@@ -1726,205 +1835,154 @@ I (unk_6D1)
 
 	DISASM (2, "unk: unknown [(%u %u %u)]", a, b, c);
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFFFCF000);
+	UNHANDLED |= !!(inst[0] & 0xFFFCF000);
 }
 
-/* 101	Set Unknown
+/* 103	Recall Unknown
  *
- *	----nnuu uuuuuuuu ----oooo oooooooo
+ *	FFFFFFFF -------- ----ssso oooooooo
  *
- * n, u = Unknown
- *
- * See @0C008040, PH:@0C016418, PH:@0C016446.
- */
-
-I (unk_101)
-{
-	DISASM (1, "unk: set 101");
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xF000F000);
-}
-
-/* x01	Set Unknown
- *
- *	-------- unnnnnnn ----oooo oooooooo
- *
- * u, n = Unknown, n != 1
- */
-
-I (unk_X01)
-{
-	DISASM (1, "unk: set x01");
-
-	gpu->cp.unhandled |= !!(inst[0] & 0xFF00F000);
-}
-
-/* 303	Recall Unknown
- * 903
- * D03
- * 313
- * D13
- *
- *	FFFFFFFF -------- ----NNNN oooooooo
- *
+ * s = Sub-opcode
  * F = Fog-related value? See PH:@0C0DA8BC. (-1)
- * N = Unknown; 3 impies F is 0xFF; it can't be zero. (+1)
+ * N = Unknown; in the range [1..F]. N == 3 implies F is 0xFF.
  *
- * NOTE: the actual value of N passed to the command uploading function is N-1.
+ * Observed values of N are:
  *
- * See PH:@0C0173CA. For evidence that these commands are related, see
- * PH:@0C0EEFBE.
+ *  1: probably means disabled, implies F == 0xFF.
+ *  4: enabled, implies F is positive
+ *  6: enabled, implies F is negative, value to be used is ~F (one complement)
+ *
+ * See AT:@0C049CDA for N=8 and N=C, see PH:@0C0173CA for N=2, N=8. The
+ * commands are emitted at e.g. AT:@0C69A220 (all three of them).
  */
 
-I (unk_X03)
-{
-	/* sub == 2 : disabled */
-	/* sub == C : enabled */
-
-	DISASM (1, "unk: recall x03");
-
-	gpu->cp.unhandled |= !!(inst[0] & 0x00FFF000);
-}
-
-/* E88	Unknown
- *
- *	-------- U------- ----oooo oooooooo
- *
- * U = unknown
- *
- * Always comes as the last instruction. Perhaps some kind of 'flush all'
- * or 'raise IRQ' command or something like that. If it is a 'flush all'
- * command, it may set some GPU ports not set by 1C2 (1A000024 perhaps.)
- */
-
-I (unk_E88)
+I (0x103)
 {
 	DISASM (1, "unk: unknown");
 
-	gpu->cp.unhandled |= !!(inst[0] & 0xFF7FF000);
+	UNHANDLED |= !!(inst[0] & 0x00FFF000);
 }
 
-I (invalid)
+/* 113	Recall Unknown
+ *
+ * Not much to say on this one.
+ */
+
+I (0x113)
 {
-	gpu->cp.unhandled |= true;
+	DISASM (1, "unk: unknown");
 }
 
-#define D(op_, size_, name_) \
-	{ op_, size_, hikaru_gpu_inst_##name_ }
-
-#define D4(op_, name_, size_) \
-	D (((op_) & ~0xF0F) | 0x10C, name_, size_), \
-	D (((op_) & ~0xF0F) | 0x10D, name_, size_), \
-	D (((op_) & ~0xF0F) | 0x10E, name_, size_), \
-	D (((op_) & ~0xF0F) | 0x10F, name_, size_), \
-	D (((op_) & ~0xF0F) | 0xF0C, name_, size_), \
-	D (((op_) & ~0xF0F) | 0xF0D, name_, size_), \
-	D (((op_) & ~0xF0F) | 0xF0E, name_, size_), \
-	D (((op_) & ~0xF0F) | 0xF0F, name_, size_)
-
-#define D8(op_, name_, size_) \
-	D (((op_) & ~0xF0F) | 0x108, name_, size_), \
-	D (((op_) & ~0xF0F) | 0x109, name_, size_), \
-	D (((op_) & ~0xF0F) | 0x10A, name_, size_), \
-	D (((op_) & ~0xF0F) | 0x10B, name_, size_), \
-	D (((op_) & ~0xF0F) | 0x10C, name_, size_), \
-	D (((op_) & ~0xF0F) | 0x10D, name_, size_), \
-	D (((op_) & ~0xF0F) | 0x10E, name_, size_), \
-	D (((op_) & ~0xF0F) | 0x10F, name_, size_), \
-	D (((op_) & ~0xF0F) | 0xF08, name_, size_), \
-	D (((op_) & ~0xF0F) | 0xF09, name_, size_), \
-	D (((op_) & ~0xF0F) | 0xF0A, name_, size_), \
-	D (((op_) & ~0xF0F) | 0xF0B, name_, size_), \
-	D (((op_) & ~0xF0F) | 0xF0C, name_, size_), \
-	D (((op_) & ~0xF0F) | 0xF0D, name_, size_), \
-	D (((op_) & ~0xF0F) | 0xF0E, name_, size_), \
-	D (((op_) & ~0xF0F) | 0xF0F, name_, size_)
-
-static const struct {
-	uint32_t op;
-	uint32_t size;
-	void (* handler)(hikaru_gpu_t *gpu, uint32_t *inst);
-} cs_insns[] = {
-	/* Control Flow */
-	D (0x000, 4, nop),
-	D (0x012, 0, jump),
-	D (0x812, 0, jump),
-	D (0x052, 0, call),
-	D (0x852, 0, call),
-	D (0x082, 0, ret),
-	D (0x1C2, 4, kill),
-	D (0x781, 4, sync),
-	D (0x181, 4, unk_181),
-	/* Viewports */
-	D (0x021, 16, vp_set_projection),
-	D (0x221, 16, vp_set_extents),
-	D (0x421, 16, vp_set_depth),
-	D (0x621, 16, vp_set_depth_queue),
-	D (0x811, 8, vp_set_ambient_color),
-	D (0x991, 8, vp_set_clear_color),
-	D (0x004, 4, vp_commit),
-	D (0x003, 4, vp_recall),
-	/* Modelview Matrix */
-	D (0x161, 16, modelview_set_vector),
-	/* Materials */
-	D (0x091, 8, mat_set_color_0_1),
-	D (0x291, 8, mat_set_color_0_1),
-	D (0x491, 8, mat_set_shininess),
-	D (0x691, 8, mat_set_material_color),
-	D (0x081, 4, mat_set_unk_081),
-	D (0x881, 4, mat_set_flags),
-	D (0xA81, 4, mat_set_blending),
-	D (0xC81, 4, mat_set_unk_C81),
-	D (0x084, 4, mat_commit),
-	D (0x083, 4, mat_recall),
-	/* Texheads */
-	D (0x0C1, 4, tex_set_unk_0C1),
-	D (0x2C1, 4, tex_set_format),
-	D (0x4C1, 4, tex_set_slot),
-	D (0x0C4, 4, tex_commit),
-	D (0x0C3, 4, tex_recall),
-	/* Lights */
-	D (0x261, 16, lit_set_type),
-	D (0x961, 16, lit_set_position),
-	D (0xB61, 16, lit_set_direction),
-	D (0x051, 8, lit_set_unk_051),
-	D (0x451, 8, lit_set_unk_451),
-	D (0x561, 16, lit_set_unk_561),
-	D (0x006, 4, lit_unk_006),
-	D (0x046, 4, lit_unk_046),
-	D (0x104, 4, lit_commit),
-	D (0x064, 16, lit_commit_set),
-	D (0x043, 4, lit_recall_set),
-	/* Mesh */
-	D4 (0x1AC, 16, mesh_add_position),
-	D4 (0x12C, 16, mesh_add_position_unk),
-	D8 (0x1B8, 32, mesh_add_position_normal),
-	D  (0xEE8, 16, mesh_add_texcoords),
-	D  (0xEE9, 16, mesh_add_texcoords),
-	D8 (0x158, 8, mesh_add_texcoords_unk),
-	/* Unassigned */
-	D (0x154, 8, commit_alpha_threshold),
-	D (0x194, 8, commit_ramp),
-	D (0x3A1, 16, commit_addr_lo),
-	D (0x5A1, 16, commit_addr_hi),
-	/* Unknown */
-	D (0x6D1, 8, unk_6D1),
-	D (0x101, 4, unk_101),
-	D (0x301, 4, unk_X01),
-	D (0x501, 4, unk_X01),
-	D (0x901, 4, unk_X01),
-	D (0x303, 4, unk_X03),
-	D (0x903, 4, unk_X03),
-	D (0xD03, 4, unk_X03),
-	D (0x313, 4, unk_X03),
-	D (0xD13, 4, unk_X03),
-	D (0xE88, 4, unk_E88),
-};
+/****************************************************************************
+ Opcodes
+****************************************************************************/
 
 static struct {
 	void (* handler)(hikaru_gpu_t *, uint32_t *);
-	uint32_t size;
-} insns[0x1000];
+	uint16_t size, flags;
+} insns[0x200];
+
+#define FLAG_JUMP	(1 << 0)
+#define FLAG_BEGIN	(1 << 1)
+#define FLAG_CONTINUE	(1 << 2)
+#define FLAG_PUSH	(FLAG_BEGIN | FLAG_CONTINUE)
+#define FLAG_INVALID	(1 << 3)
+
+#define D(op_, base_op_, size_, flags_) \
+	{ op_, size_, flags_, hikaru_gpu_inst_##base_op_ }
+
+static const struct {
+	uint32_t op;
+	uint16_t size;
+	uint16_t flags;
+	void (* handler)(hikaru_gpu_t *gpu, uint32_t *inst);
+} insns_desc[] = {
+	/* 0x00 */
+	D(0x000, 0x000, 4,	FLAG_CONTINUE),
+	D(0x003, 0x003, 4,	0),
+	D(0x004, 0x004, 4,	0),
+	D(0x006, 0x006, 4,	0),
+	D(0x011, 0x011, 8,	0),
+	D(0x012, 0x012, 8,	FLAG_JUMP),
+	D(0x021, 0x021, 16,	0),
+	/* 0x40 */
+	D(0x043, 0x043, 4,	0),
+	D(0x046, 0x046, 4,	0),
+	D(0x051, 0x051, 8,	0),
+	D(0x052, 0x052, 8,	FLAG_JUMP),
+	D(0x061, 0x061, 16,	0),
+	D(0x064, 0x064, 16,	0),
+	/* 0x80 */
+	D(0x081, 0x081, 4,	FLAG_CONTINUE),
+	D(0x082, 0x082, 4,	FLAG_JUMP),
+	D(0x083, 0x083, 4,	FLAG_CONTINUE),
+	D(0x084, 0x084, 4,	0),
+	D(0x088, 0x088, 4,	0),
+	D(0x091, 0x091, 8,	FLAG_CONTINUE),
+	/* 0xC0 */
+	D(0x0C1, 0x0C1, 4,	0),
+	D(0x0C3, 0x0C3, 4,	0),
+	D(0x0C4, 0x0C4, 4,	0),
+	D(0x0D1, 0x0D1, 8,	0),
+	D(0x0E8, 0x0E8, 16,	FLAG_PUSH),
+	D(0x0E9, 0x0E8, 16,	FLAG_PUSH),
+	/* 0x100 */
+	D(0x101, 0x101, 4,	0),
+	D(0x103, 0x103, 4,	0),
+	D(0x104, 0x104, 4,	0),
+	D(0x113, 0x113, 4,	0),
+	D(0x12C, 0x12C, 16,	FLAG_PUSH),
+	D(0x12D, 0x12C, 16,	FLAG_PUSH),
+	D(0x12E, 0x12C, 16,	FLAG_PUSH),
+	D(0x12F, 0x12C, 16,	FLAG_PUSH),
+	/* 0x140 */
+	D(0x154, 0x154, 8,	0),
+	D(0x158, 0x158, 8,	FLAG_PUSH),
+	D(0x159, 0x158, 8,	FLAG_PUSH),
+	D(0x15A, 0x158, 8,	FLAG_PUSH),
+	D(0x15B, 0x158, 8,	FLAG_PUSH),
+	D(0x161, 0x161, 16,	0),
+	/* 0x180 */
+	D(0x181, 0x181, 4,	0),
+	D(0x191, 0x191, 8,	0),
+	D(0x194, 0x194, 8,	0),
+	D(0x1A1, 0x1A1, 16,	0),
+	D(0x1AC, 0x1AC, 16,	FLAG_PUSH),
+	D(0x1AD, 0x1AC, 16,	FLAG_PUSH),
+	D(0x1AE, 0x1AC, 16,	FLAG_PUSH),
+	D(0x1AF, 0x1AC, 16,	FLAG_PUSH),
+	D(0x1B8, 0x1B8, 32,	FLAG_PUSH),
+	D(0x1B9, 0x1B8, 32,	FLAG_PUSH),
+	D(0x1BA, 0x1B8, 32,	FLAG_PUSH),
+	D(0x1BB, 0x1B8, 32,	FLAG_PUSH),
+	D(0x1BC, 0x1B8, 32,	FLAG_PUSH),
+	D(0x1BD, 0x1B8, 32,	FLAG_PUSH),
+	D(0x1BE, 0x1B8, 32,	FLAG_PUSH),
+	D(0x1BF, 0x1B8, 32,	FLAG_PUSH),
+	/* 0x1C0 */
+	D(0x1C2, 0x1C2, 4,	FLAG_JUMP)
+};
+
+void
+hikaru_gpu_cp_init (hikaru_gpu_t *gpu)
+{
+	unsigned i;
+	for (i = 0; i < 0x200; i++) {
+		insns[i].handler = hikaru_gpu_inst_invalid;
+		insns[i].size = 0;
+		insns[i].flags = FLAG_INVALID;
+	}
+	for (i = 0; i < NUMELEM (insns_desc); i++) {
+		uint32_t op = insns_desc[i].op;
+		insns[op].handler = insns_desc[i].handler;
+		insns[op].size    = insns_desc[i].size;
+		insns[op].flags   = insns_desc[i].flags;
+	}
+}
+
+/****************************************************************************
+ Execution
+****************************************************************************/
 
 static int
 fetch (hikaru_gpu_t *gpu, uint32_t **inst)
@@ -1934,7 +1992,7 @@ fetch (hikaru_gpu_t *gpu, uint32_t **inst)
 
 	/* The CS program has been observed to lie only in CMDRAM and slave
 	 * RAM so far. */
-	switch (gpu->cp.pc >> 24) {
+	switch (pc >> 24) {
 	case 0x40:
 	case 0x41:
 		*inst = (uint32_t *) vk_buffer_get_ptr (hikaru->ram_s,
@@ -1955,55 +2013,54 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 	if (!gpu->cp.is_running)
 		return;
 
+	/* XXX shouldn't be setting in_mesh here; we may be building a mesh
+	 * from the previous cycle batch. */
+	gpu->in_mesh = false;
+
 	gpu->materials.base = 0;
 	gpu->texheads.base  = 0;
 	gpu->lights.base    = 0;
 
 	while (cycles > 0 && gpu->cp.is_running) {
-		void (* handler)(hikaru_gpu_t *, uint32_t *);
 		uint32_t *inst, op;
-
-		gpu->cp.unhandled = false;
+		uint16_t flags;
 
 		if (fetch (gpu, &inst)) {
-			VK_ERROR ("GPU CP %08X: invalid PC, skipping CS", gpu->cp.pc);
+			VK_ERROR ("CP %08X: invalid PC, skipping CS", gpu->cp.pc);
 			gpu->cp.is_running = false;
 			break;
 		}
 
-		op = inst[0] & 0xFFF;
-		if (!is_vertex_op (op))
+		op = inst[0] & 0x1FF;
+
+		flags = insns[op].flags;
+		VK_ASSERT (!(flags & FLAG_INVALID));
+
+		if (!gpu->in_mesh && (flags & FLAG_BEGIN)) {
+			/* XXX begin mesh */
+			VK_LOG ("CP @%08X: ---- BEGINNING MESH ----", gpu->cp.pc);
+			gpu->in_mesh = true;
+		} else if (gpu->in_mesh && !(flags & FLAG_CONTINUE)) {
+			/* XXX end mesh */
+			VK_LOG ("CP @%08X: ---- ENDING MESH ----", gpu->cp.pc);
 			hikaru_renderer_end_mesh (gpu->renderer);
-
-		handler = insns[op].handler;
-		VK_ASSERT (handler);
-		handler (gpu, inst);
-
-		if (gpu->cp.unhandled) {
-			/* We try to carry on anyway */
+			gpu->in_mesh = false;
 		}
 
-		if (insns[op].size)
+		gpu->cp.unhandled = false;
+		insns[op].handler (gpu, inst);
+		if (gpu->cp.unhandled) {
+			VK_LOG ("CP @%08X: unhandled instruction [%08X]", gpu->cp.pc, *inst)
+			/* We carry on anyway */
+		}
+
+		if (!(flags & FLAG_JUMP))
 			gpu->cp.pc += insns[op].size;
 
+	skip:
 		cycles--;
 	}
 
 	if (!gpu->cp.is_running)
 		hikaru_gpu_cp_end_processing (gpu);
-}
-
-void
-hikaru_gpu_cp_init (hikaru_gpu_t *gpu)
-{
-	unsigned i;
-	for (i = 0; i < 0x1000; i++) {
-		insns[i].handler = hikaru_gpu_inst_invalid;
-		insns[i].size = 0;
-	}
-	for (i = 0; i < NUMELEM (cs_insns); i++) {
-		uint32_t op = cs_insns[i].op;
-		insns[op].handler = cs_insns[i].handler;
-		insns[op].size    = cs_insns[i].size;
-	}
 }

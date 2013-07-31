@@ -157,6 +157,7 @@ struct hikaru_gpu_t {
 	} cp;
 
 	/* Rendering State */
+	bool in_mesh;
 
 	struct {
 		hikaru_gpu_viewport_t table[NUM_VIEWPORTS];
