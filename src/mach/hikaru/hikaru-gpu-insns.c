@@ -212,37 +212,6 @@ pop_pc (hikaru_gpu_t *gpu)
 	gpu->cp.pc = vk_buffer_get (gpu->cmdram, 4, gpu->cp.sp[i] & 0x3FFFFFF) + 8;
 }
 
-static int
-fetch (hikaru_gpu_t *gpu, uint32_t inst[8])
-{
-	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
-	vk_buffer_t *buffer = NULL;
-	uint32_t mask = 0, i;
-
-	/* The CS program has been observed to lie only in CMDRAM and slave
-	 * RAM so far. */
-	switch (gpu->cp.pc >> 24) {
-	case 0x40:
-	case 0x41:
-		buffer = hikaru->ram_s;
-		mask = 0x01FFFFFF;
-		break;
-	case 0x48:
-	case 0x4C: /* XXX not sure */
-		buffer = hikaru->cmdram;
-		mask = 0x003FFFFF;
-		break;
-	default:
-		return -1;
-	}
-
-	for (i = 0; i < 8; i++) {
-		uint32_t addr = (gpu->cp.pc + i * 4) & mask;
-		inst[i] = vk_buffer_get (buffer, 4, addr);
-	}
-	return 0;
-}
-
 static bool
 is_vertex_op (uint32_t op)
 {
@@ -1952,6 +1921,29 @@ static const struct {
 	D (0xE88, 4, unk_E88),
 };
 
+static int
+fetch (hikaru_gpu_t *gpu, uint32_t **inst)
+{
+	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
+	uint32_t pc = gpu->cp.pc;
+
+	/* The CS program has been observed to lie only in CMDRAM and slave
+	 * RAM so far. */
+	switch (gpu->cp.pc >> 24) {
+	case 0x40:
+	case 0x41:
+		*inst = (uint32_t *) vk_buffer_get_ptr (hikaru->ram_s,
+		                                        pc & 0x01FFFFFF);
+		return 0;
+	case 0x48:
+	case 0x4C: /* XXX not sure */
+		*inst = (uint32_t *) vk_buffer_get_ptr (hikaru->cmdram,
+		                                        pc & 0x003FFFFF);
+		return 0;
+	}
+	return -1;
+}
+
 void
 hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 {
@@ -1965,11 +1957,11 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 	gpu->cp.cycles = cycles;
 	while (gpu->cp.cycles > 0 && gpu->cp.is_running) {
 		void (* handler)(hikaru_gpu_t *, uint32_t *);
-		uint32_t inst[8] = { 0 }, op;
+		uint32_t *inst, op;
 
 		gpu->cp.unhandled = false;
 
-		if (fetch (gpu, inst)) {
+		if (fetch (gpu, &inst)) {
 			VK_ERROR ("GPU CP %08X: invalid PC, skipping CS", gpu->cp.pc);
 			gpu->cp.is_running = false;
 			break;
