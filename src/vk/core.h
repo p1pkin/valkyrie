@@ -88,42 +88,6 @@ is_pow2 (unsigned n)
 	return !(n & (n - 1));
 }
 
-static inline uint32_t
-bit32 (unsigned n)
-{
-	return ((uint32_t) 1) << n;
-}
-
-static inline uint64_t
-bit64 (unsigned n)
-{
-	return ((uint64_t) 1) << n;
-}
-
-static inline uint32_t
-bit32rev (unsigned n)
-{
-	return ((uint32_t) 1) << (32 - n);
-}
-
-static inline uint64_t
-bit64rev (unsigned n)
-{
-	return ((uint64_t) 1) << (64 - n);
-}
-
-static inline uint32_t
-bitmask32 (unsigned n)
-{
-	return bit32 (n) - 1;
-}
-
-static inline uint64_t
-bitmask64 (unsigned n)
-{
-	return bit64 (n) - 1;
-}
-
 /* The following should automatically be detected as byte-swap operations by
  * the compiler and transformed into the corresponding CPU operation. No need
  * for hand-made assembly. */
@@ -252,8 +216,8 @@ cpu_to_le (unsigned size, uint64_t val) {
 static inline int32_t
 signext_n_32 (const uint32_t in, const unsigned sign_bit)
 {
-	const uint32_t bit  = bit32 (sign_bit);
-	const uint32_t mask = bitmask32 (sign_bit);
+	const uint32_t bit  = 1 << sign_bit;
+	const uint32_t mask = bit - 1;
 	uint32_t out = in & mask;
 	if (in & bit) {
 		out |= ~1 & ~mask;
@@ -264,8 +228,8 @@ signext_n_32 (const uint32_t in, const unsigned sign_bit)
 static inline int64_t
 signext_n_64 (const uint64_t in, const unsigned sign_bit)
 {
-	const uint64_t bit  = bit64 (sign_bit);
-	const uint64_t mask = bitmask64 (sign_bit);
+	const uint64_t bit  = 1ull << sign_bit;
+	const uint64_t mask = bit - 1;
 	uint64_t out = in & mask;
 	if (in & bit) {
 		out |= ~1 & ~mask;
@@ -309,15 +273,7 @@ bool	is_valid_mat4x4f (mtx4x4f_t mtx);
 
 bool	vk_util_get_bool_option (const char *name, bool fallback);
 
-void	vk_swap_buf (uint8_t *buf, size_t size, vk_swap swap);
-int	vk_memcpy_interleave (uint8_t *dst, uint8_t *src, unsigned unit, unsigned offs, size_t size);
-
-void	vk_interleave_buf_2 (uint8_t *dst, uint8_t *a, uint8_t *b, size_t size, size_t part);
-void	vk_interleave_buf_4 (uint8_t *dst, uint8_t *a, uint8_t *b, uint8_t *c, uint8_t *d, size_t size, size_t part);
-
 void	*vk_load_any (const char *path, size_t *_size);
-int	 vk_load (uint8_t *buf, const char *path, size_t req);
-int	 vk_dump (uint8_t *buf, const char *path, size_t req);
 
 #endif /* __VK_CORE_H__ */
 

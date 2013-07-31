@@ -72,41 +72,6 @@ vk_util_get_int_option (const char *name, int fallback)
 	return fallback;
 }
 
-int
-vk_hexstrtoi (char *str, int *res)
-{
-	uint32_t offs = 0;
-	int len, i;
-	*res = 0;
-	if (str) {
-		len = (int) strlen (str);
-		if (len >= 2 && str[0] == '0' && str[1] == 'x')
-			str = &str[2];
-		for (i = len - 1; i > 0; i--) {
-			if (str[i] >= '0' && str[i] <= '9')
-				offs += (int) (str[i] - '0');
-			else if (str[i] >= 'a' && str[i] <= 'f')
-				offs += (int) (str[i] - 'a' + 10);
-			else if (str[i] >= 'A' && str[i] <= 'F')
-				offs += (int) (str[i] - 'A' + 10);
-			else
-				return 1;
-			offs *= 16;
-		}
-	}
-	return 0;
-}
-
-void
-vk_strarray_fprint (FILE *fp, char **strarray, char sep)
-{
-	if (strarray) {
-		unsigned i;
-		for (i = 0; strarray[i] != NULL; i++)
-			fprintf (fp, "%s%c", strarray[i], sep);
-	}
-}
-
 static size_t
 get_file_size (FILE *fp)
 {
@@ -116,44 +81,6 @@ get_file_size (FILE *fp)
 	size = ftell (fp);
 	fseek (fp, offs, SEEK_SET);
 	return size;
-}
-
-int
-vk_load (uint8_t *buf, const char *path, size_t req)
-{
-	FILE *fp;
-	size_t size;
-	int ret = ENOENT;
-
-	do {
-		fp = fopen (path, "rb");
-		if (!fp) {
-			fprintf (stderr, "ERROR: file '%s' not found\n", path);
-			break;
-		}
-		size = get_file_size (fp);
-		if (size != req) {
-			fprintf (stderr, "ERROR: size mismatch for '%s' (gottend %u bytes out of %u)\n", path, size, req);
-			break;
-		}
-		clearerr (fp);
-		size = fread (buf, 1, req, fp);
-		if (ferror (fp)) {
-			perror (NULL);
-			break;
-		}
-		if (size != req) {
-			fprintf (stderr, "ERROR: can't read '%s' (gotten %u bytes out of %u)\n", path, size, req);
-			break;
-		}
-		ret = 0;
-	} while (0);
-
-	if (fp) {
-		fclose (fp);
-	}
-
-	return ret;
 }
 
 void *
@@ -208,86 +135,5 @@ vk_load_any (const char *path, size_t *_size)
 	}
 
 	return buf;
-}
-
-void
-vk_swap_buf (uint8_t *buf, size_t size, vk_swap swap)
-{
-	size_t i;
-
-	VK_ASSERT (buf);
-
-	switch (swap) {
-	case VK_SWAP_NONE:
-		break;
-	case VK_SWAP_BSWAP16:
-		for (i = 0; i < size; i += 2) {
-			*(uint16_t *) &buf[i] = bswap16 (*(uint16_t *) &buf[i]);
-		}
-		break;
-	case VK_SWAP_BSWAP32:
-		for (i = 0; i < size; i+= 4) {
-			*(uint32_t *) &buf[i] = bswap32 (*(uint32_t *) &buf[i]);
-		}
-		break;
-	default:
-		VK_ABORT ("invalid swap: %d\n", swap);
-	}
-}
-
-void
-vk_interleave_buf_2 (uint8_t *dst,
-                     uint8_t *a,
-                     uint8_t *b,
-                     size_t size,
-                     size_t part)
-{
-	size_t i, j;
-
-	VK_ASSERT ((size % part) == 0);
-
-	for (i = 0, j = 0; i < size; j += part, i += part * 2) {
-		memcpy (&dst[i],      &a[j], part);
-		memcpy (&dst[i+part], &b[j], part);
-	}
-}
-
-void
-vk_interleave_buf_4 (uint8_t *dst,
-                     uint8_t *a,
-                     uint8_t *b,
-                     uint8_t *c,
-                     uint8_t *d,
-                     size_t size,
-                     size_t part)
-{
-	size_t i, j;
-
-	VK_ASSERT ((size % part) == 0);
-
-	for (i = 0, j = 0; i < size; j += part, i += part * 4) {
-		memcpy (&dst[i],        &a[j], part);
-		memcpy (&dst[i+part],   &b[j], part);
-		memcpy (&dst[i+part*2], &c[j], part);
-		memcpy (&dst[i+part*3], &d[j], part);
-	}
-}
-
-int
-vk_memcpy_interleave (uint8_t *dst, uint8_t *src, unsigned unit, unsigned offs, size_t size)
-{
-	size_t i;
-
-	switch (unit) {
-	case 2:
-		for (i = 0; i < size; i += 2) {
-			*(uint16_t *) &dst[i*2+offs] = *(uint16_t *) &src[i];
-		}
-		break;
-	default:
-		VK_ABORT ("invalid unit: %u\n", unit);
-	}
-
-	return 0;
 }
 
