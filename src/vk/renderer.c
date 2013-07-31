@@ -202,12 +202,29 @@ vk_renderer_begin_frame (vk_renderer_t *renderer)
 		renderer->begin_frame (renderer);
 }
 
+static uint32_t clock;
+
 void
 vk_renderer_end_frame (vk_renderer_t *renderer)
 {
+	char title[256];
+	uint32_t temp, delta;
+	float fps;
+
 	if (renderer->end_frame)
 		renderer->end_frame (renderer);
 	SDL_GL_SwapBuffers ();
+
+	temp = SDL_GetTicks ();
+	delta = temp - clock;
+	clock = temp;
+
+	fps = 0.0f;
+	if (delta)
+		fps = 1000.0f / delta;
+
+	sprintf (title, "Valkyrie (%4.1f FPS)", 1000.0f / delta);
+	SDL_WM_SetCaption (title, "Valkyrie");
 }
 
 int
@@ -215,7 +232,7 @@ vk_renderer_init (vk_renderer_t *renderer)
 {
 	const SDL_VideoInfo *info;
 
-	if (SDL_Init (SDL_INIT_VIDEO)) {
+	if (SDL_Init (SDL_INIT_VIDEO | SDL_INIT_TIMER)) {
 		VK_ERROR ("could not initialize SDL: '%s'", SDL_GetError ());
 		return -1;
 	}
@@ -242,6 +259,8 @@ vk_renderer_init (vk_renderer_t *renderer)
 	}
 
 	SDL_WM_SetCaption ("Valkyrie", "Valkyrie");
+
+	clock = SDL_GetTicks ();
 
 	if (glewInit () != GLEW_OK) {
 		VK_ERROR ("could not initialize glew");
