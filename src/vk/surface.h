@@ -52,15 +52,17 @@ void			 vk_surface_draw (vk_surface_t *surface);
 static inline void
 vk_surface_put16 (vk_surface_t *surface, unsigned x, unsigned y, uint16_t val)
 {
-	uint16_t *ptr = (uint16_t *) &surface->data[y * surface->pitch + x * 2];
-	*ptr = val;
+	uint32_t addr = y * surface->pitch + x * 2;
+	VK_ASSERT (addr < (surface->height * surface->pitch));
+	*(uint16_t *) &surface->data[addr] = val;
 }
 
 static inline void
 vk_surface_put32 (vk_surface_t *surface, unsigned x, unsigned y, uint32_t val)
 {
-	uint32_t *ptr = (uint32_t *) &surface->data[y * surface->pitch + x * 4];
-	*ptr = val;
+	uint32_t addr = y * surface->pitch + x * 4;
+	VK_ASSERT (addr < (surface->height * surface->pitch));
+	*(uint32_t *) &surface->data[addr] = val;
 }
 
 #endif /* __VK_SURFACE_H__ */
