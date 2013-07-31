@@ -25,6 +25,13 @@
 #include "vk/games.h"
 #include "vk/renderer.h"
 
+typedef enum {
+	VK_RESET_TYPE_HARD,
+	VK_RESET_TYPE_SOFT,
+
+	VK_NUM_RESET_TYPES
+} vk_reset_type_t;
+
 typedef struct vk_machine_t vk_machine_t;
 
 struct vk_machine_t {

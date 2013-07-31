@@ -319,13 +319,6 @@ signext_n_64 (const uint64_t in, const unsigned sign_bit)
 
 /* XXX the following is a big mess; clean it up please */
 
-typedef enum {
-	VK_RESET_TYPE_HARD,
-	VK_RESET_TYPE_SOFT,
-
-	VK_NUM_RESET_TYPES
-} vk_reset_type_t;
-
 bool	is_valid_mat4x3f (mtx4x3f_t mtx);
 bool	is_valid_mat4x4f (mtx4x4f_t mtx);
 
