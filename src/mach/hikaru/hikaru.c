@@ -458,6 +458,8 @@ hikaru_run_cycles (vk_machine_t *mach, int cycles)
 
 	/* Run the MEMCTL and GPU */
 	vk_device_exec (hikaru->memctl_m, cycles);
+	/* XXX run the slave MEMCTL? I've never seen it used, and would
+	 * like to debug it a bit before enabling it. */
 	vk_device_exec (hikaru->gpu, cycles);
 }
 
