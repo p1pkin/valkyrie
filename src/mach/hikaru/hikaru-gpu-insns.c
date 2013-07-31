@@ -1000,8 +1000,8 @@ I (tex_set_unk_0C1)
 
 I (tex_set_format)
 {
-	gpu->texheads.scratch.width	= ((inst[0] >> 16) & 7) << 16;
-	gpu->texheads.scratch.height	= ((inst[0] >> 19) & 7) << 16;
+	gpu->texheads.scratch.width	= 16 << ((inst[0] >> 16) & 7);
+	gpu->texheads.scratch.height	= 16 << ((inst[0] >> 19) & 7);
 	gpu->texheads.scratch.format	= (inst[0] >> 26) & 7;
 	gpu->texheads.scratch.log_width	= (inst[0] >> 16) & 7;
 	gpu->texheads.scratch.log_height= (inst[0] >> 19) & 7;
