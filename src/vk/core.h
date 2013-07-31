@@ -41,21 +41,6 @@
 # error "unhandled __BYTE_ORDER value"
 #endif
 
-/* Determine target register size */
-#if 1
-# define VK_32_BIT
-#elif 0
-# define VK_64_BIT
-#else
-# error "unhandled (void *) size"
-#endif
-
-#ifdef VK_64_BIT
-# define VK_UINT64_FMT	"ll"
-#else
-# define VK_UINT64_FMR	""
-#endif
-
 typedef enum {
 	VK_SWAP_NONE	= 0,
 	VK_SWAP_BSWAP16	= (1 << 0),
