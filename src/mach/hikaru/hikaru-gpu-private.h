@@ -154,7 +154,6 @@ struct hikaru_gpu_t {
 		uint32_t pc, sp[2];
 		bool is_running;
 		bool unhandled;
-		int cycles;
 		struct {
 			void (* handler)(hikaru_gpu_t *, uint32_t *);
 			uint32_t size;

@@ -1954,8 +1954,7 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 	gpu->texheads.base  = 0;
 	gpu->lights.base    = 0;
 
-	gpu->cp.cycles = cycles;
-	while (gpu->cp.cycles > 0 && gpu->cp.is_running) {
+	while (cycles > 0 && gpu->cp.is_running) {
 		void (* handler)(hikaru_gpu_t *, uint32_t *);
 		uint32_t *inst, op;
 
@@ -1982,7 +1981,7 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 		if (gpu->cp.insns[op].size)
 			gpu->cp.pc += gpu->cp.insns[op].size;
 
-		gpu->cp.cycles--;
+		cycles--;
 	}
 
 	if (!gpu->cp.is_running)
