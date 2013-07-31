@@ -249,7 +249,7 @@ signext_n_64 (const uint64_t in, const unsigned sign_bit)
 		fprintf (stderr, "ERROR: "fmt_"\n", ##args_); \
 	} while (0);
 
-/** Prints a formatted message, prefixed by 'ERROR', to stderr, and exits */
+/** Prints a formatted message, prefixed by 'FATAL', to stderr, and aborts */
 #define VK_ABORT(fmt_, args_...) \
 	do { \
 		fprintf (stderr, "FATAL: %s:%d %s(): "fmt_"\n", \
