@@ -1921,6 +1921,11 @@ static const struct {
 	D (0xE88, 4, unk_E88),
 };
 
+static struct {
+	void (* handler)(hikaru_gpu_t *, uint32_t *);
+	uint32_t size;
+} insns[0x1000];
+
 static int
 fetch (hikaru_gpu_t *gpu, uint32_t **inst)
 {
@@ -1970,7 +1975,7 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 		if (!is_vertex_op (op))
 			hikaru_renderer_end_mesh (gpu->renderer);
 
-		handler = gpu->cp.insns[op].handler;
+		handler = insns[op].handler;
 		VK_ASSERT (handler);
 		handler (gpu, inst);
 
@@ -1978,8 +1983,8 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 			/* We try to carry on anyway */
 		}
 
-		if (gpu->cp.insns[op].size)
-			gpu->cp.pc += gpu->cp.insns[op].size;
+		if (insns[op].size)
+			gpu->cp.pc += insns[op].size;
 
 		cycles--;
 	}
@@ -1993,12 +1998,12 @@ hikaru_gpu_cp_init (hikaru_gpu_t *gpu)
 {
 	unsigned i;
 	for (i = 0; i < 0x1000; i++) {
-		gpu->cp.insns[i].handler = hikaru_gpu_inst_invalid;
-		gpu->cp.insns[i].size = 0;
+		insns[i].handler = hikaru_gpu_inst_invalid;
+		insns[i].size = 0;
 	}
 	for (i = 0; i < NUMELEM (cs_insns); i++) {
 		uint32_t op = cs_insns[i].op;
-		gpu->cp.insns[op].handler = cs_insns[i].handler;
-		gpu->cp.insns[op].size    = cs_insns[i].size;
+		insns[op].handler = cs_insns[i].handler;
+		insns[op].size    = cs_insns[i].size;
 	}
 }
