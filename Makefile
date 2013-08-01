@@ -11,6 +11,7 @@ LDFLAGS := -lm -lSDL -lGL -lGLEW -ljansson
 
 VK_OBJ := \
 	src/vk/core.o \
+	src/vk/vector.o \
 	src/vk/buffer.o \
 	src/vk/region.o \
 	src/vk/mmap.o \
