@@ -19,7 +19,6 @@ VK_OBJ := \
 	src/vk/input.o \
 	src/vk/renderer.o \
 	src/vk/surface.o \
-	src/vk/main.o
 
 SH4_OBJ := \
 	src/cpu/sh/sh4.o
@@ -35,9 +34,12 @@ HIKARU_OBJ := \
 	src/mach/hikaru/hikaru-gpu-insns.o \
 	src/mach/hikaru/hikaru-aica.o
 
-all: bin/valkyrie
+all: bin/valkyrie bin/hikaru-gpu-viewer
 
-bin/valkyrie: $(VK_OBJ) $(HIKARU_OBJ)
+bin/valkyrie: $(VK_OBJ) $(HIKARU_OBJ) src/vk/main.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $+ -o $@
+
+bin/hikaru-gpu-viewer: $(VK_OBJ) $(HIKARU_OBJ) src/mach/hikaru/hikaru-gpu-viewer.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $+ -o $@
 
 %.o: %.c

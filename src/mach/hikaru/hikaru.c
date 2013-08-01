@@ -1077,6 +1077,9 @@ hikaru_install_game_patches (hikaru_t *hikaru)
 	vk_game_t *game = hikaru->base.game;
 	bool patched = true;
 
+	if (!game)
+		return;
+
 	if (!strcmp (game->name, "airtrix"))
 		vk_cpu_install_patch (cpu, patch_airtrix);
 	else if (!strcmp (game->name, "braveff"))
@@ -1137,8 +1140,6 @@ hikaru_init (hikaru_t *hikaru)
 	vk_machine_t *mach = (vk_machine_t *) hikaru;
 	vk_game_t *game = mach->game;
 
-	VK_ASSERT (mach->game != NULL);
-
 	unk_m.mach = mach;
 	unk_s.mach = mach;
 
@@ -1160,12 +1161,17 @@ hikaru_init (hikaru_t *hikaru)
 	    !hikaru->bram || !hikaru->mie_ram)
 		goto fail;
 
-	hikaru->bootrom 	= vk_game_get_section_data (game, "bootrom");
-	hikaru->eprom   	= vk_game_get_section_data (game, "eprom");
-	hikaru->maskrom 	= vk_game_get_section_data (game, "maskrom");
+	if (game) {
+		hikaru->bootrom 	= vk_game_get_section_data (game, "bootrom");
+		hikaru->eprom   	= vk_game_get_section_data (game, "eprom");
+		hikaru->maskrom 	= vk_game_get_section_data (game, "maskrom");
 
-	if (hikaru_set_rombd_config (hikaru))
-		goto fail;
+		if (hikaru_set_rombd_config (hikaru))
+			goto fail;
+	} else {
+		/* Create a mock bootrom */                                     
+		hikaru->bootrom = vk_buffer_le32_new (2*MB, 0);
+	}
 
 	hikaru->memctl_m = hikaru_memctl_new (mach, true);
 	hikaru->memctl_s = hikaru_memctl_new (mach, false);
@@ -1225,8 +1231,6 @@ hikaru_new (vk_game_t *game)
 {
 	hikaru_t *hikaru;
 	vk_machine_t *mach;
-
-	VK_ASSERT (game);
 
 	hikaru = ALLOC (hikaru_t);
 	if (!hikaru)
