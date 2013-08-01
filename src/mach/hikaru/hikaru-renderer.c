@@ -1000,44 +1000,51 @@ build_default_surfaces (hikaru_renderer_t *hr)
 vk_renderer_t *
 hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 {
-	hikaru_renderer_t *hr = ALLOC (hikaru_renderer_t);
-	if (hr) {
-		int ret;
+	hikaru_renderer_t *hr;
+	int ret;
 
-		hr->base.width = 640;
-		hr->base.height = 480;
+	hr = ALLOC (hikaru_renderer_t);
+	if (!hr)
+		goto fail;
 
-		hr->base.destroy = hikaru_renderer_destroy;
-		hr->base.reset = hikaru_renderer_reset;
-		hr->base.begin_frame = hikaru_renderer_begin_frame;
-		hr->base.end_frame = hikaru_renderer_end_frame;
+	hr->base.width = 640;
+	hr->base.height = 480;
 
-		ret = vk_renderer_init ((vk_renderer_t *) hr);
-		if (ret)
-			return NULL;
+	hr->base.destroy = hikaru_renderer_destroy;
+	hr->base.reset = hikaru_renderer_reset;
+	hr->base.begin_frame = hikaru_renderer_begin_frame;
+	hr->base.end_frame = hikaru_renderer_end_frame;
 
-		/* Setup machine buffers */
-		hr->fb = fb;
-		hr->texram[0] = texram[0];
-		hr->texram[1] = texram[1];
+	ret = vk_renderer_init ((vk_renderer_t *) hr);
+	if (ret)
+		goto fail;
 
-		/* Read options from the environment */
-		hr->options.log =
-			vk_util_get_bool_option ("HR_LOG", false);
-		hr->options.disable_2d =
-			vk_util_get_bool_option ("HR_DISABLE_2D", false);
-		hr->options.disable_3d =
-			vk_util_get_bool_option ("HR_DISABLE_3D", false);
-		hr->options.draw_fb =
-			vk_util_get_bool_option ("HR_DRAW_FB", false);
-		hr->options.draw_texram =
-			vk_util_get_bool_option ("HR_DRAW_TEXRAM", false);
-		hr->options.force_debug_texture =
-			vk_util_get_bool_option ("HR_FORCE_DEBUG_TEXTURE", false);
+	/* Setup machine buffers */
+	hr->fb = fb;
+	hr->texram[0] = texram[0];
+	hr->texram[1] = texram[1];
 
-		/* Create a few surfaces */
-		if (!build_default_surfaces (hr))
-			return NULL;
-	}
+	/* Read options from the environment */
+	hr->options.log =
+		vk_util_get_bool_option ("HR_LOG", false);
+	hr->options.disable_2d =
+		vk_util_get_bool_option ("HR_DISABLE_2D", false);
+	hr->options.disable_3d =
+		vk_util_get_bool_option ("HR_DISABLE_3D", false);
+	hr->options.draw_fb =
+		vk_util_get_bool_option ("HR_DRAW_FB", false);
+	hr->options.draw_texram =
+		vk_util_get_bool_option ("HR_DRAW_TEXRAM", false);
+	hr->options.force_debug_texture =
+		vk_util_get_bool_option ("HR_FORCE_DEBUG_TEXTURE", false);
+
+	/* Create a few surfaces */
+	if (!build_default_surfaces (hr))
+		goto fail;
+
 	return (vk_renderer_t *) hr;
+
+fail:
+	hikaru_renderer_destroy ((vk_renderer_t **) &hr);
+	return NULL;
 }
