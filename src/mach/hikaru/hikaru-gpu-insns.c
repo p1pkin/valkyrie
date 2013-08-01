@@ -262,11 +262,11 @@ I (0x012)
 		addr += gpu->cp.pc;
 
 	check_self_loop (gpu, addr);
-	gpu->cp.pc = addr;
 
 	UNHANDLED |= !!(inst[0] & 0xFFFFF600);
 
 	DISASM (2, "jump @%08X", addr);
+	gpu->cp.pc = addr;
 }
 
 /* 052	Call
