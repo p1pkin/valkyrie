@@ -1513,10 +1513,10 @@ I (fmov_save)
 I (fneg)
 {
 	if (!FPSCR.bit.pr) {
-		FRN.f = -FRN.f;
+		FRN.u = FRN.u ^ 0x80000000;
 	} else {
 		VK_CPU_ASSERT (ctx, !(_RN & 1));
-		DRN.f = -DRN.f;
+		DRN.u = DRN.u ^ 0x8000000000000000ull;
 	}
 }
 
