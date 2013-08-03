@@ -78,6 +78,37 @@
 						{ "name" : "epr-21998.ic33", "size" : 2097152 },
 						{ "name" : "epr-21999.ic34", "size" : 2097152 }
 					]
+				},
+				{
+					"name" : "maskrom",
+					"type" : "interleave",
+					"amnt" : 2,
+					"data" : [
+						{ "name" : "mpr-22000.ic37", "size" : 8388608 },
+						{ "name" : "mpr-22001.ic38", "size" : 8388608 },
+						{ "name" : "mpr-22002.ic39", "size" : 8388608 },
+						{ "name" : "mpr-22003.ic40", "size" : 8388608 },
+						{ "name" : "mpr-22004.ic41", "size" : 8388608 },
+						{ "name" : "mpr-22005.ic42", "size" : 8388608 },
+						{ "name" : "mpr-22006.ic43", "size" : 8388608 },
+						{ "name" : "mpr-22007.ic44", "size" : 8388608 },
+						{ "name" : "mpr-22008.ic45", "size" : 8388608 },
+						{ "name" : "mpr-22009.ic46", "size" : 8388608 },
+						{ "name" : "mpr-22010.ic47", "size" : 8388608 },
+						{ "name" : "mpr-22011.ic48", "size" : 8388608 },
+						{ "name" : "mpr-22012.ic49", "size" : 8388608 },
+						{ "name" : "mpr-22013.ic50", "size" : 8388608 },
+						{ "name" : "mpr-22014.ic51", "size" : 8388608 },
+						{ "name" : "mpr-22015.ic52", "size" : 8388608 },
+						{ "name" : "mpr-22016.ic53s", "size" : 8388608 },
+						{ "name" : "mpr-22017.ic54s", "size" : 8388608 },
+						{ "name" : "mpr-22018.ic55s", "size" : 8388608 },
+						{ "name" : "mpr-22019.ic56s", "size" : 8388608 },
+						{ "name" : "mpr-22020.ic57s", "size" : 8388608 },
+						{ "name" : "mpr-22021.ic58s", "size" : 8388608 },
+						{ "name" : "mpr-22022.ic59s", "size" : 8388608 },
+						{ "name" : "mpr-22023.ic60s", "size" : 8388608 }
+					]
 				}
 			]
 		},
