@@ -429,7 +429,7 @@ rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
 		/* ROMBD MASKROM */
 		/* XXX take in account MASKROM stretching here */
 		uint32_t num = bank - config->maskrom_bank[0]; /* 0 ... 15 */
-		uint32_t bank_size = config->maskrom_bank_size == 8 ? 8*MB : 16*MB;
+		uint32_t bank_size = 16*MB;
 		uint32_t bank_mask = bank_size - 1;
 		uint32_t real_offs = (offs & bank_mask) + num * bank_size;
 
