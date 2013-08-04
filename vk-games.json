@@ -212,7 +212,8 @@
 				},
 				{
 					"name" : "maskrom",
-					"type" : "concatenate",
+					"type" : "interleave",
+					"amnt" : 2,
 					"data" : [
 						{ "name" : "mpr-23469.ic19", "size" : 16777216 },
 						{ "name" : "mpr-23473.ic20", "size" : 16777216 },
