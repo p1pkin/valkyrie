@@ -23,43 +23,6 @@
 #include "mach/hikaru/hikaru-renderer.h"
 #include "vk/surface.h"
 
-/*
- * Here's the basics. The three entry points to the renderer are:
- *
- * - hikaru_renderer_{begin,end}_frame (), called by hikaru.c when the
- *   appropriate number of core iterations have been done.
- *
- * - hikaru_renderer_draw_layer (), called by hikaru-gpu.c just on vblank-out,
- *   that is, just before end_frame () is called.
- *
- * - hikaru_renderer_{set_X, add_vertex_X, end_mesh} (), called by
- *   hikaru-gpu-insns.c when the corresponding GPU instructions are
- *   interpreted; which is to say that these calls occur at any time between
- *   begin_frame () and draw_layer ().
- *
- * XXX The order in which things are done is *not* correct: the layer
- * priority wrt to the 3D meshes have not been figured out yet. This is
- * partly due to the fact that I *don't know* when the CP is supposed to
- * execute the command stream (at vblank-in? when 15000058 is written to?
- * I have found no strong clue about which is true...)
- *
- * A mesh set through the add_vertex_X () functions is rendered when
- * end_mesh () is called, using draw_current_mesh ().
- *
- * The set_X () functions merely store the corresponding state (i.e., the
- * current viewport, modelview matrix, material, texhead, and lightset) into
- * members of hikaru_renderer_t.
- *
- * This state is not uploaded to GL until a call to draw_current_mesh ()
- * occurs. The actual uploading is done using the upload_current_X ()
- * functions. We also make sure that the same state is not re-uploaded to
- * GL, to avoid useless computations.
- *
- * XXX of course, the whole thing could be improved quite a bit by any
- * developer even moderately knowledgeable of GL; unfortunately I don't belong
- * to that circle, by far :-)
- */
-
 #define RESTART_INDEX	0xFFFF
 
 #define MAX_VERTICES_PER_MESH	4096
