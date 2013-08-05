@@ -20,8 +20,9 @@
 
 #include <math.h>
 
-#include "mach/hikaru/hikaru-renderer.h"
 #include "vk/surface.h"
+
+#include "mach/hikaru/hikaru-renderer.h"
 
 #define RESTART_INDEX	0xFFFF
 
