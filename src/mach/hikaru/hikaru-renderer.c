@@ -164,7 +164,7 @@ upload_current_state (hikaru_renderer_t *hr)
 	         (GLfloat) vp->extents_x[1],	/* right */
 	         -(GLfloat) vp->extents_y[1],	/* bottom */
 	         (GLfloat) vp->extents_y[0],	/* top */
-	         0.0f, 1280.0f);			/* near, far */
+		vp->persp_znear, vp->persp_zfar);
 
 	/* Modelview */
 	glMatrixMode (GL_MODELVIEW);

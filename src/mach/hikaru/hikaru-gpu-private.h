@@ -45,8 +45,7 @@ enum {
 };
 
 typedef struct {
-	float persp_x;			/* 021 */
-	float persp_y;			/* 021 */
+	float persp_zfar;		/* 021 */
 	float persp_znear;		/* 021 */
 	float depth_near;		/* 421 */
 	float depth_far;		/* 421 */

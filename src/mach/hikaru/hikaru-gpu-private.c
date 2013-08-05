@@ -50,8 +50,8 @@ get_gpu_viewport_str (hikaru_gpu_viewport_t *viewport)
 {
 	static char out[512];
 
-	sprintf (out, "(%8.3f %8.3f %8.3f) (%u,%u) (%u,%u) (%u,%u) (%u %5.3f %5.3f) (%u %5.3f %5.3f)",
-	         viewport->persp_x, viewport->persp_y, viewport->persp_znear,
+	sprintf (out, "(%8.3f %8.3f) (%u,%u) (%u,%u) (%u,%u) (%u %5.3f %5.3f) (%u %5.3f %5.3f)",
+	         viewport->persp_zfar, viewport->persp_znear,
 	         viewport->center[0], viewport->center[1],
 	         viewport->extents_x[0], viewport->extents_x[1],
 	         viewport->extents_y[0], viewport->extents_y[1],

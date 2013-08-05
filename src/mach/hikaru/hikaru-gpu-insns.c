@@ -331,9 +331,9 @@ I (0x1C2)
 /* 021	Viewport: Set Z Clip
  *
  *	-------- -------- -----00o oooooooo
- *	pppppppp pppppppp pppppppp pppppppp
- *	qqqqqqqq qqqqqqqq qqqqqqqq qqqqqqqq
- *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
+ *	FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF
+ *	ffffffff ffffffff ffffffff ffffffff
+ *	nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn
  *
  * F = far depth clipping plane
  * f = far depth clipping plane, again
@@ -410,18 +410,16 @@ I (0x021)
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
-		vp->persp_x	= *(float *) &inst[1];
-		vp->persp_y	= *(float *) &inst[2];
+		vp->persp_zfar	= *(float *) &inst[1];
 		vp->persp_znear	= *(float *) &inst[3];
 
 		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
-		UNHANDLED |= !ispositive (vp->persp_x);
-		UNHANDLED |= !ispositive (vp->persp_y);
+		UNHANDLED |= inst[1] != inst[2];
+		UNHANDLED |= !ispositive (vp->persp_zfar);
 		UNHANDLED |= !ispositive (vp->persp_znear);
 
-		DISASM (4, "vp: set projection [px=%f py=%f znear=%f]",
-		        gpu->viewports.scratch.persp_x,
-		        gpu->viewports.scratch.persp_y,
+		DISASM (4, "vp: set projection [zfar=%f znear=%f]",
+		        gpu->viewports.scratch.persp_zfar,
 		        gpu->viewports.scratch.persp_znear);
 		break;
 
