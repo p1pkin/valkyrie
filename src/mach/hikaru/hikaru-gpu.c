@@ -1296,47 +1296,6 @@ hikaru_gpu_get_debug_str (vk_device_t *dev)
 	return (const char *) out;
 }
 
-static void
-hikaru_gpu_print_rendering_state (hikaru_gpu_t *gpu)
-{
-	unsigned i;
-
-	VK_LOG ("GPU Rendering State:");
-
-	for (i = 0; i < NUM_VIEWPORTS; i++) {
-		hikaru_gpu_viewport_t *vp;
-		vp = &gpu->viewports.table[i];
-		if (vp->used)
-			VK_LOG ("viewport %3u: %s", i,
-			        get_gpu_viewport_str (vp));
-	}
-	for (i = 0; i < NUM_MATERIALS; i++) {
-		hikaru_gpu_material_t *mat;
-		mat = &gpu->materials.table[i];
-		if (mat->used)
-			VK_LOG ("material %3u: %s", i,
-			        get_gpu_material_str (mat));
-	}
-	for (i = 0; i < NUM_TEXHEADS; i++) {
-		hikaru_gpu_texhead_t *th;
-		th = &gpu->texheads.table[i];
-		if (th->used)
-			VK_LOG ("texhead %3u: %s", i,
-			        get_gpu_texhead_str (th));
-	}
-	for (i = 0; i < NUM_LIGHTSETS; i++) {
-//		if (ls->used) {
-			unsigned j;
-			for (j = 0; j < 4; j++) {
-				if (!gpu->lights.sets[i].lights[j])
-					continue;
-				VK_LOG ("lightset %u/%u: %s", i, j,
-				        get_gpu_light_str (gpu->lights.sets[i].lights[j]));
-			}
-//		}
-	}
-}
-
 static int
 hikaru_gpu_save_state (vk_device_t *dev, FILE *fp)
 {
@@ -1354,7 +1313,6 @@ hikaru_gpu_destroy (vk_device_t **dev_)
 {
 	if (dev_) {
 		hikaru_gpu_t *gpu = (hikaru_gpu_t *) *dev_;
-		hikaru_gpu_print_rendering_state (gpu);
 		free (gpu);
 		*dev_ = NULL;
 	}

@@ -595,8 +595,6 @@ I (0x003)
 		return;
 	}
 
-	gpu->viewports.table[index].used = true;
-
 	UNHANDLED |= !!(inst[0] & 0xFFF89E00);
 }
 
@@ -1108,7 +1106,6 @@ I (0x0C3)
 			UNHANDLED |= true;
 			return;
 		}
-		gpu->texheads.table[index].used = true;
 	}
 
 	UNHANDLED |= !!(inst[0] & 0x0000E000);
@@ -1365,7 +1362,6 @@ I (0x043)
 			UNHANDLED |= true;
 			return;
 		}
-		gpu->lights.sets[index].used = true;
 	}
 
 	UNHANDLED |= !!(inst[0] & 0xF000E000);
