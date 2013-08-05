@@ -84,12 +84,6 @@ typedef struct {
 } hikaru_mesh_t;
 
 typedef struct {
-	mtx4x4f_t mtx;
-	uint32_t set		: 1;
-	uint32_t uploaded	: 1;
-} hikaru_gpu_modelview_t;
-
-typedef struct {
 	vk_renderer_t base;
 
 	vk_buffer_t *fb;

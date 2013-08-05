@@ -26,7 +26,7 @@
 /* hikaru-gpu.c, hikaru-gpu-insns.c, hikaru-renderer.c */
 
 #define NUM_VIEWPORTS	8
-#define NUM_MATRICES	4
+#define NUM_MATRICES	256
 #define NUM_MATERIALS	16384 /* XXX bogus */
 #define NUM_TEXHEADS	16384 /* XXX bogus */
 #define NUM_LIGHTS	1024
@@ -63,6 +63,12 @@ typedef struct {
 	uint32_t used		: 1;
 	uint32_t uploaded	: 1;
 } hikaru_gpu_viewport_t;
+
+typedef struct {
+	mtx4x4f_t mtx;
+	uint32_t set		: 1;
+	uint32_t uploaded	: 1;
+} hikaru_gpu_modelview_t;
 
 typedef struct {
 	vec3b_t color[2];		/* 091, 291 */
