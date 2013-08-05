@@ -22,15 +22,18 @@
 #include <math.h>
 
 #include "vk/device.h"
+#include "vk/surface.h"
 
 /* hikaru-gpu.c, hikaru-gpu-insns.c, hikaru-renderer.c */
 
 #define NUM_VIEWPORTS	8
-#define NUM_MATRICES	256
+#define NUM_MODELVIEWS	256
 #define NUM_MATERIALS	16384 /* XXX bogus */
 #define NUM_TEXHEADS	16384 /* XXX bogus */
 #define NUM_LIGHTS	1024
-#define NUM_LIGHTSETS	256	/* possibly 32 */
+#define NUM_LIGHTSETS	200
+
+#define MAX_VERTICES_PER_MESH	4096
 
 /* Used for texheads and layers */
 enum {
@@ -151,13 +154,13 @@ typedef struct {
 typedef struct hikaru_gpu_vertex_t hikaru_gpu_vertex_t;
 
 struct hikaru_gpu_vertex_t {
-	vec3f_t	position;
+	vec3f_t	pos;
 	uint32_t padding0;
-	vec3f_t	normal;
+	vec3f_t	nrm;
 	uint32_t padding1;
-	vec3f_t color;
+	vec3f_t col;
 	float alpha;
-	vec2f_t	texcoords;
+	vec2f_t	txc;
 	vec2f_t padding2;
 } __attribute__ ((packed));
 
@@ -195,11 +198,17 @@ struct hikaru_gpu_t {
 
 	/* Rendering State */
 	bool in_mesh;
+	float static_mesh_precision;
 
 	struct {
 		hikaru_gpu_viewport_t table[NUM_VIEWPORTS];
 		hikaru_gpu_viewport_t scratch;
 	} viewports;
+
+	struct {
+		hikaru_gpu_modelview_t stack[NUM_MODELVIEWS];
+		uint32_t depth;
+	} modelviews;
 
 	struct {
 		hikaru_gpu_material_t table[NUM_MATERIALS];
@@ -227,27 +236,56 @@ struct hikaru_gpu_t {
 	} options;
 };
 
-void slot_to_coords (uint32_t *, uint32_t *, uint32_t, uint32_t);
+typedef struct {
+	vk_renderer_t base;
 
+	hikaru_gpu_t *gpu;
+
+	struct {
+		hikaru_gpu_vertex_t	vbo[MAX_VERTICES_PER_MESH];
+		uint16_t		ibo[MAX_VERTICES_PER_MESH];
+		uint16_t		iindex, vindex;
+		uint16_t		ppivot, tpivot;
+	} mesh;
+
+	struct {
+		vk_surface_t *fb, *texram, *debug, *current;
+	} textures;
+
+	struct {
+		bool log;
+		bool disable_2d;
+		bool disable_3d;
+		bool draw_fb;
+		bool draw_texram;
+		bool force_debug_texture;
+	} options;
+
+} hikaru_renderer_t;
+
+/* hikaru-gpu-private.c */
+void slot_to_coords (uint32_t *, uint32_t *, uint32_t, uint32_t);
 const char *get_gpu_viewport_str (hikaru_gpu_viewport_t *);
+const char *get_gpu_modelview_str (hikaru_gpu_modelview_t *);
 const char *get_gpu_material_str (hikaru_gpu_material_t *);
 const char *get_gpu_texhead_str (hikaru_gpu_texhead_t *);
 const char *get_gpu_light_str (hikaru_gpu_light_t *);
+const char *get_gpu_vertex_str (hikaru_gpu_vertex_t *v,
+                                hikaru_gpu_vertex_info_t *vi);
 const char *get_gpu_layer_str (hikaru_gpu_layer_t *);
 
+/* hikaru-gpu-insns.c */
 void hikaru_gpu_cp_init (hikaru_gpu_t *);
 void hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu);
 
-static inline uint32_t
-coords_to_offs_16 (uint32_t x, uint32_t y)
-{
-	return y * 4096 + x * 2;
-}
-
-static inline uint32_t
-coords_to_offs_32 (uint32_t x, uint32_t y)
-{
-	return y * 4096 + x * 4;
-}
+/* hikaru-renderer.c */
+void hikaru_renderer_draw_layer (vk_renderer_t *renderer,
+                                 hikaru_gpu_layer_t *layer);
+void hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, bool is_static);
+void hikaru_renderer_end_mesh (hikaru_renderer_t *hr);
+void hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
+                                    hikaru_gpu_vertex_t *v,
+                                    hikaru_gpu_vertex_info_t *vi,
+                                    unsigned num);
 
 #endif /* __HIKARU_GPU_PRIVATE_H__ */

@@ -1196,6 +1196,8 @@ hikaru_init (hikaru_t *hikaru)
 	if (!hikaru->gpu || !hikaru->base.renderer)
 		goto fail;
 
+	hikaru_renderer_set_gpu (hikaru->base.renderer, hikaru->gpu);
+
 	hikaru->aica_m = hikaru_aica_new (mach, hikaru->aica_ram_m, true);
 	hikaru->aica_s = hikaru_aica_new (mach, hikaru->aica_ram_m, false);
 

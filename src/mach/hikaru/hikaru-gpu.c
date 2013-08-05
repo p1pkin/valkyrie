@@ -800,31 +800,6 @@ hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu)
  * PH:@0C01290A.
  */
 
-void
-slot_to_coords (uint32_t *basex, uint32_t *basey, uint32_t slotx, uint32_t sloty)
-{
-	if (slotx < 0x80 || sloty < 0xC0) {
-		/*
-		 * This case is triggered by the following CP code, used by
-		 * the BOOTROM:
-		 *
-		 * GPU CMD 480008B0: Texhead: Set Unknown [000100C1]
-		 * GPU CMD 480008B4: Texhead: Set Format/Size [C08002C1]
-		 * GPU CMD 480008B8: Texhead: Set Slot [0000C4C1]
-		 * GPU CMD 480008BC: Commit Texhead [000010C4] n=0 e=1
-		 * GPU CMD 480008C0: Recall Texhead [000010C3] () n=0 e=1
-		 *
-		 * Note how the params to 2C1 and 4C1 are swapped.
-		 */
-		VK_ERROR ("GPU: invalid slot %X,%X", slotx, sloty);
-		*basex = 0;
-		*basey = 0;
-	} else {
-		*basex = (slotx - 0x80) * 16;
-		*basey = (sloty - 0xC0) * 16;
-	}
-}
-
 static uint32_t
 calc_full_texture_size (hikaru_gpu_texhead_t *texhead)
 {

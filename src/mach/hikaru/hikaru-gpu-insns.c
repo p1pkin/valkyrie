@@ -661,25 +661,36 @@ I (0x003)
 
 I (0x161)
 {
+	hikaru_gpu_modelview_t *mv = &gpu->modelviews.stack[gpu->modelviews.depth];
+	uint32_t push, elem;
+
 	switch ((inst[0] >> 8) & 0xF) {
 
-	case 1: {
-			uint32_t push = (inst[0] >> 18) & 1;
-			uint32_t elem = (inst[0] >> 16) & 3;
-			vec3f_t v;
+	case 1:
+		push = (inst[0] >> 18) & 1;
+		elem = (inst[0] >> 16) & 3;
 
-			v[0] = *(float *) &inst[1];
-			v[1] = *(float *) &inst[2];
-			v[2] = *(float *) &inst[3];
-
-			DISASM (4, "mtx: set vector [%c %u (%f %f %f)]",
-			        push ? 'P' : ' ', elem, v[0], v[1], v[2]);
-
-			UNHANDLED |= !!(inst[0] & 0xFFF0F000);
-			UNHANDLED |= !isfinite (v[0]);
-			UNHANDLED |= !isfinite (v[1]);
-			UNHANDLED |= !isfinite (v[2]);
+		if (push && elem == 0) {
+			/* XXX push the matrix stack */
 		}
+
+		/* We store the columns as rows to facilitate the
+		 * translation to GL column-major convertion in the
+		 * renderer. */
+		mv->mtx[elem][0] = *(float *) &inst[1];
+		mv->mtx[elem][1] = *(float *) &inst[2];
+		mv->mtx[elem][2] = *(float *) &inst[3];
+		mv->mtx[elem][3] = (elem == 3) ? 1.0f : 0.0f;
+
+		DISASM (4, "mtx: set vector [%c %u (%f %f %f %f)]",
+		        push ? 'P' : ' ', elem,
+		        mv->mtx[elem][0], mv->mtx[elem][1],
+		        mv->mtx[elem][2], mv->mtx[elem][3]);
+
+		UNHANDLED |= !!(inst[0] & 0xFFF0F000);
+		UNHANDLED |= !isfinite (mv->mtx[elem][0]);
+		UNHANDLED |= !isfinite (mv->mtx[elem][1]);
+		UNHANDLED |= !isfinite (mv->mtx[elem][2]);
 		break;
 
 	case 5:
@@ -1371,13 +1382,6 @@ I (0x043)
  Meshes
 ****************************************************************************/
 
-static float
-texcoord_to_float (uint32_t x)
-{
-	int32_t u = (x & 0x8000) ? (x | 0xFFFF8000) : x;
-	return u / 16.0f;
-}
-
 /* 101	Mesh: Set Unknown
  *
  *	----nnuu uuuuuuuu ----000o oooooooo
@@ -1419,7 +1423,6 @@ texcoord_to_float (uint32_t x)
 I (0x101)
 {
 	uint32_t log;
-	float precision;
 
 	switch ((inst[0] >> 8) & 0xF) {
 	case 1:
@@ -1442,9 +1445,9 @@ I (0x101)
 
 	case 9:
 		log = (inst[0] >> 16) & 0xFF;
-		precision = 1.0f / (1 << (0x8F - log - 2));
+		gpu->static_mesh_precision = 1.0f / (1 << (0x8F - log - 2));
 
-		DISASM (1, "mesh: set precision s [%u %f]", log, precision);
+		DISASM (1, "mesh: set precision s [%u %f]", log, gpu->static_mesh_precision);
 	
 		UNHANDLED |= !!(inst[0] & 0xFF00F000);
 		break;
@@ -1546,57 +1549,100 @@ I (0x101)
  * the fixed-point decoding kindly provided by CaH4e3.
  */
 
+static void
+decode_vertex_header (hikaru_gpu_vertex_t *v,
+                      hikaru_gpu_vertex_info_t *vi,
+                      uint32_t inst0)
+{
+	memset ((void *) v, 0, sizeof (hikaru_gpu_vertex_t));
+	memset ((void *) vi, 0, sizeof (hikaru_gpu_vertex_info_t));
+
+	v->alpha = (float) (inst0 >> 24);
+
+	vi->has_pvu_mask	= (inst0 >> 23) & 1;
+	vi->pvu_mask		= (inst0 >> 9) & 7;
+	vi->tpivot		= (inst0 >> 2) & 1;
+	vi->ppivot		= (inst0 >> 1) & 1;
+	vi->winding		= inst0 & 1;
+}
+
+static float
+texcoord_to_float (uint32_t x)
+{
+	int32_t u = (x & 0x8000) ? (x | 0xFFFF8000) : x;
+	return u / 16.0f;
+}
+
 I (0x12C)
 {
-	DISASM (4, "mesh: push pos s");
+	hikaru_gpu_vertex_t v;
+	hikaru_gpu_vertex_info_t vi;
+
+	decode_vertex_header (&v, &vi, inst[0]);
+
+	vi.is_static = true;
+	vi.has_position = true;
+
+	v.pos[0] = (int16_t)(inst[1] >> 16) * gpu->static_mesh_precision;
+	v.pos[1] = (int16_t)(inst[2] >> 16) * gpu->static_mesh_precision;
+	v.pos[2] = (int16_t)(inst[3] >> 16) * gpu->static_mesh_precision;
+
+	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v, &vi, 1);
 
 	UNHANDLED |= !!(inst[0] & 0x007F0000);
+
+	DISASM (4, "mesh: push pos s [%s]", get_gpu_vertex_str (&v, &vi));
 }
 
 I (0x1AC)
 {
-	vec3f_t pos;
+	hikaru_gpu_vertex_t v;
+	hikaru_gpu_vertex_info_t vi;
 
-	pos[0] = *(float *) &inst[1];
-	pos[1] = *(float *) &inst[2];
-	pos[2] = *(float *) &inst[3];
+	decode_vertex_header (&v, &vi, inst[0]);
 
-	DISASM (4, "mesh: push pos d [%f %f %f]", pos[0], pos[1], pos[2]);
+	vi.is_static = false;
+	vi.has_position = true;
 
-	hikaru_renderer_add_vertex (gpu->renderer, pos);
+	v.pos[0] = *(float *) &inst[1];
+	v.pos[1] = *(float *) &inst[2];
+	v.pos[2] = *(float *) &inst[3];
 
-	UNHANDLED |= !!(inst[0] & 0x00FF0000);
+	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v, &vi, 1);
+
+	UNHANDLED |= !!(inst[0] & 0x007F0000);
+
+	DISASM (4, "mesh: push pos d [%s]", get_gpu_vertex_str (&v, &vi));
 }
 
 I (0x1B8)
 {
-	unsigned n, m, p, q;
-	vec3f_t pos, nrm;
-	vec2f_t texcoords;
+	hikaru_gpu_vertex_t v;
+	hikaru_gpu_vertex_info_t vi;
 
-	p = inst[0] >> 24;
-	n = (inst[0] >> 20) & 15;
-	m = (inst[0] >> 16) & 15;
-	q = (inst[0] >> 12) & 15;
+	decode_vertex_header (&v, &vi, inst[0]);
 
-	pos[0] = *(float *) &inst[1];
-	pos[1] = *(float *) &inst[2];
-	pos[2] = *(float *) &inst[3];
+	vi.is_static = false;
+	vi.has_position = true;
+	vi.has_normal = true;
+	vi.has_texcoords = true;
 
-	nrm[0] = *(float *) &inst[5];
-	nrm[1] = *(float *) &inst[6];
-	nrm[2] = *(float *) &inst[7];
+	v.pos[0] = *(float *) &inst[1];
+	v.pos[1] = *(float *) &inst[2];
+	v.pos[2] = *(float *) &inst[3];
 
-	texcoords[0] = texcoord_to_float (inst[4] & 0xFFFF);
-	texcoords[1] = texcoord_to_float (inst[4] >> 16);
+	v.nrm[0] = *(float *) &inst[5];
+	v.nrm[1] = *(float *) &inst[6];
+	v.nrm[2] = *(float *) &inst[7];
 
-	DISASM (8, "mesh: push all d [(%f %f %f) (%f %f %f) (%f %f)]",
-	        pos[0], pos[1], pos[2],
-	        nrm[0], nrm[1], nrm[2],
-		texcoords[0], texcoords[1]);
+	v.txc[0] = texcoord_to_float (inst[4] & 0xFFFF);
+	v.txc[1] = texcoord_to_float (inst[4] >> 16);
 
-	hikaru_renderer_add_vertex_full (gpu->renderer,
-	                                 pos, nrm, texcoords);
+	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v, &vi, 1);
+
+	UNHANDLED |= !!(inst[0] & 0x007F0000);
+
+	DISASM (8, "mesh: push all d [%s]", get_gpu_vertex_str (&v, &vi));
 }
 
 /* 0E8	Mesh: Push Texcoords 3
@@ -1614,22 +1660,27 @@ I (0x1B8)
 
 I (0x0E8)
 {
-	vec2f_t texcoords[3];
+	hikaru_gpu_vertex_t vs[3];
+	hikaru_gpu_vertex_info_t vis[3];
 	unsigned i;
 
 	for (i = 0; i < 3; i++) {
-		texcoords[i][0] = texcoord_to_float (inst[i+1] & 0xFFFF);
-		texcoords[i][1] = texcoord_to_float (inst[i+1] >> 16);
+		decode_vertex_header (&vs[i], &vis[i], inst[0]);
+
+		vis[i].has_texcoords = true;
+
+		vs[i].txc[0] = ((int16_t) inst[i+1]) / 16.0f;
+		vs[i].txc[1] = ((int16_t) (inst[i+1] >> 16)) / 16.0f;
 	}
 
-	DISASM (4, "mesh: push txc 3 [(%f %f) (%f %f) (%f %f)]",
-	        texcoords[0][0], texcoords[0][1],
-	        texcoords[1][0], texcoords[1][1],
-	        texcoords[2][0], texcoords[2][1]);
-
-	hikaru_renderer_add_texcoords (gpu->renderer, texcoords);
+	hikaru_renderer_push_vertices (gpu->renderer, &vs[0], &vis[0], 3);
 
 	UNHANDLED |= !!(inst[0] & 0xFFFEF000);
+
+	DISASM (4, "mesh: push txc 3 [%s]",
+	        get_gpu_vertex_str (&vs[0], &vis[0]),
+	        get_gpu_vertex_str (&vs[1], &vis[1]),
+	        get_gpu_vertex_str (&vs[2], &vis[2]));
 }
 
 /* 158	Mesh: Push Texcoords 1
@@ -1642,16 +1693,21 @@ I (0x0E8)
 
 I (0x158)
 {
-	vec2f_t texcoords;
+	hikaru_gpu_vertex_t v;
+	hikaru_gpu_vertex_info_t vi;
 
-	texcoords[0] = texcoord_to_float (inst[1] & 0xFFFF);
-	texcoords[1] = texcoord_to_float (inst[1] >> 16);
+	decode_vertex_header (&v, &vi, inst[0]);
 
-	DISASM (2, "mesh: push txc 1 [(%f %f)]", texcoords[0], texcoords[1]);
+	vi.has_texcoords = true;
 
-	/* TODO: call the renderer */
+	v.txc[0] = ((int16_t) inst[1]) / 16.0f;
+	v.txc[1] = ((int16_t) (inst[1] >> 16)) / 16.0f;
+
+	hikaru_renderer_push_vertices (gpu->renderer, &v, &vi, 1);
 
 	UNHANDLED |= !!(inst[0] & 0xFF7FF000);
+
+	DISASM (2, "mesh: push txc 1 [%s]", get_gpu_vertex_str (&v, &vi));
 }
 
 /****************************************************************************
@@ -1871,7 +1927,8 @@ static struct {
 #define FLAG_BEGIN	(1 << 1)
 #define FLAG_CONTINUE	(1 << 2)
 #define FLAG_PUSH	(FLAG_BEGIN | FLAG_CONTINUE)
-#define FLAG_INVALID	(1 << 3)
+#define FLAG_STATIC	(1 << 3)
+#define FLAG_INVALID	(1 << 4)
 
 #define D(op_, base_op_, size_, flags_) \
 	{ op_, size_, flags_, hikaru_gpu_inst_##base_op_ }
@@ -1916,10 +1973,10 @@ static const struct {
 	D(0x103, 0x103, 4,	0),
 	D(0x104, 0x104, 4,	0),
 	D(0x113, 0x113, 4,	0),
-	D(0x12C, 0x12C, 16,	FLAG_PUSH),
-	D(0x12D, 0x12C, 16,	FLAG_PUSH),
-	D(0x12E, 0x12C, 16,	FLAG_PUSH),
-	D(0x12F, 0x12C, 16,	FLAG_PUSH),
+	D(0x12C, 0x12C, 16,	FLAG_PUSH | FLAG_STATIC),
+	D(0x12D, 0x12C, 16,	FLAG_PUSH | FLAG_STATIC),
+	D(0x12E, 0x12C, 16,	FLAG_PUSH | FLAG_STATIC),
+	D(0x12F, 0x12C, 16,	FLAG_PUSH | FLAG_STATIC),
 	/* 0x140 */
 	D(0x154, 0x154, 8,	0),
 	D(0x158, 0x158, 8,	FLAG_PUSH),
@@ -2022,12 +2079,10 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 		VK_ASSERT (!(flags & FLAG_INVALID));
 
 		if (!gpu->in_mesh && (flags & FLAG_BEGIN)) {
-			/* XXX begin mesh */
-			VK_LOG ("CP @%08X: ---- BEGINNING MESH ----", gpu->cp.pc);
+			hikaru_renderer_begin_mesh (gpu->renderer,
+			                            !!(flags & FLAG_STATIC));
 			gpu->in_mesh = true;
 		} else if (gpu->in_mesh && !(flags & FLAG_CONTINUE)) {
-			/* XXX end mesh */
-			VK_LOG ("CP @%08X: ---- ENDING MESH ----", gpu->cp.pc);
 			hikaru_renderer_end_mesh (gpu->renderer);
 			gpu->in_mesh = false;
 		}
