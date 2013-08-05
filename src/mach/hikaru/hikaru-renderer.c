@@ -107,7 +107,7 @@ decode_texhead_rgba_16 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 		uint32_t base = (basey + y) * 4096 + basex * 2;
 		for (x = 0; x < texhead->width; x++) {
 			uint32_t offs  = base + x * 2;
-			uint16_t texel = vk_buffer_get (texram, 2, offs);
+			uint16_t texel = vk_buffer_get (texram, 2, offs ^ 2);
 			vk_surface_put16 (surface, x, y, texel);
 		}
 	}
