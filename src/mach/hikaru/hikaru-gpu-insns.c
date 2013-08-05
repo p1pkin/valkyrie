@@ -596,8 +596,6 @@ I (0x003)
 	}
 
 	gpu->viewports.table[index].used = true;
-	hikaru_renderer_set_viewport (gpu->renderer,
-	                              &gpu->viewports.table[index]);
 
 	UNHANDLED |= !!(inst[0] & 0xFFF89E00);
 }
@@ -678,8 +676,6 @@ I (0x161)
 
 			DISASM (4, "mtx: set vector [%c %u (%f %f %f)]",
 			        push ? 'P' : ' ', elem, v[0], v[1], v[2]);
-
-			hikaru_renderer_set_modelview_vector (gpu->renderer, elem, 0, v);
 
 			UNHANDLED |= !!(inst[0] & 0xFFF0F000);
 			UNHANDLED |= !isfinite (v[0]);
@@ -951,8 +947,6 @@ I (0x083)
 			UNHANDLED |= true;
 			return;
 		}
-		hikaru_renderer_set_material (gpu->renderer,
-		                              &gpu->materials.table[index]);
 	}
 
 	UNHANDLED |= !!(inst[0] & 0x0000E000);
@@ -1115,8 +1109,6 @@ I (0x0C3)
 			return;
 		}
 		gpu->texheads.table[index].used = true;
-		hikaru_renderer_set_texhead (gpu->renderer,
-		                             &gpu->texheads.table[index]);
 	}
 
 	UNHANDLED |= !!(inst[0] & 0x0000E000);
@@ -1374,9 +1366,6 @@ I (0x043)
 			return;
 		}
 		gpu->lights.sets[index].used = true;
-		hikaru_renderer_set_lightset (gpu->renderer,
-		                              &gpu->lights.sets[index],
-		                              enabled_mask);
 	}
 
 	UNHANDLED |= !!(inst[0] & 0xF000E000);
