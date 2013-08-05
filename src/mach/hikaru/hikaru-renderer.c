@@ -164,7 +164,7 @@ upload_current_state (hikaru_renderer_t *hr)
 	         (GLfloat) vp->extents_x[1],	/* right */
 	         -(GLfloat) vp->extents_y[1],	/* bottom */
 	         (GLfloat) vp->extents_y[0],	/* top */
-	         -1.0f, 1.0f);			/* near, far */
+	         0.0f, 1280.0f);			/* near, far */
 
 	/* Modelview */
 	glMatrixMode (GL_MODELVIEW);
@@ -205,6 +205,25 @@ upload_current_state (hikaru_renderer_t *hr)
 static void
 draw_current_mesh (hikaru_renderer_t *hr)
 {
+	uint16_t i;
+
+	glColor3f (0.0f, 1.0f, 0.0f);
+	glBegin (GL_TRIANGLE_STRIP);
+	for (i = 0; i < hr->mesh.iindex; i++) {
+		uint16_t index = hr->mesh.ibo[i];
+		if (index == RESTART_INDEX) {
+			glBegin (GL_TRIANGLE_STRIP);
+			glEnd ();
+			LOG ("#%u RESTART!", i);
+			continue;
+		} else {
+			hikaru_gpu_vertex_t *v = &hr->mesh.vbo[index];
+			LOG ("#%u index=%u vertex=(%f %f %f)", i, index,
+			     v->pos[0], v->pos[1], v->pos[2]);
+			glVertex3f (v->pos[0], v->pos[1], v->pos[2]);
+		}
+	}
+	glEnd ();
 }
 
 #define VK_COPY_VEC2F(dst_, src_) \
@@ -306,6 +325,8 @@ hikaru_renderer_end_mesh (hikaru_renderer_t *hr)
 
 	upload_current_state (hr);
 	draw_current_mesh (hr);
+
+	memset ((void *) &hr->mesh, 0, sizeof (hr->mesh));
 
 	LOG ("==== END MESH (#vertices=%u #indices=%u ====",
 	     hr->mesh.vindex, hr->mesh.iindex);
