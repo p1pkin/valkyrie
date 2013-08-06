@@ -757,6 +757,9 @@ I (0x161)
  *	bbbbbbbb bbbbbbbb gggggggg gggggggg
  *
  * See PH:@0C0CF7CC.
+ *
+ * See also commands A91 and C91 in BRAVEFF title screen. Variants are:
+ * 00000A91, 00020A91; and 00000C91, 00020C91, 000C0C91.
  */
 
 I (0x091)
