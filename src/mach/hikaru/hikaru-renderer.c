@@ -26,7 +26,7 @@
 #define LOG(fmt_, args_...) \
 	do { \
 		if (hr->options.log) \
-			fprintf (stdout, "HR: " fmt_"\n", ##args_); \
+			fprintf (stdout, "\tHR: " fmt_"\n", ##args_); \
 	} while (0);
 
 /****************************************************************************
@@ -192,6 +192,8 @@ upload_current_state (hikaru_renderer_t *hr)
 			hr->textures.current = surface;
 			vk_surface_commit (surface);
 		}
+		glEnable (GL_TEXTURE_2D);
+		glDisable (GL_BLEND);
 	}
 
 	/* Lighting */
@@ -202,6 +204,9 @@ static void
 draw_current_mesh (hikaru_renderer_t *hr)
 {
 	uint16_t i;
+
+	LOG ("==== DRAWING MESH (#vertices=%u #indices=%u) ====",
+	     hr->mesh.vindex, hr->mesh.iindex);
 
 	glBegin (GL_TRIANGLE_STRIP);
 	for (i = 0; i < hr->mesh.iindex; i++) {
@@ -215,10 +220,10 @@ draw_current_mesh (hikaru_renderer_t *hr)
 			hikaru_gpu_vertex_t *v = &hr->mesh.vbo[index];
 			LOG ("#%u index=%u vertex=(%f %f %f)", i, index,
 			     v->pos[0], v->pos[1], v->pos[2]);
-			glColor3f ((rand () & 255) / 255.0f,
-			           (rand () & 255) / 255.0f,
-			           (rand () & 255) / 255.0f);
+
+			glColor3f (1.0f, 1.0f, 1.0f);
 			glVertex3f (v->pos[0], v->pos[1], v->pos[2]);
+			glTexCoord2f (v->txc[0], v->txc[1]);
 		}
 	}
 	glEnd ();
@@ -236,6 +241,16 @@ draw_current_mesh (hikaru_renderer_t *hr)
 		dst_[1] = src_[1]; \
 		dst_[2] = src_[2]; \
 	} while (0)
+
+static void
+copy_texcoords (hikaru_renderer_t *hr,
+                hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_t *src)
+{
+	hikaru_gpu_texhead_t *th = &hr->gpu->texheads.scratch;
+
+	dst->txc[0] = src->txc[0] / th->width;
+	dst->txc[1] = src->txc[1] / th->height;
+}
 
 void
 hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
@@ -292,7 +307,7 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 			VK_COPY_VEC3F (curv->nrm, v->nrm);
 
 		if (vi->has_texcoords)
-			VK_COPY_VEC2F (curv->txc, v->txc);
+			copy_texcoords (hr, curv, v);
 
 		if (vi->has_position) {
 			hr->mesh.vindex++;
@@ -311,8 +326,6 @@ hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, bool is_static)
 		return;
 
 	memset ((void *) &hr->mesh, 0, sizeof (hr->mesh));
-
-	LOG ("==== BEGIN MESH ====");
 }
 
 void
@@ -325,9 +338,6 @@ hikaru_renderer_end_mesh (hikaru_renderer_t *hr)
 	draw_current_mesh (hr);
 
 	memset ((void *) &hr->mesh, 0, sizeof (hr->mesh));
-
-	LOG ("==== END MESH (#vertices=%u #indices=%u ====",
-	     hr->mesh.vindex, hr->mesh.iindex);
 }
 
 /****************************************************************************
@@ -414,6 +424,7 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer, hikaru_gpu_layer_t *layer)
 
 	LOG ("drawing layer %s", get_gpu_layer_str (layer));
 
+	glColor3f (1.0f, 1.0f, 1.0f);
 	glDisable (GL_SCISSOR_TEST);
 
 	/* XXX cache the layers and use dirty rectangles to upload only the

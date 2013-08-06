@@ -175,6 +175,7 @@ disasm (hikaru_gpu_t *gpu, uint32_t *inst, unsigned nwords, const char *fmt, ...
 		else
 			tmp += sprintf (tmp, "........ ");
 	}
+	tmp += sprintf (tmp, "%c ", gpu->in_mesh ? 'M' : ' ');
 	if (UNHANDLED)
 		tmp += sprintf (tmp, " *UNHANDLED* ");
 	vsnprintf (tmp, sizeof (out), fmt, args);
@@ -1386,7 +1387,7 @@ I (0x043)
  Meshes
 ****************************************************************************/
 
-/* 101	Mesh: Set Unknown
+/* 101	Mesh: Set Unknown (Set Light Unknown?)
  *
  *	----nnuu uuuuuuuu ----000o oooooooo
  *
@@ -1883,7 +1884,7 @@ I (0x0D1)
 	UNHANDLED |= !!(inst[0] & 0xFFFCF000);
 }
 
-/* 103	Recall Unknown
+/* 103	Recall Unknown (Recall Light?)
  *
  *	FFFFFFFF -------- ----ssso oooooooo
  *
@@ -2059,8 +2060,14 @@ fetch (hikaru_gpu_t *gpu, uint32_t **inst)
 /* AIRTRIX, draw the first 10 or so static meshes. */
 //static uint32_t breakpoint = 0x48004AA8;
 
+/* PHARRIER, the first quads */
+//static uint32_t breakpoint = 0x482F5C20;
+
+/* PHARRIER, the complex mesh */
+static uint32_t breakpoint = 0x482FBD08;
+
 /* No breakpoint */
-static uint32_t breakpoint = 0xFFFFFFFF;
+//static uint32_t breakpoint = 0xFFFFFFFF;
 
 void
 hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
