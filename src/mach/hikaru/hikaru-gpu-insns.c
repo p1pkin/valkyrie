@@ -2057,20 +2057,7 @@ fetch (hikaru_gpu_t *gpu, uint32_t **inst)
 	return -1;
 }
 
-/* AIRTRIX, after the very first mesh (board or something). */
-//static uint32_t breakpoint = 0x482FBC60;
-
-/* AIRTRIX, draw the first 10 or so static meshes. */
-//static uint32_t breakpoint = 0x48004AA8;
-
-/* PHARRIER, the first quads */
-//static uint32_t breakpoint = 0x482F5C20;
-
-/* PHARRIER, the complex mesh */
-static uint32_t breakpoint = 0x482FBD08;
-
-/* No breakpoint */
-//static uint32_t breakpoint = 0xFFFFFFFF;
+static uint32_t breakpoint = 0xFFFFFFFF;
 
 void
 hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
