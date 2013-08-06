@@ -160,11 +160,7 @@ upload_current_state (hikaru_renderer_t *hr)
 	/* Viewport */
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
-	glOrtho ((GLfloat) vp->extents_x[0],	/* left */
-	         (GLfloat) vp->extents_x[1],	/* right */
-	         -(GLfloat) vp->extents_y[1],	/* bottom */
-	         (GLfloat) vp->extents_y[0],	/* top */
-		vp->persp_znear, vp->persp_zfar);
+	gluPerspective (90.0f, vp->extents_x[1] / vp->extents_y[1], 0.01f, 1e5);
 
 	/* Modelview */
 	glMatrixMode (GL_MODELVIEW);
@@ -491,6 +487,10 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	/* clear the frame buffer to a bright pink color */
 	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	/* Reset the modelview matrix */
+	glMatrixMode (GL_MODELVIEW);
+	glLoadIdentity ();
 
 	/* Draw the FB and/or TEXRAM if asked to do so */
 	if (hr->options.draw_fb) {

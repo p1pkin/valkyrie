@@ -343,8 +343,8 @@ I (0x1C2)
  *
  *  (height / 2) / tanf(some_angle / 2)
  *
- * which assuming some_angle is fovy, is the formula for computing the far clipping
- * planes. I have no idea why there are two identical entries tho.
+ * which assuming some_angle is fovy, is the formula for computing the far
+ * clipping planes. I have no idea why there are two identical entries tho.
  *
  * See PH:@0C01587C, PH:@0C0158A4, PH:@0C0158E8.
  *
@@ -418,7 +418,7 @@ I (0x021)
 		UNHANDLED |= !ispositive (vp->persp_zfar);
 		UNHANDLED |= !ispositive (vp->persp_znear);
 
-		DISASM (4, "vp: set projection [zfar=%f znear=%f]",
+		DISASM (4, "vp: set Z clip [zfar=%f znear=%f]",
 		        gpu->viewports.scratch.persp_zfar,
 		        gpu->viewports.scratch.persp_znear);
 		break;
@@ -435,7 +435,7 @@ I (0x021)
 		UNHANDLED |= !!(inst[2] & 0xC0008000);
 		UNHANDLED |= !!(inst[3] & 0xC0008000);
 	
-		DISASM (4, "vp: set extents [center=(%u,%u) x=(%u,%u) y=(%u,%u)]",
+		DISASM (4, "vp: set XY clip [?=(%u,%u) x=(%u,%u) y=(%u,%u)]",
 		        vp->center[0], vp->center[1],
 		        vp->extents_x[0], vp->extents_x[1],
 		        vp->extents_y[0], vp->extents_y[1]);
@@ -607,7 +607,7 @@ I (0x003)
  *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
  *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
  *
- * U = Unknown
+ * U = Unknown (Multiply? Mutually exclusive with P)
  * P = Push
  * n = Element index
  * x,y,z = Elements
