@@ -284,7 +284,8 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 				/* Update the pivot index. */
 				hr->mesh.ppivot = hr->mesh.vindex - 2;
 			} else {
-				VK_ASSERT (hr->mesh.vindex >= 2);
+				if (hr->mesh.vindex < 2)
+					return;
 
 				/* If the ppivot bit is set, the incoming
 				 * vertex is part of a triangle "fan", i.e.,
