@@ -1183,8 +1183,8 @@ I (0x061)
 	        lit->emission_type, lit->emission_p, lit->emission_q);
 
 	UNHANDLED |= !!(inst[0] & 0xFFFCF000);
-	UNHANDLED |= !ispositive (lit->emission_p);
-	UNHANDLED |= !ispositive (lit->emission_q);
+	UNHANDLED |= !isfinite (lit->emission_p);
+	UNHANDLED |= !isfinite (lit->emission_q);
 }
 
 /* 051	Light: Set Color-like
