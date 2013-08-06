@@ -218,8 +218,9 @@ draw_current_mesh (hikaru_renderer_t *hr)
 			continue;
 		} else {
 			hikaru_gpu_vertex_t *v = &hr->mesh.vbo[index];
-			LOG ("#%u index=%u vertex=(%f %f %f)", i, index,
-			     v->pos[0], v->pos[1], v->pos[2]);
+			LOG ("#%u index=%u vertex=(%f %f %f) txc=(%f %f)", i, index,
+			     v->pos[0], v->pos[1], v->pos[2],
+			     v->txc[0], v->txc[1]);
 
 			glColor3f (1.0f, 1.0f, 1.0f);
 			glVertex3f (v->pos[0], v->pos[1], v->pos[2]);
