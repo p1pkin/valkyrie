@@ -62,7 +62,6 @@ typedef struct {
 	uint32_t depthq_enabled	: 1;	/* 621 */
 	uint32_t depthq_unk	: 1;	/* 621 */
 	uint32_t set		: 1;
-	uint32_t used		: 1;
 	uint32_t uploaded	: 1;
 } hikaru_gpu_viewport_t;
 
@@ -84,7 +83,6 @@ typedef struct {
 	uint32_t has_highlight	: 1;	/* 881 */
 	uint32_t blending_mode	: 2;	/* A81 */
 	uint32_t set		: 1;
-	uint32_t used		: 1;
 	uint32_t uploaded	: 1;
 } hikaru_gpu_material_t;
 
@@ -105,7 +103,6 @@ typedef struct {
 	uint32_t bank		: 1;	/* 4C1 */
 	uint32_t has_mipmap	: 1;
 	uint32_t set		: 1;
-	uint32_t used		: 1;
 	uint32_t uploaded	: 1;
 } hikaru_gpu_texhead_t;
 
@@ -122,13 +119,11 @@ typedef struct {
 	uint32_t _051_index	: 8; /* XXX review me */
 	vec3s_t _051_color;
 	uint32_t set		: 1;
-	uint32_t used		: 1;
 } hikaru_gpu_light_t;
 
 typedef struct {
 	hikaru_gpu_light_t *lights[4];
 	uint32_t set		: 1;
-	uint32_t used		: 1;
 	uint32_t uploaded	: 1;
 } hikaru_gpu_lightset_t;
 
