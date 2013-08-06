@@ -2053,6 +2053,15 @@ fetch (hikaru_gpu_t *gpu, uint32_t **inst)
 	return -1;
 }
 
+/* AIRTRIX, after the very first mesh (board or something). */
+//static uint32_t breakpoint = 0x482FBC60;
+
+/* AIRTRIX, draw the first 10 or so static meshes. */
+//static uint32_t breakpoint = 0x48004AA8;
+
+/* No breakpoint */
+static uint32_t breakpoint = 0xFFFFFFFF;
+
 void
 hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 {
@@ -2070,6 +2079,9 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 	while (cycles > 0 && gpu->cp.is_running) {
 		uint32_t *inst, op;
 		uint16_t flags;
+
+		if (gpu->cp.pc == breakpoint)
+			break;
 
 		if (fetch (gpu, &inst)) {
 			VK_ERROR ("CP %08X: invalid PC, skipping CS", gpu->cp.pc);

@@ -203,7 +203,6 @@ draw_current_mesh (hikaru_renderer_t *hr)
 {
 	uint16_t i;
 
-	glColor3f (0.0f, 1.0f, 0.0f);
 	glBegin (GL_TRIANGLE_STRIP);
 	for (i = 0; i < hr->mesh.iindex; i++) {
 		uint16_t index = hr->mesh.ibo[i];
@@ -216,6 +215,9 @@ draw_current_mesh (hikaru_renderer_t *hr)
 			hikaru_gpu_vertex_t *v = &hr->mesh.vbo[index];
 			LOG ("#%u index=%u vertex=(%f %f %f)", i, index,
 			     v->pos[0], v->pos[1], v->pos[2]);
+			glColor3f ((rand () & 255) / 255.0f,
+			           (rand () & 255) / 255.0f,
+			           (rand () & 255) / 255.0f);
 			glVertex3f (v->pos[0], v->pos[1], v->pos[2]);
 		}
 	}
