@@ -208,8 +208,8 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	for (i = 0; i < hr->mesh.iindex; i++) {
 		uint16_t index = hr->mesh.ibo[i];
 		if (index == RESTART_INDEX) {
-			glBegin (GL_TRIANGLE_STRIP);
 			glEnd ();
+			glBegin (GL_TRIANGLE_STRIP);
 			LOG ("#%u RESTART!", i);
 			continue;
 		} else {
