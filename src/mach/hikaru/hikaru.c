@@ -824,7 +824,6 @@ hikaru_set_rombd_config (hikaru_t *hikaru)
 		maskrom_bank_size = 8;
 		maskrom_is_stretched = true;
 	} else if (!strcmp (game->name, "sgnascar")) {
-		/* XXX doesn't pass the ROMBD test */
 		rombd_offs = 8;
 		eprom_bank_size = 4;
 		maskrom_bank_size = 16;
