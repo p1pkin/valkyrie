@@ -593,6 +593,8 @@ I (0x003)
 		return;
 	}
 
+	gpu->viewports.scratch = gpu->viewports.table[index];
+
 	UNHANDLED |= !!(inst[0] & 0xFFF89E00);
 }
 
@@ -954,6 +956,8 @@ I (0x083)
 			UNHANDLED |= true;
 			return;
 		}
+
+		gpu->materials.table[index] = gpu->materials.scratch;
 	}
 
 	UNHANDLED |= !!(inst[0] & 0x0000E000);
@@ -1115,6 +1119,8 @@ I (0x0C3)
 			UNHANDLED |= true;
 			return;
 		}
+
+		gpu->texheads.table[index] = gpu->texheads.scratch;
 	}
 
 	UNHANDLED |= !!(inst[0] & 0x0000E000);
