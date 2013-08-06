@@ -162,6 +162,12 @@ upload_current_state (hikaru_renderer_t *hr)
 	glLoadIdentity ();
 	gluPerspective (90.0f, vp->extents_x[1] / vp->extents_y[1], 0.01f, 1e5);
 
+	if (vp->depth_func) {
+		glEnable (GL_DEPTH_TEST);
+	} else {
+		glDisable (GL_DEPTH_TEST);
+	}
+
 	/* Modelview */
 	glMatrixMode (GL_MODELVIEW);
 	glLoadMatrixf ((GLfloat *) &mv->mtx[0][0]);
