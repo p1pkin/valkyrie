@@ -16,8 +16,6 @@
  * along with Valkyrie.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <math.h>
-
 #include "mach/hikaru/hikaru-renderer.h"
 #include "mach/hikaru/hikaru-gpu-private.h"
 
