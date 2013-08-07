@@ -225,11 +225,6 @@ ispositive (float x)
  Control Flow
 ****************************************************************************/
 
-I (invalid)
-{
-	UNHANDLED |= true;
-}
-
 /* 000	Nop
  *
  *	-------- -------- -------o oooooooo
@@ -2015,7 +2010,7 @@ hikaru_gpu_cp_init (hikaru_gpu_t *gpu)
 {
 	unsigned i;
 	for (i = 0; i < 0x200; i++) {
-		insns[i].handler = hikaru_gpu_inst_invalid;
+		insns[i].handler = NULL;
 		insns[i].size = 0;
 		insns[i].flags = FLAG_INVALID;
 	}
