@@ -20,7 +20,6 @@
 
 #include "mach/hikaru/hikaru-gpu.h"
 #include "mach/hikaru/hikaru-gpu-private.h"
-#include "mach/hikaru/hikaru-renderer.h"
 
 /*
  * Command Processor
