@@ -24,8 +24,6 @@
 #include "vk/device.h"
 #include "vk/surface.h"
 
-/* hikaru-gpu.c, hikaru-gpu-insns.c, hikaru-renderer.c */
-
 #define NUM_VIEWPORTS	8
 #define NUM_MODELVIEWS	256
 #define NUM_MATERIALS	16384 /* XXX bogus */
@@ -35,7 +33,7 @@
 
 #define MAX_VERTICES_PER_MESH	4096
 
-/* Used for texheads and layers */
+/* Used for both texheads and layers */
 enum {
 	HIKARU_FORMAT_RGBA5551 = 0,
 	HIKARU_FORMAT_RGBA4444 = 1,
