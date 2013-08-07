@@ -163,9 +163,7 @@ typedef struct {
 	unsigned format;
 } hikaru_gpu_layer_t;
 
-typedef struct hikaru_gpu_t hikaru_gpu_t;
-
-struct hikaru_gpu_t {
+typedef struct {
 	vk_device_t base;
 
 	vk_buffer_t *cmdram;
@@ -228,7 +226,8 @@ struct hikaru_gpu_t {
 		bool log_idma;
 		bool log_cp;
 	} options;
-};
+
+} hikaru_gpu_t;
 
 typedef struct {
 	vk_renderer_t base;
