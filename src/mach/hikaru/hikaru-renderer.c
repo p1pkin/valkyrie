@@ -224,7 +224,7 @@ upload_current_state (hikaru_renderer_t *hr)
 	/* XXX color 0 and 1 seem to be per-vertex; see the CRT test screen. */
 
 	/* Texhead */
-	if (!mat->has_texture)
+	if (!mat->has_texture || !mat->set || !th->set)
 		glDisable (GL_TEXTURE_2D);
 	else {
 		vk_surface_t *surface;
@@ -310,9 +310,15 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst)
 	/* XXX at the moment we use only color 1 (it's responsible for the
 	 * BOOTROM CRT test). */
 
-	dst->col[0] = mat->color[1][0] / 255.0f;
-	dst->col[1] = mat->color[1][1] / 255.0f;
-	dst->col[2] = mat->color[1][2] / 255.0f;
+	if (mat->set) {
+		dst->col[0] = mat->color[1][0] / 255.0f;
+		dst->col[1] = mat->color[1][1] / 255.0f;
+		dst->col[2] = mat->color[1][2] / 255.0f;
+	} else {
+		dst->col[0] = 1.0f;
+		dst->col[1] = 1.0f;
+		dst->col[2] = 1.0f;
+	}
 }
 
 static void
@@ -321,8 +327,13 @@ copy_texcoords (hikaru_renderer_t *hr,
 {
 	hikaru_gpu_texhead_t *th = &hr->gpu->texheads.scratch;
 
-	dst->txc[0] = src->txc[0] / th->width;
-	dst->txc[1] = src->txc[1] / th->height;
+	if (th->set) {
+		dst->txc[0] = src->txc[0] / th->width;
+		dst->txc[1] = src->txc[1] / th->height;
+	} else {
+		dst->txc[0] = 0.0f;
+		dst->txc[1] = 0.0f;
+	}
 }
 
 void
