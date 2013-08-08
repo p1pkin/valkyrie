@@ -233,25 +233,28 @@ upload_current_state (hikaru_renderer_t *hr)
 		if (hr->textures.current != hr->textures.debug)
 			vk_surface_destroy (&hr->textures.current);
 
-		/* Decode the texhead data into a vk_surface */
-		surface = decode_texhead (hr, th);
-
-		if (!surface || hr->options.force_debug_texture) {
-			/* If the texhead could not be decoded, use the
-			 * debug texture. */
+		if (hr->options.force_debug_texture) {
+			/* Use the debug texture. */
 			hr->textures.current = hr->textures.debug;
 			vk_surface_bind (hr->textures.debug);
 		} else {
-			/* Upload and use the decoded texhead. */
-			hr->textures.current = surface;
-			vk_surface_commit (surface);
+			/* Decode the texhead data into a vk_surface. */
+			surface = decode_texhead (hr, th);
+			if (!surface) {
+				/* If the texhead could not be decoded, use the
+				 * debug texture. */
+				hr->textures.current = hr->textures.debug;
+				vk_surface_bind (hr->textures.debug);
+			} else {
+				/* Upload and use the decoded texhead. */
+				hr->textures.current = surface;
+				vk_surface_commit (surface);
+			}
 		}
+
 		glEnable (GL_TEXTURE_2D);
 		glDisable (GL_BLEND);
 	}
-
-	/* Lighting */
-	glDisable (GL_LIGHTING);
 }
 
 static void
