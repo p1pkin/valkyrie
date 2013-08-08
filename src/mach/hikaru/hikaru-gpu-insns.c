@@ -964,9 +964,10 @@ I (0x083)
 
 /* 0C1	Texhead: Set Bias
  *
- *	----BBBB BBBB---E -----00o oooooooo
+ *	----BBBB BBBB--xE -----00o oooooooo
  *
  * B = Unknown parameter, some form of texture bias? e.g., for mipmapping.
+ * x = Used in BRAVEFF title screen.
  * E = Enabled.
  *
  * See PH:@0C015B7A.
@@ -1012,7 +1013,7 @@ I (0x0C1)
 		DISASM (1, "tex: set bias [ena=%u %X]",
 		        th->_0C1_nibble, th->_0C1_byte);
 
-		UNHANDLED |= !!(inst[0] & 0xF00EF800);
+		UNHANDLED |= !!(inst[0] & 0xF00CF800);
 		break;
 
 	case 2:
