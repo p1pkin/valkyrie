@@ -73,8 +73,8 @@
  *  +0x24	xxxxxxxx wwwwwwww vvvvvvvv uuuuuuuu	Aperture Control 2?
  *  +0x28	-------- -------- -------- --------
  *  +0x2C	-------- -------- -------- --------
- *  +0x30	DDDDDDDD DDDDDDDD DDDDDDDD DDD-----	DMA Destination Address
- *  +0x34	SSSSSSSS SSSSSSSS SSSSSSSS SSS-----	DMA Source Address
+ *  +0x30	SSSSSSSS SSSSSSSS SSSSSSSS SSS-----	DMA Source Address
+ *  +0x34	DDDDDDDD DDDDDDDD DDDDDDDD DDD-----	DMA Destination Address
  *  +0x38	-------C LLLLLLLL LLLLLLLL LLLLLLLL	DMA Control
  *  +0x3C	-------- -------- -------- XXXXXXXX	Unknown
  *
@@ -125,8 +125,8 @@
  *		w = Unknown			F4 [m] (E4, B4, F4 while accessing banks D, E in AIRTRIX)
  *						FD [m] SNDBD	@0C001F3C, @oCooBDFC
  *		x = Unknown			CC [m]		@0C00BDFC, @0C007820 => NIBBLES
- * +0x3x	D = DMA destination address
- * +0x34	S = DMA source address
+ * +0x30	S = DMA source address
+ * +0x34	D = DMA destination address
  * +0x38	C = DMA control (begin/busy)
  *		L = DMA transfer length in 32-bit words
  *		    See @0C008640
