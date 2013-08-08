@@ -583,7 +583,6 @@ I (0x003)
 	if (!gpu->viewports.table[index].set) {
 		VK_ERROR ("CP: recalled viewport was not set (%u), skipping",
 		          index);
-		UNHANDLED |= true;
 		return;
 	}
 
@@ -950,7 +949,6 @@ I (0x083)
 		if (!gpu->materials.table[index].set) {
 			VK_ERROR ("CP: recalled material was not set (%u), skipping",
 			          index);
-			UNHANDLED |= true;
 			return;
 		}
 
@@ -1114,7 +1112,6 @@ I (0x0C3)
 		if (!gpu->texheads.table[index].set) {
 			VK_ERROR ("CP: recalled texhead was not set (%u), skipping",
 			          index);
-			UNHANDLED |= true;
 			return;
 		}
 
