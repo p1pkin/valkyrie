@@ -265,7 +265,6 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	LOG ("==== DRAWING MESH (#vertices=%u #indices=%u) ====",
 	     hr->mesh.vindex, hr->mesh.iindex);
 
-	glColor3f (1.0f, 1.0f, 1.0f);
 	glBegin (GL_TRIANGLE_STRIP);
 	for (i = 0; i < hr->mesh.iindex; i++) {
 		uint16_t index = hr->mesh.ibo[i];
@@ -276,12 +275,15 @@ draw_current_mesh (hikaru_renderer_t *hr)
 			continue;
 		} else {
 			hikaru_gpu_vertex_t *v = &hr->mesh.vbo[index];
-			LOG ("#%u index=%u vertex=(%f %f %f) txc=(%f %f)", i, index,
+			LOG ("#%u index=%u vertex=(%f %f %f) col=(%f %f %f) txc=(%f %f)",
+			     i, index,
 			     v->pos[0], v->pos[1], v->pos[2],
+			     v->col[0], v->col[1], v->col[2],
 			     v->txc[0], v->txc[1]);
 
 			glVertex3fv (v->pos);
 			glTexCoord2fv (v->txc);
+			glColor3fv (v->col);
 		}
 	}
 	glEnd ();
@@ -299,6 +301,19 @@ draw_current_mesh (hikaru_renderer_t *hr)
 		dst_[1] = src_[1]; \
 		dst_[2] = src_[2]; \
 	} while (0)
+
+static void
+copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst)
+{
+	hikaru_gpu_material_t *mat = &hr->gpu->materials.scratch;
+
+	/* XXX at the moment we use only color 1 (it's responsible for the
+	 * BOOTROM CRT test). */
+
+	dst->col[0] = mat->color[1][0] / 255.0f;
+	dst->col[1] = mat->color[1][1] / 255.0f;
+	dst->col[2] = mat->color[1][2] / 255.0f;
+}
 
 static void
 copy_texcoords (hikaru_renderer_t *hr,
@@ -359,6 +374,7 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 
 			/* XXX set vertex color */
 			VK_COPY_VEC3F (curv->pos, v->pos);
+			copy_colors (hr, curv);
 			curv->alpha = v->alpha;
 		}
 
