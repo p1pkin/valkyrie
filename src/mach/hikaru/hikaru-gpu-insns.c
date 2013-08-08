@@ -913,7 +913,6 @@ I (0x084)
 
 	UNHANDLED |= !!(inst[0] & 0xFC00E000);
 	UNHANDLED |= !(inst[0] & 0x1000);
-	UNHANDLED |= offset > NUM_MATERIALS;
 }
 
 /* 083	Recall Material
@@ -933,7 +932,8 @@ I (0x083)
 	uint32_t index = gpu->materials.base + offset;
 
 	if (make_active)
-		DISASM (1, "mat: recall @%u [offset=%u]", index, offset);
+		DISASM (1, "mat: recall @%u [offset=%u] %c", index, offset,
+		        gpu->materials.table[index].set ? ' ' : '!');
 	else
 		DISASM (1, "mat: set offset %u", offset);
 
@@ -953,7 +953,7 @@ I (0x083)
 			return;
 		}
 
-		gpu->materials.table[index] = gpu->materials.scratch;
+		gpu->materials.scratch = gpu->materials.table[index];
 	}
 
 	UNHANDLED |= !!(inst[0] & 0x0000E000);
@@ -1096,7 +1096,8 @@ I (0x0C3)
 	uint32_t index = gpu->texheads.base + offset;
 
 	if (make_active)
-		DISASM (1, "tex: recall @%u [offset=%u]", index, offset);
+		DISASM (1, "tex: recall @%u [offset=%u] %c", index, offset,
+		        gpu->texheads.table[index].set ? ' ' : '!');
 	else
 		DISASM (1, "tex: set offset [offset=%u]", offset);
 
@@ -1116,7 +1117,7 @@ I (0x0C3)
 			return;
 		}
 
-		gpu->texheads.table[index] = gpu->texheads.scratch;
+		gpu->texheads.scratch = gpu->texheads.table[index];
 	}
 
 	UNHANDLED |= !!(inst[0] & 0x0000E000);
