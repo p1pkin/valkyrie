@@ -260,6 +260,7 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	LOG ("==== DRAWING MESH (#vertices=%u #indices=%u) ====",
 	     hr->mesh.vindex, hr->mesh.iindex);
 
+	glColor3f (1.0f, 1.0f, 1.0f);
 	glBegin (GL_TRIANGLE_STRIP);
 	for (i = 0; i < hr->mesh.iindex; i++) {
 		uint16_t index = hr->mesh.ibo[i];
@@ -274,9 +275,8 @@ draw_current_mesh (hikaru_renderer_t *hr)
 			     v->pos[0], v->pos[1], v->pos[2],
 			     v->txc[0], v->txc[1]);
 
-			glColor3f (1.0f, 1.0f, 1.0f);
-			glVertex3f (v->pos[0], v->pos[1], v->pos[2]);
-			glTexCoord2f (v->txc[0], v->txc[1]);
+			glVertex3fv (v->pos);
+			glTexCoord2fv (v->txc);
 		}
 	}
 	glEnd ();

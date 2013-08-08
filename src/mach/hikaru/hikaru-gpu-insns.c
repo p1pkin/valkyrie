@@ -1485,6 +1485,8 @@ I (0x101)
  *
  *     If U is 0, then it is as if u = 7.
  *
+ *     XXX Oddly enough, there are meshes with both U=0/u=7 and U=0/u=0. WTF?
+ *
  * D = Dynamic or static mesh
  *
  *     Dynamic meshes are specified using floating-point data; static meshes
