@@ -570,7 +570,8 @@ I (0x003)
 {
 	uint32_t index = inst[0] >> 16;
 
-	DISASM (1, "vp: recall @%u", index);
+	DISASM (1, "vp: recall @%u %c", index,
+	        gpu->viewports.table[index].set ? ' ' : '!');
 
 	if (index >= NUM_VIEWPORTS) {
 		VK_ERROR ("CP: viewport recall index exceeds MAX (%u >= %u), skipping",
