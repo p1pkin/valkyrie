@@ -16,7 +16,10 @@
  * along with Valkyrie.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <unistd.h>
+
 #include "vk/core.h"
+#include "vk/input.h"
 #include "mach/hikaru/hikaru-gpu.h"
 #include "mach/hikaru/hikaru-gpu-private.h"
 #include "mach/hikaru/hikaru-renderer.h"
@@ -30,6 +33,7 @@ process_events (void)
 	while (SDL_PollEvent (&event)) {
 		switch (event.type) {
 		case SDL_KEYDOWN:
+			vk_input_set_key (event.key.keysym.sym, true);
 			switch (event.key.keysym.sym) {
 			case SDLK_ESCAPE:
 				quit = true;
@@ -37,6 +41,9 @@ process_events (void)
 			default:
 				break;
 			}
+			break;
+		case SDL_KEYUP:
+			vk_input_set_key (event.key.keysym.sym, false);
 			break;
 		case SDL_QUIT:
 			quit = true;
@@ -105,6 +112,8 @@ main (int argc, char **argv)
 
 		if (++count == num_frames)
 			break;
+
+		usleep (500*1000);
 	}
 
 	vk_machine_destroy (&mach);

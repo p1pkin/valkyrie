@@ -17,6 +17,9 @@
  */
 
 /* XXX implement texture caching. it literally destroys the frame rate. */
+/* XXX implement mesh caching. requires storing color/texhead/vertices. */
+
+#include "vk/input.h"
 
 #include "mach/hikaru/hikaru-renderer.h"
 #include "mach/hikaru/hikaru-gpu-private.h"
@@ -28,6 +31,16 @@
 		if (hr->options.log) \
 			fprintf (stdout, "\tHR: " fmt_"\n", ##args_); \
 	} while (0);
+
+bool debug = false;
+
+static void
+update_debug_switches (void)
+{
+	if (vk_input_get_key (SDLK_d)) {
+		debug = debug ^ 1;
+	}
+}
 
 /****************************************************************************
  Texhead Decoding
@@ -264,6 +277,9 @@ draw_current_mesh (hikaru_renderer_t *hr)
 
 	LOG ("==== DRAWING MESH (#vertices=%u #indices=%u) ====",
 	     hr->mesh.vindex, hr->mesh.iindex);
+
+	if (debug)
+		return;
 
 	glBegin (GL_TRIANGLE_STRIP);
 	for (i = 0; i < hr->mesh.iindex; i++) {
@@ -582,6 +598,9 @@ static void
 hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	/* Fill in the debug stuff. */
+	update_debug_switches ();
 
 	/* clear the frame buffer to a bright pink color */
 	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
