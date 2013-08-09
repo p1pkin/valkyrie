@@ -126,37 +126,6 @@ typedef struct {
 } hikaru_gpu_lightset_t;
 
 typedef struct {
-	uint32_t is_static	: 1;
-	uint32_t has_position	: 1;
-	uint32_t has_normal	: 1;
-	uint32_t has_texcoords	: 1;
-
-	/* Only meaningful if has_position */
-	uint32_t has_pvu_mask	: 1;
-	uint32_t pvu_mask	: 3;
-	uint32_t ppivot		: 1;
-
-	/* Only meaningful if has_texcoords */
-	uint32_t tpivot		: 1;
-
-	/* Only meaningful if has_position || has_texcoords */
-	uint32_t winding	: 1;
-} hikaru_gpu_vertex_info_t;
-
-typedef struct hikaru_gpu_vertex_t hikaru_gpu_vertex_t;
-
-struct hikaru_gpu_vertex_t {
-	vec3f_t	pos;
-	uint32_t padding0;
-	vec3f_t	nrm;
-	uint32_t padding1;
-	vec3f_t col;
-	float alpha;
-	vec2f_t	txc;
-	vec2f_t padding2;
-} __attribute__ ((packed));
-
-typedef struct {
 	uint32_t x0, y0, x1, y1;
 	unsigned format;
 } hikaru_gpu_layer_t;
@@ -227,6 +196,41 @@ typedef struct {
 
 } hikaru_gpu_t;
 
+/****************************************************************************
+ Renderer
+****************************************************************************/
+
+typedef struct {
+	uint32_t is_static	: 1;
+	uint32_t has_position	: 1;
+	uint32_t has_normal	: 1;
+	uint32_t has_texcoords	: 1;
+
+	/* Only meaningful if has_position */
+	uint32_t has_pvu_mask	: 1;
+	uint32_t pvu_mask	: 3;
+	uint32_t ppivot		: 1;
+
+	/* Only meaningful if has_texcoords */
+	uint32_t tpivot		: 1;
+
+	/* Only meaningful if has_position || has_texcoords */
+	uint32_t winding	: 1;
+} hikaru_gpu_vertex_info_t;
+
+typedef struct hikaru_gpu_vertex_t hikaru_gpu_vertex_t;
+
+struct hikaru_gpu_vertex_t {
+	vec3f_t	pos;
+	uint32_t padding0;
+	vec3f_t	nrm;
+	uint32_t padding1;
+	vec3f_t col;
+	float alpha;
+	vec2f_t	txc;
+	vec2f_t padding2;
+} __attribute__ ((packed));
+
 typedef struct {
 	vk_renderer_t base;
 
@@ -253,6 +257,10 @@ typedef struct {
 	} options;
 
 } hikaru_renderer_t;
+
+/****************************************************************************
+ Definitions
+****************************************************************************/
 
 /* hikaru-gpu-private.c */
 void slot_to_coords (uint32_t *, uint32_t *, uint32_t, uint32_t);
