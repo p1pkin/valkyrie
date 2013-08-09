@@ -601,6 +601,9 @@ hikaru_dump (vk_machine_t *mach)
 	hikaru_t *hikaru = (hikaru_t *) mach;
 	char *name = mach->game->name;
 
+	if (!name)
+		return;
+
 	dump (hikaru->ram_m,		"%s-ram-m.bin", name);
 	dump (hikaru->ram_s,		"%s-ram-s.bin", name);
 	dump (hikaru->cmdram,		"%s-cmdram.bin", name);
