@@ -555,7 +555,17 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 		}
 
 	} else if (num == 3) {
-		/* XXX TODO */
+		unsigned i;
+
+		for (i = 0; i < 3; i++) {
+			VK_ASSERT (!vi[i].has_position && !vi[i].has_normal);
+
+			if (hr->mesh.vindex < 2)
+				return;
+
+			copy_texcoords (hr, &vbo[hr->mesh.vindex + i - 2],
+			                &v[i]);
+		}
 	}
 }
 
