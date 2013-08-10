@@ -36,6 +36,7 @@
 #define HR_DEBUG_DRAW_FB		(1 << 4)
 #define HR_DEBUG_DISABLE_TEXTURES	(1 << 5)
 #define HR_DEBUG_FORCE_DEBUG_TEXTURE	(1 << 6)
+#define HR_DEBUG_FORCE_RAND_COLOR	(1 << 7)
 
 static struct {
 	uint32_t flag;
@@ -50,6 +51,7 @@ static struct {
 	{ HR_DEBUG_DRAW_FB,		SDLK_f,	"HR_DEBUG_DRAW_FB",	false },
 	{ HR_DEBUG_DISABLE_TEXTURES,	SDLK_t,	"",			false },
 	{ HR_DEBUG_FORCE_DEBUG_TEXTURE,	SDLK_d,	"",			false },
+	{ HR_DEBUG_FORCE_RAND_COLOR,	SDLK_c, "",			false },
 };
 
 static void
@@ -438,7 +440,12 @@ draw_current_mesh (hikaru_renderer_t *hr)
 
 			glVertex3fv (v->pos);
 			glTexCoord2fv (v->txc);
-			glColor3fv (v->col);
+
+			if (hr->debug & HR_DEBUG_FORCE_RAND_COLOR) {
+				float x = (rand () & 0xFF)  / 255.0f;
+				glColor3f (x, x, x);
+			} else
+				glColor3fv (v->col);
 		}
 	}
 	glEnd ();
