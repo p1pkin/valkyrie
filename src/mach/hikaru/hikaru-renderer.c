@@ -16,7 +16,6 @@
  * along with Valkyrie.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* XXX implement texture caching. it literally destroys the frame rate. */
 /* XXX implement mesh caching. requires storing color/texhead/vertices. */
 
 #include "vk/input.h"
@@ -26,20 +25,107 @@
 
 #define RESTART_INDEX	0xFFFF
 
-#define LOG(fmt_, args_...) \
-	do { \
-		if (hr->options.log) \
-			fprintf (stdout, "\tHR: " fmt_"\n", ##args_); \
-	} while (0);
+/****************************************************************************
+ Debug
+****************************************************************************/
 
-bool debug = false;
+#define HR_DEBUG_LOG			(1 << 0)
+#define HR_DEBUG_DISABLE_2D		(1 << 1)
+#define HR_DEBUG_DISABLE_3D		(1 << 2)
+#define HR_DEBUG_DRAW_TEXRAM		(1 << 3)
+#define HR_DEBUG_DRAW_FB		(1 << 4)
+#define HR_DEBUG_DISABLE_TEXTURES	(1 << 5)
+#define HR_DEBUG_FORCE_DEBUG_TEXTURE	(1 << 6)
+
+static struct {
+	uint32_t flag;
+	uint32_t key;
+	char env[64];
+	bool default_;
+} debug_controls[] = {
+	{ HR_DEBUG_LOG,			~0,	"HR_LOG",		false },
+	{ HR_DEBUG_DISABLE_2D,		SDLK_2,	"HR_DEBUG_DISABLE_2D",	false },
+	{ HR_DEBUG_DISABLE_3D,		SDLK_3,	"HR_DEBUG_DISABLE_3D",	false },
+	{ HR_DEBUG_DRAW_TEXRAM,		SDLK_r,	"HR_DEBUG_DRAW_TEXRAM",	false },
+	{ HR_DEBUG_DRAW_FB,		SDLK_f,	"HR_DEBUG_DRAW_FB",	false },
+	{ HR_DEBUG_DISABLE_TEXTURES,	SDLK_t,	"",			false },
+	{ HR_DEBUG_FORCE_DEBUG_TEXTURE,	SDLK_d,	"",			false },
+};
 
 static void
-update_debug_switches (void)
+update_debug_flags (hikaru_renderer_t *hr)
 {
-	if (vk_input_get_key (SDLK_d)) {
-		debug = debug ^ 1;
+	unsigned i;
+
+	for (i = 0; i < NUMELEM (debug_controls); i++) {
+		uint32_t key = debug_controls[i].key;
+		if (key != ~0 && vk_input_get_key (key))
+			hr->debug ^= debug_controls[i].flag;
 	}
+}
+
+static void
+read_debug_flags (hikaru_renderer_t *hr)
+{
+	unsigned i;
+
+	for (i = 0; i < NUMELEM (debug_controls); i++) {
+		char *env = debug_controls[i].env;
+		if (env[0] != '\0' &&
+		    vk_util_get_bool_option (env, debug_controls[i].default_))
+			hr->debug |= debug_controls[i].flag;
+	}
+
+	VK_LOG ("HR: debug flags = %08X", hr->debug);
+}
+
+#define LOG(fmt_, args_...) \
+	do { \
+		if (hr->debug & HR_DEBUG_LOG) \
+			fprintf (stdout, "\tHR: " fmt_"\n", ##args_); \
+	} while (0)
+
+static void
+upload_fb (hikaru_renderer_t *hr)
+{
+	vk_buffer_t *fb = hr->gpu->fb;
+	uint32_t x, y;
+
+	VK_ASSERT (hr->textures.fb);
+
+	for (y = 0; y < 2048; y++) {
+		uint32_t yoffs = y * 4096;
+		for (x = 0; x < 2048; x++) {
+			uint32_t offs = yoffs + x * 2;
+			uint32_t texel = vk_buffer_get (fb, 2, offs);
+			vk_surface_put16 (hr->textures.fb, x ^ 1, y, texel);
+		}
+	}
+	vk_surface_commit (hr->textures.fb);
+}
+
+static void
+upload_texram (hikaru_renderer_t *hr)
+{
+	vk_buffer_t *texram[2];
+	uint32_t x, y;
+
+	VK_ASSERT (hr->textures.texram);
+
+	texram[0] = hr->gpu->texram[0];
+	texram[1] = hr->gpu->texram[1];
+
+	for (y = 0; y < 1024; y++) {
+		uint32_t yoffs = y * 4096;
+		for (x = 0; x < 2048; x++) {
+			uint32_t texel, offs = yoffs + x * 2;
+			texel = vk_buffer_get (texram[0], 2, offs);
+			vk_surface_put16 (hr->textures.texram, x ^ 1, y, texel);
+			texel = vk_buffer_get (texram[1], 2, offs);
+			vk_surface_put16 (hr->textures.texram, 1024 + (x ^ 1), y, texel);
+		}
+	}
+	vk_surface_commit (hr->textures.texram);
 }
 
 /****************************************************************************
@@ -290,20 +376,21 @@ upload_current_state (hikaru_renderer_t *hr)
 	/* XXX color 0 and 1 seem to be per-vertex; see the CRT test screen. */
 
 	/* Texhead */
-	if (!mat->has_texture || !mat->set || !th->set)
+	if ((hr->debug & HR_DEBUG_DISABLE_TEXTURES) ||
+	    !mat->set || !th->set || !mat->has_texture)
 		glDisable (GL_TEXTURE_2D);
 	else {
 		vk_surface_t *surface;
 
-		surface = hr->options.force_debug_texture == 0 ?
-		          decode_texhead (hr, th) : NULL;
+		surface = (hr->debug & HR_DEBUG_FORCE_DEBUG_TEXTURE) ?
+		          NULL : decode_texhead (hr, th);
 
 		if (!surface)
 			surface = hr->textures.debug;
 
 		vk_surface_bind (surface);
 
-//		glEnable (GL_TEXTURE_2D);
+		glEnable (GL_TEXTURE_2D);
 		glDisable (GL_BLEND);
 	}
 }
@@ -328,9 +415,6 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	 * th->0C1_nibble: non-zero for sky/background
 	 * th->0C1_byte: 0 on everything, FF on text.
 	 */
-
-	if (debug && th->_2C1_unk4 != 2)
-		return;
 
 	glBegin (GL_TRIANGLE_STRIP);
 	for (i = 0; i < hr->mesh.iindex; i++) {
@@ -417,6 +501,9 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 	VK_ASSERT (vi);
 	VK_ASSERT (num == 1 || num == 3);
 
+	if (hr->debug & HR_DEBUG_DISABLE_3D)
+		return;
+
 	vbo = hr->mesh.vbo;
 	ibo = hr->mesh.ibo;
 
@@ -475,7 +562,9 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 void
 hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, bool is_static)
 {
-	if (hr->options.disable_3d)
+	VK_ASSERT (hr);
+
+	if (hr->debug & HR_DEBUG_DISABLE_3D)
 		return;
 
 	memset ((void *) &hr->mesh, 0, sizeof (hr->mesh));
@@ -484,7 +573,9 @@ hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, bool is_static)
 void
 hikaru_renderer_end_mesh (hikaru_renderer_t *hr)
 {
-	if (hr->options.disable_3d)
+	VK_ASSERT (hr);
+
+	if (hr->debug & HR_DEBUG_DISABLE_3D)
 		return;
 
 	upload_current_state (hr);
@@ -572,7 +663,10 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer, hikaru_gpu_layer_t *layer)
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 	vk_surface_t *surface;
 
-	if (hr->options.disable_2d)
+	VK_ASSERT (hr);
+	VK_ASSERT (layer);
+
+	if (hr->debug & HR_DEBUG_DISABLE_2D)
 		return;
 
 	LOG ("drawing layer %s", get_gpu_layer_str (layer));
@@ -595,53 +689,6 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer, hikaru_gpu_layer_t *layer)
 }
 
 /****************************************************************************
- Debug
-****************************************************************************/
-
-static void
-upload_fb (hikaru_renderer_t *hr)
-{
-	vk_buffer_t *fb = hr->gpu->fb;
-	uint32_t x, y;
-
-	VK_ASSERT (hr->textures.fb);
-
-	for (y = 0; y < 2048; y++) {
-		uint32_t yoffs = y * 4096;
-		for (x = 0; x < 2048; x++) {
-			uint32_t offs = yoffs + x * 2;
-			uint32_t texel = vk_buffer_get (fb, 2, offs);
-			vk_surface_put16 (hr->textures.fb, x ^ 1, y, texel);
-		}
-	}
-	vk_surface_commit (hr->textures.fb);
-}
-
-static void
-upload_texram (hikaru_renderer_t *hr)
-{
-	vk_buffer_t *texram[2];
-	uint32_t x, y;
-
-	VK_ASSERT (hr->textures.texram);
-
-	texram[0] = hr->gpu->texram[0];
-	texram[1] = hr->gpu->texram[1];
-
-	for (y = 0; y < 1024; y++) {
-		uint32_t yoffs = y * 4096;
-		for (x = 0; x < 2048; x++) {
-			uint32_t texel, offs = yoffs + x * 2;
-			texel = vk_buffer_get (texram[0], 2, offs);
-			vk_surface_put16 (hr->textures.texram, x ^ 1, y, texel);
-			texel = vk_buffer_get (texram[1], 2, offs);
-			vk_surface_put16 (hr->textures.texram, 1024 + (x ^ 1), y, texel);
-		}
-	}
-	vk_surface_commit (hr->textures.texram);
-}
-
-/****************************************************************************
  Interface
 ****************************************************************************/
 
@@ -651,7 +698,7 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
 	/* Fill in the debug stuff. */
-	update_debug_switches ();
+	update_debug_flags (hr);
 
 	/* clear the frame buffer to a bright pink color */
 	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
@@ -661,14 +708,32 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	glMatrixMode (GL_MODELVIEW);
 	glLoadIdentity ();
 
-	/* Draw the FB and/or TEXRAM if asked to do so */
-	if (hr->options.draw_fb) {
-		upload_fb (hr);
-		vk_surface_draw (hr->textures.fb);
+	/* DEBUG: Draw the FB. */
+	if (hr->debug & HR_DEBUG_DRAW_FB) {
+		if (!hr->textures.fb)
+			hr->textures.fb =
+				vk_surface_new (2048, 2048, VK_SURFACE_FORMAT_RGBA5551);
+		if (!hr->textures.fb) {
+			VK_ERROR ("HR: failed to create FB surface, turning off HR_DRAW_FB");
+			hr->debug &= ~HR_DEBUG_DRAW_FB;
+		} else {
+			upload_fb (hr);
+			vk_surface_draw (hr->textures.fb);
+		}
 	}
-	if (hr->options.draw_texram) {
-		upload_texram (hr);
-		vk_surface_draw (hr->textures.texram);
+
+	/* DEBUG: Draw the TEXRAM. */
+	if (hr->debug & HR_DEBUG_DRAW_TEXRAM) {
+		if (!hr->textures.texram)
+			hr->textures.texram =
+				vk_surface_new (2048, 2048, VK_SURFACE_FORMAT_RGBA5551);
+		if (!hr->textures.texram) {
+			VK_ERROR ("HR: failed to create TEXRAM surface, turning off HR_DRAW_TEXRAM");
+			hr->debug &= ~HR_DEBUG_DRAW_TEXRAM;
+		} else {
+			upload_texram (hr);
+			vk_surface_draw (hr->textures.texram);
+		}
 	}
 }
 
@@ -718,24 +783,6 @@ build_debug_surface (void)
 static bool
 build_default_surfaces (hikaru_renderer_t *hr)
 {
-	if (hr->options.draw_fb) {
-		hr->textures.fb = vk_surface_new (
-			2048, 2048, VK_SURFACE_FORMAT_RGBA5551);
-		if (!hr->textures.fb) {
-			VK_ERROR ("HR: failed to create FB surface, turning off");
-			hr->options.draw_fb = false;
-		}
-	}
-
-	if (hr->options.draw_texram) {
-		hr->textures.texram = vk_surface_new (
-			2048, 2048, VK_SURFACE_FORMAT_RGBA5551);
-		if (!hr->textures.texram) {
-			VK_ERROR ("HR: failed to create TEXRAM surface, turning off");
-			hr->options.draw_texram = false;
-		}
-	}
-
 	hr->textures.debug = build_debug_surface ();
 	if (!hr->textures.debug)
 		return false;
@@ -766,18 +813,7 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 		goto fail;
 
 	/* Read options from the environment */
-	hr->options.log =
-		vk_util_get_bool_option ("HR_LOG", false);
-	hr->options.disable_2d =
-		vk_util_get_bool_option ("HR_DISABLE_2D", false);
-	hr->options.disable_3d =
-		vk_util_get_bool_option ("HR_DISABLE_3D", false);
-	hr->options.draw_fb =
-		vk_util_get_bool_option ("HR_DRAW_FB", false);
-	hr->options.draw_texram =
-		vk_util_get_bool_option ("HR_DRAW_TEXRAM", false);
-	hr->options.force_debug_texture =
-		vk_util_get_bool_option ("HR_FORCE_DEBUG_TEXTURE", false);
+	read_debug_flags (hr);
 
 	/* Create a few surfaces */
 	if (!build_default_surfaces (hr))

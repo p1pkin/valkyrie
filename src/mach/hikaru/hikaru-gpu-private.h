@@ -242,14 +242,7 @@ typedef struct {
 		vk_surface_t *fb, *texram, *debug;
 	} textures;
 
-	struct {
-		bool log;
-		bool disable_2d;
-		bool disable_3d;
-		bool draw_fb;
-		bool draw_texram;
-		bool force_debug_texture;
-	} options;
+	uint32_t debug;
 
 } hikaru_renderer_t;
 
