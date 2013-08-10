@@ -750,8 +750,23 @@ I (0x161)
  *
  * See PH:@0C0CF7CC.
  *
- * See also commands A91 and C91 in BRAVEFF title screen. Variants are:
- * 00000A91, 00020A91; and 00000C91, 00020C91, 000C0C91.
+ *
+ * A91	Material: Set unknown
+ *
+ *	-------- ------u- ----ssso oooooooo
+ *
+ * u = Unknown
+ *
+ *
+ * C91	Material: Set unknown
+ *
+ *	-------- ----xxu- ----ssso oooooooo
+ *
+ * x, u = Unknown
+ *
+ *
+ * NOTE: A91 and C91 are used in BRAVEFF title screen, and are only 32 bits
+ * long!
  */
 
 I (0x091)
@@ -759,7 +774,7 @@ I (0x091)
 	hikaru_gpu_material_t *mat = &gpu->materials.scratch;
 	uint32_t i;
 
-	switch ((inst[0] >> 8) & 7) {
+	switch ((inst[0] >> 8) & 15) {
 	case 0:
 	case 2:
 		i = (inst[0] >> 9) & 1;
@@ -798,6 +813,21 @@ I (0x091)
 	
 		UNHANDLED |= !!(inst[0] & 0x0000F800);
 		break;
+
+	case 0xA:
+		mat->unkA91 = (inst[0] >> 17) & 1;
+
+		DISASM (1, "mat: set unknown");
+
+		UNHANDLED |= !!(inst[0] & 0xFFFDF000);
+		break;
+	case 0xC:
+		mat->unkC91 = (inst[0] >> 17) & 7;
+
+		DISASM (1, "mat: set unknown");
+
+		UNHANDLED |= !!(inst[0] & 0xFFF1F000);
+		break;
 	}
 }
 
@@ -810,7 +840,7 @@ I (0x091)
  *
  * 881	Material: Set Flags
  *
- *	-------- --hatzSS ----100o oooooooo
+ *	-------- --hatzSS ----ssso oooooooo
  *
  * S = Shading mode (flat, linear, phong)
  * z = Depth blend (fog)
@@ -823,7 +853,7 @@ I (0x091)
  *
  * A81	Material: Set Blending Mode
  *
- *	-------- ------mm ----101o oooooooo
+ *	-------- ------mm ----ssso oooooooo
  *
  * m = Blending Mode
  *
@@ -832,7 +862,7 @@ I (0x091)
  *
  * C81	Material: Set Unknown
  *
- *	-------- --U----- ----110o oooooooo
+ *	-------- --U----- ----ssso oooooooo
  *
  * U = Unknown
  *
