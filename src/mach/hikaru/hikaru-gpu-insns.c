@@ -1050,7 +1050,7 @@ I (0x0C1)
 		th->slotx = (inst[0] >> 16) & 0xFF;
 		th->sloty = inst[0] >> 24;
 
-		DISASM (1, "tex: set slot [%u,%u]",
+		DISASM (1, "tex: set slot [%u (%X,%X)]",
 		        th->bank, th->slotx, th->sloty);
 
 		UNHANDLED |= !!(inst[0] & 0x0000E000);
@@ -1090,7 +1090,7 @@ I (0x0C4)
 
 /* 0C3	Recall Texhead
  *
- *	nnnnnnnn nnnnnnnn ---Moooo oooooooo
+ *	nnnnnnnn nnnnnnnn ---M---o oooooooo
  *
  * n = Index
  * M = Modifier: 0 = set base only, 1 = recall for real

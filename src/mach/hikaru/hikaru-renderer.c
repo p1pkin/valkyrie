@@ -181,22 +181,87 @@ decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 	return NULL;
 }
 
+static struct {
+	hikaru_gpu_texhead_t	texhead;
+	vk_surface_t		*surface;
+} texcache[2][256][256];
+
+static bool
+is_texhead_eq (hikaru_renderer_t *hr,
+               hikaru_gpu_texhead_t *a, hikaru_gpu_texhead_t *b)
+{
+	bool res = memcmp ((void *) a, (void *) b, sizeof (*a)) == 0;
+
+	LOG ("TEXCACHE: comparing texheads:");
+	LOG ("TEXCACHE:   [%s]", get_gpu_texhead_str (a));
+	LOG ("TEXCACHE:   [%s]", get_gpu_texhead_str (b));
+	LOG ("TEXCACHE: -> %u", res);
+
+	return res;
+}
+
 static vk_surface_t *
 decode_texhead (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
+	hikaru_gpu_texhead_t *cached;
+	vk_surface_t *surface = NULL;
+	uint32_t bank, slotx, sloty;
+
+	bank  = texhead->bank;
+	slotx = texhead->slotx;
+	sloty = texhead->sloty;
+
+	/* Lookup the texhead in the cache. */
+	LOG ("TEXCACHE: looking up texhead at [%u][%X][%X]", bank, sloty, slotx);
+	cached = &texcache[bank][sloty][slotx].texhead;
+	LOG ("TEXCACHE: found [%s]", get_gpu_texhead_str (cached));
+	if (is_texhead_eq (hr, texhead, cached)) {
+		surface = texcache[bank][sloty][slotx].surface;
+		if (surface)
+			return surface;
+	}
+
+	/* Texhead not cached, decode it. */
 	switch (texhead->format) {
 	case HIKARU_FORMAT_RGBA5551:
-		return decode_texhead_abgr1555 (hr, texhead);
+		surface = decode_texhead_abgr1555 (hr, texhead);
+		break;
 	case HIKARU_FORMAT_RGBA4444:
-		return decode_texhead_abgr4444 (hr, texhead);
+		surface = decode_texhead_abgr4444 (hr, texhead);
+		break;
 	case HIKARU_FORMAT_RGBA1111:
-		return decode_texhead_rgba1111 (hr, texhead);
+		surface = decode_texhead_rgba1111 (hr, texhead);
+		break;
 	case HIKARU_FORMAT_ALPHA8:
-		return decode_texhead_a8 (hr, texhead);
+		surface = decode_texhead_a8 (hr, texhead);
+		break;
 	default:
 		VK_ASSERT (0);
 		break;
 	}
+
+	/* Cache the decoded texhead. */
+	texcache[bank][sloty][slotx].texhead = *texhead;
+	texcache[bank][sloty][slotx].surface = surface;
+
+	/* Upload the surface to the GL. */
+	vk_surface_commit (surface);
+	return surface;
+}
+
+static void
+clear_texture_cache (hikaru_renderer_t *hr)
+{
+	unsigned b, x, y;
+
+	LOG ("TEXCACHE: clearing");
+
+	for (b = 0; b < 2; b++)
+		for (y = 0; y < 64; y++)
+			for (x = 0; x < 64; x++)
+				vk_surface_destroy (&texcache[b][y][x].surface);
+
+	memset ((void *) texcache, 0, sizeof (texcache));
 }
 
 /****************************************************************************
@@ -223,11 +288,10 @@ upload_current_state (hikaru_renderer_t *hr)
 	glLoadIdentity ();
 	gluPerspective (90.0f, vp->extents_x[1] / vp->extents_y[1], 0.01f, 1e5);
 
-	if (vp->depth_func) {
+	if (vp->depth_func)
 		glEnable (GL_DEPTH_TEST);
-	} else {
+	else
 		glDisable (GL_DEPTH_TEST);
-	}
 
 	/* Modelview */
 	glMatrixMode (GL_MODELVIEW);
@@ -242,28 +306,13 @@ upload_current_state (hikaru_renderer_t *hr)
 	else {
 		vk_surface_t *surface;
 
-		/* Free the old texture. */
-		if (hr->textures.current != hr->textures.debug)
-			vk_surface_destroy (&hr->textures.current);
+		surface = hr->options.force_debug_texture == 0 ?
+		          decode_texhead (hr, th) : NULL;
 
-		if (hr->options.force_debug_texture) {
-			/* Use the debug texture. */
-			hr->textures.current = hr->textures.debug;
-			vk_surface_bind (hr->textures.debug);
-		} else {
-			/* Decode the texhead data into a vk_surface. */
-			surface = decode_texhead (hr, th);
-			if (!surface) {
-				/* If the texhead could not be decoded, use the
-				 * debug texture. */
-				hr->textures.current = hr->textures.debug;
-				vk_surface_bind (hr->textures.debug);
-			} else {
-				/* Upload and use the decoded texhead. */
-				hr->textures.current = surface;
-				vk_surface_commit (surface);
-			}
-		}
+		if (!surface)
+			surface = hr->textures.debug;
+
+		vk_surface_bind (surface);
 
 		glEnable (GL_TEXTURE_2D);
 		glDisable (GL_BLEND);
@@ -287,7 +336,7 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	 * glasses too.) 2 and 3 unused.
 	 */
 
-	if (debug && mat->has_texture)
+	if (debug && mat->blending_mode != 2)
 		return;
 
 	glBegin (GL_TRIANGLE_STRIP);
@@ -639,7 +688,9 @@ hikaru_renderer_end_frame (vk_renderer_t *renderer)
 static void
 hikaru_renderer_reset (vk_renderer_t *renderer)
 {
-	(void) renderer;
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	clear_texture_cache (hr);
 }
 
 static void
@@ -647,10 +698,12 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 {
 	if (renderer_) {
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
-		vk_surface_destroy (&hr->textures.current);
+
 		vk_surface_destroy (&hr->textures.debug);
 		vk_surface_destroy (&hr->textures.fb);
 		vk_surface_destroy (&hr->textures.texram);
+
+		clear_texture_cache (hr);
 	}
 }
 
@@ -736,6 +789,8 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 	/* Create a few surfaces */
 	if (!build_default_surfaces (hr))
 		goto fail;
+
+	clear_texture_cache (hr);
 
 	return (vk_renderer_t *) hr;
 

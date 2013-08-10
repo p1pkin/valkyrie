@@ -244,7 +244,7 @@ typedef struct {
 	} mesh;
 
 	struct {
-		vk_surface_t *fb, *texram, *debug, *current;
+		vk_surface_t *fb, *texram, *debug;
 	} textures;
 
 	struct {
