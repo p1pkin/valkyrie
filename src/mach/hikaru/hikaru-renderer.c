@@ -361,7 +361,10 @@ upload_current_state (hikaru_renderer_t *hr)
 	/* Viewport */
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
-	gluPerspective (90.0f, vp->extents_x[1] / vp->extents_y[1], 0.01f, 1e5);
+	if (vp->center[0]  == 0 && vp->center[1] == 0)
+		glOrtho (0.0f, 640.0f, -480.0f, 0.0f, -1.0f, 1280.1f);
+	else
+		gluPerspective (90.0f, vp->extents_x[1] / vp->extents_y[1], 0.01f, 1e5);
 
 	if (vp->depth_func)
 		glEnable (GL_DEPTH_TEST);
