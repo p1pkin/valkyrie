@@ -60,6 +60,7 @@ main (int argc, char **argv)
 	vk_machine_t *mach;
 	hikaru_t *hikaru;
 	int num_frames = -1, count;
+	bool do_wait = false;
 
 	if (argc > 1)
 		game = argv[1];
@@ -73,6 +74,11 @@ main (int argc, char **argv)
 		if (!strcmp (argv[2], "--frames") ||
 		    !strcmp (argv[2], "-n"))
 			num_frames = atoi (argv[3]);
+	}
+
+	if (argc > 4) {
+		if (!strcmp (argv[4], "-w"))
+			do_wait = true;
 	}
 
 	mach = hikaru_new (NULL);
@@ -113,7 +119,8 @@ main (int argc, char **argv)
 		if (++count == num_frames)
 			break;
 
-		usleep (500*1000);
+		if (do_wait)
+			usleep (500*1000);
 	}
 
 	vk_machine_destroy (&mach);
