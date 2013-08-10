@@ -190,14 +190,7 @@ static bool
 is_texhead_eq (hikaru_renderer_t *hr,
                hikaru_gpu_texhead_t *a, hikaru_gpu_texhead_t *b)
 {
-	bool res = memcmp ((void *) a, (void *) b, sizeof (*a)) == 0;
-
-	LOG ("TEXCACHE: comparing texheads:");
-	LOG ("TEXCACHE:   [%s]", get_gpu_texhead_str (a));
-	LOG ("TEXCACHE:   [%s]", get_gpu_texhead_str (b));
-	LOG ("TEXCACHE: -> %u", res);
-
-	return res;
+	return memcmp ((void *) a, (void *) b, sizeof (*a)) == 0;
 }
 
 static vk_surface_t *
@@ -212,9 +205,7 @@ decode_texhead (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 	sloty = texhead->sloty;
 
 	/* Lookup the texhead in the cache. */
-	LOG ("TEXCACHE: looking up texhead at [%u][%X][%X]", bank, sloty, slotx);
 	cached = &texcache[bank][sloty][slotx].texhead;
-	LOG ("TEXCACHE: found [%s]", get_gpu_texhead_str (cached));
 	if (is_texhead_eq (hr, texhead, cached)) {
 		surface = texcache[bank][sloty][slotx].surface;
 		if (surface)
@@ -253,8 +244,6 @@ static void
 clear_texture_cache (hikaru_renderer_t *hr)
 {
 	unsigned b, x, y;
-
-	LOG ("TEXCACHE: clearing");
 
 	for (b = 0; b < 2; b++)
 		for (y = 0; y < 64; y++)
@@ -314,7 +303,7 @@ upload_current_state (hikaru_renderer_t *hr)
 
 		vk_surface_bind (surface);
 
-		glEnable (GL_TEXTURE_2D);
+//		glEnable (GL_TEXTURE_2D);
 		glDisable (GL_BLEND);
 	}
 }
@@ -334,9 +323,13 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	 * mat->depth_blend: ON on buildings, OFF on text.
 	 * mat->shading_mode: 0 on front-facing glasses? 1 on rest (other
 	 * glasses too.) 2 and 3 unused.
+	 *
+	 * th->unk4: 0 some buildings, 1 = sky/terrain, 2 = ???
+	 * th->0C1_nibble: non-zero for sky/background
+	 * th->0C1_byte: 0 on everything, FF on text.
 	 */
 
-	if (debug && mat->blending_mode != 2)
+	if (debug && th->_2C1_unk4 != 2)
 		return;
 
 	glBegin (GL_TRIANGLE_STRIP);
