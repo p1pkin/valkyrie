@@ -273,12 +273,21 @@ upload_current_state (hikaru_renderer_t *hr)
 static void
 draw_current_mesh (hikaru_renderer_t *hr)
 {
+	hikaru_gpu_material_t *mat = &hr->gpu->materials.scratch;
+	hikaru_gpu_texhead_t *th = &hr->gpu->texheads.scratch;
 	uint16_t i;
 
 	LOG ("==== DRAWING MESH (#vertices=%u #indices=%u) ====",
 	     hr->mesh.vindex, hr->mesh.iindex);
 
-	if (debug)
+	/* Notes on BRAVEFF title screen:
+	 *
+	 * mat->depth_blend: ON on buildings, OFF on text.
+	 * mat->shading_mode: 0 on front-facing glasses? 1 on rest (other
+	 * glasses too.) 2 and 3 unused.
+	 */
+
+	if (debug && mat->has_texture)
 		return;
 
 	glBegin (GL_TRIANGLE_STRIP);
