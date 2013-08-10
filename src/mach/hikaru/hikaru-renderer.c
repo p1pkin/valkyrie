@@ -391,7 +391,6 @@ upload_current_state (hikaru_renderer_t *hr)
 		vk_surface_bind (surface);
 
 		glEnable (GL_TEXTURE_2D);
-		glDisable (GL_BLEND);
 	}
 }
 
@@ -415,6 +414,8 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	 * th->0C1_nibble: non-zero for sky/background
 	 * th->0C1_byte: 0 on everything, FF on text.
 	 */
+
+	glEnable (GL_BLEND);
 
 	glBegin (GL_TRIANGLE_STRIP);
 	for (i = 0; i < hr->mesh.iindex; i++) {
@@ -683,6 +684,7 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer, hikaru_gpu_layer_t *layer)
 
 	glColor3f (1.0f, 1.0f, 1.0f);
 	glDisable (GL_SCISSOR_TEST);
+	glDisable (GL_BLEND);
 
 	/* XXX cache the layers and use dirty rectangles to upload only the
 	 * quads that changed. */
