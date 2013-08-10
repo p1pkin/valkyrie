@@ -80,8 +80,6 @@ typedef struct {
 	uint32_t has_alpha	: 1;	/* 881 */
 	uint32_t has_highlight	: 1;	/* 881 */
 	uint32_t blending_mode	: 2;	/* A81 */
-	uint32_t unkA91		: 1;	/* A91 */
-	uint32_t unkC91		: 3;	/* C91 */
 	uint32_t set		: 1;
 	uint32_t uploaded	: 1;
 } hikaru_gpu_material_t;

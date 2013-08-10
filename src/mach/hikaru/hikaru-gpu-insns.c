@@ -750,24 +750,11 @@ I (0x161)
  *
  * See PH:@0C0CF7CC.
  *
- *
- * A91	Material: Set unknown
- *
- *	-------- ------u- ----ssso oooooooo
- *
- * u = Unknown
- *
- *
- * C91	Material: Set unknown
- *
- *	-------- ----xxu- ----ssso oooooooo
- *
- * x, u = Unknown
- *
- *
- * NOTE: A91 and C91 are used in BRAVEFF title screen, and are only 32 bits
- * long!
+ * NOTE: A91 and C91 are used in BRAVEFF title screen. They clearly alias A81
+ * and C81.
  */
+
+static void hikaru_gpu_inst_0x081 (hikaru_gpu_t *, uint32_t *);
 
 I (0x091)
 {
@@ -815,18 +802,10 @@ I (0x091)
 		break;
 
 	case 0xA:
-		mat->unkA91 = (inst[0] >> 17) & 1;
-
-		DISASM (1, "mat: set unknown");
-
-		UNHANDLED |= !!(inst[0] & 0xFFFDF000);
-		break;
 	case 0xC:
-		mat->unkC91 = (inst[0] >> 17) & 7;
-
-		DISASM (1, "mat: set unknown");
-
-		UNHANDLED |= !!(inst[0] & 0xFFF1F000);
+		hikaru_gpu_inst_0x081 (gpu, inst);
+		/* XXX HACK */
+		gpu->cp.pc -= 4;
 		break;
 	}
 }
