@@ -29,7 +29,7 @@ typedef struct {
 } vk_vector_t;
 
 vk_vector_t	*vk_vector_new (unsigned base_size, unsigned element_size);
-void		 vk_vector_delete (vk_vector_t **vector_);
+void		 vk_vector_destroy (vk_vector_t **vector_);
 void		*vk_vector_append_entry (vk_vector_t *vector);
 void		 vk_vector_append (vk_vector_t *vector, void *key);
 void		 vk_vector_clear (vk_vector_t *vector);

@@ -40,12 +40,12 @@ vk_vector_new (unsigned base_size, unsigned element_size)
 	return vector;
 
 fail:
-	vk_vector_delete (&vector);
+	vk_vector_destroy (&vector);
 	return NULL;
 }
 
 void
-vk_vector_delete (vk_vector_t **vector_)
+vk_vector_destroy (vk_vector_t **vector_)
 {
 	if (vector_) {
 		vk_vector_t *vector = (vk_vector_t *) *vector_;
