@@ -2096,10 +2096,12 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 
 		if (!gpu->in_mesh && (flags & FLAG_BEGIN)) {
 			hikaru_renderer_begin_mesh (gpu->renderer,
+			                            gpu->cp.pc,
 			                            !!(flags & FLAG_STATIC));
 			gpu->in_mesh = true;
 		} else if (gpu->in_mesh && !(flags & FLAG_CONTINUE)) {
-			hikaru_renderer_end_mesh (gpu->renderer);
+			hikaru_renderer_end_mesh (gpu->renderer,
+			                          gpu->cp.pc);
 			gpu->in_mesh = false;
 		}
 

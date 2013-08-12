@@ -236,6 +236,7 @@ typedef struct {
 		uint16_t		ibo[MAX_VERTICES_PER_MESH];
 		uint16_t		iindex, vindex;
 		uint16_t		ppivot, tpivot;
+		uint32_t		addr[2];
 	} mesh;
 
 	struct {
@@ -268,8 +269,9 @@ void hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu);
 /* hikaru-renderer.c */
 void hikaru_renderer_draw_layer (vk_renderer_t *renderer,
                                  hikaru_gpu_layer_t *layer);
-void hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, bool is_static);
-void hikaru_renderer_end_mesh (hikaru_renderer_t *hr);
+void hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
+                                 bool is_static);
+void hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr);
 void hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
                                     hikaru_gpu_vertex_t *v,
                                     hikaru_gpu_vertex_info_t *vi,

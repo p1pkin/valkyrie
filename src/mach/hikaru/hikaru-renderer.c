@@ -581,7 +581,8 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 }
 
 void
-hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, bool is_static)
+hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
+                            bool is_static)
 {
 	VK_ASSERT (hr);
 
@@ -589,6 +590,7 @@ hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, bool is_static)
 		return;
 
 	memset ((void *) &hr->mesh, 0, sizeof (hr->mesh));
+	hr->mesh.addr[0] = addr;
 }
 
 void
@@ -598,6 +600,8 @@ hikaru_renderer_end_mesh (hikaru_renderer_t *hr)
 
 	if (hr->debug & HR_DEBUG_DISABLE_3D)
 		return;
+
+	hr->mesh.addr[1] = addr;
 
 	upload_current_state (hr);
 	draw_current_mesh (hr);
