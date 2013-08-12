@@ -594,7 +594,7 @@ hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
 }
 
 void
-hikaru_renderer_end_mesh (hikaru_renderer_t *hr)
+hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr)
 {
 	VK_ASSERT (hr);
 

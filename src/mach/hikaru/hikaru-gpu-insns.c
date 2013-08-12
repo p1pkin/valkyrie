@@ -148,6 +148,7 @@
  * candidates are bits 0-4, 12-15 and 24-31 of the vertex instructions.
  */
 
+#define PC        gpu->cp.pc
 #define UNHANDLED gpu->cp.unhandled
 
 static void
@@ -165,7 +166,7 @@ disasm (hikaru_gpu_t *gpu, uint32_t *inst, unsigned nwords, const char *fmt, ...
 		return;
 
 	va_start (args, fmt);
-	tmp += sprintf (tmp, "CP @%08X : ", gpu->cp.pc);
+	tmp += sprintf (tmp, "CP @%08X : ", PC);
 	for (i = 0; i < 8; i++) {
 		if (i < nwords)
 			tmp += sprintf (tmp, "%08X ", inst[i]);
@@ -188,7 +189,7 @@ static void
 check_self_loop (hikaru_gpu_t *gpu, uint32_t target)
 {
 	/* XXX at some point we'll need something better than this */
-	if (target == gpu->cp.pc) {
+	if (target == PC) {
 		VK_ERROR ("CP: @%08X: self-jump, terminating", target);
 		gpu->cp.is_running = false;
 	}
@@ -199,7 +200,7 @@ push_pc (hikaru_gpu_t *gpu)
 {
 	unsigned i = gpu->frame_type;
 	VK_ASSERT ((gpu->cp.sp[i] >> 24) == 0x48);
-	vk_buffer_put (gpu->cmdram, 4, gpu->cp.sp[i] & 0x3FFFFFF, gpu->cp.pc);
+	vk_buffer_put (gpu->cmdram, 4, gpu->cp.sp[i] & 0x3FFFFFF, PC);
 	gpu->cp.sp[i] -= 4;
 }
 
@@ -209,7 +210,7 @@ pop_pc (hikaru_gpu_t *gpu)
 	unsigned i = gpu->frame_type;
 	gpu->cp.sp[i] += 4;
 	VK_ASSERT ((gpu->cp.sp[i] >> 24) == 0x48);
-	gpu->cp.pc = vk_buffer_get (gpu->cmdram, 4, gpu->cp.sp[i] & 0x3FFFFFF) + 8;
+	PC = vk_buffer_get (gpu->cmdram, 4, gpu->cp.sp[i] & 0x3FFFFFF) + 8;
 }
 
 static bool
@@ -252,14 +253,14 @@ I (0x012)
 
 	addr = inst[1] * 4;
 	if (inst[0] & 0x800)
-		addr += gpu->cp.pc;
+		addr += PC;
 
 	check_self_loop (gpu, addr);
 
 	UNHANDLED |= !!(inst[0] & 0xFFFFF600);
 
 	DISASM (2, "jump @%08X", addr);
-	gpu->cp.pc = addr;
+	PC = addr;
 }
 
 /* 052	Call
@@ -277,7 +278,7 @@ I (0x052)
 
 	addr = inst[1] * 4;
 	if (inst[0] & 0x800)
-		addr += gpu->cp.pc;
+		addr += PC;
 
 	check_self_loop (gpu, addr);
 	push_pc (gpu);
@@ -285,7 +286,7 @@ I (0x052)
 	UNHANDLED |= !!(inst[0] & 0xFFFFF600);
 
 	DISASM (2, "call @%08X", addr);
-	gpu->cp.pc = addr;
+	PC = addr;
 }
 
 /* 082	Return
@@ -805,7 +806,7 @@ I (0x091)
 	case 0xC:
 		hikaru_gpu_inst_0x081 (gpu, inst);
 		/* XXX HACK */
-		gpu->cp.pc -= 4;
+		PC -= 4;
 		break;
 	}
 }
@@ -2041,20 +2042,19 @@ static int
 fetch (hikaru_gpu_t *gpu, uint32_t **inst)
 {
 	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
-	uint32_t pc = gpu->cp.pc;
 
 	/* The CS program has been observed to lie only in CMDRAM and slave
 	 * RAM so far. */
-	switch (pc >> 24) {
+	switch (PC >> 24) {
 	case 0x40:
 	case 0x41:
 		*inst = (uint32_t *) vk_buffer_get_ptr (hikaru->ram_s,
-		                                        pc & 0x01FFFFFF);
+		                                        PC & 0x01FFFFFF);
 		return 0;
 	case 0x48:
 	case 0x4C: /* XXX not sure */
 		*inst = (uint32_t *) vk_buffer_get_ptr (hikaru->cmdram,
-		                                        pc & 0x003FFFFF);
+		                                        PC & 0x003FFFFF);
 		return 0;
 	}
 	return -1;
@@ -2080,11 +2080,11 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 		uint32_t *inst, op;
 		uint16_t flags;
 
-		if (gpu->cp.pc == breakpoint)
+		if (PC == breakpoint)
 			break;
 
 		if (fetch (gpu, &inst)) {
-			VK_ERROR ("CP %08X: invalid PC, skipping CS", gpu->cp.pc);
+			VK_ERROR ("CP %08X: invalid PC, skipping CS", PC);
 			gpu->cp.is_running = false;
 			break;
 		}
@@ -2095,25 +2095,23 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 		VK_ASSERT (!(flags & FLAG_INVALID));
 
 		if (!gpu->in_mesh && (flags & FLAG_BEGIN)) {
-			hikaru_renderer_begin_mesh (gpu->renderer,
-			                            gpu->cp.pc,
-			                            !!(flags & FLAG_STATIC));
+			bool is_static = (flags & FLAG_STATIC) != 0;
+			hikaru_renderer_begin_mesh (gpu->renderer, PC, is_static);
 			gpu->in_mesh = true;
 		} else if (gpu->in_mesh && !(flags & FLAG_CONTINUE)) {
-			hikaru_renderer_end_mesh (gpu->renderer,
-			                          gpu->cp.pc);
+			hikaru_renderer_end_mesh (gpu->renderer, PC);
 			gpu->in_mesh = false;
 		}
 
 		gpu->cp.unhandled = false;
 		insns[op].handler (gpu, inst);
 		if (gpu->cp.unhandled) {
-			VK_LOG ("CP @%08X: unhandled instruction [%08X]", gpu->cp.pc, *inst)
+			VK_LOG ("CP @%08X: unhandled instruction [%08X]", PC, *inst)
 			/* We carry on anyway */
 		}
 
 		if (!(flags & FLAG_JUMP))
-			gpu->cp.pc += insns[op].size;
+			PC += insns[op].size;
 
 	skip:
 		cycles--;
