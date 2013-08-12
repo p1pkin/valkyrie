@@ -423,7 +423,7 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	glEnable (GL_BLEND);
 
 	glBegin (GL_TRIANGLE_STRIP);
-	for (i = 0; i < hr->mesh.iindex; i++) {
+	for (i = 0; i < 4 /*hr->mesh.iindex*/; i++) {
 		uint16_t index = hr->mesh.ibo[i];
 		if (index == RESTART_INDEX) {
 			glEnd ();
@@ -490,8 +490,8 @@ copy_texcoords (hikaru_renderer_t *hr,
 	hikaru_gpu_texhead_t *th = &hr->gpu->texheads.scratch;
 
 	if (th->set) {
-		dst->txc[0] = src->txc[0] / th->width;
-		dst->txc[1] = src->txc[1] / th->height;
+		dst->txc[0] = src->txc[0]; // / th->width;
+		dst->txc[1] = src->txc[1]; // / th->height;
 	} else {
 		dst->txc[0] = 0.0f;
 		dst->txc[1] = 0.0f;
@@ -571,10 +571,10 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 		for (i = 0; i < 3; i++) {
 			VK_ASSERT (!vi[i].has_position && !vi[i].has_normal);
 
-			if (hr->mesh.vindex < 2)
+			if (hr->mesh.vindex < 3)
 				return;
 
-			copy_texcoords (hr, &vbo[hr->mesh.vindex + i - 2],
+			copy_texcoords (hr, &vbo[hr->mesh.vindex + i - 3],
 			                &v[i]);
 		}
 	}

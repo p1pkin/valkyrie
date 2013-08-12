@@ -1688,7 +1688,7 @@ I (0x0E8)
 
 	UNHANDLED |= !!(inst[0] & 0xFFFEF000);
 
-	DISASM (4, "mesh: push txc 3 [%s]",
+	DISASM (4, "mesh: push txc 3 [%s|%s|%s]",
 	        get_gpu_vertex_str (&vs[0], &vis[0]),
 	        get_gpu_vertex_str (&vs[1], &vis[1]),
 	        get_gpu_vertex_str (&vs[2], &vis[2]));
