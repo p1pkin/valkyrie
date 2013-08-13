@@ -493,8 +493,8 @@ copy_texcoords (hikaru_renderer_t *hr,
 	hikaru_gpu_texhead_t *th = &hr->gpu->texheads.scratch;
 
 	if (th->set) {
-		dst->txc[0] = src->txc[0]; // / th->width;
-		dst->txc[1] = src->txc[1]; // / th->height;
+		dst->txc[0] = src->txc[0] / th->width;
+		dst->txc[1] = src->txc[1] / th->height;
 	} else {
 		dst->txc[0] = 0.0f;
 		dst->txc[1] = 0.0f;
