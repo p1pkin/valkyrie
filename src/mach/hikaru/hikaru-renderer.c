@@ -409,17 +409,6 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	LOG ("==== DRAWING MESH (#vertices=%u #indices=%u) ====",
 	     hr->mesh.vindex, hr->mesh.iindex);
 
-	/* Notes on BRAVEFF title screen:
-	 *
-	 * mat->depth_blend: ON on buildings, OFF on text.
-	 * mat->shading_mode: 0 on front-facing glasses? 1 on rest (other
-	 * glasses too.) 2 and 3 unused.
-	 *
-	 * th->unk4: 0 some buildings, 1 = sky/terrain, 2 = ???
-	 * th->0C1_nibble: non-zero for sky/background
-	 * th->0C1_byte: 0 on everything, FF on text.
-	 */
-
 	glEnable (GL_BLEND);
 
 	glBegin (GL_TRIANGLE_STRIP);
