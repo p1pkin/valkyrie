@@ -37,6 +37,7 @@
 #define HR_DEBUG_DISABLE_TEXTURES	(1 << 5)
 #define HR_DEBUG_FORCE_DEBUG_TEXTURE	(1 << 6)
 #define HR_DEBUG_FORCE_RAND_COLOR	(1 << 7)
+#define HR_DEBUG_SELECT_MESH		(1 << 8)
 
 static struct {
 	uint32_t flag;
@@ -52,6 +53,7 @@ static struct {
 	{ HR_DEBUG_DISABLE_TEXTURES,	SDLK_t,	"",			false },
 	{ HR_DEBUG_FORCE_DEBUG_TEXTURE,	SDLK_d,	"",			false },
 	{ HR_DEBUG_FORCE_RAND_COLOR,	SDLK_c, "",			false },
+	{ HR_DEBUG_SELECT_MESH,		SDLK_s, "",			false },
 };
 
 static void
@@ -62,8 +64,15 @@ update_debug_flags (hikaru_renderer_t *hr)
 	for (i = 0; i < NUMELEM (debug_controls); i++) {
 		uint32_t key = debug_controls[i].key;
 		if (key != ~0 && vk_input_get_key (key))
-			hr->debug ^= debug_controls[i].flag;
+			hr->debug.flags ^= debug_controls[i].flag;
 	}
+
+	if (vk_input_get_key (SDLK_KP_PERIOD))
+		hr->debug.selected_mesh = 0;
+	if (vk_input_get_key (SDLK_KP_PLUS))
+		hr->debug.selected_mesh += 1;
+	if (vk_input_get_key (SDLK_KP_MINUS))
+		hr->debug.selected_mesh -= 1;
 }
 
 static void
@@ -75,15 +84,15 @@ read_debug_flags (hikaru_renderer_t *hr)
 		char *env = debug_controls[i].env;
 		if (env[0] != '\0' &&
 		    vk_util_get_bool_option (env, debug_controls[i].default_))
-			hr->debug |= debug_controls[i].flag;
+			hr->debug.flags |= debug_controls[i].flag;
 	}
 
-	VK_LOG ("HR: debug flags = %08X", hr->debug);
+	VK_LOG ("HR: debug flags = %08X", hr->debug.flags);
 }
 
 #define LOG(fmt_, args_...) \
 	do { \
-		if (hr->debug & HR_DEBUG_LOG) \
+		if (hr->debug.flags & HR_DEBUG_LOG) \
 			fprintf (stdout, "\tHR: " fmt_"\n", ##args_); \
 	} while (0)
 
@@ -358,7 +367,8 @@ upload_current_state (hikaru_renderer_t *hr)
 	LOG ("vp  = %s", get_gpu_viewport_str (vp));
 	LOG ("mv  = %s", get_gpu_modelview_str (mv));
 	LOG ("mat = %s", get_gpu_material_str (mat));
-	LOG ("th  = %s", get_gpu_texhead_str (th));
+	if (mat->set && mat->has_texture)
+		LOG ("th  = %s", get_gpu_texhead_str (th));
 
 	/* Viewport */
 	glMatrixMode (GL_PROJECTION);
@@ -381,13 +391,13 @@ upload_current_state (hikaru_renderer_t *hr)
 	/* XXX color 0 and 1 seem to be per-vertex; see the CRT test screen. */
 
 	/* Texhead */
-	if ((hr->debug & HR_DEBUG_DISABLE_TEXTURES) ||
+	if ((hr->debug.flags & HR_DEBUG_DISABLE_TEXTURES) ||
 	    !mat->set || !th->set || !mat->has_texture)
 		glDisable (GL_TEXTURE_2D);
 	else {
 		vk_surface_t *surface;
 
-		surface = (hr->debug & HR_DEBUG_FORCE_DEBUG_TEXTURE) ?
+		surface = (hr->debug.flags & HR_DEBUG_FORCE_DEBUG_TEXTURE) ?
 		          NULL : decode_texhead (hr, th);
 
 		if (!surface)
@@ -408,6 +418,10 @@ draw_current_mesh (hikaru_renderer_t *hr)
 
 	LOG ("==== DRAWING MESH (#vertices=%u #indices=%u) ====",
 	     hr->mesh.vindex, hr->mesh.iindex);
+
+	if ((hr->debug.current_mesh++ != hr->debug.selected_mesh) &&
+	    (hr->debug.flags & HR_DEBUG_SELECT_MESH))
+		return;
 
 	glEnable (GL_BLEND);
 
@@ -430,7 +444,7 @@ draw_current_mesh (hikaru_renderer_t *hr)
 			glVertex3fv (v->pos);
 			glTexCoord2fv (v->txc);
 
-			if (hr->debug & HR_DEBUG_FORCE_RAND_COLOR) {
+			if (hr->debug.flags & HR_DEBUG_FORCE_RAND_COLOR) {
 				float x = (rand () & 0xFF)  / 255.0f;
 				glColor3f (x, x, x);
 			} else
@@ -501,7 +515,7 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 	VK_ASSERT (vi);
 	VK_ASSERT (num == 1 || num == 3);
 
-	if (hr->debug & HR_DEBUG_DISABLE_3D)
+	if (hr->debug.flags & HR_DEBUG_DISABLE_3D)
 		return;
 
 	vbo = hr->mesh.vbo;
@@ -575,7 +589,7 @@ hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
 {
 	VK_ASSERT (hr);
 
-	if (hr->debug & HR_DEBUG_DISABLE_3D)
+	if (hr->debug.flags & HR_DEBUG_DISABLE_3D)
 		return;
 
 	memset ((void *) &hr->mesh, 0, sizeof (hr->mesh));
@@ -587,7 +601,7 @@ hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr)
 {
 	VK_ASSERT (hr);
 
-	if (hr->debug & HR_DEBUG_DISABLE_3D)
+	if (hr->debug.flags & HR_DEBUG_DISABLE_3D)
 		return;
 
 	hr->mesh.addr[1] = addr;
@@ -680,7 +694,7 @@ hikaru_renderer_draw_layer (vk_renderer_t *renderer, hikaru_gpu_layer_t *layer)
 	VK_ASSERT (hr);
 	VK_ASSERT (layer);
 
-	if (hr->debug & HR_DEBUG_DISABLE_2D)
+	if (hr->debug.flags & HR_DEBUG_DISABLE_2D)
 		return;
 
 	LOG ("drawing layer %s", get_gpu_layer_str (layer));
@@ -714,6 +728,7 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 
 	/* Fill in the debug stuff. */
 	update_debug_flags (hr);
+	hr->debug.current_mesh = 0;
 
 	/* clear the frame buffer to a bright pink color */
 	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
@@ -724,13 +739,13 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	glLoadIdentity ();
 
 	/* DEBUG: Draw the FB. */
-	if (hr->debug & HR_DEBUG_DRAW_FB) {
+	if (hr->debug.flags & HR_DEBUG_DRAW_FB) {
 		if (!hr->textures.fb)
 			hr->textures.fb =
 				vk_surface_new (2048, 2048, VK_SURFACE_FORMAT_RGBA5551);
 		if (!hr->textures.fb) {
 			VK_ERROR ("HR: failed to create FB surface, turning off HR_DRAW_FB");
-			hr->debug &= ~HR_DEBUG_DRAW_FB;
+			hr->debug.flags &= ~HR_DEBUG_DRAW_FB;
 		} else {
 			upload_fb (hr);
 			vk_surface_draw (hr->textures.fb);
@@ -738,13 +753,13 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	}
 
 	/* DEBUG: Draw the TEXRAM. */
-	if (hr->debug & HR_DEBUG_DRAW_TEXRAM) {
+	if (hr->debug.flags & HR_DEBUG_DRAW_TEXRAM) {
 		if (!hr->textures.texram)
 			hr->textures.texram =
 				vk_surface_new (2048, 2048, VK_SURFACE_FORMAT_RGBA5551);
 		if (!hr->textures.texram) {
 			VK_ERROR ("HR: failed to create TEXRAM surface, turning off HR_DRAW_TEXRAM");
-			hr->debug &= ~HR_DEBUG_DRAW_TEXRAM;
+			hr->debug.flags &= ~HR_DEBUG_DRAW_TEXRAM;
 		} else {
 			upload_texram (hr);
 			vk_surface_draw (hr->textures.texram);

@@ -243,7 +243,10 @@ typedef struct {
 		vk_surface_t *fb, *texram, *debug;
 	} textures;
 
-	uint32_t debug;
+	struct {
+		uint32_t flags;
+		uint32_t current_mesh, selected_mesh;
+	} debug;
 
 } hikaru_renderer_t;
 
