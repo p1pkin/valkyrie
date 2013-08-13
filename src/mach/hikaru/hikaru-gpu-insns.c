@@ -980,10 +980,11 @@ I (0x083)
  * x = Used in BRAVEFF title screen.
  * E = Enabled.
  *
- * See PH:@0C015B7A.
+ * See PH:@0C015B7A. It may be related to lighting/highlight/emission. See
+ * usage in BRAVEFF title screen.
  *
  *
-* 2C1	Texhead: Set Format/Size
+ * 2C1	Texhead: Set Format/Size
  *
  *	888FFFll llHHHWWW uu---01o oooooooo
  *
