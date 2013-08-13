@@ -416,8 +416,8 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	hikaru_gpu_texhead_t *th = &hr->gpu->texheads.scratch;
 	uint16_t i;
 
-	LOG ("==== DRAWING MESH (#vertices=%u #indices=%u) ====",
-	     hr->mesh.vindex, hr->mesh.iindex);
+	LOG ("==== DRAWING MESH (current=%u #vertices=%u #indices=%u) ====",
+	     hr->debug.current_mesh, hr->mesh.vindex, hr->mesh.iindex);
 
 	if ((hr->debug.current_mesh++ != hr->debug.selected_mesh) &&
 	    (hr->debug.flags & HR_DEBUG_SELECT_MESH))
