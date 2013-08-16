@@ -354,66 +354,113 @@ clear_texture_cache (hikaru_renderer_t *hr)
  3D Rendering
 ****************************************************************************/
 
+static bool
+is_viewport_valid (hikaru_gpu_viewport_t *vp)
+{
+	if (!ispositive (vp->clip.l) || !ispositive (vp->clip.r) ||
+	    !ispositive (vp->clip.b) || !ispositive (vp->clip.t) ||
+	    !ispositive (vp->clip.f) || !ispositive (vp->clip.n))
+		return false;
+
+	if ((vp->clip.l >= vp->clip.r) ||
+	    (vp->clip.b >= vp->clip.t) ||
+	    (vp->clip.n >= vp->clip.f))
+		return false;
+
+	if (!ispositive (vp->offset.x) || (vp->offset.x >= 640.0f) ||
+	    !ispositive (vp->offset.y) || (vp->offset.y >= 480.0f))
+		return false;
+
+	return true;
+}
+
 static void
 upload_current_state (hikaru_renderer_t *hr)
 {
-	hikaru_gpu_viewport_t *vp = &hr->gpu->viewports.scratch;
-	hikaru_gpu_modelview_t *mv = &hr->gpu->modelviews.stack[0];
-	hikaru_gpu_material_t *mat = &hr->gpu->materials.scratch;
-	hikaru_gpu_texhead_t *th = &hr->gpu->texheads.scratch;
-
 	/* Debug */
 	LOG ("==== CURRENT STATE ====");
-	LOG ("vp  = %s", get_gpu_viewport_str (vp));
-	LOG ("mv  = %s", get_gpu_modelview_str (mv));
-	LOG ("mat = %s", get_gpu_material_str (mat));
-	if (mat->set && mat->has_texture)
-		LOG ("th  = %s", get_gpu_texhead_str (th));
 
 	/* Viewport */
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity ();
-	if (vp->center[0]  == 0 && vp->center[1] == 0)
-		glOrtho (0.0f, 640.0f, -480.0f, 0.0f, -1.0f, 1280.1f);
-	else
-		gluPerspective (90.0f, vp->extents_x[1] / vp->extents_y[1], 0.01f, 1e5);
+	{
+		/* XXX validate viewport. */
+		/* XXX introduce dirty flag. */
+		/* XXX scissor */
+		static const GLenum depth_func[8] = {
+			GL_NEVER,	/* 0 */
+			GL_LESS,	/* 1 */
+			GL_EQUAL,	/* 2 */
+			GL_LEQUAL,	/* 3 */
+			GL_GREATER,	/* 4 */
+			GL_NOTEQUAL,	/* 5 */
+			GL_GEQUAL,	/* 6 */
+			GL_ALWAYS	/* 7 */
+		};
 
-	if (vp->depth_func)
-		glEnable (GL_DEPTH_TEST);
-	else
-		glDisable (GL_DEPTH_TEST);
+		hikaru_gpu_viewport_t *vp = &hr->gpu->viewports.scratch;
+		const float h = vp->clip.t - vp->clip.b;
+		const float w = vp->clip.r - vp->clip.l;
+		const float hh_at_n = (h / 2.0f) * (vp->clip.n / vp->clip.f);
+		const float hw_at_n = hh_at_n * (w / h);
+		const float dcx = vp->offset.x - (w / 2.0f);
+		const float dcy = vp->offset.y - (h / 2.0f);
+
+		LOG ("vp  = %s : [w=%f h=%f dcx=%f dcy=%f]",
+		     get_gpu_viewport_str (vp), w, h, dcx, dcy);
+		if (!is_viewport_valid (vp))
+			LOG ("*** INVALID VIEWPORT!!! ***");
+
+		glMatrixMode (GL_PROJECTION);
+		glLoadIdentity ();
+		glFrustum (-hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, vp->clip.f);
+		glTranslatef (dcx, -dcy, 0.0f);
+
+		if (vp->depth.func) {
+			glEnable (GL_DEPTH_TEST);
+			glDepthFunc (depth_func[vp->depth.func]);
+		} else
+			glDisable (GL_DEPTH_TEST);
+	}
 
 	/* Modelview */
-	glMatrixMode (GL_MODELVIEW);
-	glLoadMatrixf ((GLfloat *) &mv->mtx[0][0]);
+	{
+		hikaru_gpu_modelview_t *mv = &hr->gpu->modelviews.stack[0];
 
-	/* Material */
-	/* XXX color 0 and 1 seem to be per-vertex; see the CRT test screen. */
+		LOG ("mv  = %s", get_gpu_modelview_str (mv));
 
-	/* Texhead */
-	if ((hr->debug.flags & HR_DEBUG_DISABLE_TEXTURES) ||
-	    !mat->set || !th->set || !mat->has_texture)
-		glDisable (GL_TEXTURE_2D);
-	else {
-		vk_surface_t *surface;
+		glMatrixMode (GL_MODELVIEW);
+		glLoadMatrixf ((GLfloat *) &mv->mtx[0][0]);
+	}
 
-		surface = (hr->debug.flags & HR_DEBUG_FORCE_DEBUG_TEXTURE) ?
-		          NULL : decode_texhead (hr, th);
+	/* Material and Texhead */
+	{
+		hikaru_gpu_material_t *mat = &hr->gpu->materials.scratch;
+		hikaru_gpu_texhead_t *th   = &hr->gpu->texheads.scratch;
 
-		if (!surface)
-			surface = hr->textures.debug;
+		LOG ("mat = %s", get_gpu_material_str (mat));
+		if (mat->set && mat->has_texture)
+			LOG ("th  = %s", get_gpu_texhead_str (th));
 
-		vk_surface_bind (surface);
+		if ((hr->debug.flags & HR_DEBUG_DISABLE_TEXTURES) ||
+		    !mat->set || !th->set || !mat->has_texture)
+			glDisable (GL_TEXTURE_2D);
+		else {
+			vk_surface_t *surface;
 
-		glEnable (GL_TEXTURE_2D);
+			surface = (hr->debug.flags & HR_DEBUG_FORCE_DEBUG_TEXTURE) ?
+			          NULL : decode_texhead (hr, th);
+
+			if (!surface)
+				surface = hr->textures.debug;
+
+			vk_surface_bind (surface);
+			glEnable (GL_TEXTURE_2D);
+		}
 	}
 }
 
 static void
 draw_current_mesh (hikaru_renderer_t *hr)
 {
-	hikaru_gpu_material_t *mat = &hr->gpu->materials.scratch;
-	hikaru_gpu_texhead_t *th = &hr->gpu->texheads.scratch;
 	uint16_t i;
 
 	LOG ("==== DRAWING MESH (current=%u #vertices=%u #indices=%u) ====",
@@ -500,6 +547,9 @@ copy_texcoords (hikaru_renderer_t *hr,
 		dst->txc[1] = 0.0f;
 	}
 }
+
+/* XXX track only the last 3 vertices and dynamically build the mesh in
+ * another vertex buffer. */
 
 void
 hikaru_renderer_push_vertices (hikaru_renderer_t *hr,

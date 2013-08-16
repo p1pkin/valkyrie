@@ -5,7 +5,7 @@ DEFS := -DVK_HAVE_HIKARU
 
 CFLAGS  := $(DEFS) -I src -I /usr/include/json -O3 -fomit-frame-pointer -flto -Wall
 #CFLAGS  := $(DEFS) -I src -I /usr/include/json -O0 -g -Wall
-LDFLAGS := -lm -lSDL -lGL -lGLU -lGLEW -ljansson
+LDFLAGS := -lm -lSDL -lGL -lGLEW -ljansson
 
 .PHONY: all install clean
 

@@ -42,24 +42,36 @@ enum {
 	HIKARU_FORMAT_RGBA8888 = 8,
 };
 
+#define HIKARU_GPU_OBJ_SET	(1 << 0)
+#define HIKARU_GPU_OBJ_DIRTY	(1 << 1)
+
 typedef struct {
-	float persp_zfar;		/* 021 */
-	float persp_znear;		/* 021 */
-	float depth_near;		/* 421 */
-	float depth_far;		/* 421 */
-	float depthq_density;		/* 621 */
-	float depthq_bias;		/* 621 */
-	vec2s_t center;			/* 221 */
-	vec2s_t extents_x;		/* 221 */
-	vec2s_t extents_y;		/* 221 */
-	vec4b_t	depthq_mask;		/* 621 */
-	vec4b_t clear_color;		/* 991 */
-	vec3s_t ambient_color;		/* 881 */
-	uint32_t depth_func	: 3;	/* 421 */
-	uint32_t depthq_type	: 2;	/* 621 */
-	uint32_t depthq_enabled	: 1;	/* 621 */
-	uint32_t depthq_unk	: 1;	/* 621 */
-	uint32_t set		: 1;
+	uint32_t flags;
+
+	struct {
+		float l, r;
+		float b, t;
+		float f, n;
+	} clip;
+
+	struct {
+		float x, y;
+	} offset;
+
+	struct {
+		float max, min;
+		float density, bias;
+		vec4b_t mask;
+		uint32_t func		: 3;
+		uint32_t q_type		: 2;
+		uint32_t q_enabled	: 1;
+		uint32_t q_unknown	: 1;
+	} depth;
+
+	struct {
+		vec4b_t clear;
+		vec3s_t ambient;
+	} color;
 } hikaru_gpu_viewport_t;
 
 typedef struct {
@@ -253,6 +265,9 @@ typedef struct {
 /****************************************************************************
  Definitions
 ****************************************************************************/
+
+#define ispositive(x_) \
+	(isfinite(x_) && (x_) >= 0.0)
 
 /* hikaru-gpu-private.c */
 void slot_to_coords (uint32_t *, uint32_t *, uint32_t, uint32_t);

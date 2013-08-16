@@ -213,12 +213,6 @@ pop_pc (hikaru_gpu_t *gpu)
 	PC = vk_buffer_get (gpu->cmdram, 4, gpu->cp.sp[i] & 0x3FFFFFF) + 8;
 }
 
-static bool
-ispositive (float x)
-{
-	return isfinite (x) && x >= 0.0f;
-}
-
 #define I(name_) \
 	static void hikaru_gpu_inst_##name_ (hikaru_gpu_t *gpu, uint32_t *inst)
 
@@ -404,69 +398,63 @@ I (0x021)
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
-		vp->persp_zfar	= *(float *) &inst[1];
-		vp->persp_znear	= *(float *) &inst[3];
+		vp->clip.f = *(float *) &inst[1];
+		vp->clip.n = *(float *) &inst[3];
 
 		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
 		UNHANDLED |= inst[1] != inst[2];
-		UNHANDLED |= !ispositive (vp->persp_zfar);
-		UNHANDLED |= !ispositive (vp->persp_znear);
 
-		DISASM (4, "vp: set Z clip [zfar=%f znear=%f]",
-		        gpu->viewports.scratch.persp_zfar,
-		        gpu->viewports.scratch.persp_znear);
+		DISASM (4, "vp: set clip Z [f=%f n=%f]", vp->clip.f, vp->clip.n);
 		break;
 
 	case 2:
-		vp->center[0]		= inst[1] & 0xFFFF;
-		vp->center[1]		= inst[1] >> 16;
-		vp->extents_x[0]	= inst[2] & 0x7FFF;
-		vp->extents_x[1]	= inst[3] & 0x7FFF;
-		vp->extents_y[0]	= (inst[2] >> 16) & 0x3FFF;
-		vp->extents_y[1]	= (inst[3] >> 16) & 0x3FFF;
+		vp->offset.x = (float) (inst[1] & 0xFFFF);
+		vp->offset.y = (float) (inst[1] >> 16);
+
+		vp->clip.l = (float) (inst[2] & 0x7FFF);
+		vp->clip.r = (float) (inst[3] & 0x7FFF);
+		vp->clip.b = (float) ((inst[2] >> 16) & 0x3FFF);
+		vp->clip.t = (float) ((inst[3] >> 16) & 0x3FFF);
 	
 		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
 		UNHANDLED |= !!(inst[2] & 0xC0008000);
 		UNHANDLED |= !!(inst[3] & 0xC0008000);
 	
-		DISASM (4, "vp: set XY clip [?=(%u,%u) x=(%u,%u) y=(%u,%u)]",
-		        vp->center[0], vp->center[1],
-		        vp->extents_x[0], vp->extents_x[1],
-		        vp->extents_y[0], vp->extents_y[1]);
+		DISASM (4, "vp: set clip XY [clipxy=(%f %f %f %f) offs=(%f,%f)]",
+		        vp->clip.l, vp->clip.r, vp->clip.b, vp->clip.t,
+		        vp->offset.x, vp->offset.y);
 		break;
 
 	case 4:
-		vp->depth_near = *(float *) &inst[1];
-		vp->depth_far  = *(float *) &inst[2];
-		vp->depth_func = inst[3] >> 29;
+		vp->depth.min = *(float *) &inst[1];
+		vp->depth.max = *(float *) &inst[2];
+		vp->depth.func = inst[3] >> 29;
 
 		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
 		UNHANDLED |= !!(inst[3] & 0x1FFFFFFF);
 
 		DISASM (4, "vp: set depth [func=%u range=(%f,%f)]",
-		        vp->depth_func, vp->depth_near, vp->depth_far);
+		        vp->depth.func, vp->depth.min, vp->depth.max);
 		break;
 
 	case 6:
-		vp->depthq_type		= (inst[0] >> 18) & 3;
-		vp->depthq_enabled	= ((inst[0] >> 17) & 1) ^ 1;
-		vp->depthq_unk		= (inst[0] >> 16) & 1;
-		vp->depthq_mask[0]	= inst[1] & 0xFF;
-		vp->depthq_mask[1]	= (inst[1] >> 8) & 0xFF;
-		vp->depthq_mask[2]	= (inst[1] >> 16) & 0xFF;
-		vp->depthq_mask[3]	= inst[1] >> 24;
-		vp->depthq_density	= *(float *) &inst[2];
-		vp->depthq_bias		= *(float *) &inst[3];
+		vp->depth.q_type	= (inst[0] >> 18) & 3;
+		vp->depth.q_enabled	= ((inst[0] >> 17) & 1) ^ 1;
+		vp->depth.q_unknown	= (inst[0] >> 16) & 1;
+		vp->depth.mask[0]	= inst[1] & 0xFF;
+		vp->depth.mask[1]	= (inst[1] >> 8) & 0xFF;
+		vp->depth.mask[2]	= (inst[1] >> 16) & 0xFF;
+		vp->depth.mask[3]	= inst[1] >> 24;
+		vp->depth.density	= *(float *) &inst[2];
+		vp->depth.bias		= *(float *) &inst[3];
 
 		UNHANDLED |= !!(inst[0] & 0xFFF0F800);
-		UNHANDLED |= !ispositive(vp->depthq_density);
-		UNHANDLED |= !ispositive(vp->depthq_bias);
 	
 		DISASM (4, "vp: set depth queue [type=%u ena=%u unk=%u mask=(%X %X %X %X) density=%f bias=%f]",
-			vp->depthq_type, vp->depthq_enabled, vp->depthq_unk,
-			vp->depthq_mask[0], vp->depthq_mask[1],
-			vp->depthq_mask[2], vp->depthq_mask[3],
-			vp->depthq_density, vp->depthq_bias);
+			vp->depth.q_type, vp->depth.q_enabled, vp->depth.q_unknown,
+			vp->depth.mask[0], vp->depth.mask[1],
+			vp->depth.mask[2], vp->depth.mask[3],
+			vp->depth.density, vp->depth.bias);
 		break;
 	}
 }
@@ -485,16 +473,15 @@ I (0x011)
 {
 	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
 
-	vp->ambient_color[0] = inst[0] >> 16;
-	vp->ambient_color[1] = inst[1] & 0xFFFF;
-	vp->ambient_color[2] = inst[1] >> 16;
+	vp->color.ambient[0] = inst[0] >> 16;
+	vp->color.ambient[1] = inst[1] & 0xFFFF;
+	vp->color.ambient[2] = inst[1] >> 16;
 
 	UNHANDLED |= !!(inst[0] & 0x0000F600);
 	UNHANDLED |= !(inst[0] & 0x00000800);
 
-	DISASM (2, "vp: set ambient [color=(%u %u %u)]",
-	        vp->ambient_color[2], vp->ambient_color[1],
-	        vp->ambient_color[0]);
+	DISASM (2, "vp: set ambient [%X %X %X]",
+	        vp->color.ambient[2], vp->color.ambient[1], vp->color.ambient[0]);
 }
 
 /* 191	Viewport: Set Clear Color
@@ -515,18 +502,18 @@ I (0x191)
 {
 	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
 
-	vp->clear_color[0] = inst[1] & 0xFF;
-	vp->clear_color[1] = (inst[1] >> 8) & 0xFF;
-	vp->clear_color[2] = (inst[1] >> 16) & 0xFF;
-	vp->clear_color[3] = ((inst[1] >> 24) & 1) ? 0xFF : 0;
+	vp->color.clear[0] = inst[1] & 0xFF;
+	vp->color.clear[1] = (inst[1] >> 8) & 0xFF;
+	vp->color.clear[2] = (inst[1] >> 16) & 0xFF;
+	vp->color.clear[3] = ((inst[1] >> 24) & 1) ? 0xFF : 0;
 
 	UNHANDLED |= !!(inst[0] & 0xFFFFF600);
 	UNHANDLED |= !(inst[0] & 0x00000800);
 	UNHANDLED |= !!(inst[0] & 0xFE000000);
 
-	DISASM (2, "vp: set clear [color=(%u %u %u %u)]",
-	        vp->clear_color[0], vp->clear_color[1],
-	        vp->clear_color[2], vp->clear_color[3]);
+	DISASM (2, "vp: set clear [%X %X %X %X]",
+	        vp->color.clear[0], vp->color.clear[1],
+	        vp->color.clear[2], vp->color.clear[3]);
 }
 
 /* 004	Commit Viewport
@@ -540,21 +527,15 @@ I (0x191)
 
 I (0x004)
 {
-	uint32_t index = inst[0] >> 16;
+	uint32_t index = (inst[0] >> 16) & 7;
+	hikaru_gpu_viewport_t *vp = &gpu->viewports.table[index];
+
+	*vp = gpu->viewports.scratch;
+	vp->flags |= HIKARU_GPU_OBJ_SET;
 
 	UNHANDLED |= !!(inst[0] & 0xFFF8FE00);
 
-	DISASM (1, "vp: commit @%u", index);
-
-	if (index >= NUM_VIEWPORTS) {
-		VK_ERROR ("CP: viewport commit index exceeds MAX (%u >= %u), skipping",
-		          index, NUM_VIEWPORTS);
-		UNHANDLED = true;
-		return;
-	}
-
-	gpu->viewports.table[index] = gpu->viewports.scratch;
-	gpu->viewports.table[index].set = true;
+	DISASM (1, "vp: commit @%u [%s]", index, get_gpu_viewport_str (vp));
 }
 
 /* 003	Recall Viewport
@@ -569,27 +550,22 @@ I (0x004)
 
 I (0x003)
 {
-	uint32_t index = inst[0] >> 16;
+	uint32_t index = (inst[0] >> 16) & 7;
+	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
 
-	DISASM (1, "vp: recall @%u %c", index,
-	        gpu->viewports.table[index].set ? ' ' : '!');
+	*vp = gpu->viewports.table[index];
+	vp->flags |= HIKARU_GPU_OBJ_DIRTY;
 
-	if (index >= NUM_VIEWPORTS) {
-		VK_ERROR ("CP: viewport recall index exceeds MAX (%u >= %u), skipping",
-		          index, NUM_VIEWPORTS);
-		UNHANDLED |= true;
+	if (!(vp->flags & HIKARU_GPU_OBJ_SET)) {
+		VK_ERROR ("CP @%08X: recalled viewport was not set (%u), skipping", PC, index);
 		return;
 	}
-
-	if (!gpu->viewports.table[index].set) {
-		VK_ERROR ("CP: recalled viewport was not set (%u), skipping",
-		          index);
-		return;
-	}
-
-	gpu->viewports.scratch = gpu->viewports.table[index];
 
 	UNHANDLED |= !!(inst[0] & 0xFFF89E00);
+
+	DISASM (1, "vp: recall @%u %c [%s]",
+	        index, (gpu->viewports.table[index].flags & HIKARU_GPU_OBJ_SET) ? ' ' : '!',
+	        get_gpu_viewport_str (vp));
 }
 
 /****************************************************************************

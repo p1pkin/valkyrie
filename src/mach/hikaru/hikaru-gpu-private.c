@@ -46,17 +46,16 @@ slot_to_coords (uint32_t *basex, uint32_t *basey, uint32_t slotx, uint32_t sloty
 }
 
 const char *
-get_gpu_viewport_str (hikaru_gpu_viewport_t *viewport)
+get_gpu_viewport_str (hikaru_gpu_viewport_t *vp)
 {
 	static char out[512];
 
-	sprintf (out, "(%8.3f %8.3f) (%u,%u) (%u,%u) (%u,%u) (%u %5.3f %5.3f) (%u %5.3f %5.3f)",
-	         viewport->persp_zfar, viewport->persp_znear,
-	         viewport->center[0], viewport->center[1],
-	         viewport->extents_x[0], viewport->extents_x[1],
-	         viewport->extents_y[0], viewport->extents_y[1],
-	         viewport->depth_func, viewport->depth_near, viewport->depth_far,
-	         viewport->depthq_type, viewport->depthq_density, viewport->depthq_bias);
+	sprintf (out, "clip=(%6.3f %6.3f %6.3f %6.3f %6.3f %6.3f) offs=(%6.3f %6.3f) depth=(%u %6.3f %6.3f)",
+	         vp->clip.l, vp->clip.r,
+	         vp->clip.b, vp->clip.t,
+	         vp->clip.f, vp->clip.n,
+	         vp->offset.x, vp->offset.y,
+	         vp->depth.func, vp->depth.min, vp->depth.max);
 
 	return (const char *) out;
 }
