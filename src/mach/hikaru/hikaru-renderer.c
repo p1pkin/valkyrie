@@ -389,14 +389,14 @@ vk_mtx3x3f_det (mtx3x3f_t a)
 static void
 upload_current_state (hikaru_renderer_t *hr)
 {
+	hikaru_gpu_viewport_t *vp = &hr->gpu->viewports.scratch;
+
 	/* Debug */
 	LOG ("==== CURRENT STATE ====");
 
 	/* Viewport */
+	if (vp->flags & HIKARU_GPU_OBJ_DIRTY)
 	{
-		/* XXX validate viewport. */
-		/* XXX introduce dirty flag. */
-		/* XXX scissor */
 		static const GLenum depth_func[8] = {
 			GL_NEVER,	/* 0 */
 			GL_LESS,	/* 1 */
@@ -408,7 +408,6 @@ upload_current_state (hikaru_renderer_t *hr)
 			GL_ALWAYS	/* 7 */
 		};
 
-		hikaru_gpu_viewport_t *vp = &hr->gpu->viewports.scratch;
 		const float h = vp->clip.t - vp->clip.b;
 		const float w = vp->clip.r - vp->clip.l;
 		const float hh_at_n = (h / 2.0f) * (vp->clip.n / vp->clip.f);
@@ -424,6 +423,7 @@ upload_current_state (hikaru_renderer_t *hr)
 		glMatrixMode (GL_PROJECTION);
 		glLoadIdentity ();
 		glFrustum (-hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, vp->clip.f);
+		/* XXX scissor */
 		glTranslatef (dcx, -dcy, 0.0f);
 
 		if (vp->depth.func) {
@@ -431,6 +431,8 @@ upload_current_state (hikaru_renderer_t *hr)
 			glDepthFunc (depth_func[vp->depth.func]);
 		} else
 			glDisable (GL_DEPTH_TEST);
+
+		vp->flags &= ~HIKARU_GPU_OBJ_DIRTY;
 	}
 
 	/* Modelview */

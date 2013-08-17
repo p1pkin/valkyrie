@@ -457,6 +457,8 @@ I (0x021)
 			vp->depth.density, vp->depth.bias);
 		break;
 	}
+
+	vp->flags |= HIKARU_GPU_OBJ_DIRTY;
 }
 
 /* 011	Viewport: Set Ambient Color
@@ -482,6 +484,8 @@ I (0x011)
 
 	DISASM (2, "vp: set ambient [%X %X %X]",
 	        vp->color.ambient[2], vp->color.ambient[1], vp->color.ambient[0]);
+
+	vp->flags |= HIKARU_GPU_OBJ_DIRTY;
 }
 
 /* 191	Viewport: Set Clear Color
@@ -514,6 +518,8 @@ I (0x191)
 	DISASM (2, "vp: set clear [%X %X %X %X]",
 	        vp->color.clear[0], vp->color.clear[1],
 	        vp->color.clear[2], vp->color.clear[3]);
+
+	vp->flags |= HIKARU_GPU_OBJ_DIRTY;
 }
 
 /* 004	Commit Viewport
@@ -531,11 +537,12 @@ I (0x004)
 	hikaru_gpu_viewport_t *vp = &gpu->viewports.table[index];
 
 	*vp = gpu->viewports.scratch;
-	vp->flags |= HIKARU_GPU_OBJ_SET;
 
 	UNHANDLED |= !!(inst[0] & 0xFFF8FE00);
 
 	DISASM (1, "vp: commit @%u [%s]", index, get_gpu_viewport_str (vp));
+
+	vp->flags = HIKARU_GPU_OBJ_SET | HIKARU_GPU_OBJ_DIRTY;
 }
 
 /* 003	Recall Viewport
@@ -554,8 +561,6 @@ I (0x003)
 	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
 
 	*vp = gpu->viewports.table[index];
-	vp->flags |= HIKARU_GPU_OBJ_DIRTY;
-
 	if (!(vp->flags & HIKARU_GPU_OBJ_SET)) {
 		VK_ERROR ("CP @%08X: recalled viewport was not set (%u), skipping", PC, index);
 		return;
