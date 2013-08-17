@@ -374,6 +374,18 @@ is_viewport_valid (hikaru_gpu_viewport_t *vp)
 	return true;
 }
 
+#if 0
+static float
+vk_mtx3x3f_det (mtx3x3f_t a)
+{
+	float subdet0 = mv->mtx[1][1] * mv->mtx[2][2] - mv->mtx[2][1] * mv->mtx[1][2];
+	float subdet1 = mv->mtx[1][0] * mv->mtx[2][2] - mv->mtx[1][2] * mv->mtx[2][0];
+	float subdet2 = mv->mtx[1][0] * mv->mtx[2][1] - mv->mtx[1][1] * mv->mtx[2][0];
+
+	return mv->mtx[0][0] * subdet0 - mv->mtx[0][1] * subdet1 + mv->mtx[0][2] * subdet2;
+}
+#endif
+
 static void
 upload_current_state (hikaru_renderer_t *hr)
 {
