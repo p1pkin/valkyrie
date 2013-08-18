@@ -1875,39 +1875,66 @@ I (0x0D1)
 	UNHANDLED |= !!(inst[0] & 0xFFFCF000);
 }
 
-/* 103	Recall Unknown (Recall Light?)
+/* 103	Recall Unknown
+ * 113	Recall Unknown
  *
  *	FFFFFFFF -------- ----ssso oooooooo
  *
  * s = Sub-opcode
  * F = Fog-related value? See PH:@0C0DA8BC. (-1)
- * N = Unknown; in the range [1..F]. N == 3 implies F is 0xFF.
  *
- * Observed values of N are:
+ * Notes: The sub-opcode
  *
- *  1: probably means disabled, implies F == 0xFF.
- *  4: enabled, implies F is positive
- *  6: enabled, implies F is negative, value to be used is ~F (one complement)
+ *  3: disabled (it always comes with F=0 or F=0xFF).
+ *  9: enabled, F is positive.
+ *  D: enabled, F is negative (actual value is ~F).
  *
  * See AT:@0C049CDA for N=8 and N=C, see PH:@0C0173CA for N=2, N=8. The
  * commands are emitted at e.g. AT:@0C69A220 (all three of them).
+ *
+ * BRAVEFF title screen requires that it also resets the modelview matrix (only
+ * the translation component is uploaded after calling 103).
  */
+
+static void
+reset_modelview (hikaru_gpu_t *gpu)
+{
+	hikaru_gpu_modelview_t *mv = &gpu->modelviews.stack[gpu->modelviews.depth];
+	unsigned i, j;
+
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 4; j++)
+			mv->mtx[i][j] = (i == j) ? 1.0f : 0.0;
+}
 
 I (0x103)
 {
-	DISASM (1, "unk: unknown");
+	bool enabled;
+	float kappa;
 
 	UNHANDLED |= !!(inst[0] & 0x00FFF000);
-}
 
-/* 113	Recall Unknown
- *
- * Not much to say on this one.
- */
-
-I (0x113)
-{
-	DISASM (1, "unk: unknown");
+	switch ((inst[0] >> 8) & 15) {
+	case 3:
+		enabled = false;
+		DISASM (1, "vp: disable unk");
+		break;
+	case 9:
+		enabled = true;
+		kappa = ((int32_t)(uint8_t)(inst[0] >> 24)) / 255.0f;
+		reset_modelview (gpu);
+		DISASM (1, "vp: set identity; enable unk [kappa=%f]", kappa);
+		break;
+	case 0xD:
+		enabled = true;
+		kappa = ((int32_t)(int8_t)(~(inst[0] >> 24))) / 255.0f;
+		reset_modelview (gpu);
+		DISASM (1, "vp: set identity; enable unk [kappa=%f]", kappa);
+		break;
+	default:
+		VK_ASSERT (0);
+		break;
+	}
 }
 
 /****************************************************************************
@@ -1968,7 +1995,7 @@ static const struct {
 	D(0x101, 0x101, 4,	0),
 	D(0x103, 0x103, 4,	0),
 	D(0x104, 0x104, 4,	0),
-	D(0x113, 0x113, 4,	0),
+	D(0x113, 0x103, 4,	0),
 	D(0x12C, 0x12C, 16,	FLAG_PUSH | FLAG_STATIC),
 	D(0x12D, 0x12C, 16,	FLAG_PUSH | FLAG_STATIC),
 	D(0x12E, 0x12C, 16,	FLAG_PUSH | FLAG_STATIC),
