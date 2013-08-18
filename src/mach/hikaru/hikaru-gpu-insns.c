@@ -1461,7 +1461,7 @@ I (0x101)
  *
  *	See the CRT test screen, it's pretty clear what happens there.
  *
- * U = Enable per-vertex updates.
+ * U = Enable per-vertex updates. (Or normal smoothing?)
  *
  * y = Unknown
  *
@@ -1476,10 +1476,6 @@ I (0x101)
  *     Only the values 7 and 0 have been observed. When u is 7, all three
  *     vertices are sent to the hardware, and a triangle is drawn. When u
  *     is 0 all vertices are pushed to the buffer, but none is rendered.
- *
- *     If U is 0, then it is as if u = 7.
- *
- *     XXX Oddly enough, there are meshes with both U=0/u=7 and U=0/u=0. WTF?
  *
  * D = Dynamic or static mesh
  *
