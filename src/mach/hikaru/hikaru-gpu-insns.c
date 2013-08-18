@@ -1123,11 +1123,12 @@ I (0x0C3)
  *	-------- ------tt ----oooo oooooooo
  *	pppppppp pppppppp pppppppp pppppppp
  *	qqqqqqqq qqqqqqqq qqqqqqqq qqqqqqqq
- *	-------- -------- -------- --------
+ *	???????? ???????? ???????? ????????
  *
  * t = Light type
  * p = Unknown \ power/emission/exponent/dacay/XXX
  * q = Unknown /
+ * ? = Used in BRAVEFF title?
  *
  * Type 0:
  *
@@ -1288,11 +1289,12 @@ I (0x104)
  *      -------- nnnnnnnn ---M---o oooooooo
  *      ------bb bbbbbbbb ------aa aaaaaaaa
  *      ------dd dddddddd ------cc cccccccc
- *      -------- -------- -------- --------
+ *      ???????? ???????? ???????? ????????
  *
  * M = Unknown (0 in the BOOTROM, 1 elsewhere)
  * n = Lightset index
  * a,b,c,d = Indices of four lights
+ * ? = Used in BRAVEFF title?
  *
  * See PH:@0C017DF0.
  */
