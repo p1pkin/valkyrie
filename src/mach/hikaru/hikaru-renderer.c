@@ -494,7 +494,11 @@ draw_current_mesh (hikaru_renderer_t *hr)
 			hikaru_gpu_vertex_t *v = &hr->mesh.vbo[i*3+j];
 
 			glTexCoord2fv (v->txc);
-			glColor3fv (v->col);
+			if (hr->debug.flags & HR_DEBUG_FORCE_RAND_COLOR) {
+				float r = (rand () & 0xFF) / 255.0f;
+				glColor3f (r, r, r);
+			} else
+				glColor3fv (v->col);
 			glVertex3fv (v->pos);
 		}
 	}
