@@ -357,6 +357,9 @@ clear_texture_cache (hikaru_renderer_t *hr)
 static bool
 is_viewport_valid (hikaru_gpu_viewport_t *vp)
 {
+	if (!(vp->flags & HIKARU_GPU_OBJ_SET))
+		return false;
+
 	if (!ispositive (vp->clip.l) || !ispositive (vp->clip.r) ||
 	    !ispositive (vp->clip.b) || !ispositive (vp->clip.t) ||
 	    !ispositive (vp->clip.f) || !ispositive (vp->clip.n))
