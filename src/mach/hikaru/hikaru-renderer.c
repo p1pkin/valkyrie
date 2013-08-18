@@ -478,44 +478,31 @@ upload_current_state (hikaru_renderer_t *hr)
 static void
 draw_current_mesh (hikaru_renderer_t *hr)
 {
-	uint16_t i;
+	unsigned i, j;
 
-	LOG ("==== DRAWING MESH (current=%u #vertices=%u #indices=%u) ====",
-	     hr->debug.current_mesh, hr->mesh.vindex, hr->mesh.iindex);
+	LOG ("==== DRAWING MESH (current=%u #vertices=%u) ====",
+	     hr->debug.current_mesh, hr->mesh.num_pushed);
 
-	if ((hr->debug.current_mesh++ != hr->debug.selected_mesh) &&
-	    (hr->debug.flags & HR_DEBUG_SELECT_MESH))
-		return;
+	if ((hr->debug.flags & HR_DEBUG_SELECT_MESH) &&
+	    (hr->debug.current_mesh != hr->debug.selected_mesh))
+		goto skip_;
 
 	glEnable (GL_BLEND);
 
-	glBegin (GL_TRIANGLE_STRIP);
-	for (i = 0; i < hr->mesh.iindex; i++) {
-		uint16_t index = hr->mesh.ibo[i];
-		if (index == RESTART_INDEX) {
-			glEnd ();
-			glBegin (GL_TRIANGLE_STRIP);
-			LOG ("#%u RESTART!", i);
-			continue;
-		} else {
-			hikaru_gpu_vertex_t *v = &hr->mesh.vbo[index];
-			LOG ("#%u index=%u vertex=(%f %f %f) col=(%f %f %f) txc=(%f %f)",
-			     i, index,
-			     v->pos[0], v->pos[1], v->pos[2],
-			     v->col[0], v->col[1], v->col[2],
-			     v->txc[0], v->txc[1]);
+	glBegin (GL_TRIANGLES);
+	for (i = 0; i < hr->mesh.num_tris; i++) {
+		for (j = 0; j < 3; j++) {
+			hikaru_gpu_vertex_t *v = &hr->mesh.vbo[i*3+j];
 
-			glVertex3fv (v->pos);
 			glTexCoord2fv (v->txc);
-
-			if (hr->debug.flags & HR_DEBUG_FORCE_RAND_COLOR) {
-				float x = (rand () & 0xFF)  / 255.0f;
-				glColor3f (x, x, x);
-			} else
-				glColor3fv (v->col);
+			glColor3fv (v->col);
+			glVertex3fv (v->pos);
 		}
 	}
 	glEnd ();
+
+skip_:
+	hr->debug.current_mesh++;
 }
 
 #define VK_COPY_VEC2F(dst_, src_) \
@@ -532,12 +519,13 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	} while (0)
 
 static void
-copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst)
+copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, float alpha)
 {
 	hikaru_gpu_material_t *mat = &hr->gpu->materials.scratch;
 
 	/* XXX at the moment we use only color 1 (it's responsible for the
 	 * BOOTROM CRT test). */
+	/* XXX check component orter (it's probably BGR). */
 
 	if (mat->set) {
 		dst->col[0] = mat->color[1][0] / 255.0f;
@@ -548,6 +536,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst)
 		dst->col[1] = 1.0f;
 		dst->col[2] = 1.0f;
 	}
+	dst->alpha = alpha;
 }
 
 static void
@@ -565,8 +554,24 @@ copy_texcoords (hikaru_renderer_t *hr,
 	}
 }
 
-/* XXX track only the last 3 vertices and dynamically build the mesh in
- * another vertex buffer. */
+#define VTX(n_)	hr->mesh.vtx[n_]
+
+static void
+add_triangle (hikaru_renderer_t *hr)
+{
+	if (hr->mesh.num_pushed >= 3) {
+		unsigned i;
+
+		LOG ("*** ADDING TRIANGLE ***");
+
+		for (i = 0; i < 3; i++) {
+			LOG (" %u : %s", i, get_gpu_vertex_str (&VTX (i), NULL));
+			hr->mesh.vbo[hr->mesh.num_tris*3+i] = VTX(i);
+		}
+
+		hr->mesh.num_tris++;
+	}
+}
 
 void
 hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
@@ -574,8 +579,7 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
                                hikaru_gpu_vertex_info_t *vi,
                                unsigned num)
 {
-	hikaru_gpu_vertex_t *vbo, *curv;
-	uint16_t *ibo;
+	unsigned i;
 
 	VK_ASSERT (hr);
 	VK_ASSERT (v);
@@ -585,68 +589,60 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 	if (hr->debug.flags & HR_DEBUG_DISABLE_3D)
 		return;
 
-	vbo = hr->mesh.vbo;
-	ibo = hr->mesh.ibo;
+	switch (num) {
 
-	curv = &vbo[hr->mesh.vindex];
+	case 1:
+		/* Note that VTX(2) always points to the last pushed vertex,
+		 * which for instructions 12x, 1Ax and 1Bx means the vertex
+		 * pushed by the instruction itself, and for instructions 1Ex
+		 * and 15x the vertex pushed by the previous "push"
+		 * instruction.
+		 */
 
-	if (num == 1) {
-
+		/* If the incoming vertex includes the position, push it
+		 * in the temporary buffer, updating it according to the
+		 * p(osition)pivot bit. */
 		if (vi->has_position) {
-			if (!vi->ppivot) {
-				/* If the ppivot bit is not set, treat the
-				 * incoming vertex as any other tristrip
-				 * vertex -- i.e., append it to the vbo. */
-				ibo[hr->mesh.iindex++] = hr->mesh.vindex;
 
-				/* Update the pivot index. */
-				hr->mesh.ppivot = hr->mesh.vindex - 2;
-			} else {
-				if (hr->mesh.vindex < 2)
-					return;
+			/* Finish the previous triangle. */
+			add_triangle (hr);
 
-				/* If the ppivot bit is set, the incoming
-				 * vertex is part of a triangle "fan", i.e.,
-				 * it is connected to the previous vertex and
-				 * to the pivot vertex. */
-				ibo[hr->mesh.iindex++] = RESTART_INDEX;
-				ibo[hr->mesh.iindex++] = hr->mesh.ppivot;
-				ibo[hr->mesh.iindex++] = hr->mesh.vindex - 1;
-				ibo[hr->mesh.iindex++] = hr->mesh.vindex;
-			}
-			VK_ASSERT (hr->mesh.iindex < MAX_VERTICES_PER_MESH);
+			/* Do not change the pivot if it is not required */
+			if (!vi->ppivot)
+				VTX(0) = VTX(1);
+			VTX(1) = VTX(2);
 
-			memset ((void *) curv, 0, sizeof (hikaru_gpu_vertex_t));
+			/* Set the position, colors and alpha. */
+			memset ((void *) &VTX(2), 0, sizeof (hikaru_gpu_vertex_t));
 
-			/* XXX set vertex color */
-			VK_COPY_VEC3F (curv->pos, v->pos);
-			copy_colors (hr, curv);
-			curv->alpha = v->alpha;
+			VK_COPY_VEC3F (VTX(2).pos, v->pos);
+			copy_colors (hr, &VTX(2), v->alpha);
+
+			/* Account for the added vertex. */
+			hr->mesh.num_pushed++;
+			VK_ASSERT (hr->mesh.num_pushed < MAX_VERTICES_PER_MESH);
 		}
 
+		/* Set the normal. */
 		if (vi->has_normal)
-			VK_COPY_VEC3F (curv->nrm, v->nrm);
+			VK_COPY_VEC3F (VTX(2).nrm, v->nrm);
 
+		/* Set the texcoords. */
 		if (vi->has_texcoords)
-			copy_texcoords (hr, curv, v);
+			copy_texcoords (hr, &VTX(2), v);
+		break;
 
-		if (vi->has_position) {
-			hr->mesh.vindex++;
-			VK_ASSERT (hr->mesh.vindex < MAX_VERTICES_PER_MESH);
-		}
+	case 3:
+		if (hr->mesh.num_pushed < 3)
+			return;
 
-	} else if (num == 3) {
-		unsigned i;
+		for (i = 0; i < 3; i++)
+			copy_texcoords (hr, &VTX(i), &v[i]);
+		break;
 
-		for (i = 0; i < 3; i++) {
-			VK_ASSERT (!vi[i].has_position && !vi[i].has_normal);
-
-			if (hr->mesh.vindex < 3)
-				return;
-
-			copy_texcoords (hr, &vbo[hr->mesh.vindex + i - 3],
-			                &v[i]);
-		}
+	default:
+		VK_ASSERT (!"num is neither 1 nor 3");
+		break;
 	}
 }
 
@@ -671,6 +667,7 @@ hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr)
 	if (hr->debug.flags & HR_DEBUG_DISABLE_3D)
 		return;
 
+	add_triangle (hr);
 	hr->mesh.addr[1] = addr;
 
 	upload_current_state (hr);

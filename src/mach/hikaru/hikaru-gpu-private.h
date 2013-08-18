@@ -244,10 +244,10 @@ typedef struct {
 	hikaru_gpu_t *gpu;
 
 	struct {
+		hikaru_gpu_vertex_t	vtx[4];
 		hikaru_gpu_vertex_t	vbo[MAX_VERTICES_PER_MESH];
-		uint16_t		ibo[MAX_VERTICES_PER_MESH];
-		uint16_t		iindex, vindex;
-		uint16_t		ppivot, tpivot;
+		uint32_t		num_pushed;
+		uint32_t		num_tris;
 		uint32_t		addr[2];
 	} mesh;
 
