@@ -31,7 +31,7 @@
 #define NUM_LIGHTS	1024
 #define NUM_LIGHTSETS	200
 
-#define MAX_VERTICES_PER_MESH	4096
+#define MAX_VERTICES_PER_MESH	16384
 
 /* Used for both texheads and layers */
 enum {

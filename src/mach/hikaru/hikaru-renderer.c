@@ -561,7 +561,8 @@ add_triangle (hikaru_renderer_t *hr)
 	if (hr->mesh.num_pushed >= 3) {
 		unsigned i;
 
-		LOG ("*** ADDING TRIANGLE ***");
+		LOG ("*** ADDING TRIANGLE [%u] ***", hr->mesh.num_tris);
+		VK_ASSERT ((hr->mesh.num_tris*3+2) < MAX_VERTICES_PER_MESH);
 
 		for (i = 0; i < 3; i++) {
 			LOG (" %u : %s", i, get_gpu_vertex_str (&VTX (i), NULL));
