@@ -194,7 +194,6 @@ decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 	return surface;
 }
 
-/* XXX introduce HIKARU_FORMAT_BGRA5551 here and in vk/surface.[ch]. */
 static uint16_t
 abgr1555_to_rgba5551 (uint16_t c)
 {
@@ -311,13 +310,13 @@ decode_texhead (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 
 	/* Texhead not cached, decode it. */
 	switch (texhead->format) {
-	case HIKARU_FORMAT_RGBA5551:
+	case HIKARU_FORMAT_ABGR1555:
 		surface = decode_texhead_abgr1555 (hr, texhead);
 		break;
-	case HIKARU_FORMAT_RGBA4444:
+	case HIKARU_FORMAT_ABGR4444:
 		surface = decode_texhead_abgr4444 (hr, texhead);
 		break;
-	case HIKARU_FORMAT_RGBA1111:
+	case HIKARU_FORMAT_ABGR1111:
 		surface = decode_texhead_rgba1111 (hr, texhead);
 		break;
 	case HIKARU_FORMAT_ALPHA8:
@@ -740,7 +739,7 @@ upload_layer (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 {
 	vk_surface_t *surface;
 
-	if (layer->format == HIKARU_FORMAT_RGBA8888)
+	if (layer->format == HIKARU_FORMAT_ABGR8888)
 		surface = decode_layer_rgba8888 (hr, layer);
 	else
 		surface = decode_layer_rgba5551 (hr, layer);

@@ -1019,7 +1019,7 @@ I (0x0C1)
 		th->_2C1_unk8	= inst[0] >> 29;
 
 		/* XXX move this to the renderer */
-		if (th->format == HIKARU_FORMAT_RGBA1111)
+		if (th->format == HIKARU_FORMAT_ABGR1111)
 			th->width *= 2; /* pixels per word */
 
 		DISASM (1, "tex: set format [%ux%u fmt=%u]",

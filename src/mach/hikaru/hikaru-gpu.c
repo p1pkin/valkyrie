@@ -590,7 +590,7 @@ hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu)
  * directly by the CPU or indirectly through the GPU DMA device. It is used
  * for 2D only.
  *
- * Framebuffer data can hold both RGBA4444? and RGBA8888 data.
+ * Framebuffer data can hold both ABGR1555? and ABGR8888 data.
  *
  * The two texture RAM (TEXRAM) areas are located at 04000000-043FFFFF
  * (bank 0) and 06000000-063FFFFF (bank 1) of the external address space,
@@ -599,7 +599,7 @@ hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu)
  * accessed by the CPU through the GPU IDMA device. They are used for 3D
  * only.
  *
- * Textures can be RGBA5551, RGBA4444, RGBA1111, and A8?; other formats
+ * Textures can be ABGR1555, ABGR4444, ABGR1111, and A8?; other formats
  * may be possible. Textures may or may not include a complete mipmap tree.
  *
  *
@@ -643,8 +643,8 @@ hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu)
  *			1 = layer 1 format
  *			2 = layer 2 format
  *
- *			If the format is 0, then the layer is RGBA8888;
- *			otherwise it is RGBA4444 (or RGBA5551?)
+ *			If the format is 0, then the layer is ABGR8888;
+ *			otherwise it is ABGR1555?
  *
  *			See PH:@0C01A1EA.
  *
@@ -779,9 +779,9 @@ hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu)
  *
  *	f = Format:
  *
- *		0 = RGBA5551
- *		1 = RGBA4444
- *		2 = RGBA1? XXX check the BOOTROM conversion code!
+ *		0 = ABGR1555
+ *		1 = ABGR4444
+ *		2 = ABGR1111
  *		4 = A8?
  *
  *	b = Destination TEXRAM bank
@@ -794,7 +794,7 @@ hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu)
  * evidence that they are used within the 2C1 instruction.
  *
  * NOTE: AIRTRIX uploads textures as blocks of 512x512 pixels. The odd thing
- * is that format=0 while not all textures in the block are RGBA5551.
+ * is that format=0 while not all textures in the block are ABGR1555.
  *
  * NOTE: IDMA it may be related to vblank timing, see PH:@0C0128E6 and
  * PH:@0C01290A.
@@ -903,9 +903,9 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 		/* continue anyway */
 	}
 
-	if (texhead.format != HIKARU_FORMAT_RGBA5551 &&
-	    texhead.format != HIKARU_FORMAT_RGBA4444 &&
-	    texhead.format != HIKARU_FORMAT_RGBA1111 &&
+	if (texhead.format != HIKARU_FORMAT_ABGR1555 &&
+	    texhead.format != HIKARU_FORMAT_ABGR4444 &&
+	    texhead.format != HIKARU_FORMAT_ABGR1111 &&
 	    texhead.format != HIKARU_FORMAT_ALPHA8) {
 		VK_ERROR ("GPU IDMA: unknown texhead format: %s",
 		          get_gpu_texhead_str (&texhead));
@@ -1015,10 +1015,10 @@ hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
 
 			format = (REG1AUNIT (0, 0x30) >> (bank - 1)) & 1;
 			if (format == 0) {
-				layer.format = HIKARU_FORMAT_RGBA5551;
+				layer.format = HIKARU_FORMAT_ABGR1555;
 				shift = 1;
 			} else {
-				layer.format = HIKARU_FORMAT_RGBA8888;
+				layer.format = HIKARU_FORMAT_ABGR8888;
 				shift = 2;
 			}
 
