@@ -608,9 +608,6 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 		 * p(osition)pivot bit. */
 		if (vi->has_position) {
 
-			/* Finish the previous triangle. */
-			add_triangle (hr);
-
 			/* Do not change the pivot if it is not required */
 			if (!vi->ppivot)
 				VTX(0) = VTX(1);
@@ -648,6 +645,10 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 		VK_ASSERT (!"num is neither 1 nor 3");
 		break;
 	}
+
+	/* Finish the previous triangle. */
+	if (vi[0].pvu_mask == 7)
+		add_triangle (hr);
 }
 
 void
@@ -671,7 +672,6 @@ hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr)
 	if (hr->debug.flags & HR_DEBUG_DISABLE_3D)
 		return;
 
-	add_triangle (hr);
 	hr->mesh.addr[1] = addr;
 
 	upload_current_state (hr);
