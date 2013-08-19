@@ -103,8 +103,6 @@ typedef struct {
 	uint8_t _0C1_byte;		/* 0C1 */
 	uint32_t _0C1_nibble	: 4;	/* 0C1 */
 	uint32_t format		: 3;	/* 2C1 */
-	uint32_t log_width	: 3;	/* 2C1 */
-	uint32_t log_height	: 3;	/* 2C1 */
 	uint32_t _2C1_unk4	: 3;	/* 2C1 */
 	uint32_t _2C1_unk8	: 3;	/* 2C1 */
 	uint32_t bank		: 1;	/* 4C1 */

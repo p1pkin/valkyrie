@@ -1012,8 +1012,6 @@ I (0x0C1)
 		th->width	= 16 << ((inst[0] >> 16) & 7);
 		th->height	= 16 << ((inst[0] >> 19) & 7);
 		th->format	= (inst[0] >> 26) & 7;
-		th->log_width	= (inst[0] >> 16) & 7; /* XXX remove */
-		th->log_height	= (inst[0] >> 19) & 7; /* XXX remove */
 		th->_2C1_unk4	= (((inst[0] >> 14) & 3) << 4) |
 	                           ((inst[0] >> 22) & 15);
 		th->_2C1_unk8	= inst[0] >> 29;
