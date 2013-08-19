@@ -153,7 +153,7 @@ get_gpu_vertex_str (hikaru_gpu_vertex_t *v, hikaru_gpu_vertex_info_t *vi)
 	tmp += sprintf (tmp, "(X: %5.3f %5.3f %5.3f) ",
 	                v->pos[0], v->pos[1], v->pos[2]);
 	tmp += sprintf (tmp, "(C: %5.3f %5.3f %5.3f %5.3f) ",
-	                v->col[0], v->col[1], v->col[2], v->alpha);
+	                v->col[0], v->col[1], v->col[2], v->col[3]);
 	tmp += sprintf (tmp, "(N: %5.3f %5.3f %5.3f) ",
 	                v->nrm[0], v->nrm[1], v->nrm[2]);
 	tmp += sprintf (tmp, "(T: %5.3f %5.3f) ",

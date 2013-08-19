@@ -496,9 +496,9 @@ draw_current_mesh (hikaru_renderer_t *hr)
 			glTexCoord2fv (v->txc);
 			if (hr->debug.flags & HR_DEBUG_FORCE_RAND_COLOR) {
 				float r = (rand () & 0xFF) / 255.0f;
-				glColor4f (r, r, r, v->alpha);
+				glColor4f (r, r, r, v->col[3]);
 			} else
-				glColor4f (v->col[0], v->col[1], v->col[2], v->alpha);
+				glColor4fv (v->col);
 			glVertex3fv (v->pos);
 		}
 	}
@@ -522,7 +522,7 @@ skip_:
 	} while (0)
 
 static void
-copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, float alpha)
+copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst)
 {
 	hikaru_gpu_material_t *mat = &hr->gpu->materials.scratch;
 
@@ -539,7 +539,6 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, float alpha)
 		dst->col[1] = 1.0f;
 		dst->col[2] = 1.0f;
 	}
-	dst->alpha = alpha;
 }
 
 static void
@@ -622,7 +621,7 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 			memset ((void *) &VTX(2), 0, sizeof (hikaru_gpu_vertex_t));
 
 			VK_COPY_VEC3F (VTX(2).pos, v->pos);
-			copy_colors (hr, &VTX(2), v->alpha);
+			copy_colors (hr, &VTX(2));
 
 			/* Account for the added vertex. */
 			hr->mesh.num_pushed++;

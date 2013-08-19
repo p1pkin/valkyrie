@@ -232,8 +232,7 @@ struct hikaru_gpu_vertex_t {
 	uint32_t padding0;
 	vec3f_t	nrm;
 	uint32_t padding1;
-	vec3f_t col;
-	float alpha;
+	vec4f_t col;
 	vec2f_t	txc;
 	vec2f_t padding2;
 } __attribute__ ((packed));

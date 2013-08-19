@@ -1544,10 +1544,12 @@ decode_vertex_header (hikaru_gpu_vertex_t *v,
                       hikaru_gpu_vertex_info_t *vi,
                       uint32_t inst0)
 {
+	float alpha = (float) (inst0 >> 24) / 255.0f;
+
 	memset ((void *) v, 0, sizeof (hikaru_gpu_vertex_t));
 
 	vi->full = inst0;
-	v->alpha = (float) (inst0 >> 24);
+	v->col[3] = alpha;
 
 	VK_ASSERT (vi->bit.tricap == 0 || vi->bit.tricap == 7);
 }
