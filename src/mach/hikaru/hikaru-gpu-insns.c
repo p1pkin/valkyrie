@@ -1546,13 +1546,6 @@ decode_vertex_header (hikaru_gpu_vertex_t *v, uint32_t inst0)
 	VK_ASSERT (v->info.bit.tricap == 0 || v->info.bit.tricap == 7);
 }
 
-static float
-texcoord_to_float (uint32_t x)
-{
-	int32_t u = (x & 0x8000) ? (x | 0xFFFF8000) : x;
-	return u / 16.0f;
-}
-
 I (0x12C)
 {
 	hikaru_gpu_vertex_t v;
@@ -1603,8 +1596,8 @@ I (0x1B8)
 	v.nrm[1] = *(float *) &inst[6];
 	v.nrm[2] = *(float *) &inst[7];
 
-	v.txc[0] = texcoord_to_float (inst[4] & 0xFFFF);
-	v.txc[1] = texcoord_to_float (inst[4] >> 16);
+	v.txc[0] = ((int16_t) inst[4]) / 16.0f;
+	v.txc[1] = ((int16_t) (inst[4] >> 16)) / 16.0f;
 
 	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v,
 	                               HR_PUSH_POS | HR_PUSH_NRM | HR_PUSH_TXC, 1);
