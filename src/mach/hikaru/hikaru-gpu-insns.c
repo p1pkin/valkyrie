@@ -1554,6 +1554,8 @@ decode_vertex_header (hikaru_gpu_vertex_t *v,
 	vi->tpivot		= (inst0 >> 2) & 1;
 	vi->ppivot		= (inst0 >> 1) & 1;
 	vi->winding		= inst0 & 1;
+
+	VK_ASSERT (vi->pvu_mask == 0 || vi->pvu_mask == 7);
 }
 
 static float
