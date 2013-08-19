@@ -205,22 +205,24 @@ typedef struct {
  Renderer
 ****************************************************************************/
 
-typedef struct {
-	uint32_t is_static	: 1;
-	uint32_t has_position	: 1;
-	uint32_t has_normal	: 1;
-	uint32_t has_texcoords	: 1;
+#define HR_PUSH_POS	(1 << 0)
+#define HR_PUSH_NRM	(1 << 1)
+#define HR_PUSH_TXC	(1 << 2)
 
-	/* Only meaningful if has_position */
-	uint32_t has_pvu_mask	: 1;
-	uint32_t pvu_mask	: 3;
-	uint32_t ppivot		: 1;
-
-	/* Only meaningful if has_texcoords */
-	uint32_t tpivot		: 1;
-
-	/* Only meaningful if has_position || has_texcoords */
-	uint32_t winding	: 1;
+typedef union {
+	struct {
+		uint32_t winding	: 1;
+		uint32_t ppivot		: 1;
+		uint32_t tpivot		: 1;
+		uint32_t padding1	: 6;
+		uint32_t tricap		: 3;
+		uint32_t unknown1	: 1;
+		uint32_t unknown2	: 3;
+		uint32_t padding2	: 7;
+		uint32_t unknown3	: 1;
+		uint32_t alpha		: 8;
+	} bit;
+	uint32_t full;
 } hikaru_gpu_vertex_info_t;
 
 typedef struct hikaru_gpu_vertex_t hikaru_gpu_vertex_t;
@@ -291,6 +293,7 @@ void hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr);
 void hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
                                     hikaru_gpu_vertex_t *v,
                                     hikaru_gpu_vertex_info_t *vi,
+                                    uint32_t push,
                                     unsigned num);
 
 #endif /* __HIKARU_GPU_PRIVATE_H__ */

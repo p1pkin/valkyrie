@@ -1451,54 +1451,49 @@ I (0x101)
  * 1Bx	Mesh: Push All (Position, Normal, Texcoords) (Dynamic)
  *
  *
- * They appear to have a common 1-word header:
+ * They appear to have a common 32-bit header:
  *
- *	AAAAAAAA U------- yyySuuuo DooNopPW
+ *	AAAAAAAA U------- uuuSTTTo oooootpW
  *
- * A = Per-vertex alpha.
+ * A = Vertex alpha
  *
- *	See the CRT test screen, it's pretty clear what happens there.
+ * U = Unknown
  *
- * U = Enable per-vertex updates. (Or normal smoothing?)
+ *     Normal smoothing?
  *
- * y = Unknown
+ * u = Unknown
  *
- * S = Enables normal interpolation?
+ *     No idea.
  *
- * u = Per-vertex update flags.
+ * S = Unknown
  *
- *     Three vertices specify the to-be-drawn triangle. These three bits
- *     specify which of them should actually be pushed to the hardware,
- *     or pushed and rendered. The exact semantics are not known.
+ *     Seemingly used for shadows in AIRTRIX (attract mode).
  *
- *     Only the values 7 and 0 have been observed. When u is 7, all three
- *     vertices are sent to the hardware, and a triangle is drawn. When u
- *     is 0 all vertices are pushed to the buffer, but none is rendered.
+ * T = Triangle
  *
- * D = Dynamic or static mesh
+ *     The only observed values so far are 0 and 7.
  *
- *     Dynamic meshes are specified using floating-point data; static meshes
- *     are specified using fixed-point data with variable precision. See
- *     command 901. Information kindly contributed by CaH4e3.
+ *     If 0, the vertex is pushed to the GPU vertex buffer. If 7, the vertex is
+ *     pushed and defines a triangle along with the three previously pushed
+ *     vertices.
  *
- * N = Has normal
+ * t = Texcoord pivot?
  *
- * p = Texcoord pivot? Apparently only used by 1Bx, which includes texcoord
- *     info.
+ *     Apparently only used by 1Bx, which includes texcoord info.
  *
- * P = Position pivot
+ * p = Position pivot
  *
  *     When 0, the vertex is linked to the previous two according to the
  *     winding bit. When 1, the vertex at offset -2 is kept unchanged in the
  *     vertex buffer, and acts as a pivot for building a triangle fan.
  *
- * W = Winding.
+ * W = Winding
  *
  *     Triangle winding specifies whether the vertices composing the
  *     to-be-drawn triangle are to be in the order (0, -1, -2), and W is 0
  *     in this case, or (0, -2, -1), and W is 1 in this case.
  *
- *     If vertex in position -2 is a pivot, it is treated as if it wasn't.
+ *     If vertex in position -2 is a pivot, it is treated as if it wasn't. [?]
  *
  * For 12x, the rest of the instruction looks like:
  *
@@ -1535,6 +1530,11 @@ I (0x101)
  * u,v,w = Normal
  * s,t = Texcoords
  *
+ * Meshes come in two flavors: dynamic and static. Dynamic meshes are specified
+ * with normal IEEE457 floating-point values. Static meshes are specified with
+ * variable fixed-point values; the fixed-point precision is defined by command
+ * 901.
+ *
  * Information on the existence of static/dynamic mesh varieties, and info on
  * the fixed-point decoding kindly provided by CaH4e3.
  */
@@ -1545,17 +1545,11 @@ decode_vertex_header (hikaru_gpu_vertex_t *v,
                       uint32_t inst0)
 {
 	memset ((void *) v, 0, sizeof (hikaru_gpu_vertex_t));
-	memset ((void *) vi, 0, sizeof (hikaru_gpu_vertex_info_t));
 
+	vi->full = inst0;
 	v->alpha = (float) (inst0 >> 24);
 
-	vi->has_pvu_mask	= (inst0 >> 23) & 1;
-	vi->pvu_mask		= (inst0 >> 9) & 7;
-	vi->tpivot		= (inst0 >> 2) & 1;
-	vi->ppivot		= (inst0 >> 1) & 1;
-	vi->winding		= inst0 & 1;
-
-	VK_ASSERT (vi->pvu_mask == 0 || vi->pvu_mask == 7);
+	VK_ASSERT (vi->bit.tricap == 0 || vi->bit.tricap == 7);
 }
 
 static float
@@ -1572,14 +1566,12 @@ I (0x12C)
 
 	decode_vertex_header (&v, &vi, inst[0]);
 
-	vi.is_static = true;
-	vi.has_position = true;
-
 	v.pos[0] = (int16_t)(inst[1] >> 16) * gpu->static_mesh_precision;
 	v.pos[1] = (int16_t)(inst[2] >> 16) * gpu->static_mesh_precision;
 	v.pos[2] = (int16_t)(inst[3] >> 16) * gpu->static_mesh_precision;
 
-	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v, &vi, 1);
+	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v, &vi,
+	                               HR_PUSH_POS, 1);
 
 	UNHANDLED |= !!(inst[0] & 0x007F0000);
 
@@ -1593,14 +1585,12 @@ I (0x1AC)
 
 	decode_vertex_header (&v, &vi, inst[0]);
 
-	vi.is_static = false;
-	vi.has_position = true;
-
 	v.pos[0] = *(float *) &inst[1];
 	v.pos[1] = *(float *) &inst[2];
 	v.pos[2] = *(float *) &inst[3];
 
-	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v, &vi, 1);
+	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v, &vi,
+	                               HR_PUSH_POS, 1);
 
 	UNHANDLED |= !!(inst[0] & 0x007F0000);
 
@@ -1614,11 +1604,6 @@ I (0x1B8)
 
 	decode_vertex_header (&v, &vi, inst[0]);
 
-	vi.is_static = false;
-	vi.has_position = true;
-	vi.has_normal = true;
-	vi.has_texcoords = true;
-
 	v.pos[0] = *(float *) &inst[1];
 	v.pos[1] = *(float *) &inst[2];
 	v.pos[2] = *(float *) &inst[3];
@@ -1630,7 +1615,8 @@ I (0x1B8)
 	v.txc[0] = texcoord_to_float (inst[4] & 0xFFFF);
 	v.txc[1] = texcoord_to_float (inst[4] >> 16);
 
-	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v, &vi, 1);
+	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v, &vi,
+	                               HR_PUSH_POS | HR_PUSH_NRM | HR_PUSH_TXC, 1);
 
 	UNHANDLED |= !!(inst[0] & 0x007F0000);
 
@@ -1659,13 +1645,12 @@ I (0x0E8)
 	for (i = 0; i < 3; i++) {
 		decode_vertex_header (&vs[i], &vis[i], inst[0]);
 
-		vis[i].has_texcoords = true;
-
 		vs[i].txc[0] = ((int16_t) inst[i+1]) / 16.0f;
 		vs[i].txc[1] = ((int16_t) (inst[i+1] >> 16)) / 16.0f;
 	}
 
-	hikaru_renderer_push_vertices (gpu->renderer, &vs[0], &vis[0], 3);
+	hikaru_renderer_push_vertices (gpu->renderer, &vs[0], &vis[0],
+	                               HR_PUSH_TXC, 3);
 
 	UNHANDLED |= !!(inst[0] & 0xFFFEF000);
 
@@ -1690,12 +1675,10 @@ I (0x158)
 
 	decode_vertex_header (&v, &vi, inst[0]);
 
-	vi.has_texcoords = true;
-
 	v.txc[0] = ((int16_t) inst[1]) / 16.0f;
 	v.txc[1] = ((int16_t) (inst[1] >> 16)) / 16.0f;
 
-	hikaru_renderer_push_vertices (gpu->renderer, &v, &vi, 1);
+	hikaru_renderer_push_vertices (gpu->renderer, &v, &vi, HR_PUSH_TXC, 1);
 
 	UNHANDLED |= !!(inst[0] & 0xFF7FF000);
 

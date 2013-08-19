@@ -146,25 +146,18 @@ get_gpu_vertex_str (hikaru_gpu_vertex_t *v, hikaru_gpu_vertex_info_t *vi)
 	static char out[512];
 	char *tmp = &out[0];
 
-	if (vi != NULL && (vi->has_position || vi->has_texcoords))
-		tmp += sprintf (tmp, "[pvu=%u:%X tp=%u pp=%u w=%u] ",
-		                vi->has_pvu_mask, vi->pvu_mask,
-		                vi->tpivot, vi->ppivot, vi->winding);
+	tmp += sprintf (tmp, "[T=%X t=%u p=%u w=%u] ",
+	                vi->bit.tricap, vi->bit.tpivot,
+	                vi->bit.ppivot, vi->bit.winding);
 
-	if (vi == NULL || vi->has_position) {
-		tmp += sprintf (tmp, "(X: %5.3f %5.3f %5.3f) ",
-		                v->pos[0], v->pos[1], v->pos[2]);
-		tmp += sprintf (tmp, "(C: %5.3f %5.3f %5.3f %5.3f) ",
-		                v->col[0], v->col[1], v->col[2], v->alpha);
-	}
-
-	if (vi == NULL || vi->has_normal)
-		tmp += sprintf (tmp, "(N: %5.3f %5.3f %5.3f) ",
-		                v->nrm[0], v->nrm[1], v->nrm[2]);
-
-	if (vi == NULL || vi->has_texcoords)
-		tmp += sprintf (tmp, "(T: %5.3f %5.3f) ",
-		                v->txc[0], v->txc[1]);
+	tmp += sprintf (tmp, "(X: %5.3f %5.3f %5.3f) ",
+	                v->pos[0], v->pos[1], v->pos[2]);
+	tmp += sprintf (tmp, "(C: %5.3f %5.3f %5.3f %5.3f) ",
+	                v->col[0], v->col[1], v->col[2], v->alpha);
+	tmp += sprintf (tmp, "(N: %5.3f %5.3f %5.3f) ",
+	                v->nrm[0], v->nrm[1], v->nrm[2]);
+	tmp += sprintf (tmp, "(T: %5.3f %5.3f) ",
+	                v->txc[0], v->txc[1]);
 
 	return out;
 }

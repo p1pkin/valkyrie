@@ -585,6 +585,7 @@ void
 hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
                                hikaru_gpu_vertex_t *v,
                                hikaru_gpu_vertex_info_t *vi,
+                               uint32_t push,
                                unsigned num)
 {
 	unsigned i;
@@ -610,10 +611,10 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 		/* If the incoming vertex includes the position, push it
 		 * in the temporary buffer, updating it according to the
 		 * p(osition)pivot bit. */
-		if (vi->has_position) {
+		if (push & HR_PUSH_POS) {
 
 			/* Do not change the pivot if it is not required */
-			if (!vi->ppivot)
+			if (!vi->bit.ppivot)
 				VTX(0) = VTX(1);
 			VTX(1) = VTX(2);
 
@@ -629,15 +630,17 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 		}
 
 		/* Set the normal. */
-		if (vi->has_normal)
+		if (push & HR_PUSH_NRM)
 			VK_COPY_VEC3F (VTX(2).nrm, v->nrm);
 
 		/* Set the texcoords. */
-		if (vi->has_texcoords)
+		if (push & HR_PUSH_TXC)
 			copy_texcoords (hr, &VTX(2), v);
 		break;
 
 	case 3:
+		VK_ASSERT (push == HR_PUSH_TXC);
+
 		if (hr->mesh.num_pushed < 3)
 			return;
 
@@ -651,7 +654,7 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 	}
 
 	/* Finish the previous triangle. */
-	if (vi[0].pvu_mask == 7)
+	if (vi[0].bit.tricap == 7)
 		add_triangle (hr);
 }
 
