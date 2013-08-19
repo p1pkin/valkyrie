@@ -1539,18 +1539,11 @@ I (0x101)
  * the fixed-point decoding kindly provided by CaH4e3.
  */
 
-static void
-decode_vertex_header (hikaru_gpu_vertex_t *v, uint32_t inst0)
-{
-	v->info.full = inst0;
-	VK_ASSERT (v->info.bit.tricap == 0 || v->info.bit.tricap == 7);
-}
-
 I (0x12C)
 {
 	hikaru_gpu_vertex_t v;
 
-	decode_vertex_header (&v, inst[0]);
+	v.info.full = inst[0];
 
 	v.pos[0] = (int16_t)(inst[1] >> 16) * gpu->static_mesh_precision;
 	v.pos[1] = (int16_t)(inst[2] >> 16) * gpu->static_mesh_precision;
@@ -1568,7 +1561,7 @@ I (0x1AC)
 {
 	hikaru_gpu_vertex_t v;
 
-	decode_vertex_header (&v, inst[0]);
+	v.info.full = inst[0];
 
 	v.pos[0] = *(float *) &inst[1];
 	v.pos[1] = *(float *) &inst[2];
@@ -1586,7 +1579,7 @@ I (0x1B8)
 {
 	hikaru_gpu_vertex_t v;
 
-	decode_vertex_header (&v, inst[0]);
+	v.info.full = inst[0];
 
 	v.pos[0] = *(float *) &inst[1];
 	v.pos[1] = *(float *) &inst[2];
@@ -1626,7 +1619,7 @@ I (0x0E8)
 	unsigned i;
 
 	for (i = 0; i < 3; i++) {
-		decode_vertex_header (&vs[i], inst[0]);
+		vs[i].info.full = inst[0];
 
 		vs[i].txc[0] = ((int16_t) inst[i+1]) / 16.0f;
 		vs[i].txc[1] = ((int16_t) (inst[i+1] >> 16)) / 16.0f;
@@ -1654,7 +1647,7 @@ I (0x158)
 {
 	hikaru_gpu_vertex_t v;
 
-	decode_vertex_header (&v, inst[0]);
+	v.info.full = inst[0];
 
 	v.txc[0] = ((int16_t) inst[1]) / 16.0f;
 	v.txc[1] = ((int16_t) (inst[1] >> 16)) / 16.0f;

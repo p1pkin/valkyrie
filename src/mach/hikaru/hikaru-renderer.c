@@ -592,6 +592,7 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 	VK_ASSERT (hr);
 	VK_ASSERT (v);
 	VK_ASSERT (num == 1 || num == 3);
+	VK_ASSERT (v->info.bit.tricap == 0 || v->info.bit.tricap == 7);
 
 	if (hr->debug.flags & HR_DEBUG_DISABLE_3D)
 		return;
