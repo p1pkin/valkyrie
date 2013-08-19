@@ -547,10 +547,14 @@ copy_texcoords (hikaru_renderer_t *hr,
                 hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_t *src)
 {
 	hikaru_gpu_texhead_t *th = &hr->gpu->texheads.scratch;
+	float height = th->height;
+
+	if (th->format == HIKARU_FORMAT_ABGR1111)
+		height *= 2;
 
 	if (th->set) {
 		dst->txc[0] = src->txc[0] / th->width;
-		dst->txc[1] = src->txc[1] / th->height;
+		dst->txc[1] = src->txc[1] / height;
 	} else {
 		dst->txc[0] = 0.0f;
 		dst->txc[1] = 0.0f;
@@ -638,7 +642,7 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 			return;
 
 		for (i = 0; i < 3; i++)
-			copy_texcoords (hr, &VTX(i), &v[i]);
+			copy_texcoords (hr, &VTX(2-i), &v[i]);
 		break;
 
 	default:
