@@ -1246,7 +1246,7 @@ hikaru_gpu_reset (vk_device_t *dev, vk_reset_type_t type)
 	memset (gpu->regs_18, 0, 0x100);
 	memset (gpu->regs_1A, 0, 0x104);
 	memset (gpu->regs_1A_unit[0], 0, 0x40);
-	memset (gpu->regs_1A_unit[0], 0, 0x40);
+	memset (gpu->regs_1A_unit[1], 0, 0x40);
 	memset (gpu->regs_1A_fifo, 0, 0x10);
 
 	memset (&gpu->viewports, 0, sizeof (gpu->viewports));
