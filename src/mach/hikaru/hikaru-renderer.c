@@ -701,7 +701,7 @@ coords_to_offs_32 (uint32_t x, uint32_t y)
 }
 
 static vk_surface_t *
-decode_layer_rgba5551 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
+decode_layer_argb1555 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 {
 	vk_buffer_t *fb = hr->gpu->fb;
 	vk_surface_t *surface;
@@ -713,17 +713,18 @@ decode_layer_rgba5551 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 
 	for (y = 0; y < 480; y++) {
 		uint32_t yoffs = (layer->y0 + y) * 4096;
-		for (x = 0; x < 640; x++) {
+		for (x = 0; x < 640; x += 2) {
 			uint32_t offs = yoffs + layer->x0 * 4 + x * 2;
-			uint32_t texel = vk_buffer_get (fb, 2, offs);
-			vk_surface_put16 (surface, x ^ 1, y, texel);
+			uint32_t texels = vk_buffer_get (fb, 4, offs);
+			vk_surface_put16 (surface, x+0, y, abgr1555_to_rgba5551 (texels >> 16));
+			vk_surface_put16 (surface, x+1, y, abgr1555_to_rgba5551 (texels));
 		}
 	}
 	return surface;
 }
 
 static vk_surface_t *
-decode_layer_rgba8888 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
+decode_layer_argb8888 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 {
 	vk_buffer_t *fb = hr->gpu->fb;
 	vk_surface_t *surface;
@@ -737,7 +738,7 @@ decode_layer_rgba8888 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 		for (x = 0; x < 640; x++) {
 			uint32_t offs = coords_to_offs_32 (layer->x0 + x, layer->y0 + y);
 			uint32_t texel = vk_buffer_get (fb, 4, offs);
-			vk_surface_put32 (surface, x, y, texel);
+			vk_surface_put32 (surface, x, y, bswap32 (texel));
 		}
 	}
 	return surface;
@@ -749,9 +750,9 @@ upload_layer (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 	vk_surface_t *surface;
 
 	if (layer->format == HIKARU_FORMAT_ABGR8888)
-		surface = decode_layer_rgba8888 (hr, layer);
+		surface = decode_layer_argb8888 (hr, layer);
 	else
-		surface = decode_layer_rgba5551 (hr, layer);
+		surface = decode_layer_argb1555 (hr, layer);
 
 	vk_surface_commit (surface);
 	return surface;
