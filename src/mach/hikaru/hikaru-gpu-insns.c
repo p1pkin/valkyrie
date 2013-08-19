@@ -2083,7 +2083,6 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 		if (!(flags & FLAG_JUMP))
 			PC += insns[op].size;
 
-	skip:
 		cycles--;
 	}
 
