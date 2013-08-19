@@ -1663,49 +1663,55 @@ I (0x158)
  Unknown
 ****************************************************************************/
 
-/* 181	Unknown: Sync
+/* 181	Viewport: Set FB Property 1
+ * 781	Viewport: Set FB Property 2
  *
- *	-------E nnnnnnnn -----00o oooooooo [181]
+ *	-------E nnnnnnnn -------o oooooooo
  *
  * E = Enable
- * n = Unknown
  *
- * E is set only if n is non-zero.
+ *	E is set only if n is non-zero.
+ *
+ * n = Unknown
  *
  * See PH:@0C015B50. Probably related to 781, see PH:@0C038952.
  *
  *
- *	-----p-q -----P-Q -----11o oooooooo [781]
+ *	-----AAA -----BBB -------o oooooooo
  *
- * p, q, P, Q = Unknown
+ * A, B = Unknown
  *
- * The values p, q, P, Q are determined by the values of ports 1A00001C and
- * 1A000020 prior to the command upload (XXX when exactly? in sync()?). Its
- * parameter is stored in (56, GBR).
+ *	Blending modes between 3D and framebuffer?
  *
- * This command typically lies between the viewport/material/texhead/light
- * setup instructions at the beginning of the command stream and the
- * actual rendering commands. It _may_ act like a fence of some sorts,
- * delaying rendering until some external event (such as v-blanking) occurs.
+ * The values of A and B are determined by the values of ports 1A00001C and
+ * 1A000020 prior to the command upload. Its parameter is stored in (56, GBR).
+ * It *may* act like a fence, toggling bits in the GPU MMIOs when processed.
+ * See @0C0065D6, PH:@0C016336, PH:@0C038952, PH:@0C015B50.
  *
  * CaH4e3 suggests the two are related to screen transitions. He's probably
- * right. :-)
- *
- * See @0C0065D6, PH:@0C016336, PH:@0C038952, PH:@0C015B50.
+ * right. :-) (Do they also clear the framebuffer?)
  */
 
 I (0x181)
 {
+	uint32_t e, n, a, b;
+
 	switch ((inst[0] >> 8) & 7) {
 	case 1:
-		DISASM (1, "unk: sync 1");
+		e = (inst[0] >> 24) & 1;
+		n = (inst[0] >> 16) & 0xFF;
+
+		DISASM (1, "vp: set fb flag 1 (%u %X)", e, n);
 
 		UNHANDLED |= !!(inst[0] & 0xFE00F800);
 		break;
 	case 7:
-		DISASM (1, "unk: sync 7");
+		a = (inst[0] >> 24) & 7;
+		b = (inst[0] >> 16) & 7;
 
-		UNHANDLED |= !!(inst[0] & 0xFAFAF800);
+		DISASM (1, "vp: set fb flag 7 (%u %u)", a, b);
+
+		UNHANDLED |= !!(inst[0] & 0xF8F8F800);
 		break;
 	}
 }
