@@ -150,6 +150,7 @@
 
 #define PC        gpu->cp.pc
 #define UNHANDLED gpu->cp.unhandled
+#define HR        ((hikaru_renderer_t *) gpu->renderer)
 
 static void
 disasm (hikaru_gpu_t *gpu, uint32_t *inst, unsigned nwords, const char *fmt, ...)
@@ -1549,7 +1550,7 @@ I (0x12C)
 	v.pos[1] = (int16_t)(inst[2] >> 16) * gpu->static_mesh_precision;
 	v.pos[2] = (int16_t)(inst[3] >> 16) * gpu->static_mesh_precision;
 
-	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer,
+	hikaru_renderer_push_vertices ((hikaru_renderer_t *) HR,
 	                               &v, HR_PUSH_POS, 1);
 
 	UNHANDLED |= !!(inst[0] & 0x007F0000);
@@ -1567,7 +1568,7 @@ I (0x1AC)
 	v.pos[1] = *(float *) &inst[2];
 	v.pos[2] = *(float *) &inst[3];
 
-	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer,
+	hikaru_renderer_push_vertices ((hikaru_renderer_t *) HR,
 	                               &v, HR_PUSH_POS, 1);
 
 	UNHANDLED |= !!(inst[0] & 0x007F0000);
@@ -1592,7 +1593,7 @@ I (0x1B8)
 	v.txc[0] = ((int16_t) inst[4]) / 16.0f;
 	v.txc[1] = ((int16_t) (inst[4] >> 16)) / 16.0f;
 
-	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v,
+	hikaru_renderer_push_vertices ((hikaru_renderer_t *) HR, &v,
 	                               HR_PUSH_POS | HR_PUSH_NRM | HR_PUSH_TXC, 1);
 
 	UNHANDLED |= !!(inst[0] & 0x007F0000);
@@ -1625,7 +1626,7 @@ I (0x0E8)
 		vs[i].txc[1] = ((int16_t) (inst[i+1] >> 16)) / 16.0f;
 	}
 
-	hikaru_renderer_push_vertices (gpu->renderer, &vs[0], HR_PUSH_TXC, 3);
+	hikaru_renderer_push_vertices (HR, &vs[0], HR_PUSH_TXC, 3);
 
 	UNHANDLED |= !!(inst[0] & 0xFFFEF000);
 
@@ -1652,7 +1653,7 @@ I (0x158)
 	v.txc[0] = ((int16_t) inst[1]) / 16.0f;
 	v.txc[1] = ((int16_t) (inst[1] >> 16)) / 16.0f;
 
-	hikaru_renderer_push_vertices (gpu->renderer, &v, HR_PUSH_TXC, 1);
+	hikaru_renderer_push_vertices (HR, &v, HR_PUSH_TXC, 1);
 
 	UNHANDLED |= !!(inst[0] & 0xFF7FF000);
 
@@ -2062,10 +2063,10 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 
 		if (!gpu->in_mesh && (flags & FLAG_BEGIN)) {
 			bool is_static = (flags & FLAG_STATIC) != 0;
-			hikaru_renderer_begin_mesh (gpu->renderer, PC, is_static);
+			hikaru_renderer_begin_mesh (HR, PC, is_static);
 			gpu->in_mesh = true;
 		} else if (gpu->in_mesh && !(flags & FLAG_CONTINUE)) {
-			hikaru_renderer_end_mesh (gpu->renderer, PC);
+			hikaru_renderer_end_mesh (HR, PC);
 			gpu->in_mesh = false;
 		}
 
