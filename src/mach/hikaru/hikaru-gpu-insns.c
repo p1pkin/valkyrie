@@ -1542,10 +1542,7 @@ I (0x101)
 static void
 decode_vertex_header (hikaru_gpu_vertex_t *v, uint32_t inst0)
 {
-	memset ((void *) v, 0, sizeof (hikaru_gpu_vertex_t));
-
 	v->info.full = inst0;
-
 	VK_ASSERT (v->info.bit.tricap == 0 || v->info.bit.tricap == 7);
 }
 
