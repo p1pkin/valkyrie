@@ -26,18 +26,19 @@
  *
  * CPU			2 x Hitachi SH-4 @ 200 MHz
  * Graphic Engine	Sega Custom 3D 
- * Sound Engine		2x ARM7 Yamaha AICA @ 45 MHz + ARM7, 64 channel ADPCM
+ * Sound Engine		2 x ARM7 Yamaha AICA @ 45 MHz + ARM7, 64 channel ADPCM
  * Main Memory		64 MB [32 for master, 32 for slave]
- * Graphic Memory	28 MB [8 TEXRAM, 8 UNK ICs, 4+4 UNK16, 4 CMDRAM]
+ * Graphic Memory	28 MB [8 FB, 4 CMDRAM, 4+4 TEXRAM, 8 UNKNOWN]
  * Sound Memory		8 MB [per AICA board]
  * Media		ROM Board (max 352 MB)
  * Colors		24bit
- * Resolution		24 KHz, 496x384, 31 KHz 640x480 
+ * Resolution		24 KHz 496x384, 31 KHz 640x480 
  * Shading		Flat, Linear, Phong
- * Lighting		Horizontal, Spot, 1024 lights per scene, 4 lights
- *			per polygon, 8 window surfaces. 
- * Effects		Phong Shading, Fog, Depth Queueing, Stencil, Shadow [?]
- *			Motion blur
+ * Lighting		Horizontal, Spot
+ *			1024 lights per scene [= total LIGHTS]
+ *			4 lights per polygon [= 1 LIGHTSET, 4 LIGHTS]
+ *			8 window surfaces [viewports]. 
+ * Effects		Fog, Depth Queueing, Stencil, Shadow, Motion blur
  * Others Capabilties	Bitmap Layer x 2
  *			Calendar [Note: AICA RTC]
  *			Dual Monitor (24 kHz)
