@@ -132,7 +132,8 @@ typedef struct {
 
 typedef struct {
 	uint32_t x0, y0, x1, y1;
-	unsigned format;
+	uint32_t format		: 4;
+	uint32_t enabled	: 1;
 } hikaru_gpu_layer_t;
 
 typedef struct {
@@ -192,6 +193,11 @@ typedef struct {
 		hikaru_gpu_light_t scratch;
 		uint32_t base;
 	} lights;
+
+	struct {
+		hikaru_gpu_layer_t layer[2][2];
+		bool enabled;
+	} layers;
 
 	struct {
 		bool log_dma;
@@ -284,8 +290,6 @@ void hikaru_gpu_cp_init (hikaru_gpu_t *);
 void hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu);
 
 /* hikaru-renderer.c */
-void hikaru_renderer_draw_layer (vk_renderer_t *renderer,
-                                 hikaru_gpu_layer_t *layer);
 void hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
                                  bool is_static);
 void hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr);

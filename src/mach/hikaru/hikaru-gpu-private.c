@@ -166,7 +166,7 @@ const char *
 get_gpu_layer_str (hikaru_gpu_layer_t *layer)
 {
 	static char out[256];
-	sprintf (out, "(%u,%u) (%u,%u) fmt=%u",
+	sprintf (out, "ena=%u (%u,%u) (%u,%u) fmt=%u", layer->enabled,
 	         layer->x0, layer->y0, layer->x1, layer->y1, layer->format);
 	return (const char *) out;
 }

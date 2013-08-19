@@ -601,8 +601,9 @@ hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu)
  *
  * Textures can be ABGR1555, ABGR4444, ABGR1111, and A8?; other formats
  * may be possible. Textures may or may not include a complete mipmap tree.
- *
- *
+ */
+
+/*
  * Framebuffer Configuration
  * =========================
  *
@@ -672,9 +673,59 @@ hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu)
  * are written with the contents of the unit 0 MMIOs. Their purpose is still
  * unknown.
  *
- * NOTE: it may be the case that unit 1 is used for a second GPU.
- *
- *
+ * NOTE: it may be the case that unit 1 is used for a second GPU/screen.
+ */
+
+static void
+hikaru_gpu_fill_layer_info (hikaru_gpu_t *gpu)
+{
+	uint32_t unit, bank;
+
+	VK_LOG ("==== BEGIN LAYERS ==== [1A:100=%X]", REG1A (0x100));
+	gpu->layers.enabled = 1; // REG1A (0x100) & 1;
+
+	for (unit = 0; unit < 2; unit++) {
+
+		VK_LOG ("\tLAYER UNIT %u: fmt=%08X ena=%08X unk1=%08X unk2=%08X",
+		        unit,
+		        REG1AUNIT (unit, 0x30), REG1AUNIT (unit, 0x34),
+		        REG1AUNIT (unit, 0x38), REG1AUNIT (unit, 0x3C));
+
+		for (bank = 2; bank < 4; bank++) {
+			uint32_t bank_offs = bank * 8, lo, hi, format, shift;
+			hikaru_gpu_layer_t *layer =
+				&gpu->layers.layer[unit][bank-2];
+	
+			/* Is the layer enabled? */
+			layer->enabled = REG1AUNIT (unit, 0x34) >> (bank - 2);
+	
+			/* Get the layer format. */
+			format = (REG1AUNIT (unit, 0x30) >> (bank - 1)) & 1;
+			if (format == 0) {
+				layer->format = HIKARU_FORMAT_ABGR1555;
+				shift = 1;
+			} else {
+				layer->format = HIKARU_FORMAT_ABGR8888;
+				shift = 2;
+			}
+	
+			/* Get layer coords in the FB. */
+			lo = REG1AUNIT (unit, bank_offs + 0);
+			hi = REG1AUNIT (unit, bank_offs + 4);
+	
+			layer->x0 = (lo & 0x1FF) << shift;
+			layer->y0 = lo >> 9;
+			layer->x1 = (hi & 0x1FF) << shift;
+			layer->y1 = hi >> 9;
+
+			if (layer->enabled)
+				VK_LOG ("\tLAYER %u:%u : %s",
+				        unit, bank, get_gpu_layer_str (layer));
+		}
+	}
+}
+
+/*
  * GPU DMA
  * =======
  *
@@ -1000,45 +1051,6 @@ hikaru_gpu_begin_dma (hikaru_gpu_t *gpu)
 	REG1A (0x24) |= 1;
 }
 
-static void
-hikaru_gpu_render_bitmap_layers (hikaru_gpu_t *gpu)
-{
-	unsigned bank;
-	for (bank = 2; bank < 4; bank++) {
-		hikaru_gpu_layer_t layer;
-		unsigned bank_offs = bank * 8;
-		uint32_t lo = REG1AUNIT (0, bank_offs + 0);
-		uint32_t hi = REG1AUNIT (0, bank_offs + 4);
-		uint32_t enabled = REG1AUNIT (0, 0x34) >> (bank - 2);
-		if (enabled) {
-			uint32_t format, shift;
-
-			format = (REG1AUNIT (0, 0x30) >> (bank - 1)) & 1;
-			if (format == 0) {
-				layer.format = HIKARU_FORMAT_ABGR1555;
-				shift = 1;
-			} else {
-				layer.format = HIKARU_FORMAT_ABGR8888;
-				shift = 2;
-			}
-
-			layer.x0 = (lo & 0x1FF) << shift;
-			layer.y0 = lo >> 9;
-			layer.x1 = (hi & 0x1FF) << shift;
-			layer.y1 = hi >> 9;
-
-			VK_LOG ("GPU LAYER %u: %s [%X; %X %X %X %X] fmt=%u",
-			        bank, get_gpu_layer_str (&layer),
-			        REG1A (0x100),
-			        REG1AUNIT (0, 0x30), REG1AUNIT (0, 0x34),
-			        REG1AUNIT (0, 0x38), REG1AUNIT (0, 0x3C),
-			        layer.format);
-
-			hikaru_renderer_draw_layer (gpu->renderer, &layer);
-		}
-	}
-}
-
 /* External event handlers */
 
 void
@@ -1063,7 +1075,7 @@ hikaru_gpu_vblank_out (vk_device_t *dev)
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
 
 	hikaru_gpu_raise_irq (gpu, _15_IRQ_VBLANK, _1A_IRQ_VBLANK);
-	hikaru_gpu_render_bitmap_layers (gpu);
+	hikaru_gpu_fill_layer_info (gpu);
 }
 
 void hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles);

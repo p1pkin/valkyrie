@@ -30,14 +30,15 @@
 ****************************************************************************/
 
 #define HR_DEBUG_LOG			(1 << 0)
-#define HR_DEBUG_DISABLE_2D		(1 << 1)
-#define HR_DEBUG_DISABLE_3D		(1 << 2)
-#define HR_DEBUG_DRAW_TEXRAM		(1 << 3)
-#define HR_DEBUG_DRAW_FB		(1 << 4)
-#define HR_DEBUG_DISABLE_TEXTURES	(1 << 5)
-#define HR_DEBUG_FORCE_DEBUG_TEXTURE	(1 << 6)
-#define HR_DEBUG_FORCE_RAND_COLOR	(1 << 7)
-#define HR_DEBUG_SELECT_MESH		(1 << 8)
+#define HR_DEBUG_DISABLE_LAYER1		(1 << 1)
+#define HR_DEBUG_DISABLE_LAYER2		(1 << 2)
+#define HR_DEBUG_DISABLE_3D		(1 << 3)
+#define HR_DEBUG_DRAW_TEXRAM		(1 << 4)
+#define HR_DEBUG_DRAW_FB		(1 << 5)
+#define HR_DEBUG_DISABLE_TEXTURES	(1 << 6)
+#define HR_DEBUG_FORCE_DEBUG_TEXTURE	(1 << 7)
+#define HR_DEBUG_FORCE_RAND_COLOR	(1 << 8)
+#define HR_DEBUG_SELECT_MESH		(1 << 9)
 
 static struct {
 	uint32_t flag;
@@ -46,7 +47,8 @@ static struct {
 	bool default_;
 } debug_controls[] = {
 	{ HR_DEBUG_LOG,			~0,	"HR_LOG",		false },
-	{ HR_DEBUG_DISABLE_2D,		SDLK_2,	"HR_DEBUG_DISABLE_2D",	false },
+	{ HR_DEBUG_DISABLE_LAYER1,	SDLK_1,	"",			false },
+	{ HR_DEBUG_DISABLE_LAYER2,	SDLK_2,	"",			false },
 	{ HR_DEBUG_DISABLE_3D,		SDLK_3,	"HR_DEBUG_DISABLE_3D",	false },
 	{ HR_DEBUG_DRAW_TEXRAM,		SDLK_r,	"HR_DEBUG_DRAW_TEXRAM",	false },
 	{ HR_DEBUG_DRAW_FB,		SDLK_f,	"HR_DEBUG_DRAW_FB",	false },
@@ -757,50 +759,80 @@ decode_layer_argb8888 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 	return surface;
 }
 
-static vk_surface_t *
-upload_layer (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
+static void
+draw_layer (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 {
-	vk_surface_t *surface;
-
-	if (layer->format == HIKARU_FORMAT_ABGR8888)
-		surface = decode_layer_argb8888 (hr, layer);
-	else
-		surface = decode_layer_argb1555 (hr, layer);
-
-	vk_surface_commit (surface);
-	return surface;
-}
-
-void
-hikaru_renderer_draw_layer (vk_renderer_t *renderer, hikaru_gpu_layer_t *layer)
-{
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 	vk_surface_t *surface;
 
 	VK_ASSERT (hr);
 	VK_ASSERT (layer);
-
-	if (hr->debug.flags & HR_DEBUG_DISABLE_2D)
-		return;
-
-	LOG ("drawing layer %s", get_gpu_layer_str (layer));
-
-	glColor3f (1.0f, 1.0f, 1.0f);
-	glDisable (GL_SCISSOR_TEST);
-	glDisable (GL_BLEND);
 
 	/* XXX cache the layers and use dirty rectangles to upload only the
 	 * quads that changed. */
 	/* XXX change the renderer so that the ortho projection can be
 	 * set up correctly depending on the actual window size. */
 
-	surface = upload_layer (hr, layer);
+	if (layer->format == HIKARU_FORMAT_ABGR8888)
+		surface = decode_layer_argb8888 (hr, layer);
+	else
+		surface = decode_layer_argb1555 (hr, layer);
+
 	if (!surface) {
-		VK_ERROR ("HR LAYER: can't upload layer to OpenGL, skipping");
+		VK_ERROR ("HR LAYER: can't decode layer, skipping");
 		return;
 	}
-	vk_surface_draw (surface);
+
+	LOG ("drawing LAYER %s", get_gpu_layer_str (layer));
+
+	vk_surface_commit (surface);
+	glBegin (GL_TRIANGLE_STRIP);
+		glTexCoord2f (0.0f, 0.0f);
+		glVertex3f (0.0f, 0.0f, 0.0f);
+		glTexCoord2f (1.0f, 0.0f);
+		glVertex3f (1.0f, 0.0f, 0.0f);
+		glTexCoord2f (0.0f, 1.0f);
+		glVertex3f (0.0f, 1.0f, 0.0f);
+		glTexCoord2f (1.0f, 1.0f);
+		glVertex3f (1.0f, 1.0f, 0.0f);
+	glEnd ();
 	vk_surface_destroy (&surface);
+}
+
+static void
+draw_layers (hikaru_renderer_t *hr, bool background)
+{
+	hikaru_gpu_layer_t *layer;
+
+	if (!hr->gpu->layers.enabled)
+		return;
+
+	if (background)
+		return;
+
+	/* Setup 2D state. */
+	glMatrixMode (GL_PROJECTION);
+	glLoadIdentity ();
+	glOrtho (0.0f, 1.0f, 1.0f, 0.0f, -1.0f, 1.0f);
+
+	glMatrixMode (GL_MODELVIEW);
+	glLoadIdentity ();
+
+	glDisable (GL_CULL_FACE);
+	glDisable (GL_DEPTH_TEST);
+
+	glColor3f (1.0f, 1.0f, 1.0f);
+	glEnable (GL_BLEND);
+	glEnable (GL_TEXTURE_2D);
+
+	/* Only draw unit 0 for now. I think unit 1 is there only for
+	 * multi-monitor, which case we don't care about. */
+	layer = &hr->gpu->layers.layer[0][1];
+	if (!layer->enabled || !(hr->debug.flags & HR_DEBUG_DISABLE_LAYER2))
+		draw_layer (hr, layer);
+
+	layer = &hr->gpu->layers.layer[0][0];
+	if (!layer->enabled || !(hr->debug.flags & HR_DEBUG_DISABLE_LAYER1))
+		draw_layer (hr, layer);
 }
 
 /****************************************************************************
@@ -851,12 +883,18 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 			vk_surface_draw (hr->textures.texram);
 		}
 	}
+
+	/* Draw the background layers. */
+	draw_layers (hr, true);
 }
 
 static void
 hikaru_renderer_end_frame (vk_renderer_t *renderer)
 {
-	(void) renderer;
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	/* Draw the foreground layers. */
+	draw_layers (hr, false);
 }
 
 static void
