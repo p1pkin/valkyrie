@@ -522,7 +522,7 @@ skip_:
 	} while (0)
 
 static void
-copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst)
+copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_t *src)
 {
 	hikaru_gpu_material_t *mat = &hr->gpu->materials.scratch;
 
@@ -539,6 +539,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst)
 		dst->col[1] = 1.0f;
 		dst->col[2] = 1.0f;
 	}
+	dst->col[3] = src->info.bit.alpha / 255.0f;
 }
 
 static void
@@ -615,11 +616,11 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 				VTX(0) = VTX(1);
 			VTX(1) = VTX(2);
 
-			/* Set the position, colors and alpha. */
 			memset ((void *) &VTX(2), 0, sizeof (hikaru_gpu_vertex_t));
 
+			/* Set the position, colors and alpha. */
 			VK_COPY_VEC3F (VTX(2).pos, v->pos);
-			copy_colors (hr, &VTX(2));
+			copy_colors (hr, &VTX(2), v);
 
 			/* Account for the added vertex. */
 			hr->mesh.num_pushed++;
