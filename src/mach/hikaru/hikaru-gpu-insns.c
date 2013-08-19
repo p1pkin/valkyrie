@@ -1859,12 +1859,16 @@ I (0x0D1)
 static void
 reset_modelview (hikaru_gpu_t *gpu)
 {
+#if 0
 	hikaru_gpu_modelview_t *mv = &gpu->modelviews.stack[gpu->modelviews.depth];
 	unsigned i, j;
 
 	for (i = 0; i < 4; i++)
 		for (j = 0; j < 4; j++)
 			mv->mtx[i][j] = (i == j) ? 1.0f : 0.0;
+#else
+	(void) gpu;
+#endif
 }
 
 I (0x103)

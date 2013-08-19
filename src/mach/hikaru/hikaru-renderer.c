@@ -488,6 +488,9 @@ draw_current_mesh (hikaru_renderer_t *hr)
 
 	glEnable (GL_BLEND);
 
+	glEnable (GL_CULL_FACE);
+	glCullFace (GL_BACK);
+
 	glBegin (GL_TRIANGLES);
 	for (i = 0; i < hr->mesh.num_tris; i++) {
 		for (j = 0; j < 3; j++) {
@@ -495,7 +498,8 @@ draw_current_mesh (hikaru_renderer_t *hr)
 
 			glTexCoord2fv (v->txc);
 			if (hr->debug.flags & HR_DEBUG_FORCE_RAND_COLOR) {
-				float r = (rand () & 0xFF) / 255.0f;
+				//float r = (rand () & 0xFF) / 255.0f;
+				float r = v->info.bit.winding;
 				glColor4f (r, r, r, v->col[3]);
 			} else
 				glColor4fv (v->col);
@@ -567,13 +571,19 @@ static void
 add_triangle (hikaru_renderer_t *hr)
 {
 	if (hr->mesh.num_pushed >= 3) {
-		unsigned i;
+		uint32_t index = hr->mesh.num_tris * 3;
+		hikaru_gpu_vertex_t *vbo = &hr->mesh.vbo[index];
 
 		VK_ASSERT ((hr->mesh.num_tris*3+2) < MAX_VERTICES_PER_MESH);
 
-		for (i = 0; i < 3; i++) {
-			LOG (" %u : %s", i, get_gpu_vertex_str (&VTX (i)));
-			hr->mesh.vbo[hr->mesh.num_tris*3+i] = VTX(i);
+		if (VTX (2).info.bit.winding) {
+			vbo[0] = VTX(0);
+			vbo[1] = VTX(2);
+			vbo[2] = VTX(1);
+		} else {
+			vbo[0] = VTX(0);
+			vbo[1] = VTX(1);
+			vbo[2] = VTX(2);
 		}
 
 		hr->mesh.num_tris++;
@@ -652,8 +662,10 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 	}
 
 	/* Finish the previous triangle. */
-	if (v[0].info.bit.tricap == 7)
+	if (v[0].info.bit.tricap == 7) {
+		VTX(2).info.full = v[0].info.full;
 		add_triangle (hr);
+	}
 }
 
 void
