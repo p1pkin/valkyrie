@@ -228,6 +228,7 @@ typedef union {
 typedef struct hikaru_gpu_vertex_t hikaru_gpu_vertex_t;
 
 struct hikaru_gpu_vertex_t {
+	hikaru_gpu_vertex_info_t info;
 	vec3f_t	pos;
 	uint32_t padding0;
 	vec3f_t	nrm;
@@ -275,8 +276,7 @@ const char *get_gpu_modelview_str (hikaru_gpu_modelview_t *);
 const char *get_gpu_material_str (hikaru_gpu_material_t *);
 const char *get_gpu_texhead_str (hikaru_gpu_texhead_t *);
 const char *get_gpu_light_str (hikaru_gpu_light_t *);
-const char *get_gpu_vertex_str (hikaru_gpu_vertex_t *v,
-                                hikaru_gpu_vertex_info_t *vi);
+const char *get_gpu_vertex_str (hikaru_gpu_vertex_t *);
 const char *get_gpu_layer_str (hikaru_gpu_layer_t *);
 
 /* hikaru-gpu-insns.c */
@@ -291,7 +291,6 @@ void hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
 void hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr);
 void hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
                                     hikaru_gpu_vertex_t *v,
-                                    hikaru_gpu_vertex_info_t *vi,
                                     uint32_t push,
                                     unsigned num);
 

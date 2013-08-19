@@ -1540,18 +1540,16 @@ I (0x101)
  */
 
 static void
-decode_vertex_header (hikaru_gpu_vertex_t *v,
-                      hikaru_gpu_vertex_info_t *vi,
-                      uint32_t inst0)
+decode_vertex_header (hikaru_gpu_vertex_t *v, uint32_t inst0)
 {
 	float alpha = (float) (inst0 >> 24) / 255.0f;
 
 	memset ((void *) v, 0, sizeof (hikaru_gpu_vertex_t));
 
-	vi->full = inst0;
+	v->info.full = inst0;
 	v->col[3] = alpha;
 
-	VK_ASSERT (vi->bit.tricap == 0 || vi->bit.tricap == 7);
+	VK_ASSERT (v->info.bit.tricap == 0 || v->info.bit.tricap == 7);
 }
 
 static float
@@ -1564,47 +1562,44 @@ texcoord_to_float (uint32_t x)
 I (0x12C)
 {
 	hikaru_gpu_vertex_t v;
-	hikaru_gpu_vertex_info_t vi;
 
-	decode_vertex_header (&v, &vi, inst[0]);
+	decode_vertex_header (&v, inst[0]);
 
 	v.pos[0] = (int16_t)(inst[1] >> 16) * gpu->static_mesh_precision;
 	v.pos[1] = (int16_t)(inst[2] >> 16) * gpu->static_mesh_precision;
 	v.pos[2] = (int16_t)(inst[3] >> 16) * gpu->static_mesh_precision;
 
-	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v, &vi,
-	                               HR_PUSH_POS, 1);
+	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer,
+	                               &v, HR_PUSH_POS, 1);
 
 	UNHANDLED |= !!(inst[0] & 0x007F0000);
 
-	DISASM (4, "mesh: push pos s [%s]", get_gpu_vertex_str (&v, &vi));
+	DISASM (4, "mesh: push pos s [%s]", get_gpu_vertex_str (&v));
 }
 
 I (0x1AC)
 {
 	hikaru_gpu_vertex_t v;
-	hikaru_gpu_vertex_info_t vi;
 
-	decode_vertex_header (&v, &vi, inst[0]);
+	decode_vertex_header (&v, inst[0]);
 
 	v.pos[0] = *(float *) &inst[1];
 	v.pos[1] = *(float *) &inst[2];
 	v.pos[2] = *(float *) &inst[3];
 
-	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v, &vi,
-	                               HR_PUSH_POS, 1);
+	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer,
+	                               &v, HR_PUSH_POS, 1);
 
 	UNHANDLED |= !!(inst[0] & 0x007F0000);
 
-	DISASM (4, "mesh: push pos d [%s]", get_gpu_vertex_str (&v, &vi));
+	DISASM (4, "mesh: push pos d [%s]", get_gpu_vertex_str (&v));
 }
 
 I (0x1B8)
 {
 	hikaru_gpu_vertex_t v;
-	hikaru_gpu_vertex_info_t vi;
 
-	decode_vertex_header (&v, &vi, inst[0]);
+	decode_vertex_header (&v, inst[0]);
 
 	v.pos[0] = *(float *) &inst[1];
 	v.pos[1] = *(float *) &inst[2];
@@ -1617,12 +1612,12 @@ I (0x1B8)
 	v.txc[0] = texcoord_to_float (inst[4] & 0xFFFF);
 	v.txc[1] = texcoord_to_float (inst[4] >> 16);
 
-	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v, &vi,
+	hikaru_renderer_push_vertices ((hikaru_renderer_t *) gpu->renderer, &v,
 	                               HR_PUSH_POS | HR_PUSH_NRM | HR_PUSH_TXC, 1);
 
 	UNHANDLED |= !!(inst[0] & 0x007F0000);
 
-	DISASM (8, "mesh: push all d [%s]", get_gpu_vertex_str (&v, &vi));
+	DISASM (8, "mesh: push all d [%s]", get_gpu_vertex_str (&v));
 }
 
 /* 0E8	Mesh: Push Texcoords 3
@@ -1641,25 +1636,23 @@ I (0x1B8)
 I (0x0E8)
 {
 	hikaru_gpu_vertex_t vs[3];
-	hikaru_gpu_vertex_info_t vis[3];
 	unsigned i;
 
 	for (i = 0; i < 3; i++) {
-		decode_vertex_header (&vs[i], &vis[i], inst[0]);
+		decode_vertex_header (&vs[i], inst[0]);
 
 		vs[i].txc[0] = ((int16_t) inst[i+1]) / 16.0f;
 		vs[i].txc[1] = ((int16_t) (inst[i+1] >> 16)) / 16.0f;
 	}
 
-	hikaru_renderer_push_vertices (gpu->renderer, &vs[0], &vis[0],
-	                               HR_PUSH_TXC, 3);
+	hikaru_renderer_push_vertices (gpu->renderer, &vs[0], HR_PUSH_TXC, 3);
 
 	UNHANDLED |= !!(inst[0] & 0xFFFEF000);
 
 	DISASM (4, "mesh: push txc 3");
-	DISASM (4, "      .......... 0: %s", get_gpu_vertex_str (&vs[0], &vis[0]));
-	DISASM (4, "      .......... 1: %s", get_gpu_vertex_str (&vs[1], &vis[1]));
-	DISASM (4, "      .......... 2: %s", get_gpu_vertex_str (&vs[2], &vis[2]));
+	DISASM (4, "      .......... 0: %s", get_gpu_vertex_str (&vs[0]));
+	DISASM (4, "      .......... 1: %s", get_gpu_vertex_str (&vs[1]));
+	DISASM (4, "      .......... 2: %s", get_gpu_vertex_str (&vs[2]));
 }
 
 /* 158	Mesh: Push Texcoords 1
@@ -1673,18 +1666,17 @@ I (0x0E8)
 I (0x158)
 {
 	hikaru_gpu_vertex_t v;
-	hikaru_gpu_vertex_info_t vi;
 
-	decode_vertex_header (&v, &vi, inst[0]);
+	decode_vertex_header (&v, inst[0]);
 
 	v.txc[0] = ((int16_t) inst[1]) / 16.0f;
 	v.txc[1] = ((int16_t) (inst[1] >> 16)) / 16.0f;
 
-	hikaru_renderer_push_vertices (gpu->renderer, &v, &vi, HR_PUSH_TXC, 1);
+	hikaru_renderer_push_vertices (gpu->renderer, &v, HR_PUSH_TXC, 1);
 
 	UNHANDLED |= !!(inst[0] & 0xFF7FF000);
 
-	DISASM (2, "mesh: push txc 1 [%s]", get_gpu_vertex_str (&v, &vi));
+	DISASM (2, "mesh: push txc 1 [%s]", get_gpu_vertex_str (&v));
 }
 
 /****************************************************************************

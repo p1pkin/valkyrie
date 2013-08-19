@@ -141,14 +141,14 @@ get_gpu_light_str (hikaru_gpu_light_t *light)
 };
 
 const char *
-get_gpu_vertex_str (hikaru_gpu_vertex_t *v, hikaru_gpu_vertex_info_t *vi)
+get_gpu_vertex_str (hikaru_gpu_vertex_t *v)
 {
 	static char out[512];
 	char *tmp = &out[0];
 
 	tmp += sprintf (tmp, "[T=%X t=%u p=%u w=%u] ",
-	                vi->bit.tricap, vi->bit.tpivot,
-	                vi->bit.ppivot, vi->bit.winding);
+	                v->info.bit.tricap, v->info.bit.tpivot,
+	                v->info.bit.ppivot, v->info.bit.winding);
 
 	tmp += sprintf (tmp, "(X: %5.3f %5.3f %5.3f) ",
 	                v->pos[0], v->pos[1], v->pos[2]);

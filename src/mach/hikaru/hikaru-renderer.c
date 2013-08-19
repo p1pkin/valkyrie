@@ -572,7 +572,7 @@ add_triangle (hikaru_renderer_t *hr)
 		VK_ASSERT ((hr->mesh.num_tris*3+2) < MAX_VERTICES_PER_MESH);
 
 		for (i = 0; i < 3; i++) {
-			LOG (" %u : %s", i, get_gpu_vertex_str (&VTX (i), NULL));
+			LOG (" %u : %s", i, get_gpu_vertex_str (&VTX (i)));
 			hr->mesh.vbo[hr->mesh.num_tris*3+i] = VTX(i);
 		}
 
@@ -583,7 +583,6 @@ add_triangle (hikaru_renderer_t *hr)
 void
 hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
                                hikaru_gpu_vertex_t *v,
-                               hikaru_gpu_vertex_info_t *vi,
                                uint32_t push,
                                unsigned num)
 {
@@ -591,7 +590,6 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 
 	VK_ASSERT (hr);
 	VK_ASSERT (v);
-	VK_ASSERT (vi);
 	VK_ASSERT (num == 1 || num == 3);
 
 	if (hr->debug.flags & HR_DEBUG_DISABLE_3D)
@@ -613,7 +611,7 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 		if (push & HR_PUSH_POS) {
 
 			/* Do not change the pivot if it is not required */
-			if (!vi->bit.ppivot)
+			if (!v->info.bit.ppivot)
 				VTX(0) = VTX(1);
 			VTX(1) = VTX(2);
 
@@ -653,7 +651,7 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 	}
 
 	/* Finish the previous triangle. */
-	if (vi[0].bit.tricap == 7)
+	if (v[0].info.bit.tricap == 7)
 		add_triangle (hr);
 }
 
