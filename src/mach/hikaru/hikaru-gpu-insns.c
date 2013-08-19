@@ -1348,8 +1348,6 @@ I (0x043)
 	uint32_t enabled_mask = (inst[0] >> 24) & 0xF;
 	uint32_t index = gpu->lights.base + offset;
 
-	DISASM (1, "lit: recall @%u", index);
-
 	if (!make_active)
 		gpu->lights.base = offset;
 	else {
@@ -1368,6 +1366,8 @@ I (0x043)
 	}
 
 	UNHANDLED |= !!(inst[0] & 0xF000E000);
+
+	DISASM (1, "lit: recall @%u [enabled=%X]", index, enabled_mask);
 }
 
 /****************************************************************************
