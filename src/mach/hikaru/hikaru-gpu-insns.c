@@ -1868,24 +1868,20 @@ reset_modelview (hikaru_gpu_t *gpu)
 
 I (0x103)
 {
-	bool enabled;
 	float kappa;
 
 	UNHANDLED |= !!(inst[0] & 0x00FFF000);
 
 	switch ((inst[0] >> 8) & 15) {
 	case 3:
-		enabled = false;
 		DISASM (1, "vp: disable unk");
 		break;
 	case 9:
-		enabled = true;
 		kappa = ((int32_t)(uint8_t)(inst[0] >> 24)) / 255.0f;
 		reset_modelview (gpu);
 		DISASM (1, "vp: set identity; enable unk [kappa=%f]", kappa);
 		break;
 	case 0xD:
-		enabled = true;
 		kappa = ((int32_t)(int8_t)(~(inst[0] >> 24))) / 255.0f;
 		reset_modelview (gpu);
 		DISASM (1, "vp: set identity; enable unk [kappa=%f]", kappa);
