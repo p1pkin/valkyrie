@@ -33,10 +33,11 @@
 #define HR_DEBUG_DISABLE_LAYER1		(1 << 1)
 #define HR_DEBUG_DISABLE_LAYER2		(1 << 2)
 #define HR_DEBUG_DISABLE_3D		(1 << 3)
-#define HR_DEBUG_DISABLE_TEXTURES	(1 << 6)
-#define HR_DEBUG_FORCE_DEBUG_TEXTURE	(1 << 7)
-#define HR_DEBUG_FORCE_RAND_COLOR	(1 << 8)
-#define HR_DEBUG_SELECT_MESH		(1 << 9)
+#define HR_DEBUG_DISABLE_TEXTURES	(1 << 4)
+#define HR_DEBUG_FORCE_DEBUG_TEXTURE	(1 << 5)
+#define HR_DEBUG_FORCE_RAND_COLOR	(1 << 6)
+#define HR_DEBUG_SELECT_MESH		(1 << 7)
+#define HR_DEBUG_USE_DEBUG_PROJ	(1 << 8)
 
 static struct {
 	uint32_t flag;
@@ -52,6 +53,7 @@ static struct {
 	{ HR_DEBUG_FORCE_DEBUG_TEXTURE,	SDLK_d,	"",			false },
 	{ HR_DEBUG_FORCE_RAND_COLOR,	SDLK_c, "",			false },
 	{ HR_DEBUG_SELECT_MESH,		SDLK_s, "",			false },
+	{ HR_DEBUG_USE_DEBUG_PROJ,	SDLK_p, "",			false }
 };
 
 static void
@@ -379,7 +381,14 @@ upload_current_state (hikaru_renderer_t *hr)
 
 		glMatrixMode (GL_PROJECTION);
 		glLoadIdentity ();
-		glFrustum (-hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, vp->clip.f);
+		if (hr->debug.flags & HR_DEBUG_USE_DEBUG_PROJ) {
+			float fovy = 90.0f;
+			float near = 0.1f;
+			float hh = tan ((fovy / 2.0f) * (M_PI / 180.0f)) * near;
+			float hw = hh * (w / h);
+			glFrustum (-hw, hw, -hh, hh, near, 1e5);
+		} else
+			glFrustum (-hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, vp->clip.f);
 		/* XXX scissor */
 		glTranslatef (dcx, -dcy, 0.0f);
 
