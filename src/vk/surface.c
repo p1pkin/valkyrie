@@ -18,8 +18,6 @@
  * 02110-1301, USA.
  */
 
-#include <string.h>
-
 /* TODO support mipmaps */
 
 #include "vk/core.h"

@@ -35,13 +35,6 @@
 /* TODO: implement exceptions; this is really needed only with an MMU */
 /* TODO: handle FP exceptions and rounding mode */
 
-#include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdarg.h>
-#include <string.h>
-#include <assert.h>
-
 #include "vk/core.h"
 #include "vk/cpu.h"
 

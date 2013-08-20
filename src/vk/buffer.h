@@ -19,8 +19,6 @@
 #ifndef __VK_BUFFER_H__
 #define __VK_BUFFER_H__
 
-#include <string.h>
-
 #include "vk/core.h"
 
 typedef struct vk_buffer_t vk_buffer_t;

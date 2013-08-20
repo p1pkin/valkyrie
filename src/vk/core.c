@@ -16,10 +16,6 @@
  * along with Valkyrie.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string.h>
-#include <errno.h>
-#include <math.h>
-
 #include "vk/types.h"
 #include "vk/core.h"
 

@@ -16,8 +16,6 @@
  * along with Valkyrie.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdarg.h>
-
 #include "vk/buffer.h"
 
 static unsigned

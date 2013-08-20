@@ -18,9 +18,6 @@
  * 02110-1301, USA.
  */
 
-#include <stdio.h>
-#include <string.h>
-
 #include "vk/mmap.h"
 
 void

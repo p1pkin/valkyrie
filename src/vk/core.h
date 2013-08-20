@@ -23,7 +23,11 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdarg.h>
+#include <errno.h>
 #include <assert.h>
+#include <string.h>
+#include <math.h>
 #include <endian.h> /* See mesa p_config.h */
 
 #include "vk/types.h"

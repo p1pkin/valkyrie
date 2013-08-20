@@ -16,10 +16,8 @@
  * along with Valkyrie.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string.h>
-
-#include <vk/core.h>
-#include <vk/games.h>
+#include "vk/core.h"
+#include "vk/games.h"
 
 static const int current_version = 1;
 
