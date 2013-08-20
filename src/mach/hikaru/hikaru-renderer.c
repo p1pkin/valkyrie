@@ -926,10 +926,10 @@ build_debug_surface (void)
 	vk_surface_t *surface = vk_surface_new (2, 2, VK_SURFACE_FORMAT_RGBA4444);
 	if (!surface)
 		return NULL;
-	vk_surface_put16 (surface, 0, 0, 0xF000);
-	vk_surface_put16 (surface, 0, 1, 0x0F00);
-	vk_surface_put16 (surface, 1, 0, 0x00F0);
-	vk_surface_put16 (surface, 1, 1, 0xFFF0);
+	vk_surface_put16 (surface, 0, 0, 0xF00F);
+	vk_surface_put16 (surface, 0, 1, 0x0F0F);
+	vk_surface_put16 (surface, 1, 0, 0x00FF);
+	vk_surface_put16 (surface, 1, 1, 0xFFFF);
 	vk_surface_commit (surface);
 	return surface;
 }
