@@ -214,17 +214,6 @@ pop_pc (hikaru_gpu_t *gpu)
 	PC = vk_buffer_get (gpu->cmdram, 4, gpu->cp.sp[i] & 0x3FFFFFF) + 8;
 }
 
-static void
-reset_modelview (hikaru_gpu_t *gpu)
-{
-	hikaru_gpu_modelview_t *mv = &gpu->modelviews.stack[gpu->modelviews.depth];
-	unsigned i, j;
-
-	for (i = 0; i < 4; i++)
-		for (j = 0; j < 4; j++)
-			mv->mtx[i][j] = (i == j) ? 1.0f : 0.0;
-}
-
 #define I(name_) \
 	static void hikaru_gpu_inst_##name_ (hikaru_gpu_t *gpu, uint32_t *inst)
 
@@ -597,7 +586,7 @@ I (0x003)
  *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
  *
  * U = Unknown (Multiply? Mutually exclusive with P)
- * P = Push
+ * P = Unknown
  * n = Element index
  * x,y,z = Elements
  *
@@ -648,7 +637,7 @@ I (0x003)
 
 I (0x161)
 {
-	hikaru_gpu_modelview_t *mv = &gpu->modelviews.stack[gpu->modelviews.depth];
+	hikaru_gpu_modelview_t *mv = &gpu->modelviews.table[gpu->modelviews.depth];
 	uint32_t push, elem;
 
 	switch ((inst[0] >> 8) & 0xF) {
@@ -657,11 +646,13 @@ I (0x161)
 		push = (inst[0] >> 18) & 1;
 		elem = (inst[0] >> 16) & 3;
 
-		if (elem == 3)
-			reset_modelview (gpu);
+		if (elem == 3) {
+			/* First element during upload. */
+			unsigned i, j;
 
-		if (push && elem == 0) {
-			/* XXX push the matrix stack */
+			for (i = 0; i < 4; i++)
+				for (j = 0; j < 4; j++)
+					mv->mtx[i][j] = (i == j) ? 1.0f : 0.0;
 		}
 
 		/* We store the columns as rows to facilitate the
@@ -672,15 +663,26 @@ I (0x161)
 		mv->mtx[elem][2] = *(float *) &inst[3];
 		mv->mtx[elem][3] = (elem == 3) ? 1.0f : 0.0f;
 
-		DISASM (4, "mtx: set vector [%c %u (%f %f %f %f)]",
+		DISASM (4, "mtx: set vector [%c %u (%f %f %f %f) depth=%u]",
 		        push ? 'P' : ' ', elem,
 		        mv->mtx[elem][0], mv->mtx[elem][1],
-		        mv->mtx[elem][2], mv->mtx[elem][3]);
+		        mv->mtx[elem][2], mv->mtx[elem][3],
+		        gpu->modelviews.depth);
 
 		UNHANDLED |= !!(inst[0] & 0xFFF0F000);
 		UNHANDLED |= !isfinite (mv->mtx[elem][0]);
 		UNHANDLED |= !isfinite (mv->mtx[elem][1]);
 		UNHANDLED |= !isfinite (mv->mtx[elem][2]);
+
+		if (elem == 0) {
+			/* Last element during upload. */
+			if (push) {
+				gpu->modelviews.depth++;
+				gpu->modelviews.total++;
+				VK_ASSERT (gpu->modelviews.depth < NUM_MODELVIEWS);
+			} else
+				gpu->modelviews.depth = 0;
+		}
 		break;
 
 	case 5:
@@ -1560,8 +1562,12 @@ I (0x12C)
 	v.pos[1] = (int16_t)(inst[2] >> 16) * gpu->static_mesh_precision;
 	v.pos[2] = (int16_t)(inst[3] >> 16) * gpu->static_mesh_precision;
 
+	v.nrm[0] = (int16_t)(inst[1] & 0xFFFF) / 16.0f;
+	v.nrm[1] = (int16_t)(inst[2] & 0xFFFF) / 16.0f;
+	v.nrm[2] = (int16_t)(inst[3] & 0xFFFF) / 16.0f;
+
 	hikaru_renderer_push_vertices ((hikaru_renderer_t *) HR,
-	                               &v, HR_PUSH_POS, 1);
+	                               &v, HR_PUSH_POS | HR_PUSH_POS, 1);
 
 	UNHANDLED |= !!(inst[0] & 0x007F0000);
 

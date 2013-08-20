@@ -346,12 +346,9 @@ vk_mtx3x3f_det (mtx3x3f_t a)
 #endif
 
 static void
-upload_current_state (hikaru_renderer_t *hr)
+upload_current_state (hikaru_renderer_t *hr, unsigned i)
 {
 	hikaru_gpu_viewport_t *vp = &hr->gpu->viewports.scratch;
-
-	/* Debug */
-	LOG ("==== CURRENT STATE ====");
 
 	/* Viewport */
 	if (vp->flags & HIKARU_GPU_OBJ_DIRTY)
@@ -400,7 +397,7 @@ upload_current_state (hikaru_renderer_t *hr)
 
 	/* Modelview */
 	{
-		hikaru_gpu_modelview_t *mv = &hr->gpu->modelviews.stack[0];
+		hikaru_gpu_modelview_t *mv = &hr->gpu->modelviews.table[i];
 
 		LOG ("mv  = %s", get_gpu_modelview_str (mv));
 
@@ -438,18 +435,15 @@ upload_current_state (hikaru_renderer_t *hr)
 static void
 draw_current_mesh (hikaru_renderer_t *hr)
 {
+	unsigned num_instances = hr->gpu->modelviews.total + 1, i;
 	GLuint vbo;
 
-	LOG ("==== DRAWING MESH (current=%u #vertices=%u) ====",
-	     hr->debug.current_mesh, hr->mesh.num_pushed);
+	LOG ("==== DRAWING MESH (current=%u #vertices=%u instances=%u) ====",
+	     hr->debug.current_mesh, hr->mesh.num_pushed, num_instances);
 
 	if ((hr->debug.flags & HR_DEBUG_SELECT_MESH) &&
 	    (hr->debug.current_mesh != hr->debug.selected_mesh))
 		goto skip_;
-
-	glEnable (GL_BLEND);
-	glEnable (GL_CULL_FACE);
-	glCullFace (GL_BACK);
 
 	glGenBuffers (1, &vbo);
 	glBindBuffer (GL_ARRAY_BUFFER, vbo);
@@ -471,11 +465,20 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	glEnableClientState (GL_COLOR_ARRAY);
 	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 
-	glDrawArrays (GL_TRIANGLES, 0, hr->mesh.num_tris * 3);
+	glEnable (GL_BLEND);
+	glEnable (GL_CULL_FACE);
+	glCullFace (GL_BACK);
+
+	for (i = 0; i < num_instances; i++) {
+		upload_current_state (hr, i);
+		glDrawArrays (GL_TRIANGLES, 0, hr->mesh.num_tris * 3);
+	}
 
 	glDeleteBuffers (1, &vbo);
 
 skip_:
+	hr->gpu->modelviews.total = 0;
+	hr->gpu->modelviews.depth = 0; /* XXX not really needed. */
 	hr->debug.current_mesh++;
 }
 
@@ -663,7 +666,6 @@ hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr)
 
 	hr->mesh.addr[1] = addr;
 
-	upload_current_state (hr);
 	draw_current_mesh (hr);
 
 	memset ((void *) &hr->mesh, 0, sizeof (hr->mesh));

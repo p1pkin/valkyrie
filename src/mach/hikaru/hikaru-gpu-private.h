@@ -171,8 +171,8 @@ typedef struct {
 	} viewports;
 
 	struct {
-		hikaru_gpu_modelview_t stack[NUM_MODELVIEWS];
-		uint32_t depth;
+		hikaru_gpu_modelview_t table[NUM_MODELVIEWS];
+		uint32_t depth, total;
 	} modelviews;
 
 	struct {
