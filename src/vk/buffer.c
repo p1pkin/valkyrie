@@ -32,8 +32,8 @@ get_file_size (FILE *fp)
 static uint64_t
 vk_buffer_le32_get (vk_buffer_t *buf, unsigned size, uint32_t offs)
 {
-	VK_ASSERT (offs < buf->size);
 	VK_ASSERT (is_size_valid (size));
+	VK_ASSERT ((offs + size - 1) < buf->size);
 
 	switch (size) {
 	case 1:
@@ -50,8 +50,8 @@ vk_buffer_le32_get (vk_buffer_t *buf, unsigned size, uint32_t offs)
 static void
 vk_buffer_le32_put (vk_buffer_t *buf, unsigned size, uint32_t offs, uint64_t val)
 {
-	VK_ASSERT (offs < buf->size);
 	VK_ASSERT (is_size_valid (size));
+	VK_ASSERT ((offs + size - 1) < buf->size);
 
 	switch (size) {
 	case 1:
@@ -72,7 +72,8 @@ vk_buffer_le32_put (vk_buffer_t *buf, unsigned size, uint32_t offs, uint64_t val
 static uint64_t
 vk_buffer_be32_get (vk_buffer_t *buf, unsigned size, uint32_t offs)
 {
-	VK_ASSERT (offs < buf->size);
+	VK_ASSERT (is_size_valid (size));
+	VK_ASSERT ((offs + size - 1) < buf->size);
 
 	switch (size) {
 	case 1:
@@ -90,7 +91,8 @@ vk_buffer_be32_get (vk_buffer_t *buf, unsigned size, uint32_t offs)
 static void
 vk_buffer_be32_put (vk_buffer_t *buf, unsigned size, uint32_t offs, uint64_t val)
 {
-	VK_ASSERT (offs < buf->size);
+	VK_ASSERT (is_size_valid (size));
+	VK_ASSERT ((offs + size - 1) < buf->size);
 
 	switch (size) {
 	case 1:
