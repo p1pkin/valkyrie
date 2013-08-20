@@ -939,8 +939,6 @@ I (0x083)
 			return;
 		}
 		if (!gpu->materials.table[index].set) {
-			VK_ERROR ("CP: recalled material was not set (%u), skipping",
-			          index);
 			return;
 		}
 
@@ -1102,8 +1100,6 @@ I (0x0C3)
 			return;
 		}
 		if (!gpu->texheads.table[index].set) {
-			VK_ERROR ("CP: recalled texhead was not set (%u), skipping",
-			          index);
 			return;
 		}
 
