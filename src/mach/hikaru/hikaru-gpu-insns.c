@@ -586,7 +586,15 @@ I (0x003)
  *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
  *
  * U = Unknown (Multiply? Mutually exclusive with P)
- * P = Unknown
+ *
+ * P = Push
+ *
+ *	The current modelview matrix is used for instancing. Matrices with
+ *	P set are stored in a stack/table/list. The first mesh rendered
+ *	afterwards is rendered n times, one for each matrix in the list.
+ *
+ *	Used in AIRTRIX attract mode.
+ *
  * n = Element index
  * x,y,z = Elements
  *
