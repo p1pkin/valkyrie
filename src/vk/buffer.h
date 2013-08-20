@@ -72,6 +72,7 @@ void		 vk_buffer_clear (vk_buffer_t *buffer);
 void		 vk_buffer_print (vk_buffer_t *buffer);
 void		 vk_buffer_print_some (vk_buffer_t *, unsigned lo, unsigned hi);
 void		 vk_buffer_dump (vk_buffer_t *buffer, const char *path);
+void		 vk_buffer_dumpf (vk_buffer_t *buffer, const char *fmt, ...);
 
 static inline uint64_t
 vk_buffer_get (vk_buffer_t *buf, unsigned size, uint32_t addr)

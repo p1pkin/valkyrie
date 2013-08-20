@@ -584,19 +584,6 @@ hikaru_parse_args (vk_machine_t *mach, int argc, char **argv)
 }
 
 static void
-dump (vk_buffer_t *buf, const char *fmt, ...)
-{
-	char path[256] = "";
-	va_list va;
-
-	va_start (va, fmt);
-	vsnprintf (path, sizeof (path), fmt, va);
-	va_end (va);
-
-	vk_buffer_dump (buf, path);
-}
-
-static void
 hikaru_dump (vk_machine_t *mach)
 {
 	hikaru_t *hikaru = (hikaru_t *) mach;
@@ -605,16 +592,16 @@ hikaru_dump (vk_machine_t *mach)
 	if (!name)
 		return;
 
-	dump (hikaru->ram_m,		"%s-ram-m.bin", name);
-	dump (hikaru->ram_s,		"%s-ram-s.bin", name);
-	dump (hikaru->cmdram,		"%s-cmdram.bin", name);
-	dump (hikaru->texram[0],	"%s-texram-0.bin", name);
-	dump (hikaru->texram[1],	"%s-texram-1.bin", name);
-	dump (hikaru->fb,		"%s-fb.bin", name);
-	dump (hikaru->aica_ram_m,	"%s-aica-m.bin", name);
-	dump (hikaru->aica_ram_s,	"%s-aica-s.bin", name);
-	dump (hikaru->bram,		"%s-bram.bin", name);
-	dump (hikaru->mie_ram,		"%s-mie.bin", name);
+	vk_buffer_dumpf (hikaru->ram_m,		"%s-ram-m.bin", name);
+	vk_buffer_dumpf (hikaru->ram_s,		"%s-ram-s.bin", name);
+	vk_buffer_dumpf (hikaru->cmdram,	"%s-cmdram.bin", name);
+	vk_buffer_dumpf (hikaru->texram[0],	"%s-texram-0.bin", name);
+	vk_buffer_dumpf (hikaru->texram[1],	"%s-texram-1.bin", name);
+	vk_buffer_dumpf (hikaru->fb,		"%s-fb.bin", name);
+	vk_buffer_dumpf (hikaru->aica_ram_m,	"%s-aica-m.bin", name);
+	vk_buffer_dumpf (hikaru->aica_ram_s,	"%s-aica-s.bin", name);
+	vk_buffer_dumpf (hikaru->bram,		"%s-bram.bin", name);
+	vk_buffer_dumpf (hikaru->mie_ram,	"%s-mie.bin", name);
 }
 
 /*

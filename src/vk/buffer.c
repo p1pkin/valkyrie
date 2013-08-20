@@ -16,6 +16,8 @@
  * along with Valkyrie.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdarg.h>
+
 #include "vk/buffer.h"
 
 static unsigned
@@ -295,4 +297,17 @@ vk_buffer_dump (vk_buffer_t *buffer, const char *path)
                 return;
         fwrite (buffer->ptr, 1, buffer->size, fp);
         fclose (fp);
+}
+
+void
+vk_buffer_dumpf (vk_buffer_t *buffer, const char *fmt, ...)
+{
+	char path[256] = "";
+	va_list va;
+
+	va_start (va, fmt);
+	vsnprintf (path, sizeof (path), fmt, va);
+	va_end (va);
+
+	vk_buffer_dump (buffer, path);
 }
