@@ -45,17 +45,24 @@ slot_to_coords (uint32_t *basex, uint32_t *basey, uint32_t slotx, uint32_t sloty
 	}
 }
 
+/* XXX tentative, mirrors OpenGL's ordering. */
+static const char depth_func_name[8][3] = {
+	"NV", "LT", "EQ", "LE",
+	"GT", "NE", "GE", "AW"
+};
+
 const char *
 get_gpu_viewport_str (hikaru_gpu_viewport_t *vp)
 {
 	static char out[512];
 
-	sprintf (out, "clip=(%6.3f %6.3f %6.3f %6.3f %6.3f %6.3f) offs=(%6.3f %6.3f) depth=(%u %6.3f %6.3f)",
+	sprintf (out, "clip=(%6.3f %6.3f %6.3f %6.3f %6.3f %6.3f) offs=(%6.3f %6.3f) depth=(%s %6.3f %6.3f)",
 	         vp->clip.l, vp->clip.r,
 	         vp->clip.b, vp->clip.t,
 	         vp->clip.f, vp->clip.n,
 	         vp->offset.x, vp->offset.y,
-	         vp->depth.func, vp->depth.min, vp->depth.max);
+	         depth_func_name [vp->depth.func],
+	         vp->depth.min, vp->depth.max);
 
 	return (const char *) out;
 }
