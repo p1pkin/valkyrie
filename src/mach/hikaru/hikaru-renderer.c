@@ -441,7 +441,7 @@ upload_current_state (hikaru_renderer_t *hr)
 static void
 draw_current_mesh (hikaru_renderer_t *hr)
 {
-	unsigned i, j;
+	GLuint vbo;
 
 	LOG ("==== DRAWING MESH (current=%u #vertices=%u) ====",
 	     hr->debug.current_mesh, hr->mesh.num_pushed);
@@ -451,26 +451,32 @@ draw_current_mesh (hikaru_renderer_t *hr)
 		goto skip_;
 
 	glEnable (GL_BLEND);
-
 	glEnable (GL_CULL_FACE);
 	glCullFace (GL_BACK);
 
-	glBegin (GL_TRIANGLES);
-	for (i = 0; i < hr->mesh.num_tris; i++) {
-		for (j = 0; j < 3; j++) {
-			hikaru_gpu_vertex_t *v = &hr->mesh.vbo[i*3+j];
+	glGenBuffers (1, &vbo);
+	glBindBuffer (GL_ARRAY_BUFFER, vbo);
+	glBufferData (GL_ARRAY_BUFFER,
+	              sizeof (hikaru_gpu_vertex_t) * hr->mesh.num_tris * 3,
+	              hr->mesh.vbo, GL_DYNAMIC_DRAW);
 
-			glTexCoord2fv (v->txc);
-			if (hr->debug.flags & HR_DEBUG_FORCE_RAND_COLOR) {
-				//float r = (rand () & 0xFF) / 255.0f;
-				float r = v->info.bit.winding;
-				glColor4f (r, r, r, v->col[3]);
-			} else
-				glColor4fv (v->col);
-			glVertex3fv (v->pos);
-		}
-	}
-	glEnd ();
+	glVertexPointer (3, GL_FLOAT, sizeof (hikaru_gpu_vertex_t),
+	                 (const GLvoid *) offsetof (hikaru_gpu_vertex_t, pos));
+	glNormalPointer (GL_FLOAT, sizeof (hikaru_gpu_vertex_t),
+	                 (const GLvoid *) offsetof (hikaru_gpu_vertex_t, nrm));
+	glColorPointer (4, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t),
+	                (const GLvoid *) offsetof (hikaru_gpu_vertex_t, col));
+	glTexCoordPointer (2, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t),
+	                   (const GLvoid *) offsetof (hikaru_gpu_vertex_t, txc));
+
+	glEnableClientState (GL_VERTEX_ARRAY);
+	glEnableClientState (GL_NORMAL_ARRAY);
+	glEnableClientState (GL_COLOR_ARRAY);
+	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
+
+	glDrawArrays (GL_TRIANGLES, 0, hr->mesh.num_tris * 3);
+
+	glDeleteBuffers (1, &vbo);
 
 skip_:
 	hr->debug.current_mesh++;
@@ -498,7 +504,12 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 	 * BOOTROM CRT test). */
 	/* XXX check component orter (it's probably BGR). */
 
-	if (mat->set) {
+	if (hr->debug.flags & HR_DEBUG_FORCE_RAND_COLOR) {
+		float r = (rand () & 0xFF) / 255.0f;
+		dst->col[0] = r;
+		dst->col[1] = r;
+		dst->col[2] = r;
+	} else if (mat->set) {
 		dst->col[0] = mat->color[1][0] / 255.0f;
 		dst->col[1] = mat->color[1][1] / 255.0f;
 		dst->col[2] = mat->color[1][2] / 255.0f;
