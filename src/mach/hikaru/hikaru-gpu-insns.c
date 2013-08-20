@@ -214,6 +214,17 @@ pop_pc (hikaru_gpu_t *gpu)
 	PC = vk_buffer_get (gpu->cmdram, 4, gpu->cp.sp[i] & 0x3FFFFFF) + 8;
 }
 
+static void
+reset_modelview (hikaru_gpu_t *gpu)
+{
+	hikaru_gpu_modelview_t *mv = &gpu->modelviews.stack[gpu->modelviews.depth];
+	unsigned i, j;
+
+	for (i = 0; i < 4; i++)
+		for (j = 0; j < 4; j++)
+			mv->mtx[i][j] = (i == j) ? 1.0f : 0.0;
+}
+
 #define I(name_) \
 	static void hikaru_gpu_inst_##name_ (hikaru_gpu_t *gpu, uint32_t *inst)
 
@@ -645,6 +656,9 @@ I (0x161)
 	case 1:
 		push = (inst[0] >> 18) & 1;
 		elem = (inst[0] >> 16) & 3;
+
+		if (elem == 3)
+			reset_modelview (gpu);
 
 		if (push && elem == 0) {
 			/* XXX push the matrix stack */
@@ -1831,8 +1845,8 @@ I (0x0D1)
 	UNHANDLED |= !!(inst[0] & 0xFFFCF000);
 }
 
-/* 103	Recall Unknown
- * 113	Recall Unknown
+/* 103	Recall Fog
+ * 113	Recall Fog
  *
  *	FFFFFFFF -------- ----ssso oooooooo
  *
@@ -1847,25 +1861,7 @@ I (0x0D1)
  *
  * See AT:@0C049CDA for N=8 and N=C, see PH:@0C0173CA for N=2, N=8. The
  * commands are emitted at e.g. AT:@0C69A220 (all three of them).
- *
- * BRAVEFF title screen requires that it also resets the modelview matrix (only
- * the translation component is uploaded after calling 103).
  */
-
-static void
-reset_modelview (hikaru_gpu_t *gpu)
-{
-#if 0
-	hikaru_gpu_modelview_t *mv = &gpu->modelviews.stack[gpu->modelviews.depth];
-	unsigned i, j;
-
-	for (i = 0; i < 4; i++)
-		for (j = 0; j < 4; j++)
-			mv->mtx[i][j] = (i == j) ? 1.0f : 0.0;
-#else
-	(void) gpu;
-#endif
-}
 
 I (0x103)
 {
@@ -1875,17 +1871,15 @@ I (0x103)
 
 	switch ((inst[0] >> 8) & 15) {
 	case 3:
-		DISASM (1, "vp: disable unk");
+		DISASM (1, "vp: recall fog [disable]");
 		break;
 	case 9:
 		kappa = ((int32_t)(uint8_t)(inst[0] >> 24)) / 255.0f;
-		reset_modelview (gpu);
-		DISASM (1, "vp: set identity; enable unk [kappa=%f]", kappa);
+		DISASM (1, "vp: recall fog [enable, kappa=%f]", kappa);
 		break;
 	case 0xD:
 		kappa = ((int32_t)(int8_t)(~(inst[0] >> 24))) / 255.0f;
-		reset_modelview (gpu);
-		DISASM (1, "vp: set identity; enable unk [kappa=%f]", kappa);
+		DISASM (1, "vp: recall fog [enable, kappa=%f]", kappa);
 		break;
 	default:
 		VK_ASSERT (0);
