@@ -885,11 +885,13 @@ copy_texture (hikaru_gpu_t *gpu, hikaru_gpu_texhead_t *texhead)
 	endx = basex + texhead->width;
 	endy = basey + texhead->height;
 
-	VK_LOG ("GPU IDMA: %ux%u to (%X,%X), area in TEXRAM is ([%u,%u],[%u,%u]); dst addr = %08X",
-	        texhead->width, texhead->height,
-	        texhead->slotx, texhead->sloty,
-	        basex, basey, endx, endy,
-	        basey * 4096 + basex * 2);
+	if (gpu->options.log_idma) {
+		VK_LOG ("GPU IDMA: %ux%u to (%X,%X), area in TEXRAM is ([%u,%u],[%u,%u]); dst addr = %08X",
+		        texhead->width, texhead->height,
+		        texhead->slotx, texhead->sloty,
+		        basex, basey, endx, endy,
+		        basey * 4096 + basex * 2);
+	}
 
 	if ((endx > 2048) || (endy > 1024)) {
 		VK_ERROR ("GPU IDMA: out-of-bounds transfer: %s",
@@ -934,9 +936,11 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	 * mipmap or two, it shouldn't be that big of a problem. */
 	texhead.has_mipmap = (texhead.size == exp_size[1]) ? 1 : 0;
 
-	VK_LOG ("GPU IDMA %08X %08X %08X %08X : %s",
-	        entry[0], entry[1], entry[2], entry[3],
-	        get_gpu_texhead_str (&texhead));
+	if (gpu->options.log_idma) {
+		VK_LOG ("GPU IDMA %08X %08X %08X %08X : %s",
+		        entry[0], entry[1], entry[2], entry[3],
+		        get_gpu_texhead_str (&texhead));
+	}
 
 	if ((entry[2] & 0xE3C00000) ||
 	    (entry[3] & 0xFFFFFFFE)) {
@@ -1032,9 +1036,11 @@ hikaru_gpu_begin_dma (hikaru_gpu_t *gpu)
 	w = fifo[2] & 0xFFFF;
 	h = fifo[2] >> 16;
 
-	VK_LOG ("GPU DMA: [%08X %08X %08X %08X] { %u %u } --> { %u %u }, %ux%u",
-	        fifo[0], fifo[1], fifo[2], fifo[3],
-		src_x, src_y, dst_x, dst_y, w, h);
+	if (gpu->options.log_dma) {
+		VK_LOG ("GPU DMA: [%08X %08X %08X %08X] { %u %u } --> { %u %u }, %ux%u",
+		        fifo[0], fifo[1], fifo[2], fifo[3],
+			src_x, src_y, dst_x, dst_y, w, h);
+	}
 
 	for (i = 0; i < h; i++) {
 		for (j = 0; j < w; j++) {
