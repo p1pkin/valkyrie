@@ -20,137 +20,143 @@
 #include "mach/hikaru/hikaru-gpu-private.h"
 
 /*
- * Command Processor
- * =================
- *
- * TODO. Controlled by 15000058. Generates GPU 15 IRQ 4 on termination. No
- * idea if it starts processing immediately or on, e.g., vblank-in; no idea
- * about relations to possible (likely) double buffering relation to its
- * timing; will need a lot more investigative work to be solved...
- *
- *
- * Control Flow
- * ============
- *
- * TODO. The GPU is able to call subroutines. So it is likely to hold a
- * stack somewhere: the current candidates are 1500007{4,8}. No idea if and
- * what state changes when subroutines are called (like the current matrix
- * or anything else.)
- *
- *
- * State and Commit/Recall
- * =======================
- *
- * Most commands manipulate the following GPU objects: viewports, materials,
- * textures (which are called texheads in PHARRIER; we follow this convention
- * in the source) and lights/lightsets (this terminology is also found in
- * PHARRIER.)
- *
- * My current understanding is as follows: the GPU holds stores information
- * about a bunch of these objects, that is, it can remember up to 8 viewports,
- * 1024 lights(ets), N materials and M texheads (XXX N and M are yet to be
- * determined.)
- *
- * At every one time there's only one active object for each category (one
- * active viewport, one active material, one active texhead, one active
- * lightset.) The active object influences the rendering of vertex data
- * pushed by the GPU.
- *
- * The instructions below modify the properties of the currently active and
- * non-active objects according to a commit/recall mechanism. Basically:
- *
- * - The 'set' instructions set properties of the currently active object
- *   (for instance the width/height/format of the active texhead.)
- *
- * - The 'commit' instructions copy the properties of the active object to
- *   the GPU storage space, to an object identified by an index (e.g., copy
- *   the params of the active viewport to the Nth stored viewport.)
- *
- * - The 'recall' instructions take a non-active object, identified by an
- *   index, and make it active. Alternatively, a 'recall' instruction can
- *   be used to set an offset to be added to the index of the following
- *   'commit' operations (or something like that.)
- *
- * The rendering state is manipulated using sequences like recall+set+commit
- * or recall-offset+set+commit.
- *
- * Of course, take all of this with a grain of salt. ;-)
- *
- * Control Flow
- * ============
- *
- * No conditionals? See 000, 012, 052, 082, 1C2. Instructions 781 and 181
- * seem to be related to synchronization between the CP execution and the
- * actual blank timing, but details are unknown.
- *
- *
- * Viewports
- * =========
- *
- * These specify an on-screen rectangle (a subregion of the framebuffer,
- * presumably), a projection matrix, the depth-buffer and depth queue
- * configuration, ambient lighting and clear color. The exact meaning of the
- * various fields are still partially unknown.
- *
- *
- * Modelview Matrix
- * ================
- *
- * The command stream can set each row of the modelview matrix separately. See
- * command 161.
- *
- *
- * Materials
- * =========
- *
- * It supports flat, diffuse and phong shading. XXX more to come.
- *
- *
- * Texheads
- * ========
- *
- * TODO. Textures used for 3D rendering are stored in the two available TEXRAM
- * banks. See commands 2C1, 4C1, 0C1, 0C3, 0C4.
- *
- *
- * Lights
+ * GPU CP
  * ======
  *
- * According to the system16.com specs, the hardware supports 1024 lights
- * per scene, and 4 lights per polygon. It supports several light types
- * (ambient, spot, etc.) and several emission types (constant, infinite
- * linear, square, reciprocal, and reciprocal squared.)
- *
- * AFAICS, the hardware supports two light-related objects: lights and
- * lightsets. A light specifies the position, direction, emission properties
- * and more of a single light. A lightset specifies a set of (up to) four
- * lights that insist on the scene being rendered. This setup is consistent
- * with the system16 specs.
- *
- * The properties of a single light are defined by these instructions: 261,
- * 051, 961, B61, 451; instruction 104 commits the light to the GPU storage.
- * To renderer a light effective, it must be embedded in a lightset, using the
- * 064 and/or 043 instructions.
+ * The GPU CP is the Command Processor that performs 3D drawing.
  *
  *
- * Meshes
- * ======
+ * CP Execution
+ * ============
  *
- * This class of instructions pushes (or otherwise deals with) vertex
- * data to the transformation/rasterization pipeline.
+ * CP execution is likely initiated by writing 15000058=3 and 1A000024=1, but
+ * may actually begin only on the next vblank-in event.
  *
- * All meshes are specified with three primitives:
- *  - triangle strips (see command 1BC)
- *  - triangle lists (see command 1AC)
- *  - another unknown primitive (see command 12C)
+ * (From a software perspective, the CP program is uploaded when both IRQs 2 of
+ * GPU 15 and GPU 1A are fired, meaning that at this point the CP is supposed
+ * to have consumed the previous command stream and is ready to accept a new
+ * one.)
  *
- * TODO. No idea where culling/vertex linking information is. Obvious
- * candidates are bits 0-4, 12-15 and 24-31 of the vertex instructions.
+ * Note also that a CP program is uploaded to two different areas in CMDRAM on
+ * odd and even frames. This may mean that there are *two* CPs performing
+ * double-buffered 3D rendering.
+ *
+ * When execution ends:
+ *
+ *  - 1A00000C bit 0 is set (not sure)
+ *    - 1A000018 bit 1 is set as a consequence
+ *      - 15000088 bit 7 is set as a consequence
+ *  - 15000088 bit 1 is set; a GPU IRQ is raised (if not masked by 15000084)
+ *  - 15002000 bit 0 is set on some HW revisions (not sure)
+ *  - 1A000024 bit 0 is cleared if some additional condition occurred (not sure)
+ *
+ * 15002000 and 1A000024 signal different things; see the termination condition
+ * in sync().
+ *
+ * (Guesstimate: 15000088 bit 1 is set when the CP ends verifying/processing
+ * the CS (if there is such a thing!); 15002000 is cleared when the CP submits
+ * the completely rasterized frame buffer to the GPU 1A; 1A000024 is cleared
+ * when the GPU 1A is done compositing the frame buffer with the 2D layers and
+ * has displayed them on-screen.)
+ */
+
+static void
+on_cp_end (hikaru_gpu_t *gpu)
+{
+	/* Turn off the busy bits */
+	REG15 (0x58) &= ~3;
+	REG1A (0x24) &= ~1;
+
+	/* Notify that GPU 15 is done and needs feeding */
+	hikaru_gpu_raise_irq (gpu, _15_IRQ_DONE, _1A_IRQ_DONE);
+}
+
+void
+hikaru_gpu_cp_vblank_in (hikaru_gpu_t *gpu)
+{
+	/* no-op */
+}
+
+void
+hikaru_gpu_cp_vblank_out (hikaru_gpu_t *gpu)
+{
+	/* no-op */
+}
+
+void
+hikaru_gpu_cp_on_put (hikaru_gpu_t *gpu)
+{
+	/* Check the GPU 15 execute bits */
+	if (REG15 (0x58) == 3) {
+		gpu->cp.is_running = true;
+
+		gpu->cp.pc = REG15 (0x70);
+		gpu->cp.sp[0] = REG15 (0x74);
+		gpu->cp.sp[1] = REG15 (0x78);
+	} else
+		REG1A (0x24) = 0; /* XXX really? */
+}
+
+/*
+ * CP Objects
+ * ==========
+ *
+ * The CP manipulates six kinds of objects: viewports, modelviews, materials,
+ * textures/texheads (that's what they are called in PHARRIER, and here),
+ * lights/lightsets (a lightset is a set of four lights), and meshes.
+ *
+ * The CP has a table for each object type, except meshes, namely:
+ *
+ *  viewports	8 [confirmed by system16 specs]
+ *  modelviews  < 256 [
+ *  materials	?unknown?
+ *  texheads	?unknown?
+ *  lights	1024
+ *  lightsets	200 or 256
+ *
+ * CP instructions do not manipulate the objects in the tables directly.
+ * Instead, they work on a special object, the "scratch" or "active" object:
+ * "recall" instructions load an object from the object table into the scratch
+ * object, "set" instructions set the properties of the scratch objects, and
+ * "commit" instructions store the scratch object back into the table.
+ *
+ * When a mesh is drawn, the current scratch objects affect its rendering,
+ * e.g., the scratch material determines the mesh colors, shininess, etc.
+ *
+ *
+ * CP Instructions
+ * ===============
+ *
+ * Each GPU instruction is made of 1, 2, 4, or 8 32-bit words. The opcode is
+ * specified by the lower 9 bits of the first word.
+ *
+ * In general, opcodes of the form:
+ *
+ *  xx1 Set properties of the current object.
+ *  xx2 Do control-flow.
+ *  xx3 Recall the current object or set an offset into the object table.
+ *  xx4 Commit the current object.
+ *  xx6 ?
+ *  xx8 ?
+ *
+ * There are of course some variations on this pattern.
  */
 
 #define PC        gpu->cp.pc
 #define UNHANDLED gpu->cp.unhandled
 #define HR        ((hikaru_renderer_t *) gpu->renderer)
+
+#define FLAG_JUMP	(1 << 0)
+#define FLAG_BEGIN	(1 << 1)
+#define FLAG_CONTINUE	(1 << 2)
+#define FLAG_PUSH	(FLAG_BEGIN | FLAG_CONTINUE)
+#define FLAG_STATIC	(1 << 3)
+#define FLAG_INVALID	(1 << 4)
+
+static struct {
+	void (* handler)(hikaru_gpu_t *, uint32_t *);
+	uint16_t size, flags;
+} insns[0x200];
 
 static void
 disasm (hikaru_gpu_t *gpu, uint32_t *inst, unsigned nwords, const char *fmt, ...)
@@ -184,7 +190,7 @@ disasm (hikaru_gpu_t *gpu, uint32_t *inst, unsigned nwords, const char *fmt, ...
 }
 
 #define DISASM(nwords_, fmt_, args_...) \
-	disasm (gpu, inst, nwords_, fmt_, ##args_) \
+	disasm (gpu, inst, nwords_, fmt_, ##args_)
 
 static void
 check_self_loop (hikaru_gpu_t *gpu, uint32_t target)
@@ -214,12 +220,95 @@ pop_pc (hikaru_gpu_t *gpu)
 	PC = vk_buffer_get (gpu->cmdram, 4, gpu->cp.sp[i] & 0x3FFFFFF) + 8;
 }
 
+static int
+fetch (hikaru_gpu_t *gpu, uint32_t **inst)
+{
+	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
+
+	/* The CP program has been observed to lie only in CMDRAM and slave
+	 * RAM so far. */
+	switch (PC >> 24) {
+	case 0x40:
+	case 0x41:
+		*inst = (uint32_t *) vk_buffer_get_ptr (hikaru->ram_s,
+		                                        PC & 0x01FFFFFF);
+		return 0;
+	case 0x48:
+	case 0x4C: /* XXX not sure */
+		*inst = (uint32_t *) vk_buffer_get_ptr (hikaru->cmdram,
+		                                        PC & 0x003FFFFF);
+		return 0;
+	}
+	return -1;
+}
+
+void
+hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
+{
+	if (!gpu->cp.is_running)
+		return;
+
+	/* XXX shouldn't be setting in_mesh here; we may be building a mesh
+	 * from the previous cycle batch. */
+	gpu->in_mesh = false;
+
+	gpu->materials.base = 0;
+	gpu->texheads.base  = 0;
+	gpu->lights.base    = 0;
+
+	while (cycles > 0 && gpu->cp.is_running) {
+		uint32_t *inst, op;
+		uint16_t flags;
+
+		if (fetch (gpu, &inst)) {
+			VK_ERROR ("CP %08X: invalid PC, skipping CS", PC);
+			gpu->cp.is_running = false;
+			break;
+		}
+
+		op = inst[0] & 0x1FF;
+
+		flags = insns[op].flags;
+		VK_ASSERT (!(flags & FLAG_INVALID));
+
+		if (!gpu->in_mesh && (flags & FLAG_BEGIN)) {
+			bool is_static = (flags & FLAG_STATIC) != 0;
+			hikaru_renderer_begin_mesh (HR, PC, is_static);
+			gpu->in_mesh = true;
+		} else if (gpu->in_mesh && !(flags & FLAG_CONTINUE)) {
+			hikaru_renderer_end_mesh (HR, PC);
+			gpu->in_mesh = false;
+		}
+
+		gpu->cp.unhandled = false;
+		insns[op].handler (gpu, inst);
+		if (gpu->cp.unhandled) {
+			VK_LOG ("CP @%08X: unhandled instruction [%08X]", PC, *inst)
+			/* We carry on anyway */
+		}
+
+		if (!(flags & FLAG_JUMP))
+			PC += insns[op].size;
+
+		cycles--;
+	}
+
+	if (!gpu->cp.is_running)
+		on_cp_end (gpu);
+}
+
 #define I(name_) \
 	static void hikaru_gpu_inst_##name_ (hikaru_gpu_t *gpu, uint32_t *inst)
 
-/****************************************************************************
- Control Flow
-****************************************************************************/
+/*
+ * Control Flow
+ * ============
+ *
+ * The CP supports jumps and subroutine calls.
+ *
+ * The call stack is probably held in CMDRAM at the addresses specified by
+ * MMIOs 1500007{4,8}.
+ */
 
 /* 000	Nop
  *
@@ -313,9 +402,15 @@ I (0x1C2)
 
 }
 
-/****************************************************************************
- Viewports
-****************************************************************************/
+/*
+ * Viewports
+ * =========
+ *
+ * These specify an on-screen rectangle (a subregion of the framebuffer,
+ * presumably), a projection matrix, the depth-buffer and depth queue
+ * configuration, ambient lighting and clear color. The exact meaning of the
+ * various fields are still partially unknown.
+ */
 
 /* 021	Viewport: Set Z Clip
  *
@@ -574,9 +669,17 @@ I (0x003)
 	        get_gpu_viewport_str (vp));
 }
 
-/****************************************************************************
- Matrices
-****************************************************************************/
+/*
+ * Modelview Matrix
+ * ================
+ *
+ * The CP uses command 161 to upload each (row) vector of the modelview matrix
+ * separately.  The CP can also perform instanced drawing, and instructed to do
+ * se through command 161.
+ *
+ * The other commands here set various vectors used for lighting (i.e. light
+ * position and direction) but are not well understood.
+ */
 
 /* 161	Set Matrix Vector
  *
@@ -715,9 +818,12 @@ I (0x161)
 	}
 }
 
-/****************************************************************************
- Materials
-****************************************************************************/
+/*
+ * Materials
+ * =========
+ *
+ * It supports flat, diffuse and phong shading. XXX more to come.
+ */
 
 /* 091	Material: Set Primary Color
  *
@@ -972,9 +1078,13 @@ I (0x083)
 	UNHANDLED |= !!(inst[0] & 0x0000E000);
 }
 
-/****************************************************************************
- Texheads
-****************************************************************************/
+/*
+ * Texheads
+ * ========
+ *
+ * Textures used for 3D rendering are stored (through the GPU IDMA) in the two
+ * available TEXRAM banks.
+ */
 
 /* 0C1	Texhead: Set Bias
  *
@@ -1133,9 +1243,21 @@ I (0x0C3)
 	UNHANDLED |= !!(inst[0] & 0x0000E000);
 }
 
-/****************************************************************************
- Lights
-****************************************************************************/
+/*
+ * Lights
+ * ======
+ *
+ * According to the system16.com specs, the hardware supports 1024 lights per
+ * scene, and 4 lights per polygon. It supports several light types (ambient,
+ * spot, etc.) and several emission types (constant, infinite linear, square,
+ * reciprocal, and reciprocal squared.)
+ *
+ * AFAICS, the hardware supports two light-related objects: lights and
+ * lightsets. A light specifies the position, direction, emission properties
+ * and more of a single light. A lightset specifies a set of (up to) four
+ * lights that insist on the mesh being rendered. This setup is consistent with
+ * the system16 specs.
+ */
 
 /* 061	Set Light Type/Unknown
  *
@@ -1391,9 +1513,18 @@ I (0x043)
 	DISASM (1, "lit: recall @%u [enabled=%X]", index, enabled_mask);
 }
 
-/****************************************************************************
- Meshes
-****************************************************************************/
+/*
+ * Meshes
+ * ======
+ *
+ * This class of instructions pushes (or otherwise deals with) vertex
+ * data to the transformation/rasterization pipeline.
+ *
+ * All meshes are specified with three primitives:
+ *  - triangle strips (see command 1BC)
+ *  - triangle lists (see command 1AC)
+ *  - another unknown primitive (see command 12C)
+ */
 
 /* 101	Mesh: Set Unknown (Set Light Unknown?)
  *
@@ -1905,18 +2036,6 @@ I (0x103)
  Opcodes
 ****************************************************************************/
 
-static struct {
-	void (* handler)(hikaru_gpu_t *, uint32_t *);
-	uint16_t size, flags;
-} insns[0x200];
-
-#define FLAG_JUMP	(1 << 0)
-#define FLAG_BEGIN	(1 << 1)
-#define FLAG_CONTINUE	(1 << 2)
-#define FLAG_PUSH	(FLAG_BEGIN | FLAG_CONTINUE)
-#define FLAG_STATIC	(1 << 3)
-#define FLAG_INVALID	(1 << 4)
-
 #define D(op_, base_op_, size_, flags_) \
 	{ op_, size_, flags_, hikaru_gpu_inst_##base_op_ }
 
@@ -2009,88 +2128,3 @@ hikaru_gpu_cp_init (hikaru_gpu_t *gpu)
 	}
 }
 
-/****************************************************************************
- Execution
-****************************************************************************/
-
-static int
-fetch (hikaru_gpu_t *gpu, uint32_t **inst)
-{
-	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
-
-	/* The CS program has been observed to lie only in CMDRAM and slave
-	 * RAM so far. */
-	switch (PC >> 24) {
-	case 0x40:
-	case 0x41:
-		*inst = (uint32_t *) vk_buffer_get_ptr (hikaru->ram_s,
-		                                        PC & 0x01FFFFFF);
-		return 0;
-	case 0x48:
-	case 0x4C: /* XXX not sure */
-		*inst = (uint32_t *) vk_buffer_get_ptr (hikaru->cmdram,
-		                                        PC & 0x003FFFFF);
-		return 0;
-	}
-	return -1;
-}
-
-static uint32_t breakpoint = 0xFFFFFFFF;
-
-void
-hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
-{
-	if (!gpu->cp.is_running)
-		return;
-
-	/* XXX shouldn't be setting in_mesh here; we may be building a mesh
-	 * from the previous cycle batch. */
-	gpu->in_mesh = false;
-
-	gpu->materials.base = 0;
-	gpu->texheads.base  = 0;
-	gpu->lights.base    = 0;
-
-	while (cycles > 0 && gpu->cp.is_running) {
-		uint32_t *inst, op;
-		uint16_t flags;
-
-		if (PC == breakpoint)
-			break;
-
-		if (fetch (gpu, &inst)) {
-			VK_ERROR ("CP %08X: invalid PC, skipping CS", PC);
-			gpu->cp.is_running = false;
-			break;
-		}
-
-		op = inst[0] & 0x1FF;
-
-		flags = insns[op].flags;
-		VK_ASSERT (!(flags & FLAG_INVALID));
-
-		if (!gpu->in_mesh && (flags & FLAG_BEGIN)) {
-			bool is_static = (flags & FLAG_STATIC) != 0;
-			hikaru_renderer_begin_mesh (HR, PC, is_static);
-			gpu->in_mesh = true;
-		} else if (gpu->in_mesh && !(flags & FLAG_CONTINUE)) {
-			hikaru_renderer_end_mesh (HR, PC);
-			gpu->in_mesh = false;
-		}
-
-		gpu->cp.unhandled = false;
-		insns[op].handler (gpu, inst);
-		if (gpu->cp.unhandled) {
-			VK_LOG ("CP @%08X: unhandled instruction [%08X]", PC, *inst)
-			/* We carry on anyway */
-		}
-
-		if (!(flags & FLAG_JUMP))
-			PC += insns[op].size;
-
-		cycles--;
-	}
-
-	if (!gpu->cp.is_running)
-		hikaru_gpu_cp_end_processing (gpu);
-}

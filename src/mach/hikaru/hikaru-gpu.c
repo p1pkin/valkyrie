@@ -20,8 +20,6 @@
 #include "mach/hikaru/hikaru-gpu-private.h"
 #include "mach/hikaru/hikaru-renderer.h"
 
-/* TODO: figure out what is 4Cxxxxxx; there are a few CALL commands to that
- * bus bank in the BOOTROM command streams. */
 /* TODO: handle slave access here */
 
 /*
@@ -29,10 +27,9 @@
  * ========
  *
  * Unknown hardware, possibly tailor-made for the Hikaru by SEGA. All ICs are
- * branded SEGA, and the PCI IDs are as well.
- *
- * The GPU includes two distinct PCI IDs: 17C7:11DB and 17C3:11DB. The former
- * is visible from the master SH-4 side, the latter from the slave side.
+ * branded SEGA, and the PCI IDs are as well.  The GPU includes two distinct
+ * PCI IDs: 17C7:11DB and 17C3:11DB. The former is visible from the master SH-4
+ * side, the latter from the slave side.
  *
  * The GPU includes at least:
  *
@@ -49,10 +46,12 @@
  *    14000000-143FFFFF in master SH-4 space, and 10000000-103FFFFF in slave
  *    SH-4 space.
  *
- * NOTE: there may be two command processors. Notice how there are a bunch
- * of symmetrical graphical-related ICs on the motherboard, and many MMIOs
- * contain mirrors that get filled with the same values plus an offset, for
- * instance 150000{18+,38+} and 1500007{4,8}.
+ *    See hikaru-gpu-cp.c for more details.
+ *
+ *    NOTE: there may be two command processors. Notice how there are a bunch
+ *    of symmetrical graphical-related ICs on the motherboard, and many MMIOs
+ *    contain mirrors that get filled with the same values plus an offset, for
+ *    instance 150000{18+,38+} and 1500007{4,8}.
  *
  *  - An indirect DMA device (IDMA), which is used to load texture data into
  *    TEXRAM; each texture transferred is accompanied by metadata (size,
@@ -71,9 +70,6 @@
  * There are likely two different hardware revisions: the bootrom checks for
  * them by checking the reaction of the hardware (register 15002000) after
  * poking a few registers. See @0C001AC4.
- *
- * XXX the biggest issue right now is figuring out when does CP execution
- * starts and ends, and the layer priority wrt to the 3D framebuffer.
  *
  *
  * Address Space
@@ -394,12 +390,6 @@
  * 1A0A1600   W		Unknown (seems related 15040E00, see PHARRIER)
  */
 
-#define REG15(addr_)	(*(uint32_t *) &gpu->regs_15[(addr_) & 0xFF])
-#define REG18(addr_)	(*(uint32_t *) &gpu->regs_18[(addr_) & 0xFF])
-#define REG1A(addr_)	(*(uint32_t *) &gpu->regs_1A[(addr_) & 0x1FF])
-#define REG1AUNIT(n,a)	(*(uint32_t *) &gpu->regs_1A_unit[n][(a) & 0x3F])
-#define REG1AFIFO(a)	(*(uint32_t *) &gpu->regs_1A_fifo[(a) & 0xF])
-
 /* GPU IRQs
  * ========
  *
@@ -438,24 +428,6 @@
  *     1A000000 = 1.
  */
 
-typedef enum {
-	_15_IRQ_IDMA	= (1 << 0),
-	_15_IRQ_VBLANK	= (1 << 1),
-	_15_IRQ_DONE	= (1 << 2),
-	_15_IRQ_UNK3	= (1 << 3),
-	_15_IRQ_UNK4	= (1 << 4),
-	_15_IRQ_UNK5	= (1 << 5),
-	_15_IRQ_UNK6	= (1 << 6),
-	_15_IRQ_1A	= (1 << 7)
-} _15_irq_t;
-
-typedef enum {
-	_1A_IRQ_UNK0	= (1 << 0),
-	_1A_IRQ_VBLANK	= (1 << 1),
-	_1A_IRQ_DONE	= (1 << 2),
-	_1A_IRQ_UNK3	= (1 << 3)
-} _1a_irq_t;
-
 static void
 hikaru_gpu_update_irq_status (hikaru_gpu_t *gpu) 
 {
@@ -481,7 +453,7 @@ hikaru_gpu_update_irq_status (hikaru_gpu_t *gpu)
 	}
 }
 
-static void
+void
 hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A)
 {
 	if (_1A & 1)
@@ -494,88 +466,6 @@ hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A)
 		REG1A (0x14) |= 1;
 	REG15 (0x88) |= _15;
 	hikaru_gpu_update_irq_status (gpu);
-}
-
-/*
- * GPU Command Processor
- * =====================
- *
- * TODO (basically opcodes are stored in CMDRAM, execution begins on X and
- * ends on Y; frequency unknown)
- *
- * GPU Instructions
- * ================
- *
- * Each GPU instruction is made of 1, 2, 4, or 8 32-bit words. The opcode is
- * specified by the lower 12 bits of the first word.
- *
- * In general, opcodes of the form:
- *
- * - xx1 seem to set properties of the current object
- * - xx2 seem to be control-flow related.
- * - xx3 seem to be used to recall a given object/offset
- * - xx4 seem to be used to commit the current object
- * - xx6 seem to be ?
- * - xx8 seem to be texture related maybe?
- *
- * GPU Execution
- * =============
- *
- * Very few things are known. Here are my guesses:
- *
- * GPU execution is likely initiated by:
- *  15000058 = 3
- *  1A000024 = 1
- *
- * It may be latched until the next vblank-in even, but I'm not sure. Modern
- * video cards don't work that way. The 781 command may serve exactly this
- * purpose though.
- *
- * A new frame subroutine is uploaded when both IRQs 2 of GPU 15 and GPU 1A
- * are fired, meaning that they both consumed the data passed in and require
- * new data (subroutine) to continue processing.
- *
- * When execution ends:
- *  1A00000C bit 0 is set XXX CHECK ME
- *  1A000018 bit 1 is set as a consequence
- *  15000088 bit 7 is set as a consequence
- *  15000088 bit 1 is set; a GPU IRQ is raised (if not masked by 15000084)
- *  15002000 bit 0 is set on some HW revisions XXX CHECK ME
- *  1A000024 bit 0 is cleared if some additional condition occurred XXX CHECK ME
- *
- * 15002000 and 1A000024 signal different things; see the termination
- * condition in sync()
- *
- * Guesstimate: 15000088 bit 1 is set when the CP ends verifying/processing
- * the CS; 15002000 is cleared when the CP submits the completely rasterized
- * frame buffer to the GPU 1A; 1A000024 is cleared when the GPU 1A is done
- * compositing the framebuffer with the 2D layers and has displayed them
- * on-screen.
- */
-
-static void
-hikaru_gpu_update_cp_status (hikaru_gpu_t *gpu)
-{
-	/* Check the GPU 15 execute bits */
-	if (REG15 (0x58) == 3) {
-		gpu->cp.is_running = true;
-
-		gpu->cp.pc = REG15 (0x70);
-		gpu->cp.sp[0] = REG15 (0x74);
-		gpu->cp.sp[1] = REG15 (0x78);
-	} else
-		REG1A (0x24) = 0; /* XXX really? */
-}
-
-void
-hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu)
-{
-	/* Turn off the busy bits */
-	REG15 (0x58) &= ~3;
-	REG1A (0x24) &= ~1;
-
-	/* Notify that GPU 15 is done and needs feeding */
-	hikaru_gpu_raise_irq (gpu, _15_IRQ_DONE, _1A_IRQ_DONE);
 }
 
 /*
@@ -599,9 +489,9 @@ hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu)
  *
  * Textures can be ABGR1555, ABGR4444, ABGR1111, and A8?; other formats
  * may be possible. Textures may or may not include a complete mipmap tree.
- */
-
-/*
+ *
+ *
+ *
  * Framebuffer Configuration
  * =========================
  *
@@ -724,43 +614,6 @@ hikaru_gpu_fill_layer_info (hikaru_gpu_t *gpu)
 }
 
 /*
- * GPU DMA
- * =======
- *
- * Copies texture data around within the FB. It's used to compose the intro
- * text of AIRTRIX and PHARRIER, for instance. It is controlled by the ports
- * at 1A0000{0,4,8,C} as follows:
- *
- * 1A040000   W		Source coords
- *
- *			-------- --yyyyyy yyyyyxxx xxxxxxxx 
- *
- *			x,y = Coordinates in pixels
- *
- * 1A040004   W		Destination coords
- *
- *			-------- --yyyyyy yyyyyxxx xxxxxxxx 
- *
- *			x,y = Coordinates in pixels
- *
- * 1A040008   W		Size
- *
- *			hhhhhhhh hhhhhhhh wwwwwwww wwwwwwww
- *
- *			w = Width in pixels
- *			h = height in pixels
- *
- * 1A04000C   W		Control
- *
- *			-------- -------- -------- -------E
- *
- *			E = Process the DMA request when set
- *
- * See AT:@0C697D48, PH:@0C0CD320.
- *
- * NOTE: 1A000024 bit 0 seems to signal when the device is busy.
- *
- *
  * GPU Indirect DMA (IDMA)
  * =======================
  *
@@ -1018,9 +871,49 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 	}
 }
 
+/*
+ * GPU DMA
+ * =======
+ *
+ * Copies texture data around within the FB. It's used to compose the intro
+ * text of AIRTRIX and PHARRIER, for instance. It is controlled by the ports
+ * at 1A0000{0,4,8,C} as follows:
+ *
+ * 1A040000   W		Source coords
+ *
+ *			-------- --yyyyyy yyyyyxxx xxxxxxxx 
+ *
+ *			x,y = Coordinates in pixels
+ *
+ * 1A040004   W		Destination coords
+ *
+ *			-------- --yyyyyy yyyyyxxx xxxxxxxx 
+ *
+ *			x,y = Coordinates in pixels
+ *
+ * 1A040008   W		Size
+ *
+ *			hhhhhhhh hhhhhhhh wwwwwwww wwwwwwww
+ *
+ *			w = Width in pixels
+ *			h = height in pixels
+ *
+ * 1A04000C   W		Control
+ *
+ *			-------- -------- -------- -------E
+ *
+ *			E = Process the DMA request when set
+ *
+ * See AT:@0C697D48, PH:@0C0CD320.
+ *
+ * NOTE: 1A000024 bit 0 seems to signal when the device is busy.
+ *
+ */
+
 /* XXX convert to begin/step/end; according to PHARRIER, the DMA operation
  * should take more or less C cycles for each texel, where C is a small
  * constant. */
+
 static void
 hikaru_gpu_begin_dma (hikaru_gpu_t *gpu)
 {
@@ -1055,7 +948,9 @@ hikaru_gpu_begin_dma (hikaru_gpu_t *gpu)
 	REG1A (0x24) |= 1;
 }
 
-/* External event handlers */
+/****************************************************************************
+ External events
+****************************************************************************/
 
 void
 hikaru_gpu_hblank_in (vk_device_t *dev, unsigned line)
@@ -1070,7 +965,9 @@ hikaru_gpu_hblank_in (vk_device_t *dev, unsigned line)
 void
 hikaru_gpu_vblank_in (vk_device_t *dev)
 {
-	(void) dev;
+	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
+
+	hikaru_gpu_cp_vblank_in (gpu);
 }
 
 void
@@ -1080,9 +977,8 @@ hikaru_gpu_vblank_out (vk_device_t *dev)
 
 	hikaru_gpu_raise_irq (gpu, _15_IRQ_VBLANK, _1A_IRQ_VBLANK);
 	hikaru_gpu_fill_layer_info (gpu);
+	hikaru_gpu_cp_vblank_out (gpu);
 }
-
-void hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles);
 
 static int
 hikaru_gpu_exec (vk_device_t *dev, int cycles)
@@ -1102,7 +998,9 @@ hikaru_gpu_exec (vk_device_t *dev, int cycles)
 	return 0;
 }
 
-/* Accessors */
+/****************************************************************************
+ Accessors
+****************************************************************************/
 
 static int
 hikaru_gpu_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
@@ -1185,7 +1083,7 @@ hikaru_gpu_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val)
 			break;
 		case 0x58: /* CP Control */
 			REG15 (0x58) = val;
-			hikaru_gpu_update_cp_status (gpu);
+			hikaru_gpu_cp_on_put (gpu);
 			return 0;
 		case 0x84: /* IRQ mask */
 			REG15 (addr) = val;
@@ -1225,7 +1123,7 @@ hikaru_gpu_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val)
 			return 0;
 		case 0x24:
 			REG1A (addr) = val;
-			hikaru_gpu_update_cp_status (gpu);
+			hikaru_gpu_cp_on_put (gpu);
 			return 0;
 		case 0x80 ... 0xC0: /* Display Config? */
 		case 0xC4: /* Unknown control */
@@ -1252,6 +1150,10 @@ hikaru_gpu_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val)
 	}
 	return 0;
 }
+
+/****************************************************************************
+ Interface
+****************************************************************************/
 
 static void
 hikaru_gpu_reset (vk_device_t *dev, vk_reset_type_t type)

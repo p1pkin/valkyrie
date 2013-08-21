@@ -207,6 +207,12 @@ typedef struct {
 
 } hikaru_gpu_t;
 
+#define REG15(addr_)	(*(uint32_t *) &gpu->regs_15[(addr_) & 0xFF])
+#define REG18(addr_)	(*(uint32_t *) &gpu->regs_18[(addr_) & 0xFF])
+#define REG1A(addr_)	(*(uint32_t *) &gpu->regs_1A[(addr_) & 0x1FF])
+#define REG1AUNIT(n,a)	(*(uint32_t *) &gpu->regs_1A_unit[n][(a) & 0x3F])
+#define REG1AFIFO(a)	(*(uint32_t *) &gpu->regs_1A_fifo[(a) & 0xF])
+
 /****************************************************************************
  Renderer
 ****************************************************************************/
@@ -272,6 +278,24 @@ typedef struct {
  Definitions
 ****************************************************************************/
 
+typedef enum {
+	_15_IRQ_IDMA	= (1 << 0),
+	_15_IRQ_VBLANK	= (1 << 1),
+	_15_IRQ_DONE	= (1 << 2),
+	_15_IRQ_UNK3	= (1 << 3),
+	_15_IRQ_UNK4	= (1 << 4),
+	_15_IRQ_UNK5	= (1 << 5),
+	_15_IRQ_UNK6	= (1 << 6),
+	_15_IRQ_1A	= (1 << 7)
+} _15_irq_t;
+
+typedef enum {
+	_1A_IRQ_UNK0	= (1 << 0),
+	_1A_IRQ_VBLANK	= (1 << 1),
+	_1A_IRQ_DONE	= (1 << 2),
+	_1A_IRQ_UNK3	= (1 << 3)
+} _1a_irq_t;
+
 #define ispositive(x_) \
 	(isfinite(x_) && (x_) >= 0.0)
 
@@ -285,9 +309,15 @@ const char *get_gpu_light_str (hikaru_gpu_light_t *);
 const char *get_gpu_vertex_str (hikaru_gpu_vertex_t *);
 const char *get_gpu_layer_str (hikaru_gpu_layer_t *);
 
-/* hikaru-gpu-insns.c */
+/* hikaru-gpu.c */
+void hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A);
+
+/* hikaru-gpu-cp.c */
 void hikaru_gpu_cp_init (hikaru_gpu_t *);
-void hikaru_gpu_cp_end_processing (hikaru_gpu_t *gpu);
+void hikaru_gpu_cp_exec (hikaru_gpu_t *, int cycles);
+void hikaru_gpu_cp_vblank_in (hikaru_gpu_t *);
+void hikaru_gpu_cp_vblank_out (hikaru_gpu_t *);
+void hikaru_gpu_cp_on_put (hikaru_gpu_t *);
 
 /* hikaru-renderer.c */
 void hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
