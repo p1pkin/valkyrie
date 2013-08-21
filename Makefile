@@ -3,7 +3,7 @@ LD := gcc
 
 DEFS := -DVK_HAVE_HIKARU
 
-CFLAGS  := $(DEFS) -I src -I /usr/include/json -O3 -fomit-frame-pointer -flto -Wall -Wno-strict-aliasing
+CFLAGS  := $(DEFS) -I src -I /usr/include/json -O3 -fomit-frame-pointer -flto -Wall -Wno-strict-aliasing -march=native
 #CFLAGS  := $(DEFS) -I src -I /usr/include/json -O0 -g -Wall
 LDFLAGS := -lm -lSDL -lGL -lGLEW -ljansson
 
