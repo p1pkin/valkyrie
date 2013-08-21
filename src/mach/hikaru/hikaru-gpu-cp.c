@@ -70,6 +70,7 @@ on_cp_begin (hikaru_gpu_t *gpu)
 	gpu->cp.sp[1] = REG15 (0x78);
 
 	gpu->in_mesh = false;
+	gpu->static_mesh_precision = -1.0f;
 
 	gpu->materials.base = 0;
 	gpu->texheads.base  = 0;
@@ -1700,6 +1701,8 @@ I (0x12C)
 	hikaru_gpu_vertex_t v;
 
 	v.info.full = inst[0];
+
+	VK_ASSERT (gpu->static_mesh_precision > 0.0f);
 
 	v.pos[0] = (int16_t)(inst[1] >> 16) * gpu->static_mesh_precision;
 	v.pos[1] = (int16_t)(inst[2] >> 16) * gpu->static_mesh_precision;
