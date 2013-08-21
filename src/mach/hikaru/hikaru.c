@@ -892,14 +892,6 @@ patch_braveff (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 	patch_bootrom_092 (cpu, pc);
 
 	switch (pc) {
-	case 0x0C0766BA:
-		/* Trick the faulty aica_stuff () functions into doing a
-		 * non-zero DMAC transfer to the AICA; this makes the DMAC
-		 * not write to random sections of the address space. This
-		 * issue is likely related to the lack of MASKROMs. */
-		if (R(6) == 0)
-			R(6) = 1;
-		break;
 	case 0x0C0D522A:
 		T = 1;
 		break;
