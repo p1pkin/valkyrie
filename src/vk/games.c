@@ -234,7 +234,7 @@ vk_game_new (vk_game_list_t *game_list, const char *path, const char *name)
 	for (i = 0; i < game_list->nentries; i++)
 		if (!strcmp (game_list->entries[i].name, name)) {
 			json_t *root = game_list->entries[i].root;
-			json_t *required = json_object_get (root, "required");
+			//json_t *required = json_object_get (root, "required");
 			strcpy (game->name, name);
 			strcpy (game->mach, game_list->entries[i].mach);
 			if (load_sections (root, game, path, name))
