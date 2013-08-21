@@ -152,7 +152,7 @@ vk_cpu_put (vk_cpu_t *cpu, unsigned size, uint32_t addr, uint64_t val)
 	return vk_mmap_put (cpu->mmap, size, addr, val);
 }
 
-static void
+static inline void
 vk_cpu_install_patch (vk_cpu_t *cpu, vk_cpu_patch_t patch)
 {
 	VK_ASSERT (cpu != NULL);
