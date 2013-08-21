@@ -913,8 +913,6 @@ patch_braveff (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 static uint32_t
 patch_pharrier (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 {
-	sh4_t *ctx = (sh4_t *) cpu;
-
 	patch_bootrom_092 (cpu, pc);
 
 	switch (pc) {
