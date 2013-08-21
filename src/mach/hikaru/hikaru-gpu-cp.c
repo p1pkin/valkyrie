@@ -61,6 +61,22 @@
  */
 
 static void
+on_cp_begin (hikaru_gpu_t *gpu)
+{
+	gpu->cp.is_running = true;
+
+	gpu->cp.pc = REG15 (0x70);
+	gpu->cp.sp[0] = REG15 (0x74);
+	gpu->cp.sp[1] = REG15 (0x78);
+
+	gpu->in_mesh = false;
+
+	gpu->materials.base = 0;
+	gpu->texheads.base  = 0;
+	gpu->lights.base    = 0;
+}
+
+static void
 on_cp_end (hikaru_gpu_t *gpu)
 {
 	/* Turn off the busy bits */
@@ -87,13 +103,9 @@ void
 hikaru_gpu_cp_on_put (hikaru_gpu_t *gpu)
 {
 	/* Check the GPU 15 execute bits */
-	if (REG15 (0x58) == 3) {
-		gpu->cp.is_running = true;
-
-		gpu->cp.pc = REG15 (0x70);
-		gpu->cp.sp[0] = REG15 (0x74);
-		gpu->cp.sp[1] = REG15 (0x78);
-	} else
+	if (REG15 (0x58) == 3)
+		on_cp_begin (gpu);
+	else
 		REG1A (0x24) = 0; /* XXX really? */
 }
 
@@ -247,14 +259,6 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 {
 	if (!gpu->cp.is_running)
 		return;
-
-	/* XXX shouldn't be setting in_mesh here; we may be building a mesh
-	 * from the previous cycle batch. */
-	gpu->in_mesh = false;
-
-	gpu->materials.base = 0;
-	gpu->texheads.base  = 0;
-	gpu->lights.base    = 0;
 
 	while (cycles > 0 && gpu->cp.is_running) {
 		uint32_t *inst, op;
