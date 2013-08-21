@@ -1191,22 +1191,6 @@ setup_insns_handlers (void)
 /* Execution */
 
 static void
-print_f_context (sh4_t *ctx, uint32_t pc)
-{
-	unsigned i;
-
-	VK_LOG ("FP @%08X:", pc);
-	for (i = 0; i < 16; i += 4) {
-		VK_LOG ("	FP FR%2u=%9.3f FR%2u=%9.3f FR%2u=%9.3f FR%2u=%9.3f",
-		        i, FR(i).f, i+1, FR(i+1).f, i+2, FR(i+2).f, i+3, FR(i+3).f);
-	}
-	for (i = 0; i < 16; i += 4) {
-		VK_LOG ("	FP XF%2u=%9.3f XF%2u=%9.3f XF%2u=%9.3f XF%2u=%9.3f",
-		        i, XF(i).f, i+1, XF(i+1).f, i+2, XF(i+2).f, i+3, XF(i+2).f);
-	}
-}
-
-static void
 sh4_step (sh4_t *ctx, uint32_t pc)
 {
 	uint16_t inst;
