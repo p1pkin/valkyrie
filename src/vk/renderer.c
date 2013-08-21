@@ -223,7 +223,7 @@ vk_renderer_end_frame (vk_renderer_t *renderer)
 	if (delta)
 		fps = 1000.0f / delta;
 
-	sprintf (title, "Valkyrie (%4.1f FPS)", 1000.0f / delta);
+	sprintf (title, "Valkyrie (%4.1f FPS)", fps);
 	SDL_WM_SetCaption (title, "Valkyrie");
 }
 
