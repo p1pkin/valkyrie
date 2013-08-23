@@ -1137,7 +1137,7 @@ I (0x0C1)
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
-		th->_0C1_nibble	= (inst[0] >> 16) & 1;
+		th->_0C1_nibble	= (inst[0] >> 16) & 0xF;
 		th->_0C1_byte	= (inst[0] >> 20) & 0xFF;
 
 		DISASM (1, "tex: set bias [ena=%u %X]",
