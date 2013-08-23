@@ -842,37 +842,10 @@ hikaru_set_rombd_config (hikaru_t *hikaru)
 #define PR	ctx->pr
 #define T	ctx->sr.bit.t
 
-static void
-patch_bootrom_092 (vk_cpu_t *cpu, uint32_t pc)
-{
-	sh4_t *ctx = (sh4_t *) cpu;
-
-	switch (pc) {
-	case 0x0C004E46:
-		VK_CPU_LOG (ctx, "BOOTROM rombd_do_crc (%X, %X, %X)", R(4), R(5), R(6));
-		break;
-	case 0x0C0069E0:
-		VK_CPU_LOG (ctx, "BOOTROM sync (%X)", R(4));
-		break;
-	case 0x0C00BD18:
-		VK_CPU_LOG (ctx, "BOOTROM set_errno_and_init_machine_extended (%X)", R(4));
-		break;
-	case 0x0C0100E4:
-		VK_CPU_LOG (ctx, "BOOTROM game main() is at %08X", PR);
-		break;
-	case 0x0C00BFB2:
-		/* Makes the EEPROM check pass */
-		R(0) = 0xF;
-		break;
-	}
-}
-
 static uint32_t
 patch_airtrix (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 {
 	sh4_t *ctx = (sh4_t *) cpu;
-
-	patch_bootrom_092 (cpu, pc);
 
 	switch (pc) {
 	/* AIRTRIX */
@@ -889,8 +862,6 @@ patch_braveff (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 {
 	sh4_t *ctx = (sh4_t *) cpu;
 
-	patch_bootrom_092 (cpu, pc);
-
 	switch (pc) {
 	case 0x0C0D522A:
 		T = 1;
@@ -905,8 +876,6 @@ patch_braveff (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 static uint32_t
 patch_pharrier (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 {
-	patch_bootrom_092 (cpu, pc);
-
 	switch (pc) {
 	case 0x0C01C322:
 		/* Patches an AICA-related while (1) into a NOP */
@@ -919,8 +888,6 @@ static uint32_t
 patch_sgnascar (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 {
 	sh4_t *ctx = (sh4_t *) cpu;
-
-	patch_bootrom_092 (cpu, pc);
 
 	switch (pc) {
 	case 0x0C071E20:
@@ -1032,9 +999,25 @@ hikaru_init (hikaru_t *hikaru)
 		goto fail;
 
 	if (game) {
+		char *version;
+
 		hikaru->bootrom 	= vk_game_get_section_data (game, "bootrom");
 		hikaru->eprom   	= vk_game_get_section_data (game, "eprom");
 		hikaru->maskrom 	= vk_game_get_section_data (game, "maskrom");
+
+		/* Patch theBOOTROM  EEPROM check. Allows games to load. */
+		VK_LOG ("patching BOOTROM");
+
+		version = (char *) vk_buffer_get_ptr (hikaru->bootrom, 0xD4);
+		if (!strcmp (version, "SAMURAI BootROM Version 0.84") ||
+		    !strcmp (version, "SAMURAI BootROM Version 0.92"))
+			vk_buffer_put (hikaru->bootrom, 2, 0x8AE, 0xE00F); /* MOV R0, 0xFFFFFFFF */
+		else if (!strcmp (version, "SAMURAI BootROM Version 0.96"))
+			vk_buffer_put (hikaru->bootrom, 2, 0x8E6, 0xE00F); /* MOV R0, 0xFFFFFFFF */
+		else {
+			VK_ERROR ("unknown BOOTROM version!");
+			goto fail;
+		}
 
 		if (hikaru_set_rombd_config (hikaru))
 			goto fail;
