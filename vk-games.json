@@ -9,9 +9,9 @@
 					"name" : "bootrom",
 					"type" : "alternative",
 					"data" : [
-						{ "name" : "hikaru_0.84.bin", "size" : 2097152 },
+						{ "name" : "hikaru_0.96.bin", "size" : 2097152 },
 						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
-						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
+						{ "name" : "hikaru_0.84.bin", "size" : 2097152 }
 					]
 				}
 			]
@@ -24,8 +24,9 @@
 					"name" : "bootrom",
 					"type" : "alternative",
 					"data" : [
+						{ "name" : "hikaru_0.96.bin", "size" : 2097152 },
 						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
-						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
+						{ "name" : "hikaru_0.84.bin", "size" : 2097152 }
 					]
 				},
 				{
@@ -62,8 +63,9 @@
 					"name" : "bootrom",
 					"type" : "alternative",
 					"data" : [
+						{ "name" : "hikaru_0.96.bin", "size" : 2097152 },
 						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
-						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
+						{ "name" : "hikaru_0.84.bin", "size" : 2097152 }
 					]
 				},
 				{
@@ -120,8 +122,9 @@
 					"name" : "bootrom",
 					"type" : "alternative",
 					"data" : [
+						{ "name" : "hikaru_0.96.bin", "size" : 2097152 },
 						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
-						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
+						{ "name" : "hikaru_0.84.bin", "size" : 2097152 }
 					]
 				},
 				{
@@ -172,8 +175,9 @@
 					"name" : "bootrom",
 					"type" : "alternative",
 					"data" : [
+						{ "name" : "hikaru_0.96.bin", "size" : 2097152 },
 						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
-						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
+						{ "name" : "hikaru_0.84.bin", "size" : 2097152 }
 					]
 				},
 				{
@@ -197,8 +201,9 @@
 					"name" : "bootrom",
 					"type" : "alternative",
 					"data" : [
+						{ "name" : "hikaru_0.96.bin", "size" : 2097152 },
 						{ "name" : "hikaru_0.92.bin", "size" : 2097152 },
-						{ "name" : "hikaru_0.96.bin", "size" : 2097152 }
+						{ "name" : "hikaru_0.84.bin", "size" : 2097152 }
 					]
 				},
 				{
