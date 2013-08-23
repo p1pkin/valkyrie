@@ -288,7 +288,7 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 		gpu->cp.unhandled = false;
 		insns[op].handler (gpu, inst);
 		if (gpu->cp.unhandled) {
-			VK_LOG ("CP @%08X: unhandled instruction [%08X]", PC, *inst)
+			VK_LOG ("CP @%08X: unhandled instruction [%08X]", PC, *inst);
 			/* We carry on anyway */
 		}
 

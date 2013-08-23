@@ -245,13 +245,13 @@ signext_n_64 (const uint64_t in, const unsigned sign_bit)
 #define VK_LOG(fmt_, args_...) \
 	do { \
 		fprintf (stdout, fmt_"\n", ##args_); \
-	} while (0);
+	} while (0)
 
 /** Prints a formatted message, prefixed by 'ERROR', to stderr */
 #define VK_ERROR(fmt_, args_...) \
 	do { \
 		fprintf (stderr, "ERROR: "fmt_"\n", ##args_); \
-	} while (0);
+	} while (0)
 
 /** Prints a formatted message, prefixed by 'FATAL', to stderr, and aborts */
 #define VK_ABORT(fmt_, args_...) \
@@ -259,7 +259,7 @@ signext_n_64 (const uint64_t in, const unsigned sign_bit)
 		fprintf (stderr, "FATAL: %s:%d %s(): "fmt_"\n", \
 		         __FILE__, __LINE__, __FUNCTION__, ##args_); \
 		abort (); \
-	} while (0);
+	} while (0)
 
 /** If the condition fails, prints a formatted message, prefixed by 'FATAL',
  * to stderr, and exits */
@@ -268,7 +268,7 @@ signext_n_64 (const uint64_t in, const unsigned sign_bit)
 		if (!(_cond)) { \
 			VK_ABORT ("assertion failed, aborting"); \
 		} \
-	} while (0);
+	} while (0)
 
 /* XXX the following is a big mess; clean it up please */
 

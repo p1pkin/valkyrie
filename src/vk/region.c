@@ -107,7 +107,7 @@ vk_region_rom_new (uint32_t lo, uint32_t hi, uint32_t mask,
 	vk_region_t *region;
 
 	VK_ASSERT (buffer);
-	VK_ASSERT (!(flags & VK_REGION_WRITE))
+	VK_ASSERT (!(flags & VK_REGION_WRITE));
 
 	flags |= VK_REGION_DIRECT | VK_REGION_READ | VK_REGION_SIZE_ALL;
 	region = vk_region_new (lo, hi, mask, flags, name);
