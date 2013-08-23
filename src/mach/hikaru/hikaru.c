@@ -807,7 +807,7 @@ hikaru_set_rombd_config (hikaru_t *hikaru)
 		maskrom_bank_size = 8;
 		maskrom_is_stretched = true;
 	} else if (!strcmp (game->name, "sgnascar")) {
-		rombd_offs = 8;
+		//rombd_offs = 8;
 		eprom_bank_size = 4;
 		maskrom_bank_size = 16;
 		maskrom_is_stretched = true;
@@ -848,7 +848,6 @@ patch_airtrix (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 	sh4_t *ctx = (sh4_t *) cpu;
 
 	switch (pc) {
-	/* AIRTRIX */
 	case 0x0C010F9A:
 		/* Make the 'WARNING' screen faster (well, 656 frames faster) */
 		R(2) = 0x290;
@@ -890,9 +889,6 @@ patch_sgnascar (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 	sh4_t *ctx = (sh4_t *) cpu;
 
 	switch (pc) {
-	case 0x0C071E20:
-		VK_CPU_LOG (ctx, "SGNASCAR: do_dmac (%X,%X,%X,%X)", R(4), R(5), R(6), R(7));
-		break;
 	case 0x0C00BC9A:
 		/* Make the (non-existent) EEPROM data conform the ROM
 		 * information. This is likely a region/hw version check. */
