@@ -22,17 +22,16 @@
 #define __VK_MMAP_H__
 
 #include "vk/region.h"
-
-/* XXX this API sucks; we really need vk_list_t */
+#include "vk/vector.h"
 
 typedef struct {
-	vk_region_t **regions;
+	vk_vector_t *regions;
 	vk_machine_t *mach;
 } vk_mmap_t;
 
-vk_mmap_t	*vk_mmap_new (vk_machine_t *mach, unsigned num);
+vk_mmap_t	*vk_mmap_new (vk_machine_t *mach);
 void		 vk_mmap_destroy (vk_mmap_t **mmap_);
-void		 vk_mmap_set_region (vk_mmap_t *mmap, vk_region_t *region, unsigned index);
+void		 vk_mmap_add_region (vk_mmap_t *mmap, vk_region_t *region);
 int		 vk_mmap_get (vk_mmap_t *mmap, unsigned size, uint32_t addr, void *data);
 int		 vk_mmap_put (vk_mmap_t *mmap, unsigned size, uint32_t addr, uint64_t data);
 

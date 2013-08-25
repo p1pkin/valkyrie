@@ -39,17 +39,18 @@ get_size_flag_for_size (unsigned size)
 vk_region_t *
 vk_mmap_get_region (vk_mmap_t *mmap, uint32_t addr, unsigned flags)
 {
-	unsigned i;
+	uint32_t i;
 
 	VK_ASSERT (mmap);
 	VK_ASSERT ((flags & ~VK_REGION_RW) == 0);
 
-	for (i = 0; mmap->regions[i]->mask != 0; i++) {
-		vk_region_t *region = mmap->regions[i];
+	for (i = 0; i < mmap->regions->used; i += sizeof (vk_region_t)) {
+		vk_region_t *region = (vk_region_t *) &mmap->regions->data[i];
 		if (addr >= region->lo && addr <= region->hi &&
 		    (region->flags & flags))
 			return region;
 	}
+
 	return NULL;
 }
 
@@ -114,24 +115,31 @@ vk_mmap_put (vk_mmap_t *mmap, unsigned size, uint32_t addr, uint64_t data)
 }
 
 void
-vk_mmap_set_region (vk_mmap_t *mmap, vk_region_t *region, unsigned index)
+vk_mmap_add_region (vk_mmap_t *mmap, vk_region_t *region)
 {
-	mmap->regions[index] = region;
+	vk_region_t *entry;
+
+	VK_ASSERT (mmap);
+	VK_ASSERT (region);
+
+	entry = (vk_region_t *) vk_vector_append_entry (mmap->regions);
+	VK_ASSERT (entry);
+
+	*entry = *region;
 }
 
 vk_mmap_t *
-vk_mmap_new (vk_machine_t *mach, unsigned num)
+vk_mmap_new (vk_machine_t *mach)
 {
 	vk_mmap_t *mmap;
 
 	VK_ASSERT (mach);
-	VK_ASSERT (num);
 
 	mmap = ALLOC (vk_mmap_t);
 	if (!mmap)
 		goto fail;
 
-	mmap->regions = (vk_region_t **) calloc (num, sizeof (vk_region_t *));
+	mmap->regions = vk_vector_new (8, sizeof (vk_region_t));
 	if (!mmap->regions)
 		goto fail;
 
@@ -150,7 +158,7 @@ vk_mmap_destroy (vk_mmap_t **mmap_)
 	if (mmap_) {
 		vk_mmap_t *mmap = *mmap_;
 		if (mmap) {
-			FREE (mmap->regions);
+			vk_vector_destroy (&mmap->regions);
 			mmap->mach = NULL;
 		}
 		free (mmap);

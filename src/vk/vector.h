@@ -34,9 +34,4 @@ void		*vk_vector_append_entry (vk_vector_t *vector);
 void		 vk_vector_append (vk_vector_t *vector, void *key);
 void		 vk_vector_clear (vk_vector_t *vector);
 
-#define VK_VECTOR_FORALL(vector_, i_, var_, type_) \
-	for ((i_) = 0, (var_) = (type_) &((vector_)->data[i_]); \
-	     (i_) < (vector_)->used; \
-	     (i_) += sizeof (type_))
-
 #endif /* __VK_VECTOR_H__ */

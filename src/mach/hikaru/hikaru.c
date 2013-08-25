@@ -616,84 +616,81 @@ hikaru_dump (vk_machine_t *mach)
 static vk_mmap_t *
 setup_master_mmap (hikaru_t *hikaru)
 {
-	vk_mmap_t *mmap = vk_mmap_new (&hikaru->base, 16);
+	vk_mmap_t *mmap = vk_mmap_new (&hikaru->base);
 	vk_region_t *region;
-	unsigned i = 0;
 
 	if (!mmap)
 		return NULL;
 
 	region = vk_region_ram_new (0x0C000000, 0x0DFFFFFF, 0x01FFFFFF, 0,
 	                            hikaru->ram_m, "RAM/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_rom_new (0x00000000, 0x001FFFFF, 0x1FFFFF, 0,
 	                            hikaru->bootrom, "BOOTROM/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x00400000, 0x00400001, 1,
 	                            VK_REGION_RW | VK_REGION_SIZE_16 | VK_REGION_LOG_RW,
 	                            hikaru->gpu, "UNK/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x00800000, 0x0083FFFF, 0x3FFFF,
 	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
 	                             hikaru->mie, "MIE/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_ram_new (0x00C00000, 0x00C0FFFF, 0xFFFF, 0,
 	                            hikaru->bram, "BRAM/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_nop_new (0x01000000, 0x010001FF, 0x1FF,
 	                            VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
 	                            "UNK/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x02000000, 0x03FFFFFF, 0x01FFFFFF,
 	                             VK_REGION_RW | VK_REGION_SIZE_ALL,
 	                             hikaru->memctl_m, "APERTURE02/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x04000000, 0x0400003F, 0x3F,
 	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
 	                             hikaru->memctl_m, "MEMCTL/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x14000000, 0x1400002F, 0x3F,
 	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
 	                             hikaru->mscomm, "MSCOMM/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_ram_new (0x14000030, 0x143FFFFF, 0x3FFFFF, 0,
 	                            hikaru->cmdram, "CMDRAM/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x15000000, 0x150FFFFF, 0x0FFFFF,
 	                             VK_REGION_RW | VK_REGION_SIZE_16 | VK_REGION_SIZE_32 | VK_REGION_LOG_RW,
 	                             hikaru->gpu, "GPU/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x16000000, 0x17FFFFFF, 0x01FFFFFF,
 	                             VK_REGION_RW | VK_REGION_SIZE_ALL,
 	                             hikaru->memctl_m, "APERTURE16/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x18001000, 0x1800101F, 0x1F,
 	                             VK_REGION_RW | VK_REGION_SIZE_32 | VK_REGION_LOG_RW,
 	                             hikaru->gpu, "GPU/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x1A000000, 0x1A0FFFFF, 0x0FFFFF,
 	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
 	                             hikaru->gpu, "GPU/M");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_ram_new (0x1B000000, 0x1B7FFFFF, 0x7FFFFF, 0,
 	                            hikaru->fb, "TEXRAM/M");
-	vk_mmap_set_region (mmap, region, i++);
-
-	vk_mmap_set_region (mmap, (vk_region_t *) &vk_region_end, i++);
+	vk_mmap_add_region (mmap, region);
 
 	return mmap;
 }
@@ -715,51 +712,48 @@ setup_master_mmap (hikaru_t *hikaru)
 static vk_mmap_t *
 setup_slave_mmap (hikaru_t *hikaru)
 {
-	vk_mmap_t *mmap = vk_mmap_new (&hikaru->base, 9);
+	vk_mmap_t *mmap = vk_mmap_new (&hikaru->base);
 	vk_region_t *region;
-	unsigned i = 0;
 
 	if (!mmap)
 		return NULL;
 
 	region = vk_region_ram_new (0x0C000000, 0x0DFFFFFF, 0x01FFFFFF, 0,
 	                            hikaru->ram_s, "RAM/S");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_rom_new (0x00000000, 0x001FFFFF, 0x001FFFFF, 0,
 	                            hikaru->bootrom, "BOOTROM/S");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x04000000, 0x0400003F, 0x3F,
 	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
                                      hikaru->memctl_s, "MEMCTL/S");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x10000000, 0x1000003F, 0x3F,
 	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
 	                             hikaru->mscomm, "MSCOMM/S");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_ram_new (0x10000100, 0x103FFFFF, 0x3FFFFF, VK_REGION_LOG_WRITE,
 	                            hikaru->cmdram, "CMDRAM/S");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x14000800, 0x1400083F, 0x3F,
 	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
 	                             &unk_s, "UNK/S");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x1A800000, 0x1A8000FF, 0xFF,
 	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
 	                             &unk_s, "UNK/S");
-	vk_mmap_set_region (mmap, region, i++);
+	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x1B000100, 0x1B0001FF, 0xFF,
 	                             VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
 	                             &unk_s, "UNK/S");
-	vk_mmap_set_region (mmap, region, i++);
-
-	vk_mmap_set_region (mmap, (vk_region_t *) &vk_region_end, i++);
+	vk_mmap_add_region (mmap, region);
 
 	return mmap;
 }
