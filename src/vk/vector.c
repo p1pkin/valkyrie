@@ -60,8 +60,9 @@ static void
 resize_if_required (vk_vector_t *vector)
 {
 	VK_ASSERT (vector);
+	VK_ASSERT (vector->used < (vector->size * vector->element_size));
 
-	if (vector->used == vector->size) {
+	if ((vector->used + vector->element_size) >= vector->size) {
 
 		VK_ASSERT (vector->size);
 
