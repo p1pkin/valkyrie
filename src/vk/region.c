@@ -58,6 +58,7 @@ vk_region_destroy (vk_region_t **region_)
 		vk_region_t *region = *region_;
 		if (region && (region->flags & VK_REGION_DIRECT))
 			vk_buffer_destroy (&region->data.buffer);
+		free (region->name);
 		free (region);
 		*region_ = NULL;
 	}
@@ -81,9 +82,7 @@ vk_region_new (uint32_t lo, uint32_t hi, uint32_t mask,
 	region->hi = hi;
 	region->mask = mask;
 	region->flags = flags;
-
-	strncpy (region->name, name, 15);
-	region->name[15] = '\0';
+	region->name = strdup (name);
 
 	return region;
 }

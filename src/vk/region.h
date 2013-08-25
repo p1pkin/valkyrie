@@ -47,7 +47,7 @@ typedef struct {
 		vk_buffer_t *buffer;
 		vk_device_t *device;
 	} data;
-	char name[16];
+	char *name;
 } vk_region_t;
 
 static const vk_region_t vk_region_end = {
