@@ -274,7 +274,11 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 		op = inst[0] & 0x1FF;
 
 		flags = insns[op].flags;
-		VK_ASSERT (!(flags & FLAG_INVALID));
+		if (flags & FLAG_INVALID) {
+			VK_LOG ("CP @%08X: invalid instruction [%08X]", PC, *inst);
+			gpu->cp.is_running = false;
+			break;
+		}
 
 		if (!gpu->in_mesh && (flags & FLAG_BEGIN)) {
 			bool is_static = (flags & FLAG_STATIC) != 0;
