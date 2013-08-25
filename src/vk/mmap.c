@@ -36,8 +36,8 @@ get_size_flag_for_size (unsigned size)
 	return 0;
 }
 
-vk_region_t *
-vk_mmap_get_region (vk_mmap_t *mmap, uint32_t addr, unsigned flags)
+static vk_region_t *
+get_region (vk_mmap_t *mmap, uint32_t addr, uint32_t flags)
 {
 	uint32_t i;
 
@@ -63,7 +63,7 @@ vk_mmap_get (vk_mmap_t *mmap, unsigned size, uint32_t addr, void *data)
 	VK_ASSERT (data != NULL);
 	VK_ASSERT (is_size_valid (size));
 
-	region = vk_mmap_get_region (mmap, addr, VK_REGION_READ);
+	region = get_region (mmap, addr, VK_REGION_READ);
 	if (!region || !(region->flags & get_size_flag_for_size (size)))
 		return -1;
 
@@ -92,7 +92,7 @@ vk_mmap_put (vk_mmap_t *mmap, unsigned size, uint32_t addr, uint64_t data)
 	VK_ASSERT (mmap != NULL);
 	VK_ASSERT (is_size_valid (size));
 
-	region = vk_mmap_get_region (mmap, addr, VK_REGION_WRITE);
+	region = get_region (mmap, addr, VK_REGION_WRITE);
 	if (!region)
 		return -1;
 
