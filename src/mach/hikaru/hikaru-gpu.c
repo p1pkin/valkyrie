@@ -1006,12 +1006,16 @@ static int
 hikaru_gpu_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 {
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
+	uint16_t *val16 = (uint16_t *) val;
 	uint32_t *val32 = (uint32_t *) val;
 
-	VK_ASSERT (size == 4 || (size == 2 && addr == 0x15000010));
+	VK_ASSERT (size == 4 ||
+	           (size == 2 && (addr == 0x15000010 || addr == 0x00400000)));
 
 	*val32 = 0;
-	if (addr >= 0x15000000 && addr < 0x15000100) {
+	if (addr == 0x00400000) {
+		*val16 = gpu->unk_00400000;
+	} else if (addr >= 0x15000000 && addr < 0x15000100) {
 		switch (addr & 0xFF) {
 		case 0x10:
 			if (size == 2) {
@@ -1062,9 +1066,12 @@ hikaru_gpu_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val)
 {
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) device;
 
-	VK_ASSERT (size == 4);
+	VK_ASSERT (size == 4 ||
+	           (size == 2 && addr == 0x00400000));
 
-	if (addr >= 0x15000000 && addr < 0x15000100) {
+	if (addr == 0x00400000) {
+		gpu->unk_00400000 = val;
+	} else if (addr >= 0x15000000 && addr < 0x15000100) {
 		switch (addr & 0xFF) {
 		case 0x00:
 		case 0x04:

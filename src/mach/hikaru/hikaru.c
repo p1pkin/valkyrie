@@ -263,9 +263,6 @@ unk_m_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 	VK_ASSERT (size == 2);
 
 	switch (addr) {
-	case 0x00400000:
-		*val16 = hikaru->unk00400000_m;
-		break;
 	case 0x01000000:
 		*val16 = hikaru->unk01000000_m;
 		break;
@@ -286,9 +283,6 @@ unk_m_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 	VK_ASSERT (size == 2);
 
 	switch (addr) {
-	case 0x004000000:
-		hikaru->unk00400000_m = val;
-		break;
 	case 0x01000000:
 		hikaru->unk01000000_m = val;
 		break;
@@ -523,7 +517,6 @@ hikaru_reset (vk_machine_t *mach, vk_reset_type_t type)
 	vk_device_reset (hikaru->aica_s, type);
 	vk_device_reset (hikaru->gpu, type);
 
-	hikaru->unk00400000_m = 0;
 	hikaru->unk01000000_m = 0;
 	hikaru->unk01000100_m = 0;
 	hikaru->unk1A800008_s = 0xFFFF;
@@ -638,9 +631,9 @@ setup_master_mmap (hikaru_t *hikaru)
 	                            hikaru->bootrom, "BOOTROM/M");
 	vk_mmap_set_region (mmap, region, i++);
 
-	region = vk_region_nop_new (0x00400000, 0x00400001, 1,
-	                            VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
-	                            "UNK/M");
+	region = vk_region_mmio_new (0x00400000, 0x00400001, 1,
+	                            VK_REGION_RW | VK_REGION_SIZE_16 | VK_REGION_LOG_RW,
+	                            hikaru->gpu, "UNK/M");
 	vk_mmap_set_region (mmap, region, i++);
 
 	region = vk_region_mmio_new (0x00800000, 0x0083FFFF, 0x3FFFF,

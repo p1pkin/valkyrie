@@ -63,7 +63,6 @@ typedef struct {
 	unsigned porta_s_bit1_buffer;
 
 	/* Unknown Hardware (master) */
-	uint32_t unk00400000_m;
 	uint32_t unk01000000_m;
 	uint32_t unk01000100_m;
 

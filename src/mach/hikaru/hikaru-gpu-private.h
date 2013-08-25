@@ -150,6 +150,7 @@ typedef struct {
 	uint8_t regs_1A[0x104];
 	uint8_t regs_1A_unit[2][0x40];
 	uint8_t regs_1A_fifo[0x10];
+	uint16_t unk_00400000;
 
 	unsigned frame_type;
 
