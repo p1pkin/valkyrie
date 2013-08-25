@@ -65,7 +65,7 @@ vk_region_destroy (vk_region_t **region_)
 
 static vk_region_t *
 vk_region_new (uint32_t lo, uint32_t hi, uint32_t mask,
-               unsigned flags, const char *name)
+               uint32_t flags, const char *name)
 {
 	vk_region_t *region;
 
@@ -90,7 +90,7 @@ vk_region_new (uint32_t lo, uint32_t hi, uint32_t mask,
 
 vk_region_t *
 vk_region_nop_new (uint32_t lo, uint32_t hi, uint32_t mask,
-                   unsigned flags, const char *name)
+                   uint32_t flags, const char *name)
 {
 	VK_ASSERT (!(flags & VK_REGION_DIRECT));
 	VK_ASSERT (flags & VK_REGION_RW);
@@ -101,7 +101,7 @@ vk_region_nop_new (uint32_t lo, uint32_t hi, uint32_t mask,
 
 vk_region_t *
 vk_region_rom_new (uint32_t lo, uint32_t hi, uint32_t mask,
-                   unsigned flags, vk_buffer_t *buffer,
+                   uint32_t flags, vk_buffer_t *buffer,
                    const char *name)
 {
 	vk_region_t *region;
@@ -118,7 +118,7 @@ vk_region_rom_new (uint32_t lo, uint32_t hi, uint32_t mask,
 
 vk_region_t *
 vk_region_ram_new (uint32_t lo, uint32_t hi, uint32_t mask,
-                   unsigned flags, vk_buffer_t *buffer,
+                   uint32_t flags, vk_buffer_t *buffer,
                    const char *name)
 {
 	vk_region_t *region;
@@ -134,7 +134,7 @@ vk_region_ram_new (uint32_t lo, uint32_t hi, uint32_t mask,
 
 vk_region_t *
 vk_region_mmio_new (uint32_t lo, uint32_t hi, uint32_t mask,
-                    unsigned flags, vk_device_t *device, const char *name)
+                    uint32_t flags, vk_device_t *device, const char *name)
 {
 	vk_region_t *region;
 

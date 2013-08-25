@@ -42,7 +42,7 @@ typedef struct {
 	uint32_t lo;
 	uint32_t hi;
 	uint32_t mask;
-	unsigned flags;
+	uint32_t flags;
 	union {
 		vk_buffer_t *buffer;
 		vk_device_t *device;
@@ -57,10 +57,10 @@ static const vk_region_t vk_region_end = {
 #define VK_REGION_IS_END(region_) \
 	((region_)->mask == 0)
 
-vk_region_t	*vk_region_nop_new (uint32_t lo, uint32_t hi, uint32_t mask, unsigned flags, const char *name);
-vk_region_t	*vk_region_rom_new (uint32_t lo, uint32_t hi, uint32_t mask, unsigned flags, vk_buffer_t *buffer, const char *name);
-vk_region_t	*vk_region_ram_new (uint32_t lo, uint32_t hi, uint32_t mask, unsigned flags, vk_buffer_t *buffer, const char *name);
-vk_region_t	*vk_region_mmio_new (uint32_t lo, uint32_t hi, uint32_t mask, unsigned flags, vk_device_t *device, const char *name);
+vk_region_t	*vk_region_nop_new (uint32_t lo, uint32_t hi, uint32_t mask, uint32_t flags, const char *name);
+vk_region_t	*vk_region_rom_new (uint32_t lo, uint32_t hi, uint32_t mask, uint32_t flags, vk_buffer_t *buffer, const char *name);
+vk_region_t	*vk_region_ram_new (uint32_t lo, uint32_t hi, uint32_t mask, uint32_t flags, vk_buffer_t *buffer, const char *name);
+vk_region_t	*vk_region_mmio_new (uint32_t lo, uint32_t hi, uint32_t mask, uint32_t flags, vk_device_t *device, const char *name);
 void		 vk_region_destroy (vk_region_t **region_);
 void		 vk_region_print (vk_region_t *region);
 
