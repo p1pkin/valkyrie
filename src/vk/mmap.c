@@ -20,15 +20,6 @@
 
 #include "vk/mmap.h"
 
-void
-vk_mmap_print (vk_mmap_t *mmap)
-{
-	unsigned i;
-	VK_ASSERT (mmap);
-	for (i = 0; mmap->regions[i]->mask != 0; i++)
-		vk_region_print (mmap->regions[i]);
-}
-
 static inline unsigned
 get_size_flag_for_size (unsigned size)
 {

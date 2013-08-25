@@ -20,37 +20,6 @@
 
 #include "vk/region.h"
 
-static const char * const flag_str[] = {
-	"R", "W", "DIR", "NOP", "LR", "LW", "1", "2", "4", "8",
-};
-
-static const char *
-region_flags_to_str (vk_region_t *region)
-{
-	static char out[256] = "TODO";
-	/* XXX TODO */
-	return out;
-}
-
-static const char *
-region_to_str (vk_region_t *region)
-{
-	static char out[256];
-	sprintf (out, "[%08X-%08X (%08X) '%s' flags=%s",
-	         region->lo, region->hi, region->mask, region->name,
-	         region_flags_to_str (region));
-	return out;
-}
-
-void
-vk_region_print (vk_region_t *region)
-{
-	if (!region)
-		printf ("[ null region ]\n");
-	else
-		printf ("[ region: %s ]\n", region_to_str (region));
-}
-
 void
 vk_region_destroy (vk_region_t **region_)
 {

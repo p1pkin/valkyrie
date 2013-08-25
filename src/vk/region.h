@@ -62,7 +62,6 @@ vk_region_t	*vk_region_rom_new (uint32_t lo, uint32_t hi, uint32_t mask, uint32_
 vk_region_t	*vk_region_ram_new (uint32_t lo, uint32_t hi, uint32_t mask, uint32_t flags, vk_buffer_t *buffer, const char *name);
 vk_region_t	*vk_region_mmio_new (uint32_t lo, uint32_t hi, uint32_t mask, uint32_t flags, vk_device_t *device, const char *name);
 void		 vk_region_destroy (vk_region_t **region_);
-void		 vk_region_print (vk_region_t *region);
 
 static inline uint32_t
 vk_region_offs (vk_region_t *region, uint32_t addr)
