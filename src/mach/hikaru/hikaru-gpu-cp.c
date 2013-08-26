@@ -358,16 +358,19 @@ I (0x012)
 
 /* 052	Call
  *
- *	-------- -------- ----R--o oooooooo
+ *	-------- -------- x---R--o oooooooo
  *	AAAAAAAA AAAAAAAA AAAAAAAA AAAAAAAA
  *
  * R = Relative
  * A = Address or Offset in 32-bit words.
+ * x = Unknown
+ *
+ *	Used in SGNASCAR in conjunction with command 005.
  */
 
 I (0x052)
 {
-	uint32_t addr;
+	uint32_t addr, x = (inst[0] & 0x8000) ? 1 : 0;
 
 	addr = inst[1] * 4;
 	if (inst[0] & 0x800)
@@ -376,24 +379,30 @@ I (0x052)
 	check_self_loop (gpu, addr);
 	push_pc (gpu);
 
-	UNHANDLED |= !!(inst[0] & 0xFFFFF600);
+	UNHANDLED |= !!(inst[0] & 0xFFFF7600);
 
-	DISASM (2, "call @%08X", addr);
+	DISASM (2, "call @%08X [%x]", addr, x);
 	PC = addr;
 }
 
 /* 082	Return
  *
- *	-------- -------- -------o oooooooo
+ *	-------- -------- -x-----o oooooooo
+ *
+ * x = Unknown
+ *
+ *	Used in SGNASCAR in conjunction with command 005.
  */
 
 I (0x082)
 {
+	uint32_t x = (inst[0] & 0x4000) ? 1 : 0;
+
 	pop_pc (gpu);
 
-	UNHANDLED |= !!(inst[0] & 0xFFFFFE00);
+	UNHANDLED |= !!(inst[0] & 0xFFFFBE00);
 
-	DISASM (1, "ret");
+	DISASM (1, "ret [%X]", x);
 }
 
 /* 1C2	Kill
