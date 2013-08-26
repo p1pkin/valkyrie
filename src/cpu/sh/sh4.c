@@ -720,6 +720,7 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 			/* Make sure that TE doesn't get set */
 			IREG_PUT (size, addr, (val & ~2) | (old & val & 2));
 			sh4_dmac_update_channel_state (ctx, ch, 1);
+			sh4_dmac_run (ctx, 0x7FFFFFFF);
 		}
 		return 0;
 	case DMAC_DMAOR:
@@ -735,6 +736,7 @@ sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 			 * is still raised. */
 			IREG_PUT (size, addr, (val & ~6) | (old & val & 6) | (nmil << 1));
 			sh4_dmac_update_state (ctx, 1);
+			sh4_dmac_run (ctx, 0x7FFFFFFF);
 		}
 		return 0;
 	/* TMU */
@@ -1015,6 +1017,7 @@ sh4_set_irq_state (vk_cpu_t *cpu, unsigned num, vk_irq_state_t state)
 			IREG_PUT (4, DMAC_DMAOR, IREG_GET (4, DMAC_DMAOR) | 2);
 			/* Notify the DMAC that an NMI occurred */
 			sh4_dmac_update_state (ctx, 0);
+			sh4_dmac_run (ctx, 0x7FFFFFFF);
 		} else {
 			/* Clear ICR.NMIL; DMAOR.NMIF must be cleared
 			 * manually by software. */
@@ -1227,7 +1230,7 @@ sh4_run (vk_cpu_t *cpu, int cycles)
 	}
 	/* XXX BSC, SCI */
 	sh4_tmu_run (ctx, cycles);
-	sh4_dmac_run (ctx, cycles);
+	//sh4_dmac_run (ctx, cycles);
 	return -cpu->remaining;
 }
 
