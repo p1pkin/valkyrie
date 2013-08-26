@@ -51,7 +51,7 @@ typedef struct {
 	struct {
 		float l, r;
 		float b, t;
-		float f, n;
+		float f, n, f2;
 	} clip;
 
 	struct {

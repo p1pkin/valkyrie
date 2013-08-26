@@ -429,7 +429,7 @@ I (0x1C2)
  *	nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn
  *
  * F = far depth clipping plane
- * f = far depth clipping plane, again
+ * f = far depth clipping plane (?)
  * n = near depth clipping plane
  *
  * Both f and F are computed as:
@@ -438,6 +438,7 @@ I (0x1C2)
  *
  * which assuming some_angle is fovy, is the formula for computing the far
  * clipping planes. I have no idea why there are two identical entries tho.
+ * Note however that in SGNASCAR F and f may be different!
  *
  * See PH:@0C01587C, PH:@0C0158A4, PH:@0C0158E8.
  *
@@ -497,6 +498,12 @@ I (0x1C2)
  * See PH:@0C0159C4, PH:@0C015A02, PH:@0C015A3E.
  */
 
+static float
+decode_clip_xy (uint32_t c)
+{
+	return (float) ((((int32_t) (int16_t) c) << 3) >> 3);
+}
+
 I (0x021)
 {
 	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
@@ -504,26 +511,25 @@ I (0x021)
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
 		vp->clip.f = *(float *) &inst[1];
+		vp->clip.f2 = *(float *) &inst[2];
 		vp->clip.n = *(float *) &inst[3];
 
 		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
-		UNHANDLED |= inst[1] != inst[2];
 
-		DISASM (4, "vp: set clip Z [f=%f n=%f]", vp->clip.f, vp->clip.n);
+		DISASM (4, "vp: set clip Z [f=%f f2=%f n=%f]",
+		        vp->clip.f, vp->clip.f2, vp->clip.n);
 		break;
 
 	case 2:
 		vp->offset.x = (float) (inst[1] & 0xFFFF);
 		vp->offset.y = (float) (inst[1] >> 16);
 
-		vp->clip.l = (float) (inst[2] & 0x7FFF);
-		vp->clip.r = (float) (inst[3] & 0x7FFF);
-		vp->clip.b = (float) ((inst[2] >> 16) & 0x3FFF);
-		vp->clip.t = (float) ((inst[3] >> 16) & 0x3FFF);
+		vp->clip.l = decode_clip_xy (inst[2]);
+		vp->clip.r = decode_clip_xy (inst[3]);
+		vp->clip.b = decode_clip_xy (inst[2] >> 16);
+		vp->clip.t = decode_clip_xy (inst[3] >> 16);
 	
 		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
-		UNHANDLED |= !!(inst[2] & 0xC0008000);
-		UNHANDLED |= !!(inst[3] & 0xC0008000);
 	
 		DISASM (4, "vp: set clip XY [clipxy=(%f %f %f %f) offs=(%f,%f)]",
 		        vp->clip.l, vp->clip.r, vp->clip.b, vp->clip.t,
