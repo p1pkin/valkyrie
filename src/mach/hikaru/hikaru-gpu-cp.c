@@ -1841,20 +1841,21 @@ I (0x158)
 	DISASM (2, "mesh: push txc 1 [%s]", get_gpu_vertex_str (&v));
 }
 
-/* 005	Mesh: Push Indirect
+/* 005	Unk: Unknown
  *
- *	AAAAAAAA AAAAAAAA AAAA---o oooooooo
+ *	FFFFFFFF FFFFFFFF FFFF---o oooooooo
  *
- * A = Mesh address in an unknown format.
+ * F = Unknown fp value.
  */
 
 I (0x005)
 {
-	uint32_t addr = inst[0] & 0xFFFFF000;
+	uint32_t x = inst[0] & 0xFFFFF000;
+	float f = *(float *) &x;
 
 	UNHANDLED |= !!(inst[0] & 0x00000C00);
 
-	DISASM (1, "mesh: push indirect [%X]", addr);
+	DISASM (1, "mesh: push indirect [%f]", f);
 }
 
 /****************************************************************************
