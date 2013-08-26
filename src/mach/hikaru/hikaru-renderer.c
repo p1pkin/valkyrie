@@ -390,7 +390,7 @@ upload_current_state (hikaru_renderer_t *hr, unsigned i)
 		glTranslatef (dcx, -dcy, 0.0f);
 
 		glEnable (GL_DEPTH_TEST);
-		glDepthFunc (depth_func[vp->depth.func]);
+		//glDepthFunc (depth_func[vp->depth.func]);
 
 		vp->flags &= ~HIKARU_GPU_OBJ_DIRTY;
 	}
