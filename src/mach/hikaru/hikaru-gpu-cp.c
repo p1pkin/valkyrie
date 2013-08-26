@@ -1826,6 +1826,22 @@ I (0x158)
 	DISASM (2, "mesh: push txc 1 [%s]", get_gpu_vertex_str (&v));
 }
 
+/* 005	Mesh: Push Indirect
+ *
+ *	AAAAAAAA AAAAAAAA AAAA---o oooooooo
+ *
+ * A = Mesh address in an unknown format.
+ */
+
+I (0x005)
+{
+	uint32_t addr = inst[0] & 0xFFFFF000;
+
+	UNHANDLED |= !!(inst[0] & 0x00000C00);
+
+	DISASM (1, "mesh: push indirect [%X]", addr);
+}
+
 /****************************************************************************
  Unknown
 ****************************************************************************/
@@ -2060,6 +2076,7 @@ static const struct {
 	D(0x000, 0x000, 4,	FLAG_CONTINUE),
 	D(0x003, 0x003, 4,	0),
 	D(0x004, 0x004, 4,	0),
+	D(0x005, 0x005, 4,	0),
 	D(0x006, 0x006, 4,	0),
 	D(0x011, 0x011, 8,	0),
 	D(0x012, 0x012, 8,	FLAG_JUMP),
