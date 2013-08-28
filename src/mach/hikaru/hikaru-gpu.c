@@ -1256,5 +1256,7 @@ hikaru_gpu_new (vk_machine_t *mach,
 
 	hikaru_gpu_cp_init (gpu);
 
+	VK_STATIC_ASSERT (sizeof (hikaru_gpu_texhead_t) == (sizeof (uint32_t) * 4));
+
 	return dev;
 }
