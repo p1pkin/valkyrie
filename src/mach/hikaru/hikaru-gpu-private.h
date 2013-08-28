@@ -94,8 +94,6 @@ typedef struct {
 } hikaru_gpu_material_t;
 
 typedef struct {
-	uint32_t bus_addr;		/* IDMA */
-	uint32_t size;			/* IDMA */
 	uint32_t width;			/* 2C1 */
 	uint32_t height;		/* 2C1 */
 	uint8_t slotx;			/* 4C1 */

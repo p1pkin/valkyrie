@@ -718,14 +718,14 @@ calc_full_texture_size (hikaru_gpu_texhead_t *texhead)
 }
 
 static void
-copy_texture (hikaru_gpu_t *gpu, hikaru_gpu_texhead_t *texhead)
+copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_gpu_texhead_t *texhead)
 {
 	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
 	uint32_t basex, basey, endx, endy;
 	uint32_t mask, x, y, offs, bank;
 	vk_buffer_t *srcbuf;
 
-	if ((texhead->bus_addr >> 24) == 0x48) {
+	if ((bus_addr >> 24) == 0x48) {
 		srcbuf = hikaru->cmdram;
 		mask = 8*MB-1;
 	} else {
@@ -752,7 +752,7 @@ copy_texture (hikaru_gpu_t *gpu, hikaru_gpu_texhead_t *texhead)
 		return;
 	}
 
-	offs = texhead->bus_addr & mask;
+	offs = bus_addr & mask;
 	bank = texhead->bank;
 	for (y = 0; y < texhead->height; y++) {
 		for (x = 0; x < texhead->width; x++, offs += 2) {
@@ -767,12 +767,13 @@ static void
 process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 {
 	hikaru_gpu_texhead_t texhead;
-	uint32_t exp_size[2];
+	uint32_t exp_size[2], bus_addr, size;
 
 	memset (&texhead, 0, sizeof (texhead));
 
-	texhead.bus_addr = entry[0];
-	texhead.size	= entry[1];
+	bus_addr = entry[0];
+	size     = entry[1];
+
 	texhead.slotx	= entry[2] & 0xFF;
 	texhead.sloty	= (entry[2] >> 8) & 0xFF;
 	texhead.width	= 16 << ((entry[2] >> 16) & 7);
@@ -787,7 +788,7 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	/* XXX this check isn't clever enough to figure out that AIRTRIX
 	 * texture blobs _do_ have a mipmap. However even if we miss a
 	 * mipmap or two, it shouldn't be that big of a problem. */
-	texhead.has_mipmap = (texhead.size == exp_size[1]) ? 1 : 0;
+	texhead.has_mipmap = (size == exp_size[1]) ? 1 : 0;
 
 	if (gpu->options.log_idma) {
 		VK_LOG ("GPU IDMA %08X %08X %08X %08X : %s",
@@ -802,8 +803,7 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 		/* continue anyway */
 	}
 
-	if (texhead.size != exp_size[0] &&
-	    texhead.size != exp_size[1]) {
+	if (size != exp_size[0] && size != exp_size[1]) {
 		VK_ERROR ("GPU IDMA: unexpected texhead size: %s",
 		          get_gpu_texhead_str (&texhead));
 		/* continue anyway */
@@ -824,14 +824,14 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 		return;
 	}
 
-	if ((texhead.bus_addr & 0xFE000000) != 0x40000000 &&
-	    (texhead.bus_addr & 0xFF000000) != 0x48000000) {
+	if ((bus_addr & 0xFE000000) != 0x40000000 &&
+	    (bus_addr & 0xFF000000) != 0x48000000) {
 		VK_ERROR ("GPU IDMA: unknown texhead address, skipping: %s",
 		          get_gpu_texhead_str (&texhead));
 		return;
 	}
 
-	copy_texture (gpu, &texhead);
+	copy_texture (gpu, bus_addr, &texhead);
 }
 
 static void
