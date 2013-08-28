@@ -323,16 +323,37 @@ decode_texhead (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 }
 
 static void
+clear_texture_cache_bank (hikaru_renderer_t *hr, unsigned bank)
+{
+	unsigned x, y;
+
+	/* Free all allocated surfaces. */
+	for (y = 0; y < 64; y++)
+		for (x = 0; x < 64; x++)
+			vk_surface_destroy (&texcache[bank][y][x].surface);
+
+	/* Zero out the cache itself, to avoid spurious hits. Note that
+	 * texture RAM origin is (80,C0), so (slotx, sloty) will never match
+	 * a zeroed out cache entries. */
+	memset ((void *) &texcache[bank], 0, sizeof (texcache[bank]));
+}
+
+static void
 clear_texture_cache (hikaru_renderer_t *hr)
 {
-	unsigned b, x, y;
+	clear_texture_cache_bank (hr, 0);
+	clear_texture_cache_bank (hr, 1);
+}
 
-	for (b = 0; b < 2; b++)
-		for (y = 0; y < 64; y++)
-			for (x = 0; x < 64; x++)
-				vk_surface_destroy (&texcache[b][y][x].surface);
+void
+hikaru_renderer_invalidate_texcache (hikaru_renderer_t *hr,
+                                     hikaru_gpu_texhead_t *th)
+{
+	VK_ASSERT (hr);
+	VK_ASSERT (th);
 
-	memset ((void *) texcache, 0, sizeof (texcache));
+	/* Simplest approach possible, clear the whole bank. */
+	clear_texture_cache_bank (hr, th->bank);
 }
 
 /****************************************************************************

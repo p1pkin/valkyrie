@@ -761,6 +761,9 @@ copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_gpu_texhead_t *texhea
 			vk_buffer_put (gpu->texram[bank], 2, temp, texel);
 		}
 	}
+
+	hikaru_renderer_invalidate_texcache ((hikaru_renderer_t *) gpu->renderer,
+	                                     texhead);
 }
 
 static void

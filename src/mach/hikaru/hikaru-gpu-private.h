@@ -329,5 +329,7 @@ void hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
                                     hikaru_gpu_vertex_t *v,
                                     uint32_t push,
                                     unsigned num);
+void hikaru_renderer_invalidate_texcache (hikaru_renderer_t *hr,
+                                          hikaru_gpu_texhead_t *th);
 
 #endif /* __HIKARU_GPU_PRIVATE_H__ */
