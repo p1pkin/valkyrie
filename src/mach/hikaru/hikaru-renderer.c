@@ -266,7 +266,7 @@ decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 static struct {
 	hikaru_gpu_texhead_t	texhead;
 	vk_surface_t		*surface;
-} texcache[2][256][256];
+} texcache[2][0x40][0x80];
 
 static bool
 is_texhead_eq (hikaru_renderer_t *hr,
@@ -280,16 +280,23 @@ decode_texhead (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
 	hikaru_gpu_texhead_t *cached;
 	vk_surface_t *surface = NULL;
-	uint32_t bank, slotx, sloty;
+	uint32_t bank, slotx, sloty, realx, realy;
 
 	bank  = texhead->bank;
 	slotx = texhead->slotx;
 	sloty = texhead->sloty;
 
+	/* Handle invalid slots here. */
+	if (slotx < 0x80 || sloty < 0xC0)
+		return NULL;
+
+	realx = slotx - 0x80;
+	realy = sloty - 0xC0;
+
 	/* Lookup the texhead in the cache. */
-	cached = &texcache[bank][sloty][slotx].texhead;
+	cached = &texcache[bank][realy][realx].texhead;
 	if (is_texhead_eq (hr, texhead, cached)) {
-		surface = texcache[bank][sloty][slotx].surface;
+		surface = texcache[bank][realy][realx].surface;
 		if (surface)
 			return surface;
 	}
@@ -314,8 +321,8 @@ decode_texhead (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 	}
 
 	/* Cache the decoded texhead. */
-	texcache[bank][sloty][slotx].texhead = *texhead;
-	texcache[bank][sloty][slotx].surface = surface;
+	texcache[bank][realy][realx].texhead = *texhead;
+	texcache[bank][realy][realx].surface = surface;
 
 	/* Upload the surface to the GL. */
 	vk_surface_commit (surface);
@@ -328,8 +335,8 @@ clear_texture_cache_bank (hikaru_renderer_t *hr, unsigned bank)
 	unsigned x, y;
 
 	/* Free all allocated surfaces. */
-	for (y = 0; y < 64; y++)
-		for (x = 0; x < 64; x++)
+	for (y = 0; y < 0x40; y++)
+		for (x = 0; x < 0x80; x++)
 			vk_surface_destroy (&texcache[bank][y][x].surface);
 
 	/* Zero out the cache itself, to avoid spurious hits. Note that
