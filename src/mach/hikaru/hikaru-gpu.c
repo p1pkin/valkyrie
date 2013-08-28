@@ -1226,31 +1226,35 @@ hikaru_gpu_new (vk_machine_t *mach,
                 vk_renderer_t *renderer)
 {
 	hikaru_gpu_t *gpu = ALLOC (hikaru_gpu_t);
-	if (gpu) {
-		gpu->base.mach = mach;
+	vk_device_t *dev = (vk_device_t *) gpu;
 
-		gpu->base.destroy	= hikaru_gpu_destroy;
-		gpu->base.reset		= hikaru_gpu_reset;
-		gpu->base.exec		= hikaru_gpu_exec;
-		gpu->base.get		= hikaru_gpu_get;
-		gpu->base.put		= hikaru_gpu_put;
-		gpu->base.save_state	= hikaru_gpu_save_state;
-		gpu->base.load_state	= hikaru_gpu_load_state;
+	if (!gpu)
+		return NULL;
 
-		gpu->cmdram = cmdram;
-		gpu->fb = fb;
-		gpu->texram[0] = texram[0];
-		gpu->texram[1] = texram[1];
-		gpu->renderer = renderer;
+	dev->mach = mach;
 
-		gpu->options.log_dma =
-			vk_util_get_bool_option ("GPU_LOG_DMA", false);
-		gpu->options.log_idma =
-			vk_util_get_bool_option ("GPU_LOG_IDMA", false);
-		gpu->options.log_cp =
-			vk_util_get_bool_option ("GPU_LOG_CP", false);
+	dev->destroy	= hikaru_gpu_destroy;
+	dev->reset	= hikaru_gpu_reset;
+	dev->exec	= hikaru_gpu_exec;
+	dev->get	= hikaru_gpu_get;
+	dev->put	= hikaru_gpu_put;
+	dev->save_state	= hikaru_gpu_save_state;
+	dev->load_state	= hikaru_gpu_load_state;
 
-		hikaru_gpu_cp_init (gpu);
-	}
-	return (vk_device_t *) gpu;
+	gpu->cmdram	= cmdram;
+	gpu->fb		= fb;
+	gpu->texram[0]	= texram[0];
+	gpu->texram[1]	= texram[1];
+	gpu->renderer	= renderer;
+
+	gpu->options.log_dma =
+		vk_util_get_bool_option ("GPU_LOG_DMA", false);
+	gpu->options.log_idma =
+		vk_util_get_bool_option ("GPU_LOG_IDMA", false);
+	gpu->options.log_cp =
+		vk_util_get_bool_option ("GPU_LOG_CP", false);
+
+	hikaru_gpu_cp_init (gpu);
+
+	return dev;
 }
