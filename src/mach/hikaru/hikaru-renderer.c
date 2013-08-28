@@ -100,6 +100,26 @@ read_debug_flags (hikaru_renderer_t *hr)
  Texhead Decoding
 ****************************************************************************/
 
+static void
+get_wrap_modes (int *wrap_u, int *wrap_v, hikaru_gpu_texhead_t *th)
+{
+	*wrap_u = *wrap_v = -1;
+
+	if (th->wrap_u == 0)
+		*wrap_u = GL_CLAMP;
+	else if (th->repeat_u == 0)
+		*wrap_u = GL_REPEAT;
+	else
+		*wrap_u = GL_MIRRORED_REPEAT;
+
+	if (th->wrap_v == 0)
+		*wrap_v = GL_CLAMP;
+	else if (th->repeat_v == 0)
+		*wrap_v = GL_REPEAT;
+	else
+		*wrap_v = GL_MIRRORED_REPEAT;
+}
+
 static uint32_t
 rgba1111_to_rgba4444 (uint8_t pixel)
 {
@@ -118,9 +138,12 @@ decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
 	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
 	uint32_t basex, basey, x, y;
+	int wrap_u, wrap_v;
 	vk_surface_t *surface;
 
-	surface = vk_surface_new (texhead->width, texhead->height*2, VK_SURFACE_FORMAT_RGBA4444);
+	get_wrap_modes (&wrap_u, &wrap_v, texhead);
+	surface = vk_surface_new (texhead->width, texhead->height*2,
+	                          VK_SURFACE_FORMAT_RGBA4444, wrap_u, wrap_v);
 	if (!surface)
 		return NULL;
 
@@ -169,9 +192,12 @@ decode_texhead_abgr1555 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
 	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
 	uint32_t basex, basey, x, y;
+	int wrap_u, wrap_v;
 	vk_surface_t *surface;
 
-	surface = vk_surface_new (texhead->width, texhead->height, VK_SURFACE_FORMAT_RGBA5551);
+	get_wrap_modes (&wrap_u, &wrap_v, texhead);
+	surface = vk_surface_new (texhead->width, texhead->height,
+	                          VK_SURFACE_FORMAT_RGBA5551, wrap_u, wrap_v);
 	if (!surface)
 		return NULL;
 
@@ -207,9 +233,12 @@ decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
 	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
 	uint32_t basex, basey, x, y;
+	int wrap_u, wrap_v;
 	vk_surface_t *surface;
 
-	surface = vk_surface_new (texhead->width, texhead->height, VK_SURFACE_FORMAT_RGBA4444);
+	get_wrap_modes (&wrap_u, &wrap_v, texhead);
+	surface = vk_surface_new (texhead->width, texhead->height,
+	                          VK_SURFACE_FORMAT_RGBA4444, wrap_u, wrap_v);
 	if (!surface)
 		return NULL;
 
@@ -694,7 +723,7 @@ decode_layer_argb1555 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 	vk_surface_t *surface;
 	uint32_t x, y;
 
-	surface = vk_surface_new (640, 480, VK_SURFACE_FORMAT_RGBA5551);
+	surface = vk_surface_new (640, 480, VK_SURFACE_FORMAT_RGBA5551, -1, -1);
 	if (!surface)
 		return NULL;
 
@@ -717,7 +746,7 @@ decode_layer_argb8888 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 	vk_surface_t *surface;
 	uint32_t x, y;
 
-	surface = vk_surface_new (640, 480, VK_SURFACE_FORMAT_RGBA8888);
+	surface = vk_surface_new (640, 480, VK_SURFACE_FORMAT_RGBA8888, -1, -1);
 	if (!surface)
 		return NULL;
 
@@ -865,7 +894,7 @@ static vk_surface_t *
 build_debug_surface (void)
 {
 	/* Build a colorful 2x2 checkerboard surface */
-	vk_surface_t *surface = vk_surface_new (2, 2, VK_SURFACE_FORMAT_RGBA4444);
+	vk_surface_t *surface = vk_surface_new (2, 2, VK_SURFACE_FORMAT_RGBA4444, -1, -1);
 	if (!surface)
 		return NULL;
 	vk_surface_put16 (surface, 0, 0, 0xF00F);

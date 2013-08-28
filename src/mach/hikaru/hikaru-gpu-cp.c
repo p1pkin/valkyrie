@@ -1112,33 +1112,51 @@ I (0x083)
 
 /* 0C1	Texhead: Set Bias
  *
- *	----BBBB BBBB--xE -----00o oooooooo
+ *	----VVVV VVVV--MM -------o oooooooo
  *
- * B = Unknown parameter, some form of texture bias? e.g., for mipmapping.
- * x = Used in BRAVEFF title screen.
- * E = Enabled.
+ * V = Unknown value.
+ * M = Unknown mode.
  *
- * See PH:@0C015B7A. It may be related to lighting/highlight/emission. See
- * usage in BRAVEFF title screen.
+ *	Mode 0 is used frequently with values 0 and FF.
+ *
+ *	Mode 1 is used with a variety of values.
+ *
+ *	Mode 2 is only used in BRAVEFF.
  *
  *
  * 2C1	Texhead: Set Format/Size
  *
- *	888FFFll llHHHWWW uu---01o oooooooo
+ *	UUUFFFrr wwHHHWWW uu-----o oooooooo
  *
- * 8 = Unknown		[argument on stack]
- * F = Format		[argument R7]
- * H = log16 of Height	[argument R6]
- * l = Unknown		[lower four bits of argument R4]
- * W = log16 of Width	[argument R5]
- * u = Unknown		[upper two bits of argument R4]
+ * U = Unknown
+ *
+ * F = Format
+ *
+ * r = Repeat mode
+ *
+ *	0 = Normal repeat.
+ *	1 = Mirrored repeat.
+ *
+ *	Bit 0 for V, bit 1 for U. Only meaningful if wrapping is enabled.
+ *
+ * w = Wrap mode
+ *
+ *	0 = Clamp.
+ *	1 = Wrap.
+ *
+ *	Bit 0 for V, bit 1 for U.
+ *
+ * H = log16 of Height 
+ * W = log16 of Width
+ *
+ * u = Unknown
  *
  * See PH:@0C015BCC.
  *
  *
  * 4C1	Texhead: Set Slot
  *
- *	nnnnnnnn mmmmmmmm ---b-10o oooooooo
+ *	nnnnnnnn mmmmmmmm ---b---o oooooooo
  *
  * n = Slot Y
  * m = Slot X
@@ -1156,11 +1174,11 @@ I (0x0C1)
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
-		th->_0C1_nibble	= (inst[0] >> 16) & 0xF;
-		th->_0C1_byte	= (inst[0] >> 20) & 0xFF;
+		th->_0C1_mode	= (inst[0] >> 16) & 0xF;
+		th->_0C1_value  = (inst[0] >> 20) & 0xFF;
 
-		DISASM (1, "tex: set bias [ena=%u %X]",
-		        th->_0C1_nibble, th->_0C1_byte);
+		DISASM (1, "tex: set bias [mode=%u %X]",
+		        th->_0C1_mode, th->_0C1_value);
 
 		UNHANDLED |= !!(inst[0] & 0xF00CF800);
 		break;
@@ -1168,18 +1186,26 @@ I (0x0C1)
 	case 2:
 		th->width	= 16 << ((inst[0] >> 16) & 7);
 		th->height	= 16 << ((inst[0] >> 19) & 7);
+		th->wrap_u	= (inst[0] >> 22) & 1;
+		th->wrap_v	= (inst[0] >> 23) & 1;
+		th->repeat_u	= (inst[0] >> 24) & 1;
+		th->repeat_v	= (inst[0] >> 25) & 1;
 		th->format	= (inst[0] >> 26) & 7;
-		th->_2C1_unk4	= (((inst[0] >> 14) & 3) << 4) |
-	                           ((inst[0] >> 22) & 15);
-		th->_2C1_unk8	= inst[0] >> 29;
+
+		th->_2C1_unk	=  ((inst[0] >> 14) & 3) |
+		                  (((inst[0] >> 29) & 7) << 2);
 
 		/* XXX move this to the renderer */
 		if (th->format == HIKARU_FORMAT_ABGR1111)
 			th->width *= 2; /* pixels per word */
 
-		DISASM (1, "tex: set format [%ux%u fmt=%u]",
-		        th->width, th->height, th->format);
+		DISASM (1, "tex: set format [%ux%u fmt=%u wrap=(%u %u|%u %u) unk=%X]",
+		        th->width, th->height, th->format,
+		        th->wrap_u, th->repeat_u, th->wrap_v, th->repeat_v,
+		        th->_2C1_unk);
 
+		UNHANDLED |= !th->wrap_u && th->repeat_u;
+		UNHANDLED |= !th->wrap_v && th->repeat_v;
 		UNHANDLED |= !!(inst[0] & 0x00003800);
 		break;
 

@@ -19,6 +19,7 @@
  */
 
 /* TODO support mipmaps */
+#include <GL/glew.h>
 
 #include "vk/core.h"
 #include "vk/surface.h"
@@ -35,7 +36,8 @@ static const struct {
 };
 
 vk_surface_t *
-vk_surface_new (unsigned width, unsigned height, vk_surface_format_t format)
+vk_surface_new (unsigned width, unsigned height, vk_surface_format_t format,
+                int wrap_u, int wrap_v)
 {
 	unsigned bpp;
 	int ret;
@@ -76,8 +78,13 @@ vk_surface_new (unsigned width, unsigned height, vk_surface_format_t format)
 	glBindTexture (GL_TEXTURE_2D, surface->id);
 
 	/* Set texture parameters */
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	if (wrap_u < 0)
+		wrap_u = GL_CLAMP;
+	if (wrap_v < 0)
+		wrap_v = GL_CLAMP;
+
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap_u);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap_v);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 

@@ -122,14 +122,15 @@ get_gpu_texhead_str (hikaru_gpu_texhead_t *texhead)
 
 	slot_to_coords (&basex, &basey, texhead->slotx, texhead->sloty);
 
-	sprintf (out, "slot=(%X,%X) pos=(%X,%X) offs=%08X %ux%u %s ni=%X by=%X u4=%X u8=%X bank=%X",
+	sprintf (out, "slot=(%X,%X) pos=(%X,%X) offs=%08X %ux%u %s mode=%X value=%X wrap=[%u %u|%u %u] unk=%X bank=%X",
 	         texhead->slotx, texhead->sloty, basex, basey,
 	         basey*4096 + basex*2,
 	         texhead->width, texhead->height,
 	         name[texhead->format],
-	         texhead->_0C1_nibble, texhead->_0C1_byte,
-	         texhead->_2C1_unk4, texhead->_2C1_unk8,
-	         texhead->bank);
+	         texhead->_0C1_mode, texhead->_0C1_value,
+	         texhead->wrap_u, texhead->repeat_u,
+	         texhead->wrap_v, texhead->repeat_v,
+	         texhead->_2C1_unk, texhead->bank);
 
 	return (const char *) out;
 }
