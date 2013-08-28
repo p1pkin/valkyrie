@@ -1014,7 +1014,7 @@ hikaru_gpu_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 
 	*val32 = 0;
 	if (addr == 0x00400000) {
-		*val16 = gpu->unk_00400000;
+		set_ptr (val, size, gpu->unk_00400000);
 	} else if (addr >= 0x15000000 && addr < 0x15000100) {
 		switch (addr & 0xFF) {
 		case 0x10:

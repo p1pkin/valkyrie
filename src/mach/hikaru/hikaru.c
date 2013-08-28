@@ -631,7 +631,7 @@ setup_master_mmap (hikaru_t *hikaru)
 	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x00400000, 0x00400001, 1,
-	                            VK_REGION_RW | VK_REGION_SIZE_16 | VK_REGION_LOG_RW,
+	                            VK_REGION_RW | VK_REGION_SIZE_16 | VK_REGION_SIZE_32 | VK_REGION_LOG_RW,
 	                            hikaru->gpu, "UNK/M");
 	vk_mmap_add_region (mmap, region);
 
