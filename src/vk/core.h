@@ -241,6 +241,13 @@ signext_n_64 (const uint64_t in, const unsigned sign_bit)
 	return (int64_t) out;
 }
 
+/* If cond_ is zero, the array size will be negative and the compilation will
+ * fail. Taken from Mesa */
+#define VK_STATIC_ASSERT(cond_) \
+	do { \
+		typedef int static_assertion_failed[(!!(cond_))*2-1]; \
+	} while (0);
+
 /** Prints a formatted message to stdout */
 #define VK_LOG(fmt_, args_...) \
 	do { \
