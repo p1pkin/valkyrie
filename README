@@ -1,4 +1,4 @@
-Valkyrie, Copyright(c) 2011,2012 Stefano Teso
+Valkyrie, Copyright(c) 2011-2013 Stefano Teso
 Released under the GPL v3 License.
 
 
@@ -10,13 +10,10 @@ written entirely by reverse engineering the little Hikaru software available.
 As of now, this Hikaru emulator is unstable, incomplete, primitive, slow,
 crude, and sometimes hacky.
 
-DON'T EXPECT GAMES TO RUN AT ALL.
+DON NOT EXPECT GAMES TO RUN AT ALL.
 
 Until the time comes, Valkyrie should be considered a ``technological
-preview'', and is really targeted towards developers rather than users. I
-myself consider it just a bit more than a repository for technical information
-on the Hikaru hardware.
-
+preview'', and is really targeted towards developers rather than users.
 If you are not interested in developing valkyrie, please consider waiting
 until it becomes stable and usable enough.
 
@@ -28,8 +25,9 @@ CURRENT STATUS AND FUTURE DEVELOPMENTS
 
 At the present moment, valkyrie is able to run all known Hikaru BOOTROMs
 (versionsi 0.84, 0.92, 0.96) and the existing complete ROM dumps typically
-up to the title screen; attract mode doesn't work yet. Please see the
-CONTRIBUTING file for hints as to where the biggest emulation issues are.
+up to attract mode. While still largely incomplete, 3D emulation is there.
+Please see the CONTRIBUTING file for hints as to where the biggest emulation
+issues are.
 
 Concerning future developments, I can only say that I personally have very
 little time to dedicate to Valkyrie. That said, you are free to clone this
@@ -51,7 +49,8 @@ ACKNOWLEDGMENTS
 Thanks to the MAME developers for the hardware description and the initial
 memory map annotated in their skeleton Hikaru driver (as of 2011.) Also
 thanks to the MAME, nullDC, and lxdream developers for keeping/making their
-software open source; part of valkyrie is based on their efforts.
+software open source; part of valkyrie is based on their efforts. And thanks
+to the Demul developers for the information they contributed.
 
 
 CONTACT
