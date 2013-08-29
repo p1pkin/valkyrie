@@ -18,6 +18,7 @@
 
 #include "vk/core.h"
 #include "vk/games.h"
+#include "vk/buffer.h"
 
 static const int current_version = 1;
 
@@ -296,6 +297,7 @@ vk_game_list_t *
 vk_game_list_new (const char *path)
 {
 	vk_game_list_t *list = ALLOC (vk_game_list_t);
+	vk_buffer_t *buf = NULL;
 	json_t *root, *version, *roms;
 	json_error_t error;
 	void *text;
@@ -305,11 +307,13 @@ vk_game_list_new (const char *path)
 	if (!list)
 		return NULL;
 
-	text = vk_load_any (path, NULL);
-	if (!text) {
+	buf = vk_buffer_new_from_file (path, ~0);
+	if (!buf) {
 		VK_ERROR ("could not open game list '%s'", path);
 		goto fail;
 	}
+
+	text = vk_buffer_get_ptr (buf, 0);
 
 	root = json_loads (text, 0, &error);
 	if (!root) {
@@ -345,6 +349,7 @@ vk_game_list_new (const char *path)
 	return list;
 fail:
 	//vk_game_list_destroy (&list);
+	vk_buffer_destroy (&buf);
 	return NULL;
 }
 
