@@ -1883,11 +1883,6 @@ D (0x043)
  *
  * This class of instructions pushes (or otherwise deals with) vertex
  * data to the transformation/rasterization pipeline.
- *
- * All meshes are specified with three primitives:
- *  - triangle strips (see command 1BC)
- *  - triangle lists (see command 1AC)
- *  - another unknown primitive (see command 12C)
  */
 
 /* 101	Mesh: Set Unknown (Set Light Unknown?)
