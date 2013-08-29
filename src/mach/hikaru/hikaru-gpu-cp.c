@@ -906,14 +906,15 @@ D (0x003)
  * See @0C008080.
  *
  *
- * 561	Set Light Vector 1
+ * 561	Set Vector
  *
  *	-------- ------nn ----010o oooooooo
- *	-------- -------- -------- --------
- *	-------- -------- -------- --------
- *	-------- -------- -------- --------
+ *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
+ *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
+ *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
  *
- * No idea.
+ * Used together with instructions 005, 055, 095 and conditional control-flow
+ * in SGNASCAR.
  *
  *
  * 961	Set Light Vector 2
@@ -1017,7 +1018,7 @@ D (0x161)
 		        *(float *) &inst[1], *(float *) &inst[2], *(float *) &inst[3]);
 		break;
 	case 5:
-		UNHANDLED |= !!(inst[0] & 0xFFFCF000);
+		UNHANDLED |= !!(inst[0] & 0xFFFC0000);
 
 		DISASM ("lit: set vector 5 [%f %f %f]",
 		        *(float *) &inst[1], *(float *) &inst[2], *(float *) &inst[3]);
