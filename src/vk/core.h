@@ -282,7 +282,5 @@ bool	is_valid_mat4x4f (mtx4x4f_t mtx);
 bool	vk_util_get_bool_option (const char *name, bool fallback);
 int	vk_util_get_int_option (const char *name, int fallback);
 
-void	*vk_load_any (const char *path, size_t *_size);
-
 #endif /* __VK_CORE_H__ */
 
