@@ -17,6 +17,8 @@
  */
 
 /* XXX implement mesh caching. requires storing color/texhead/vertices. */
+#include <GL/glew.h>
+#include <SDL/SDL.h>
 
 #include "vk/input.h"
 

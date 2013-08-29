@@ -31,7 +31,7 @@ typedef enum {
 } vk_surface_format_t;
 
 typedef struct {
-	GLuint id;
+	unsigned id;
 	vk_surface_format_t format;
 	unsigned width;
 	unsigned height;
