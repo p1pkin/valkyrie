@@ -56,9 +56,6 @@ typedef enum {
 #define ALLOC(type_) \
 	((type_ *) calloc (1, sizeof (type_)))
 
-#define FREE(ptr_) \
-	do { if (ptr_) { free (ptr_); ptr_ = NULL; } } while (0);
-
 #define NUMELEM(arr_) \
 	(sizeof (arr_) / sizeof ((arr_)[0]))
 
