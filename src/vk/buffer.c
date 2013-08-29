@@ -176,21 +176,21 @@ vk_buffer_new_from_file (const char *path, unsigned reqsize)
 	unsigned size, read_size;
 	FILE *fp = NULL;
 
-	buffer = vk_buffer_new (reqsize, 0);
-	if (!buffer)
-		goto fail;
-
 	fp = fopen (path, "rb");
 	if (!fp)
 		goto fail;
 
 	size = get_file_size (fp);
-	if (size != reqsize)
+	if (size != reqsize && reqsize != ~0)
+		goto fail;
+
+	buffer = vk_buffer_new (size, 0);
+	if (!buffer)
 		goto fail;
 
 	clearerr (fp);
-	read_size = fread (buffer->ptr, 1, reqsize, fp);
-	if (read_size != reqsize)
+	read_size = fread (buffer->ptr, 1, size, fp);
+	if (read_size != size)
 		goto fail;
 	if (ferror (fp)) {
 		perror (NULL);
