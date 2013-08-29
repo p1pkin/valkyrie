@@ -57,44 +57,6 @@ typedef union {
 	uint32_t full;
 } sh4_fpscr_t;
 
-typedef struct {
-	union {
-		uint64_t tc   : 1;	/**< Timing control */
-		uint64_t sa   : 3;	/**< Space attributes (PCMCIA only) */
-		uint64_t pr   : 1;	/**< Protection key data */
-		uint64_t c    : 1;	/**< Cacheable */
-		uint64_t sh   : 1;	/**< Shared */
-		uint64_t sz   : 2;	/**< Page size */
-		uint64_t ppn  : 19;	/**< Physical page number */
-		uint64_t v    : 1;	/**< Valid */
-		uint64_t vpn  : 22;	/**< Virtual page number */
-		uint64_t asid : 8;	/**< Address space identifier */
-	} part;
-	uint64_t full;
-} sh4_itlb_entry_t;
-
-typedef struct {
-	union {
-		uint64_t tc   : 1;	/**< Timing control */
-		uint64_t sa   : 3;	/**< Space attributes (PCMCIA only) */
-		uint64_t wt   : 1;	/**< Write-through */
-		uint64_t d    : 1;	/**< Dirty */
-		uint64_t pr   : 2;	/**< Protection key data */
-		uint64_t c    : 1;	/**< Cacheability */
-		uint64_t sh   : 1;	/**< Shared  */
-		uint64_t sz   : 2;	/**< Page size */
-		uint64_t ppn  : 19;	/**< Physical page number */
-		uint64_t v    : 1;	/**< Valid */
-		uint64_t vpn  : 22;	/**< Virtual page number */
-		uint64_t asid : 8;	/**< Address space idenfitifier */
-	} part;
-	uint64_t full;
-} sh4_utlb_entry_t;
-
-#define NUM_ITLB_ENTRIES 4
-#define NUM_UTLB_ENTRIES 64
-#define NUM_SQ_ENTRIES 32
-
 typedef enum {
 	SH4_IESOURCE_NMI,
 	/* IRQs */
@@ -223,23 +185,7 @@ struct sh4_t {
 	struct {
 		bool	master;
 		bool	little_endian;
-		/* TODO: add MMU and accuracy knobs */
 	} config;
-
-	/* Unused stuff that will be used later */
-#if 0
-	struct {
-		sh4_itlb_entry_t itlb[NUM_ITLB_ENTRIES];
-		sh4_utlb_entry_t utlb[NUM_UTLB_ENTRIES];
-	} mmu;
-
-	/* Store Queues */
-	uint32_t	sq[2][NUM_SQ_ENTRIES];
-
-	/* Caches */
-	vk_buffer_t	*icache;
-	vk_buffer_t	*ocache;
-#endif
 };
 
 vk_cpu_t	*sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master, bool le);
