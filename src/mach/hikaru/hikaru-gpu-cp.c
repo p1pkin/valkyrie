@@ -752,10 +752,6 @@ I (0x003)
 	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
 
 	*vp = gpu->viewports.table[index];
-	if (!(vp->flags & HIKARU_GPU_OBJ_SET)) {
-		VK_ERROR ("CP @%08X: recalled viewport was not set (%u), skipping", PC, index);
-		return;
-	}
 
 	UNHANDLED |= !!(inst[0] & 0xFFF89E00);
 
@@ -1577,14 +1573,6 @@ I (0x064)
 		          index, NUM_LIGHTSETS);
 		return;
 	}
-	if (!gpu->lights.table[light0].set ||
-	    !gpu->lights.table[light1].set ||
-	    !gpu->lights.table[light2].set ||
-	    !gpu->lights.table[light3].set) {
-		VK_ERROR ("CP: lightset commit includes unset lights (%u,%u,%u,%u), skipping",
-		          light0, light1, light2, light3);
-		return;
-	}
 
 	gpu->lights.sets[index].lights[0] = &gpu->lights.table[light0];
 	gpu->lights.sets[index].lights[1] = &gpu->lights.table[light1];
@@ -1618,12 +1606,6 @@ I (0x043)
 		if (index >= NUM_LIGHTSETS) {
 			VK_ERROR ("CP: lightset recall index exceeds MAX (%u >= %u), skipping",
 			          index, NUM_LIGHTSETS);
-			UNHANDLED |= true;
-			return;
-		}
-		if (!gpu->lights.sets[index].set) {
-			VK_ERROR ("CP: recalled lightset was not set (%u), skipping",
-			          index);
 			UNHANDLED |= true;
 			return;
 		}
