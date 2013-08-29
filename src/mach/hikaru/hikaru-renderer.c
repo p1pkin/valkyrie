@@ -37,7 +37,8 @@
 #define HR_DEBUG_FORCE_DEBUG_TEXTURE	(1 << 5)
 #define HR_DEBUG_FORCE_RAND_COLOR	(1 << 6)
 #define HR_DEBUG_SELECT_MESH		(1 << 7)
-#define HR_DEBUG_USE_DEBUG_PROJ	(1 << 8)
+#define HR_DEBUG_USE_DEBUG_PROJ		(1 << 8)
+#define HR_DEBUG_DUMP_TEXHEADS		(1 << 9)
 
 static struct {
 	uint32_t flag;
@@ -53,7 +54,8 @@ static struct {
 	{ HR_DEBUG_FORCE_DEBUG_TEXTURE,	SDLK_d,	"",			false },
 	{ HR_DEBUG_FORCE_RAND_COLOR,	SDLK_c, "",			false },
 	{ HR_DEBUG_SELECT_MESH,		SDLK_s, "",			false },
-	{ HR_DEBUG_USE_DEBUG_PROJ,	SDLK_p, "",			false }
+	{ HR_DEBUG_USE_DEBUG_PROJ,	SDLK_p, "",			false },
+	{ HR_DEBUG_DUMP_TEXHEADS,	~0,	"HR_DUMP_TEXHEADS",	false }
 };
 
 static void
@@ -275,6 +277,29 @@ is_texhead_eq (hikaru_renderer_t *hr,
 	return memcmp ((void *) a, (void *) b, sizeof (*a)) == 0;
 }
 
+static void
+dump_texhead (hikaru_renderer_t *hr,
+              hikaru_gpu_texhead_t *texhead,
+              vk_surface_t *surface)
+{
+	static unsigned num = 0;
+
+	vk_machine_t *mach = ((vk_device_t *) hr->gpu)->mach;
+	char path[256];
+	FILE *fp;
+
+	sprintf (path, "%s-texhead%u-%ux%u-%u.bin", mach->game->name, num,
+	         texhead->width, texhead->height, texhead->format);
+	fp = fopen (path, "wb");
+	if (!fp)
+		return;
+
+	vk_surface_dump (surface, path);
+
+	fclose (fp);
+	num += 1;
+}
+
 static vk_surface_t *
 decode_texhead (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
@@ -319,6 +344,9 @@ decode_texhead (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 		VK_ASSERT (0);
 		break;
 	}
+
+	if (surface && (hr->debug.flags & HR_DEBUG_DUMP_TEXHEADS))
+		dump_texhead (hr, texhead, surface);
 
 	/* Cache the decoded texhead. */
 	texcache[bank][realy][realx].texhead = *texhead;

@@ -115,6 +115,22 @@ vk_surface_destroy (vk_surface_t **surface_)
 }
 
 void
+vk_surface_dump (vk_surface_t *surface, char *path)
+{
+	FILE *fp;
+	uint32_t size;
+
+	VK_ASSERT (surface);
+	VK_ASSERT (path);
+
+	size = surface->pitch * surface->height;
+
+	fp = fopen (path, "wb");
+	fwrite ((const void *) surface->data, 1, size, fp);
+	fclose (fp);
+}
+
+void
 vk_surface_clear (vk_surface_t *surface)
 {
 	if (surface)

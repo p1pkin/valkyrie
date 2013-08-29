@@ -43,6 +43,7 @@ vk_surface_t		*vk_surface_new (unsigned widht, unsigned height,
 			                 vk_surface_format_t format,
 			                 int wrap_u, int wrap_v); 
 void			 vk_surface_destroy (vk_surface_t **surface_);
+void			 vk_surface_dump (vk_surface_t *, char *path);
 void			 vk_surface_clear (vk_surface_t *surface);
 void			 vk_surface_commit (vk_surface_t *surface);
 void			 vk_surface_bind (vk_surface_t *surface);
