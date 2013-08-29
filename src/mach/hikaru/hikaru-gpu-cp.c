@@ -1314,7 +1314,7 @@ I (0x084)
 
 D (0x084)
 {
-	UNHANDLED |= !!(inst[0] & 0xFC00E000);
+	UNHANDLED |= !!(inst[0] & 0xFF00E000);
 	UNHANDLED |= !(inst[0] & 0x1000);
 
 	DISASM ("mat: commit @base+%u", get_material_index (inst));
@@ -1350,12 +1350,15 @@ I (0x083)
 
 D (0x083)
 {
-	UNHANDLED |= !!(inst[0] & 0xC000E000);
+	if (!(inst[0] & 0x1000)) {
+		UNHANDLED |= !!(inst[0] & 0xC000E000);
 
-	if (!(inst[0] & 0x1000))
 		DISASM ("mat: set base %u", get_material_index (inst));
-	else
+	} else {
+		UNHANDLED |= !!(inst[0] & 0xFF00E000);
+
 		DISASM ("mat: recall @base+%u", get_material_index (inst));
+	}
 }
 
 /*
@@ -1526,7 +1529,7 @@ I (0x0C4)
 
 D (0x0C4)
 {
-	UNHANDLED |= !!(inst[0] & 0xFC00E000);
+	UNHANDLED |= !!(inst[0] & 0xFF00E000);
 	UNHANDLED |= ((inst[0] & 0x1000) != 0x1000);
 
 	DISASM ("tex: commit @base+%u", get_texhead_index (inst));
@@ -1563,12 +1566,15 @@ I (0x0C3)
 
 D (0x0C3)
 {
-	UNHANDLED |= !!(inst[0] & 0xC000E000);
+	if (!(inst[0] & 0x1000)) {
+		UNHANDLED |= !!(inst[0] & 0xC000E000);
 
-	if (!(inst[0] & 0x1000))
 		DISASM ("tex: set base %u", get_texhead_index (inst));
-	else
+	} else {
+		UNHANDLED |= !!(inst[0] & 0xFF00E000);
+
 		DISASM ("tex: recall @base+%u", get_texhead_index (inst));
+	}
 }
 
 /*
