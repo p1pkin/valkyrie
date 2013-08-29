@@ -205,12 +205,6 @@ fail:
 	return  NULL;
 }
 
-vk_buffer_t *
-vk_buffer_new_from_file_any_size (const char *path)
-{
-	return NULL;
-}
-
 void
 vk_buffer_destroy (vk_buffer_t **buf_)
 {

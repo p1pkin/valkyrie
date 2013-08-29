@@ -60,7 +60,6 @@ set_ptr (void *ptr, unsigned size, uint64_t val)
 
 vk_buffer_t	*vk_buffer_new (unsigned size, unsigned alignment);
 vk_buffer_t	*vk_buffer_new_from_file (const char *path, unsigned size);
-vk_buffer_t	*vk_buffer_new_from_file_any_size (const char *path);
 vk_buffer_t	*vk_buffer_le32_new (unsigned size, unsigned alignment);
 vk_buffer_t	*vk_buffer_be32_new (unsigned size, unsigned alignment);
 void		 vk_buffer_destroy (vk_buffer_t **buffer_);
