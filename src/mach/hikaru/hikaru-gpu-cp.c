@@ -405,7 +405,10 @@ I (0x052)
 
 I (0x082)
 {
-	pop_pc (gpu);
+	if (!(inst[0] & 0x4000))
+		pop_pc (gpu);
+	else
+		PC += 4;
 
 	UNHANDLED |= !!(inst[0] & 0xFFFFBE00);
 
