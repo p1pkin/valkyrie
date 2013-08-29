@@ -313,7 +313,8 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
  * Control Flow
  * ============
  *
- * The CP supports jumps and subroutine calls.
+ * The CP supports jumps and subroutine calls, including conditional calls
+ * (for selecting the right mesh LOD probably?)
  *
  * The call stack is probably held in CMDRAM at the addresses specified by
  * MMIOs 1500007{4,8}.
@@ -333,8 +334,13 @@ I (0x000)
 
 /* 012	Jump
  *
- *	-------- -------- ----R--o oooooooo
+ *	IIIIIIII IIIIIIII UUUUR--o oooooooo
  *	AAAAAAAA AAAAAAAA AAAAAAAA AAAAAAAA
+ *
+ * I = Branch identifier?
+ * U = Unknown
+ *
+ *	See instruction 095.
  *
  * R = Relative
  * A = Address or Offset in 32-bit words.
@@ -361,16 +367,16 @@ I (0x012)
  *	-------- -------- x---R--o oooooooo
  *	AAAAAAAA AAAAAAAA AAAAAAAA AAAAAAAA
  *
+ * C = Conditional. Maybe if-true?
  * R = Relative
  * A = Address or Offset in 32-bit words.
- * x = Unknown
  *
- *	Used in SGNASCAR in conjunction with command 005.
+ * Used in conjunction with command 005. See SGNASCAR.
  */
 
 I (0x052)
 {
-	uint32_t addr, x = (inst[0] & 0x8000) ? 1 : 0;
+	uint32_t addr;
 
 	addr = inst[1] * 4;
 	if (inst[0] & 0x800)
@@ -381,28 +387,32 @@ I (0x052)
 
 	UNHANDLED |= !!(inst[0] & 0xFFFF7600);
 
-	DISASM (2, "call @%08X [%x]", addr, x);
+	if (inst[0] & 0x8000)
+		DISASM (2, "cond call @%08X", addr);
+	else
+		DISASM (2, "call @%08X", addr);
 	PC = addr;
 }
 
 /* 082	Return
  *
- *	-------- -------- -x-----o oooooooo
+ *	-------- -------- -C-----o oooooooo
  *
- * x = Unknown
+ * C = Conditional. Maybe if-false?
  *
- *	Used in SGNASCAR in conjunction with command 005.
+ * Used in conjunction with command 005. See SGNASCAR.
  */
 
 I (0x082)
 {
-	uint32_t x = (inst[0] & 0x4000) ? 1 : 0;
-
 	pop_pc (gpu);
 
 	UNHANDLED |= !!(inst[0] & 0xFFFFBE00);
 
-	DISASM (1, "ret [%X]", x);
+	if (inst[0] & 0x4000)
+		DISASM (1, "cond ret");
+	else
+		DISASM (1, "ret");
 }
 
 /* 1C2	Kill
@@ -418,6 +428,67 @@ I (0x1C2)
 
 	DISASM (1, "kill");
 
+}
+
+/* 005	Set Condition Threshold Lower-Bound
+ *
+ *	TTTTTTTT TTTTTTTT TTTT---o oooooooo
+ *
+ * T = Truncated floating-point threshold.
+ *
+ *	Since the threshold is always positive, truncating the lower 12 bits
+ *	makes the resulting value smaller = a lower bound.
+ *
+ * Used in conjunction with conditional control-flow. See SGNASCAR.
+ */
+
+I (0x005)
+{
+	uint32_t x = inst[0] & 0xFFFFF000;
+	float f = *(float *) &x;
+
+	UNHANDLED |= !!(inst[0] & 0x00000C00);
+
+	DISASM (1, "set cond threshold lower bound [%f]", f);
+}
+
+/* 055	Unk: Set Condition Threshold
+ *
+ *	-------- -------- -------o oooooooo
+ *	TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
+ *
+ * T = Floating-point threshold
+ *
+ * Used in conjunction with conditional control-flow. See SGNASCAR.
+ */
+
+I (0x055)
+{
+	UNHANDLED |= !!(inst[0] & 0xFFFFFE00);
+
+	DISASM (2, "set cond threshold [%f]", *(float *) &inst[1]);
+}
+
+/* 095	Unk: Set Branch IDs
+ *
+ *	-------- -------- -------o oooooooo
+ *	FFFFFFFF FFFFFFFF TTTTTTTT TTTTTTTT
+ *
+ * F = ID of if-false branch?
+ * T = ID of if-true branch?
+ *
+ *	Identify the jump (012) to take if the condition is true/false?
+ *
+ * Used in conjunction with conditional control-flow.  See SGNASCAR.
+ *
+ * Also note that T < F, always (or the other way around).
+ */
+
+I (0x095)
+{
+	UNHANDLED |= !!(inst[0] & 0xFFFFFE00);
+
+	DISASM (2, "set branch ids [%X %X]", inst[0] & 0xFFFF, inst[0] >> 16);
 }
 
 /*
@@ -1867,23 +1938,6 @@ I (0x158)
 	DISASM (2, "mesh: push txc 1 [%s]", get_gpu_vertex_str (&v));
 }
 
-/* 005	Unk: Unknown
- *
- *	FFFFFFFF FFFFFFFF FFFF---o oooooooo
- *
- * F = Unknown fp value.
- */
-
-I (0x005)
-{
-	uint32_t x = inst[0] & 0xFFFFF000;
-	float f = *(float *) &x;
-
-	UNHANDLED |= !!(inst[0] & 0x00000C00);
-
-	DISASM (1, "mesh: push indirect [%f]", f);
-}
-
 /****************************************************************************
  Unknown
 ****************************************************************************/
@@ -2127,6 +2181,7 @@ static const struct {
 	K(0x046, 0x046, 0),
 	K(0x051, 0x051, 0),
 	K(0x052, 0x052, FLAG_JUMP),
+	K(0x055, 0x055, 0),
 	K(0x061, 0x061, 0),
 	K(0x064, 0x064, 0),
 	/* 0x80 */
@@ -2136,6 +2191,7 @@ static const struct {
 	K(0x084, 0x084, 0),
 	K(0x088, 0x088, 0),
 	K(0x091, 0x091, FLAG_CONTINUE),
+	K(0x095, 0x095, 0),
 	/* 0xC0 */
 	K(0x0C1, 0x0C1, 0),
 	K(0x0C3, 0x0C3, 0),
