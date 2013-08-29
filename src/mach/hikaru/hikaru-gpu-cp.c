@@ -356,7 +356,7 @@ I (0x012)
 
 	check_self_loop (gpu, addr);
 
-	UNHANDLED |= !!(inst[0] & 0xFFFFF600);
+	UNHANDLED |= !!(inst[0] & 0x00000600);
 
 	DISASM (2, "jump @%08X", addr);
 	PC = addr;
