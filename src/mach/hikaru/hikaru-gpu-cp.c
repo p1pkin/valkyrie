@@ -1987,13 +1987,17 @@ D (0x101)
  *
  * They appear to have a common 32-bit header:
  *
- *	AAAAAAAA U------- uuuSTTTo oooootpW
+ *	AAAAAAAA U---x--- uuuSTTTo oooootpW
  *
  * A = Vertex alpha
  *
  * U = Unknown
  *
  *     Normal smoothing?
+ *
+ * x = Unknown
+ *
+ *	Used in PHARRIER (the big SEGA text).
  *
  * u = Unknown
  *
@@ -2144,7 +2148,7 @@ I (0x1B8)
 
 D (0x1B8)
 {
-	UNHANDLED |= !!(inst[0] & 0x007F0000);
+	UNHANDLED |= !!(inst[0] & 0x00770000);
 
 	DISASM ("mesh: push all d");
 }
