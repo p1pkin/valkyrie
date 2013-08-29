@@ -946,6 +946,7 @@ D (0x003)
 I (0x161)
 {
 	hikaru_gpu_modelview_t *mv = &gpu->modelviews.table[gpu->modelviews.depth];
+	hikaru_gpu_light_t *lt = &gpu->lights.scratch;
 	uint32_t push, elem;
 
 	switch ((inst[0] >> 8) & 0xF) {
@@ -984,8 +985,14 @@ I (0x161)
 	case 5:
 		break;
 	case 9:
+		lt->vec9[0] = *(float *) &inst[1];
+		lt->vec9[1] = *(float *) &inst[2];
+		lt->vec9[2] = *(float *) &inst[3];
 		break;
 	case 0xB:
+		lt->vecB[0] = *(float *) &inst[1];
+		lt->vecB[1] = *(float *) &inst[2];
+		lt->vecB[2] = *(float *) &inst[3];
 		break;
 	default:
 		VK_ASSERT (0);
@@ -1793,6 +1800,8 @@ D (0x104)
 
 I (0x064)
 {
+	hikaru_gpu_lightset_t *ls;
+
 	uint32_t index = gpu->lights.base + get_lightset_index (inst);
 	uint32_t light0 = inst[1] & (NUM_LIGHTS - 1);
 	uint32_t light1 = (inst[1] >> 16) & (NUM_LIGHTS - 1);
@@ -1805,11 +1814,13 @@ I (0x064)
 		return;
 	}
 
-	gpu->lights.sets[index].lights[0] = &gpu->lights.table[light0];
-	gpu->lights.sets[index].lights[1] = &gpu->lights.table[light1];
-	gpu->lights.sets[index].lights[2] = &gpu->lights.table[light2];
-	gpu->lights.sets[index].lights[3] = &gpu->lights.table[light3];
-	gpu->lights.sets[index].set = true;
+	ls = &gpu->lights.sets[index];
+
+	ls->lights[0] = &gpu->lights.table[light0];
+	ls->lights[1] = &gpu->lights.table[light1];
+	ls->lights[2] = &gpu->lights.table[light2];
+	ls->lights[3] = &gpu->lights.table[light3];
+	ls->set = true;
 }
 
 D (0x064)
@@ -1837,6 +1848,7 @@ D (0x064)
 I (0x043)
 {
 	uint32_t index = get_lightset_index (inst);
+	uint32_t mask  = (inst[0] >> 24) & 0xF;
 
 	if (!(inst[0] & 0x1000))
 		gpu->lights.base = index;
@@ -1848,7 +1860,8 @@ I (0x043)
 			return;
 		}
 
-		/* XXX recall! */
+		gpu->lights.scratchset = gpu->lights.sets[index];
+		gpu->lights.scratchset.mask = mask;
 	}
 }
 

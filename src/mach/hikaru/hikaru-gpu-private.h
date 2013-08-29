@@ -117,9 +117,9 @@ typedef struct {
 	float emission_p;
 	float emission_q;
 	/* 961 */
-	vec3f_t position;
+	vec3f_t vec9;
 	/* B61 */
-	vec3f_t direction;
+	vec3f_t vecB;
 	/* 051 */
 	uint32_t _051_index	: 8; /* XXX review me */
 	vec3s_t _051_color;
@@ -128,6 +128,7 @@ typedef struct {
 
 typedef struct {
 	hikaru_gpu_light_t *lights[4];
+	uint32_t mask		: 4;
 	uint32_t set		: 1;
 } hikaru_gpu_lightset_t;
 
@@ -191,6 +192,7 @@ typedef struct {
 
 	struct {
 		hikaru_gpu_lightset_t sets[NUM_LIGHTSETS];
+		hikaru_gpu_lightset_t scratchset;
 		hikaru_gpu_light_t table[NUM_LIGHTS];
 		hikaru_gpu_light_t scratch;
 		uint32_t base;

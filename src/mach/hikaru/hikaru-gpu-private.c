@@ -140,10 +140,10 @@ get_gpu_light_str (hikaru_gpu_light_t *light)
 {
 	static char out[512];
 
-	sprintf (out, "(%5.3f %5.3f %u) (%7.3f 7.3%f 7.3%f) (%7.3f %7.3f %7.3f)",
+	sprintf (out, "(%5.3f %5.3f %u) (%7.3f %7.3f %7.3f) (%7.3f %7.3f %7.3f)",
 	         light->emission_p, light->emission_q, light->emission_type,
-	         light->position[0], light->position[1], light->position[2],
-	         light->direction[0], light->direction[1], light->direction[2]);
+	         light->vec9[0], light->vec9[1], light->vec9[2],
+	         light->vecB[0], light->vecB[1], light->vecB[2]);
 
 	return (const char *) out;
 };

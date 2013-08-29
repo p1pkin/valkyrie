@@ -519,6 +519,18 @@ upload_current_state (hikaru_renderer_t *hr, unsigned i)
 			glEnable (GL_TEXTURE_2D);
 		}
 	}
+
+	/* Lights */
+	{
+		hikaru_gpu_lightset_t *ls = &hr->gpu->lights.scratchset;
+		unsigned i;
+
+		for (i = 0; i < 4; i++) {
+			hikaru_gpu_light_t *lt = ls->lights[i];
+			if (!(ls->mask & (1 << i)))
+				LOG ("light%u = %s", i, get_gpu_light_str (lt));
+		}
+	}
 }
 
 static void
