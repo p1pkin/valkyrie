@@ -471,7 +471,7 @@ I (0x055)
 
 /* 095	Unk: Set Branch IDs
  *
- *	-------- -------- -------o oooooooo
+ *	-------- -------- tf-----o oooooooo
  *	FFFFFFFF FFFFFFFF TTTTTTTT TTTTTTTT
  *
  * F = ID of if-false branch?
@@ -486,9 +486,11 @@ I (0x055)
 
 I (0x095)
 {
-	UNHANDLED |= !!(inst[0] & 0xFFFFFE00);
+	UNHANDLED |= !!(inst[0] & 0xFFFF3E00);
 
-	DISASM (2, "set branch ids [%X %X]", inst[0] & 0xFFFF, inst[0] >> 16);
+	DISASM (2, "set branch ids [%x:%X %x:%X]",
+	        inst[0] & 0xFFFF, (inst[0] & 0x4000) ? 1 : 0,
+	        inst[0] >> 16, (inst[0] & 0x8000) ? 1 : 0);
 }
 
 /*
