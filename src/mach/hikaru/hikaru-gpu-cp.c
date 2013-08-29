@@ -320,6 +320,23 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
  * MMIOs 1500007{4,8}.
  */
 
+static float
+get_distance_to_current_mesh (hikaru_gpu_t *gpu)
+{
+	hikaru_gpu_modelview_t *mv = &gpu->modelviews.table[gpu->modelviews.depth];
+	float xx, yy, zz;
+
+	/* Compute the distance between the camera (0,0,0) and the
+	 * to-be-drawn object origin, i.e. the origin transformed
+	 * by the current modelview matrix. */
+
+	xx = mv->mtx[3][0] * mv->mtx[3][0];
+	yy = mv->mtx[3][1] * mv->mtx[3][1];
+	zz = mv->mtx[3][2] * mv->mtx[3][2];
+
+	return sqrtf (xx + yy + zz);
+}
+
 /* 000	Nop
  *
  *	-------- -------- -------o oooooooo
@@ -356,10 +373,14 @@ I (0x012)
 
 	check_self_loop (gpu, addr);
 
+	if (!(inst[0] & 0xF000))
+		PC = addr;
+	else
+		PC += 8;
+
 	UNHANDLED |= !!(inst[0] & 0x00000600);
 
 	DISASM (2, "jump @%08X", addr);
-	PC = addr;
 }
 
 /* 052	Call
@@ -452,7 +473,8 @@ I (0x005)
 
 	UNHANDLED |= !!(inst[0] & 0x00000C00);
 
-	DISASM (1, "set cond threshold lower bound [%f]", f);
+	DISASM (1, "set cond threshold lower bound [%f, current=%f]",
+	        f, get_distance_to_current_mesh (gpu));
 }
 
 /* 055	Unk: Set Condition Threshold
@@ -469,7 +491,8 @@ I (0x055)
 {
 	UNHANDLED |= !!(inst[0] & 0xFFFFFE00);
 
-	DISASM (2, "set cond threshold [%f]", *(float *) &inst[1]);
+	DISASM (2, "set cond threshold [%f, current=%f]",
+	        *(float *) &inst[1], get_distance_to_current_mesh (gpu));
 }
 
 /* 095	Unk: Set Branch IDs
