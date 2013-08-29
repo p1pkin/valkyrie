@@ -261,7 +261,11 @@ decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 static vk_surface_t *
 decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
-	/* TODO */
+	uint32_t basex, basey;
+
+	slot_to_coords (&basex, &basey, texhead->slotx, texhead->sloty); 
+
+	VK_ERROR ("HR: unhandled A8 texture at (%u, %u)", basex, basey);
 	return NULL;
 }
 
