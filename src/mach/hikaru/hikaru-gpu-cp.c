@@ -491,9 +491,9 @@ I (0x095)
 {
 	UNHANDLED |= !!(inst[0] & 0xFFFF3E00);
 
-	DISASM (2, "set branch ids [%x:%X %x:%X]",
-	        inst[0] & 0xFFFF, (inst[0] & 0x4000) ? 1 : 0,
-	        inst[0] >> 16, (inst[0] & 0x8000) ? 1 : 0);
+	DISASM (2, "set branch ids [%X:%x %X:%x]",
+	        inst[1] & 0xFFFF, (inst[0] & 0x4000) ? 1 : 0,
+	        inst[1] >> 16, (inst[0] & 0x8000) ? 1 : 0);
 }
 
 /*
