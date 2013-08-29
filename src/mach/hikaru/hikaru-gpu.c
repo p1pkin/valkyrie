@@ -1009,7 +1009,6 @@ static int
 hikaru_gpu_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 {
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
-	uint16_t *val16 = (uint16_t *) val;
 	uint32_t *val32 = (uint32_t *) val;
 
 	VK_ASSERT (size == 4 ||
