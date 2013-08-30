@@ -2085,12 +2085,12 @@ I (0x12C)
 	v.pos[1] = (int16_t)(inst[2] >> 16) * gpu->static_mesh_precision;
 	v.pos[2] = (int16_t)(inst[3] >> 16) * gpu->static_mesh_precision;
 
-	v.nrm[0] = (int16_t)(inst[1] & 0xFFFF) / 16.0f;
-	v.nrm[1] = (int16_t)(inst[2] & 0xFFFF) / 16.0f;
-	v.nrm[2] = (int16_t)(inst[3] & 0xFFFF) / 16.0f;
+	v.nrm[0] = (int16_t)((inst[1] & 0x3FF) << 6) / 16384.0f;
+	v.nrm[1] = (int16_t)((inst[2] & 0x3FF) << 6) / 16384.0f;
+	v.nrm[2] = (int16_t)((inst[3] & 0x3FF) << 6) / 16384.0f;
 
 	hikaru_renderer_push_vertices ((hikaru_renderer_t *) HR,
-	                               &v, HR_PUSH_POS | HR_PUSH_POS, 1);
+	                               &v, HR_PUSH_POS | HR_PUSH_NRM, 1);
 }
 
 D (0x12C)
