@@ -42,6 +42,7 @@
 #define HR_DEBUG_USE_DEBUG_PROJ		(1 << 8)
 #define HR_DEBUG_DUMP_TEXHEADS		(1 << 9)
 #define HR_DEBUG_NORMALS		(1 << 10)
+#define HR_DEBUG_LIGHTNING		(1 << 11)
 
 static struct {
 	uint32_t flag;
@@ -59,7 +60,8 @@ static struct {
 	{ HR_DEBUG_SELECT_MESH,		SDLK_s, "",			false },
 	{ HR_DEBUG_USE_DEBUG_PROJ,	SDLK_p, "",			false },
 	{ HR_DEBUG_DUMP_TEXHEADS,	~0,	"HR_DUMP_TEXHEADS",	false },
-	{ HR_DEBUG_NORMALS,		SDLK_n, "",			false }
+	{ HR_DEBUG_NORMALS,		SDLK_n, "",			false },
+	{ HR_DEBUG_LIGHTNING,		SDLK_l, "",			false }
 };
 
 static void
@@ -529,10 +531,44 @@ upload_current_state (hikaru_renderer_t *hr, unsigned i)
 		hikaru_gpu_lightset_t *ls = &hr->gpu->lights.scratchset;
 		unsigned i;
 
-		for (i = 0; i < 4; i++) {
-			hikaru_gpu_light_t *lt = ls->lights[i];
-			if (!(ls->mask & (1 << i)))
-				LOG ("light%u = %s", i, get_gpu_light_str (lt));
+		if ((hr->debug.flags & HR_DEBUG_LIGHTNING) == 0 ||
+		    !ls->set || ls->mask == 0xF)
+			glDisable (GL_LIGHTING);
+		else {
+			glMatrixMode (GL_MODELVIEW);
+			glPushMatrix ();
+
+			/* Perhaps the light position should be affected by
+			 * the modelview active when the light is defined? */
+
+			glEnable (GL_LIGHTING);
+			glEnable (GL_COLOR_MATERIAL);
+			glColorMaterial (GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
+
+			for (i = 0; i < 4; i++) {
+				if (!(ls->mask & (1 << i))) {
+					float position[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+					float diffuse[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+					hikaru_gpu_light_t *lt = ls->lights[i];
+
+					LOG ("light%u = %s", i, get_gpu_light_str (lt));
+
+					position[0] = lt->vecB[0];
+					position[1] = lt->vecB[1];
+					position[2] = lt->vecB[2];
+
+					diffuse[0] = lt->_051_color[0] * (1.0f / 1023.0f);
+					diffuse[1] = lt->_051_color[1] * (1.0f / 1023.0f);
+					diffuse[2] = lt->_051_color[2] * (1.0f / 1023.0f);
+
+					glEnable (GL_LIGHT0 + i);
+					glLightfv (GL_LIGHT0 + i, GL_DIFFUSE, diffuse);
+					glLightfv (GL_LIGHT0 + i, GL_POSITION, position);
+				} else
+					glDisable (GL_LIGHT0 + i);
+			}
+
+			glPopMatrix ();
 		}
 	}
 }
@@ -902,6 +938,7 @@ draw_layers (hikaru_renderer_t *hr, bool background)
 
 	glDisable (GL_CULL_FACE);
 	glDisable (GL_DEPTH_TEST);
+	glDisable (GL_LIGHTING);
 
 	glColor3f (1.0f, 1.0f, 1.0f);
 	glEnable (GL_BLEND);
