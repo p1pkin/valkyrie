@@ -41,6 +41,7 @@
 #define HR_DEBUG_SELECT_MESH		(1 << 7)
 #define HR_DEBUG_USE_DEBUG_PROJ		(1 << 8)
 #define HR_DEBUG_DUMP_TEXHEADS		(1 << 9)
+#define HR_DEBUG_NORMALS		(1 << 10)
 
 static struct {
 	uint32_t flag;
@@ -57,7 +58,8 @@ static struct {
 	{ HR_DEBUG_FORCE_RAND_COLOR,	SDLK_c, "",			false },
 	{ HR_DEBUG_SELECT_MESH,		SDLK_s, "",			false },
 	{ HR_DEBUG_USE_DEBUG_PROJ,	SDLK_p, "",			false },
-	{ HR_DEBUG_DUMP_TEXHEADS,	~0,	"HR_DUMP_TEXHEADS",	false }
+	{ HR_DEBUG_DUMP_TEXHEADS,	~0,	"HR_DUMP_TEXHEADS",	false },
+	{ HR_DEBUG_NORMALS,		SDLK_n, "",			false }
 };
 
 static void
@@ -716,8 +718,14 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 		}
 
 		/* Set the normal. */
-		if (push & HR_PUSH_NRM)
+		if (push & HR_PUSH_NRM) {
 			VK_COPY_VEC3F (VTX(2).nrm, v->nrm);
+			if (hr->debug.flags & HR_DEBUG_NORMALS) {
+				VTX(2).col[0] = (v->nrm[0] * 0.5f) + 0.5f;
+				VTX(2).col[1] = (v->nrm[1] * 0.5f) + 0.5f;
+				VTX(2).col[2] = (v->nrm[2] * 0.5f) + 0.5f;
+			}
+		}
 
 		/* Set the texcoords. */
 		if (push & HR_PUSH_TXC)
