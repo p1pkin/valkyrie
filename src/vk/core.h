@@ -246,10 +246,14 @@ signext_n_64 (const uint64_t in, const unsigned sign_bit)
 	} while (0);
 
 /** Prints a formatted message to stdout */
+#ifdef NDEBUG
+#define VK_LOG(fmt_, args_...)
+#else
 #define VK_LOG(fmt_, args_...) \
 	do { \
 		fprintf (stdout, fmt_"\n", ##args_); \
 	} while (0)
+#endif
 
 /** Prints a formatted message, prefixed by 'ERROR', to stderr */
 #define VK_ERROR(fmt_, args_...) \
@@ -267,12 +271,16 @@ signext_n_64 (const uint64_t in, const unsigned sign_bit)
 
 /** If the condition fails, prints a formatted message, prefixed by 'FATAL',
  * to stderr, and exits */
+#ifdef NDEBUG
+#define VK_ASSERT(_cond)
+#else
 #define VK_ASSERT(_cond) \
 	do { \
 		if (!(_cond)) { \
 			VK_ABORT ("assertion failed, aborting"); \
 		} \
 	} while (0)
+#endif
 
 /* XXX the following is a big mess; clean it up please */
 
