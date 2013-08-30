@@ -120,12 +120,12 @@ hikaru_gpu_cp_on_put (hikaru_gpu_t *gpu)
  *
  * The CP has a table for each object type, except meshes, namely:
  *
- *  viewports	8 [confirmed by system16 specs]
- *  modelviews  < 256 [
- *  materials	?unknown?
- *  texheads	?unknown?
+ *  viewports	8
+ *  modelviews  < 256
+ *  materials	16384 total? (can lookup at distance 0-255 from the base)
+ *  texheads	16384 total? (can lookup at distance 0-255 from the base)
  *  lights	1024
- *  lightsets	200 or 256
+ *  lightsets	256
  *
  * CP instructions do not manipulate the objects in the tables directly.
  * Instead, they work on a special object, the "scratch" or "active" object:
@@ -141,18 +141,8 @@ hikaru_gpu_cp_on_put (hikaru_gpu_t *gpu)
  * ===============
  *
  * Each GPU instruction is made of 1, 2, 4, or 8 32-bit words. The opcode is
- * specified by the lower 9 bits of the first word.
- *
- * In general, opcodes of the form:
- *
- *  xx1 Set properties of the current object.
- *  xx2 Do control-flow.
- *  xx3 Recall the current object or set an offset into the object table.
- *  xx4 Commit the current object.
- *  xx6 ?
- *  xx8 ?
- *
- * There are of course some variations on this pattern.
+ * specified by the lower 9 bits of the first word. The instruction size is
+ * stored in bits 4-5 of the first word.
  */
 
 #define PC        gpu->cp.pc
