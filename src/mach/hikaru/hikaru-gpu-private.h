@@ -112,17 +112,16 @@ typedef struct {
 } hikaru_gpu_texhead_t;
 
 typedef struct {
-	/* 261 */
 	uint32_t emission_type	: 2;
 	float emission_p;
 	float emission_q;
-	/* 961 */
 	vec3f_t vec9;
-	/* B61 */
 	vec3f_t vecB;
-	/* 051 */
-	uint32_t _051_index	: 8; /* XXX review me */
+	uint32_t _051_index	: 4;
+	uint32_t _051_bit	: 1;
 	vec3s_t _051_color;
+	uint32_t _451_enabled	: 1;
+	vec3b_t _451_color;
 	uint32_t set		: 1;
 } hikaru_gpu_light_t;
 

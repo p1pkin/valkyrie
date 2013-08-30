@@ -1660,26 +1660,31 @@ D (0x061)
 	        (inst[0] >> 16) & 3, *(float *) &inst[1], *(float *) &inst[2]);
 }
 
-/* 051	Light: Set Color-like
+/* 051	Light: Set Color 1
  *
- *	-------- nnnnnnnn -----0-o oooooooo
- *	--aaaaaa aaaabbbb bbbbbbcc cccccccc
+ *	-------- u---nnnn -------o oooooooo
+ *	--BBBBBB BBBBGGGG GGGGGGRR RRRRRRRR
  *
- * n = Index? Index into the 194 ramp data?
- * a,b,c = Color? = FP * 255.0f and then truncated and clamped to [0,FF].
+ * u = Unknown
+ * n = Unknown
  *
- * This may well be a 10-10-10 color format.
+ *	An index of some sort?
+ *
+ * R, G, B = Color (likely diffuse)
  *
  * See PH:@0C0178C6; for a,b,c computation see PH:@0C03DC66.
  *
  *
- * 451	Light: Set Color-like 2
+ * 451	Light: Set Color 2
  *
- *	-------u -------- -----1-o oooooooo
- *	???????? ???????? ???????? ????????
+ *	-------D -------- -------o oooooooo
+ *	???????? BBBBBBBB GGGGGGGG RRRRRRRR
  *
- * u = Unknown
- * ? = Color-like if B61 was called on this light, garbage otherwise.
+ * D = Disabled.
+ *
+ * R, G, B = Color.
+ *
+ * Seems related to B61.
  *
  * See PH:@0C017A7C, PH:@0C017B6C, PH:@0C017C58, PH:@0C017CD4, PH:@0C017D64.
  */
@@ -1690,12 +1695,17 @@ I (0x051)
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
-		lit->_051_index    = (inst[0] >> 16) & 0xFF;
+		lit->_051_bit      = (inst[0] >> 23) & 1;
+		lit->_051_index    = (inst[0] >> 16) & 0xF;
 		lit->_051_color[0] = inst[1] & 0x3FF;
 		lit->_051_color[1] = (inst[1] >> 10) & 0x3FF;
 		lit->_051_color[2] = (inst[1] >> 20) & 0x3FF;
 		break;
 	case 4:
+		lit->_451_enabled  = ((inst[0] >> 24) & 1) ^ 1;
+		lit->_451_color[0] = inst[1] & 0xFF;
+		lit->_451_color[1] = (inst[1] >> 8) & 0xFF;
+		lit->_451_color[2] = (inst[1] >> 16) & 0xFF;
 		break;
 	default:
 		VK_ASSERT (0);
@@ -1707,16 +1717,19 @@ D (0x051)
 {
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
-		UNHANDLED |= !!(inst[0] & 0xFF00F000);
+		UNHANDLED |= !!(inst[0] & 0xFF70F000);
 		UNHANDLED |= !!(inst[1] & 0xC0000000);
 
-		DISASM ("lit: set color-like [%u %X]",
+		DISASM ("lit: set color 1 [%u %X]",
 		        (inst[0] >> 16) & 0xFF, inst[1]);
 		break;
 	case 4:
-		DISASM ("lit: set unknown");
-
 		UNHANDLED |= !!(inst[0] & 0xFEFFF000);
+		UNHANDLED |= (inst[0] & 0x01000000) == 0 ||
+		             (inst[1] & 0xFF000000) == 0;
+		
+		DISASM ("lit: set color 2 [%u %X]",
+		        ((inst[0] >> 24) & 1) ^ 1, inst[1]);
 		break;
 	default:
 		VK_ASSERT (0);
