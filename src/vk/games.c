@@ -50,7 +50,7 @@ load_datum (json_t *datum, const char *path, const char *game_name)
 
 	sprintf (full_path, "%s/%s/%s", path, game_name, datum_name);
 
-	VK_LOG ("Loading %u bytes from '%s'", datum_size, full_path);
+	printf ("Loading %u bytes from '%s'", datum_size, full_path);
 
 	buffer = vk_buffer_new_from_file (full_path, datum_size);
 
@@ -109,7 +109,7 @@ load_section (json_t *root, vk_game_section_t *section, const char *path, const 
 	name_value = json_string_value (name);
 	type_value = json_string_value (type);
 
-	VK_LOG ("Loading section %s, %s", name_value, type_value);
+	printf ("Loading section %s, %s", name_value, type_value);
 
 	if (!strcmp (type_value, "alternative"))
 		mode = MODE_ALTERNATIVE;
