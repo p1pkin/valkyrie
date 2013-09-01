@@ -1997,13 +1997,13 @@ D (0x101)
  *
  * They appear to have a common 32-bit header:
  *
- *	AAAAAAAA U---x--- uuuSTTTo oooootpW
+ *	AAAAAAAA C---x--- uuuSTTTo oooootpW
  *
  * A = Vertex alpha
  *
- * U = Unknown
+ * C = Don't Cull
  *
- *     Normal smoothing?
+ *     Disables face culling for this mesh.
  *
  * x = Unknown
  *
@@ -2015,7 +2015,8 @@ D (0x101)
  *
  * S = Unknown
  *
- *     Seemingly used for shadows in AIRTRIX (attract mode).
+ *     Seemingly used for shadows in AIRTRIX (attract mode) and for edges of
+ *     flames/smoke in BRAVEFF.
  *
  * T = Triangle
  *

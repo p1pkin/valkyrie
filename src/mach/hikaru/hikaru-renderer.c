@@ -43,6 +43,7 @@
 #define HR_DEBUG_DUMP_TEXHEADS		(1 << 9)
 #define HR_DEBUG_NORMALS		(1 << 10)
 #define HR_DEBUG_LIGHTNING		(1 << 11)
+#define HR_DEBUG_CULLFACE		(1 << 12)
 
 static struct {
 	uint32_t flag;
@@ -61,7 +62,8 @@ static struct {
 	{ HR_DEBUG_USE_DEBUG_PROJ,	SDLK_p, "",			false },
 	{ HR_DEBUG_DUMP_TEXHEADS,	~0,	"HR_DUMP_TEXHEADS",	false },
 	{ HR_DEBUG_NORMALS,		SDLK_n, "",			false },
-	{ HR_DEBUG_LIGHTNING,		SDLK_l, "",			false }
+	{ HR_DEBUG_LIGHTNING,		SDLK_l, "",			false },
+	{ HR_DEBUG_CULLFACE,		SDLK_f, "",			false }
 };
 
 static void
@@ -618,8 +620,12 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 
 	glEnable (GL_BLEND);
-	glEnable (GL_CULL_FACE);
-	glCullFace (GL_BACK);
+	if (!(hr->debug.flags & HR_DEBUG_CULLFACE))
+		glDisable (GL_CULL_FACE);
+	else {
+		glEnable (GL_CULL_FACE);
+		glCullFace (GL_BACK);
+	}
 
 	for (i = 0; i < num_instances; i++) {
 		upload_current_state (hr, i);
