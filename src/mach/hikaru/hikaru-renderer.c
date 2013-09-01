@@ -284,7 +284,12 @@ static bool
 is_texhead_eq (hikaru_renderer_t *hr,
                hikaru_gpu_texhead_t *a, hikaru_gpu_texhead_t *b)
 {
-	return memcmp ((void *) a, (void *) b, sizeof (*a)) == 0;
+	return (a->format == b->format) &&
+	       (a->bank == b->bank) &&
+	       (a->slotx == b->slotx) &&
+	       (a->sloty == b->sloty) &&
+	       (a->width == b->width) &&
+	       (a->height == b->height);
 }
 
 static void
