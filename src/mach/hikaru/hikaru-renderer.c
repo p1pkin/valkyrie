@@ -279,6 +279,7 @@ static struct {
 	hikaru_gpu_texhead_t	texhead;
 	vk_surface_t		*surface;
 } texcache[2][0x40][0x80];
+static bool is_texcache_clear[2] = { false, false };
 
 static bool
 is_texhead_eq (hikaru_renderer_t *hr,
@@ -366,6 +367,7 @@ decode_texhead (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 	/* Cache the decoded texhead. */
 	texcache[bank][realy][realx].texhead = *texhead;
 	texcache[bank][realy][realx].surface = surface;
+	is_texcache_clear[bank] = false;
 
 	/* Upload the surface to the GL. */
 	vk_surface_commit (surface);
@@ -376,6 +378,10 @@ static void
 clear_texture_cache_bank (hikaru_renderer_t *hr, unsigned bank)
 {
 	unsigned x, y;
+
+	if (is_texcache_clear[bank])
+		return;
+	is_texcache_clear[bank] = true;
 
 	/* Free all allocated surfaces. */
 	for (y = 0; y < 0x40; y++)
