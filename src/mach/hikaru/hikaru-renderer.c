@@ -258,7 +258,7 @@ decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 			uint32_t offs  = base + x * 2;
 			uint32_t texels = vk_buffer_get (texram, 4, offs);
 			vk_surface_put16 (surface, x+0, y, abgr4444_to_rgba4444 (texels >> 16));
-			vk_surface_put16 (surface, x+1, y, abgr4444_to_rgba4444 (texels >> 16));
+			vk_surface_put16 (surface, x+1, y, abgr4444_to_rgba4444 (texels));
 		}
 	}
 	return surface;
