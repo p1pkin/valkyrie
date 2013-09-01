@@ -1168,7 +1168,15 @@ D (0x091)
  *
  * 881	Material: Set Flags
  *
- *	-------- --hatzSS ----ssso oooooooo
+ *	XXXXXXXX xyhatzSS ----ssso oooooooo
+ *
+ * X = Unknown
+ *
+ *	Used in BRAVEFF.
+ *
+ * x = Has X.
+ *
+ * y = Unknown.
  *
  * S = Shading mode
  *
@@ -1215,9 +1223,6 @@ I (0x081)
 
 	switch ((inst[0] >> 8) & 0xF) {
 	case 0:
-		DISASM ("mat: set unknown");
-
-		UNHANDLED |= !!(inst[0] & 0xFFF0E000);
 		break;
 
 	case 8:
@@ -1226,29 +1231,13 @@ I (0x081)
 		mat->has_texture	= (inst[0] >> 19) & 1;
 		mat->has_alpha		= (inst[0] >> 20) & 1;
 		mat->has_highlight	= (inst[0] >> 21) & 1;
-
-		DISASM ("mat: set flags [mode=%u zblend=%u tex=%u alpha=%u highl=%u",
-			mat->shading_mode,
-			mat->depth_blend,
-			mat->has_texture,
-			mat->has_alpha,
-			mat->has_highlight);
-
-		UNHANDLED |= !!(inst[0] & 0xFFC0F000);
 		break;
 
 	case 0xA:
 		mat->blending_mode = (inst[0] >> 16) & 3;
-
-		DISASM ("mat: set blending mode [mode=%u]", mat->blending_mode);
-
-		UNHANDLED |= !!(inst[0] & 0xFFFCF000);
 		break;
 
 	case 0xC:
-		DISASM ("mat: set unknown");
-
-		UNHANDLED |= !!(inst[0] & 0xFFC0F000);
 		break;
 	}
 }
@@ -1262,14 +1251,17 @@ D (0x081)
 		DISASM ("mat: set unknown");
 		break;
 	case 8:
-		UNHANDLED |= !!(inst[0] & 0xFFC0F000);
+		UNHANDLED |= !!(inst[0] & 0x0000F000);
 
-		DISASM ("mat: set flags [mode=%u zblend=%u tex=%u alpha=%u highl=%u",
+		DISASM ("mat: set flags [mode=%u zblend=%u tex=%u alpha=%u highl=%u y=%u x=%u X=%02X]",
 		        (inst[0] >> 16) & 3,
 		        (inst[0] >> 18) & 1,
 		        (inst[0] >> 19) & 1,
 		        (inst[0] >> 20) & 1,
-		        (inst[0] >> 21) & 1);
+		        (inst[0] >> 21) & 1,
+		        (inst[0] >> 22) & 1,
+		        (inst[0] >> 23) & 1,
+		        inst[0] >> 24);
 		break;
 	case 0xA:
 		UNHANDLED |= !!(inst[0] & 0xFFFCF000);
@@ -2239,18 +2231,16 @@ D (0x158)
 ****************************************************************************/
 
 /* 181	Viewport: Set FB Property 1
- * 781	Viewport: Set FB Property 2
  *
- *	-------E nnnnnnnn -------o oooooooo
+ *	-------E AAAAAAAA -------o oooooooo
  *
  * E = Enable
+ * A = Amount
  *
- *	E is set only if n is non-zero.
+ * Some kind of color offset?
  *
- * n = Unknown
  *
- * See PH:@0C015B50. Probably related to 781, see PH:@0C038952.
- *
+ * 781	Viewport: Set FB Property 2
  *
  *	-----AAA -----BBB -------o oooooooo
  *
@@ -2260,7 +2250,6 @@ D (0x158)
  *
  * The values of A and B are determined by the values of ports 1A00001C and
  * 1A000020 prior to the command upload. Its parameter is stored in (56, GBR).
- * It *may* act like a fence, toggling bits in the GPU MMIOs when processed.
  * See @0C0065D6, PH:@0C016336, PH:@0C038952, PH:@0C015B50.
  *
  * CaH4e3 suggests the two are related to screen transitions. He's probably
@@ -2269,24 +2258,10 @@ D (0x158)
 
 I (0x181)
 {
-	uint32_t e, n, a, b;
-
 	switch ((inst[0] >> 8) & 7) {
 	case 1:
-		e = (inst[0] >> 24) & 1;
-		n = (inst[0] >> 16) & 0xFF;
-
-		DISASM ("vp: set fb flag 1 (%u %X)", e, n);
-
-		UNHANDLED |= !!(inst[0] & 0xFE00F800);
 		break;
 	case 7:
-		a = (inst[0] >> 24) & 7;
-		b = (inst[0] >> 16) & 7;
-
-		DISASM ("vp: set fb flag 7 (%u %u)", a, b);
-
-		UNHANDLED |= !!(inst[0] & 0xF8F8F800);
 		break;
 	default:
 		VK_ASSERT (0);
