@@ -1170,8 +1170,17 @@ D (0x091)
  *
  *	-------- --hatzSS ----ssso oooooooo
  *
- * S = Shading mode (flat, linear, phong)
+ * S = Shading mode
+ *
+ *	0 = None? Used by sky and lights in AIRTRIX.
+ *	1 = Linear?
+ *	2 = Flat??
+ *	3 = Phong??
+ *
  * z = Depth blend (fog)
+ *
+ *	Probably decides whether the material is affected by fog, and that's it.
+ *
  * t = Enable texture
  * a = Alpha mode
  * h = Highlight mode
@@ -2354,7 +2363,7 @@ D (0x154)
 	        (inst[0] >> 16) & 0x3F, inst[1] & 0xFF, inst[1] >> 8);
 }
 
-/* 194	Commit Ramp Data
+/* 194	Commit Ramp Data (Penumbra Table?)
  *
  *	nnnnnnnn mmmmmmmm -------o oooooooo
  *	aaaaaaaa aaaaaaaa bbbbbbbb bbbbbbbb
