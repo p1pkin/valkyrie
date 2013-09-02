@@ -264,15 +264,43 @@ decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 	return surface;
 }
 
+static uint32_t
+a8_to_rgba8888 (uint32_t a)
+{
+	a &= 0xFF;
+	return (a << 24) | (a << 16) | (a << 8) | a;
+}
+
 static vk_surface_t *
 decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
-	uint32_t basex, basey;
+	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
+	uint32_t basex, basey, x, y, h, w;
+	int wrap_u, wrap_v;
+	vk_surface_t *surface;
+
+	h = texhead->height / 2;
+	w = texhead->width / 4;
+
+	get_wrap_modes (&wrap_u, &wrap_v, texhead);
+	surface = vk_surface_new (w * 4, h, VK_SURFACE_FORMAT_RGBA8888, wrap_u, wrap_v);
+	if (!surface)
+		return NULL;
 
 	slot_to_coords (&basex, &basey, texhead->slotx, texhead->sloty); 
 
-	VK_ERROR ("HR: unhandled A8 texture at (%u, %u)", basex, basey);
-	return NULL;
+	for (y = 0; y < h; y++) {
+		uint32_t base = (basey + y) * 4096 + basex * 2;
+		for (x = 0; x < w; x++) {
+			uint32_t offs = base + x * 4;
+			uint32_t texels = vk_buffer_get (texram, 4, offs);
+			vk_surface_put32 (surface, 4*x+0, y, a8_to_rgba8888 (texels >> 24));
+			vk_surface_put32 (surface, 4*x+1, y, a8_to_rgba8888 (texels >> 16));
+			vk_surface_put32 (surface, 4*x+2, y, a8_to_rgba8888 (texels >> 8));
+			vk_surface_put32 (surface, 4*x+3, y, a8_to_rgba8888 (texels));
+		}
+	}
+	return surface;
 }
 
 static struct {
@@ -304,8 +332,11 @@ dump_texhead (hikaru_renderer_t *hr,
 	char path[256];
 	FILE *fp;
 
-	sprintf (path, "%s-texhead%u-%ux%u-%u.bin", mach->game->name, num,
-	         texhead->width, texhead->height, texhead->format);
+	sprintf (path, "texheads/%s-texhead%u-%02X-%02X-%ux%u-%u.bin",
+	         mach->game->name, num,
+	         texhead->slotx, texhead->sloty,
+	         texhead->width, texhead->height,
+	         texhead->format);
 	fp = fopen (path, "wb");
 	if (!fp)
 		return;
