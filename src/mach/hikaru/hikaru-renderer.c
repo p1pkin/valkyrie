@@ -680,7 +680,6 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 
 	/* XXX at the moment we use only color 1 (it's responsible for the
 	 * BOOTROM CRT test). */
-	/* XXX check component orter (it's probably BGR). */
 
 	if (hr->debug.flags & HR_DEBUG_FORCE_RAND_COLOR) {
 		float r = (rand () & 0xFF) / 255.0f;
