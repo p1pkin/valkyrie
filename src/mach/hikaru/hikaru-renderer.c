@@ -25,8 +25,6 @@
 #include "mach/hikaru/hikaru-renderer.h"
 #include "mach/hikaru/hikaru-gpu-private.h"
 
-#define RESTART_INDEX	0xFFFF
-
 /****************************************************************************
  Debug
 ****************************************************************************/
