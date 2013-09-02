@@ -166,6 +166,8 @@ typedef struct {
 	/* Rendering State */
 	bool in_mesh;
 	float static_mesh_precision;
+	uint32_t poly_type;
+	float poly_alpha;
 
 	struct {
 		hikaru_gpu_viewport_t table[NUM_VIEWPORTS];

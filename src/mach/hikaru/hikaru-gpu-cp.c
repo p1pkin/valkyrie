@@ -2418,59 +2418,49 @@ D (0x0D1)
 	        inst[0] >> 16, inst[1] & 0xFFFF, inst[1] >> 16);
 }
 
-/* 103	Recall Fog
- * 113	Recall Fog
+/* 103	Set Poly Type
+ * 113	Set Poly Type
  *
- *	FFFFFFFF -------- ----ssso oooooooo
+ *	AAAAAAAA -------- -------o oooxoooo
  *
- * s = Sub-opcode
- * F = Fog-related value? See PH:@0C0DA8BC. (-1)
+ * A = Base mesh alpha value
+ * x = Unknown
  *
- * Notes: The sub-opcode
+ *  3: Opaque. Alpha is ignored.
+ *  9: Punch-through. Alpha is ignored.
+ *  D: Translucent.
  *
- *  3: disabled (it always comes with F=0 or F=0xFF).
- *  9: enabled, F is positive.
- *  D: enabled, F is negative (actual value is ~F).
+ * Information kindly contributed by DreamZzz.
  *
- * See AT:@0C049CDA for N=8 and N=C, see PH:@0C0173CA for N=2, N=8. The
- * commands are emitted at e.g. AT:@0C69A220 (all three of them).
+ * See AT:@0C049CDA, PH:@0C0173CA, AT:@0C69A220.
  */
 
 static void
-get_fog_params (uint32_t *inst, bool *enabled, float *kappa)
+get_poly_type (uint32_t *inst, uint32_t *type, float *alpha)
 {
-	*enabled = false;
-	*kappa = 0.0f;
-
-	switch ((inst[0] >> 8) & 15) {
-	case 3:
-		break;
-	case 9:
-		*kappa = ((int32_t)(uint8_t)(inst[0] >> 24)) / 255.0f;
-		break;
-	case 0xD:
-		*kappa = ((int32_t)(int8_t)(~(inst[0] >> 24))) / 255.0f;
-		break;
-	default:
-		VK_ASSERT (0);
-		break;
-	}
+	*type	= (inst[0] >> 8) & 15;
+	*alpha	= (inst[0] >> 24) * (1.0f / 255.0f);
 }
 
 I (0x103)
 {
+	get_poly_type (inst, &gpu->poly_type, &gpu->poly_alpha);
 }
 
 D (0x103)
 {
-	bool enabled;
-	float kappa;
+	uint32_t type;
+	float alpha;
 
-	get_fog_params (inst, &enabled, &kappa);
+	get_poly_type (inst, &type, &alpha);
 
 	UNHANDLED |= !!(inst[0] & 0x00FFF000);
 
-	DISASM ("vp: recall fog [%u %f]", enabled, kappa);
+	DISASM ("mesh: set poly type [%s alpha=%f]",
+	        type == 0x3 ? "opaque" :
+	        type == 0x9 ? "punch" :
+	        type == 0xD ? "trans" : "invalid",
+	        alpha);
 }
 
 /****************************************************************************
