@@ -42,6 +42,7 @@
 #define HR_DEBUG_NORMALS		(1 << 10)
 #define HR_DEBUG_LIGHTNING		(1 << 11)
 #define HR_DEBUG_CULLFACE		(1 << 12)
+#define HR_DEBUG_POLY_TYPE		(1 << 13)
 
 static struct {
 	uint32_t flag;
@@ -61,7 +62,8 @@ static struct {
 	{ HR_DEBUG_DUMP_TEXHEADS,	~0,	"HR_DUMP_TEXHEADS",	false },
 	{ HR_DEBUG_NORMALS,		SDLK_n, "",			false },
 	{ HR_DEBUG_LIGHTNING,		SDLK_l, "",			false },
-	{ HR_DEBUG_CULLFACE,		SDLK_f, "",			false }
+	{ HR_DEBUG_CULLFACE,		SDLK_f, "",			false },
+	{ HR_DEBUG_POLY_TYPE,		SDLK_m, "",			false }
 };
 
 static void
@@ -617,7 +619,19 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	glEnableClientState (GL_COLOR_ARRAY);
 	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 
-	glEnable (GL_BLEND);
+	switch (hr->gpu->poly_type) {
+	case HIKARU_POLY_OPAQUE:
+	case HIKARU_POLY_PUNCHTHROUGH:
+		glDisable (GL_BLEND);
+		break;
+	case HIKARU_POLY_TRANSLUCENT:
+		glEnable (GL_BLEND);
+		break;
+	default:
+		VK_ASSERT (0);
+		break;
+	}
+
 	if (!(hr->debug.flags & HR_DEBUG_CULLFACE))
 		glDisable (GL_CULL_FACE);
 	else {
@@ -651,10 +665,18 @@ skip_:
 		dst_[2] = src_[2]; \
 	} while (0)
 
+static float
+clampf (float x, float min_, float max_)
+{
+	return (min_ > x) ? min_ :
+	       (max_ < x) ? max_ : x;
+}
+
 static void
 copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_t *src)
 {
 	hikaru_gpu_material_t *mat = &hr->gpu->materials.scratch;
+	const float k = 1.0f / 255.0f;
 
 	/* XXX at the moment we use only color 1 (it's responsible for the
 	 * BOOTROM CRT test). */
@@ -665,16 +687,34 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 		dst->col[0] = r;
 		dst->col[1] = r;
 		dst->col[2] = r;
+	} else if (hr->debug.flags & HR_DEBUG_POLY_TYPE) {
+		dst->col[0] = (hr->gpu->poly_type == HIKARU_POLY_OPAQUE) ? 1.0f : 0.0f;
+		dst->col[1] = (hr->gpu->poly_type == HIKARU_POLY_PUNCHTHROUGH) ? 1.0f : 0.0f;
+		dst->col[2] = (hr->gpu->poly_type == HIKARU_POLY_TRANSLUCENT) ? 1.0f : 0.0f;
 	} else if (mat->set) {
-		dst->col[0] = mat->color[1][0] / 255.0f;
-		dst->col[1] = mat->color[1][1] / 255.0f;
-		dst->col[2] = mat->color[1][2] / 255.0f;
+		dst->col[0] = mat->color[1][0] * k;
+		dst->col[1] = mat->color[1][1] * k;
+		dst->col[2] = mat->color[1][2] * k;
 	} else {
 		dst->col[0] = 1.0f;
 		dst->col[1] = 1.0f;
 		dst->col[2] = 1.0f;
 	}
-	dst->col[3] = src->info.bit.alpha / 255.0f;
+
+	switch (hr->gpu->poly_type) {
+	case HIKARU_POLY_OPAQUE:
+	case HIKARU_POLY_PUNCHTHROUGH:
+		dst->col[3] = 1.0f;
+		break;
+	case HIKARU_POLY_TRANSLUCENT:
+		/* XXX mmm, this equation doesn't look great in PHARRIER... */
+		dst->col[3] = clampf (hr->gpu->poly_alpha +
+		                      src->info.bit.alpha * k, 0.0f, 1.0f);
+		break;
+	default:
+		VK_ASSERT (0);
+		break;
+	}
 }
 
 static void
