@@ -1,43 +1,26 @@
 TODO
 ====
 
+There are loads of TODO/XXX items in the source, grep them!
+
+
 GENERAL
 -------
 
-A decent build system that should work on Unix/Linux, MacOS X, and windows.
-I'm no expert in this area. CMake or SCons could do the trick.
+Register devices, CPUs and buffers into the vk_machine_t. Makes managing them
+a lot easier.
 
-Save state support. We want something that works across platforms (different
-int size, different endianess), that is somewhat robust against corruptions
-and version updates, and that is easy to read through a hex editor. This boils
-down to a binary file with headers for each section (e.g., master SH4, slave
-SH4, ARM, Z80, etc.) where variables are always stored as sign-extended
-int64_t, and includes a header stating a version number and endianess type.
+Save state support. Partially implemented in a branch.
 
-Convert VK_*_{LOG,ERROR} from macros to functions; and add the *DEVICE*
-variants.
+Add support for "required" field in the JSON file.
 
-Rewrite the JSON file to be more flexible (just like MAME.) Move its location
-to '$HOME/.local/share/valkyrie' or something. Create that directory on
-`make install'.
+For later, write an event-driven scheduler.
 
-For later, much later: make every vk_machine_t sub-class register its CPUs
-and devices into vk_machine_t, then use a proper event scheduler to drive the
-emulation. This should make things much cleaner and maintainable in the long
-run, but it may be difficult to debug.
-
-There are load of TODO/XXX items in the source, grep them!
+I'm seriously thinking about slowling "porting" valkyrie to C++... Mmm.
 
 
 HIKARU
 ------
-
-Get 3D displayed on screen. A couple of useful references taken from youtube:
-
- braveff:	http://www.youtube.com/watch?v=rwzzj7dzxE8
- pharrier:	http://www.youtube.com/watch?v=_kED3wt6p90
-		http://www.youtube.com/watch?v=VCVnNBkeRX8
- sgnascar:	http://www.youtube.com/watch?v=N2rPqafQr84
 
 Move the slave GPU access to hikaru-gpu.c. Proper support may require the
 introduction of a new vk_device_accessors_t class.
@@ -49,58 +32,72 @@ Proper AICA emulation (especially the RTC and IRQs.)
 
 Implement the three EEPROMs (MAINBD, ROMBD, MIE.)
 
-Convert TEXRAM and CMDRAM from vk_buffer_t's to simple byte arrays.
-
 
 SH-4
 ----
 
-Check FPU emulation. This is necessary to make the Hikaru games push sensible
-values to the graphics hardware.
-
-Implement simple per-basic-block LLVM translation. Then possibly move to
-translate entire routines; the now-dead (?) libcpu project is able to do
-that. May require heuristics as several routines in Hikaru games tend to
-somewhat violate the ABI (for instance using JMP + Load PR magic instead
-of JSR to call subroutines and return.) Little self-modifying code has been
-observed so far. And no MMU emulation required.
-
-Implement vk_cpu_get_reg() and vk_cpu_put_reg(); this would make moving the
-Hikaru-specific patches out of sh4_step() and into hikaru.c.
+Import the LLVM jit core into valkyrie. Still a bit rough on the edges, but
+already faster than the interpreter.
 
 
 RENDERING
 ---------
 
-Figure out how the projection matrix is specified. SGNASCAR includes text
-mentioning 'window stacking'. Is that related in any way?
-
-Figure out how the fade-in effect is done in PH intro screen.
-
-Implement proper texture caching, for both textures (TEXRAM) and layers
-(FB).
+The projection clipping planes are probably scaled by some value, because
+using the ones provided by the games as they are leads to a far too close
+far clipping plane. Use 'p' to toggle a standard 90 degree FOV projection and
+see things (affects all games).
 
 Implement proper model caching using VBOs.
+
+Implement deferred rendering based on polygon types (a la PVR/dreamcast).
+
+Once models are drawn in the correct order, fix any remaining issues with the
+alpha.
+
+Figure out how the fade-in effect is done in PH intro screen (GPU instructions
+781, 181).
+
+Figure out the parameters controlling the alpha in instanced rendering (used
+heavily in BRAVEFF).
+
+Figure out fogging (most likely determined by instruction 691).
 
 
 AIRTRIX
 -------
 
-Reaches the title screen, but apparently uploads garbage to CMDRAM. See the
-arguments to the 12C commands. The modelview matrix is also zero. The most
-likely culpripts are: bad FP emulation, missing IRQs, bad GPU execution timing,
-master-slave communication failures.
+Attract mode works.
 
-Note that one MASKROM doesn't pass the ROMBD test (all the other MASKROMs do.)
+No controls, no sound, serious graphical glitches.
+
+Emulation wise, the biggest issue is with the player character: it is not
+animated. Talking with the Demul guys, we figured out the following: the game
+uploads matrix data to CMDRAM  48100000-48100E2x, along with commands, but we
+don't know what device that data is for. It is written by the master SH-4 but
+never reads them back, and there is strong evidence that the slave SH-4 does
+not touch them ever. The matrices come along with a pointer to a GPU routine in
+CMDRAM (in master-SH-4-address-space-format), which, guess what?, draws the
+player character. I *think* they specify additional transformations to be
+applied to the skater body parts, but I don't know yet how.
 
 
 BRAVEFF
 -------
 
-Missing MASKROMs. Won't work. It works enough to display the intro screen
-and the game test menu though. It pushes some 3D data on screen; it may be
-worth to try and render it in wireframe. The modelview matrices unfortunately
-are zeros, IIRC.
+The title screen and intro work. Freezes after that.
+
+No controls, no sound, serious graphical glitches.
+
+The game supplies textures in twiddled format (thanks to the Demul authors for
+the info), which valkyrie does not yet support.
+
+Characters are not drawn (either the data is not there, or the modelview
+matrices I'm using are the wrong ones; if the former, it may be a master-slave
+synchronization error).
+
+References:
+ http://www.youtube.com/watch?v=rwzzj7dzxE8
 
 
 Cyber Troops Virtual On 4
@@ -112,32 +109,39 @@ Not dumped yet.
 PHARRIER
 --------
 
-Reaches the title screen, but the renderer can't draw any 3D on screen yet.
+Attract mode works.
 
-Render the 3D intro screen using the youtube footage as a reference. Figure
-out why the 161 commands look so weird.
+No controls, no sound, serious graphical glitches.
+
+3D hiccups, don't know yet why (strategy: monitor writes to CMDRAM, TMU, IRQs,
+and reads from GPU ports -- the reason lies there).
+
+The 2D is in ABGR8888 format, but it doesn't always work. It also plays bad
+with blending, and I do not know which GPU port controls that.
+
+Makes use of A8 textures, which are implemented wrong.
+
+References:
+ http://www.youtube.com/watch?v=_kED3wt6p90
+ http://www.youtube.com/watch?v=VCVnNBkeRX8
 
 
 PODRACE
 -------
 
-Missing MASKROMS. Won't work. Useful to test MASKROM shrinkage tho (the
-second problem SGNASCAR has.)
+Missing MASKROMS. Won't work.
 
 
 SGNASCAR
 --------
 
-For some reason the ROM->RAM transfer table at EPROM offset +390 tells
-the BOOTROM to read 01FF0000 bytes from the ROM aperture at 03xxxxxx.
-The problem is that the aperture is only 16MB wide, so the BOOTROM ends
-up reading garbage from the 04xxxxxx MEMCTL device.
+Attract mode works.
 
-Note that MASKROMs are not mapped correctly: contrarily to AIRTRIX and
-PHARRIER the CRCs computed by the ROMBD test menu are wrong. However, the
-MASKROMs are not even looked at by the crashy code... So the issue is with
-EPROM. The ROM copy loop should not fail. Somehow.
+Makes use of conditional control-flow in the GPU program (most likely for
+model LOD selection), which isn't reversed yet, 
 
-It _is_ possible to get it to work, partially, just enable the patch in
-sh4.c::sh4_step ().
+The BOOTROM (all version) reads from invalid memory regions when loading the
+game data from ROM to RAM; that is likely a game bug.
 
+References:
+ http://www.youtube.com/watch?v=N2rPqafQr84
