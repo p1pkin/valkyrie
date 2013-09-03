@@ -522,7 +522,7 @@ upload_current_state (hikaru_renderer_t *hr, unsigned i)
 			float hw = hh * (w / h);
 			glFrustum (-hw, hw, -hh, hh, near, 1e5);
 		} else
-			glFrustum (-hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, vp->clip.f + vp->clip.n);
+			glFrustum (-hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, 1e5);
 		/* XXX scissor */
 		glTranslatef (dcx, -dcy, 0.0f);
 
