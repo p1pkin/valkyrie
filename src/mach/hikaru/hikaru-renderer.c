@@ -36,7 +36,6 @@
 #define HR_DEBUG_DISABLE_TEXTURES	(1 << 4)
 #define HR_DEBUG_FORCE_DEBUG_TEXTURE	(1 << 5)
 #define HR_DEBUG_SELECT_MESH		(1 << 7)
-#define HR_DEBUG_USE_DEBUG_PROJ		(1 << 8)
 #define HR_DEBUG_DUMP_TEXHEADS		(1 << 9)
 #define HR_DEBUG_NORMALS		(1 << 10)
 #define HR_DEBUG_LIGHTNING		(1 << 11)
@@ -56,7 +55,6 @@ static struct {
 	{ HR_DEBUG_DISABLE_TEXTURES,	SDLK_t,	"",			false },
 	{ HR_DEBUG_FORCE_DEBUG_TEXTURE,	SDLK_d,	"",			false },
 	{ HR_DEBUG_SELECT_MESH,		SDLK_s, "",			false },
-	{ HR_DEBUG_USE_DEBUG_PROJ,	SDLK_p, "",			false },
 	{ HR_DEBUG_DUMP_TEXHEADS,	~0,	"HR_DUMP_TEXHEADS",	false },
 	{ HR_DEBUG_NORMALS,		SDLK_n, "",			false },
 	{ HR_DEBUG_LIGHTNING,		SDLK_l, "",			false },
@@ -515,14 +513,7 @@ upload_current_state (hikaru_renderer_t *hr, unsigned i)
 
 		glMatrixMode (GL_PROJECTION);
 		glLoadIdentity ();
-		if (hr->debug.flags & HR_DEBUG_USE_DEBUG_PROJ) {
-			float fovy = 90.0f;
-			float near = 0.1f;
-			float hh = tan ((fovy / 2.0f) * (M_PI / 180.0f)) * near;
-			float hw = hh * (w / h);
-			glFrustum (-hw, hw, -hh, hh, near, 1e5);
-		} else
-			glFrustum (-hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, 1e5);
+		glFrustum (-hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, 1e5);
 		/* XXX scissor */
 		glTranslatef (dcx, -dcy, 0.0f);
 
