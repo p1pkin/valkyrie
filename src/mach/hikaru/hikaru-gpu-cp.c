@@ -2438,7 +2438,7 @@ D (0x0D1)
 static void
 get_poly_type (uint32_t *inst, uint32_t *type, float *alpha)
 {
-	*type	= (inst[0] >> 8) & 15;
+	*type	= (inst[0] >> 9) & 7;
 	*alpha	= (inst[0] >> 24) * (1.0f / 255.0f);
 }
 
@@ -2449,6 +2449,16 @@ I (0x103)
 
 D (0x103)
 {
+	static const char *poly_type_name[8] = {
+		"invalid 0",
+		"opaque",
+		"shadow A",
+		"shadow B",
+		"transparent",
+		"background",
+		"translucent",
+		"invalid 7"
+	};
 	uint32_t type;
 	float alpha;
 
@@ -2456,12 +2466,7 @@ D (0x103)
 
 	UNHANDLED |= !!(inst[0] & 0x00FFF000);
 
-	DISASM ("mesh: set poly type [%s alpha=%f]",
-	        type == 0x3 ? "opaque" :
-	        type == 0x9 ? "punch" :
-		type == 0xB ? "background?" :
-	        type == 0xD ? "trans" : "invalid",
-	        alpha);
+	DISASM ("mesh: set poly type [%s alpha=%f]", poly_type_name[type], alpha);
 }
 
 /****************************************************************************
