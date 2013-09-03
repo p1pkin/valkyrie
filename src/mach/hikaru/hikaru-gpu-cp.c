@@ -2459,6 +2459,7 @@ D (0x103)
 	DISASM ("mesh: set poly type [%s alpha=%f]",
 	        type == 0x3 ? "opaque" :
 	        type == 0x9 ? "punch" :
+		type == 0xB ? "background?" :
 	        type == 0xD ? "trans" : "invalid",
 	        alpha);
 }

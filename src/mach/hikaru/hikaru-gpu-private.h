@@ -42,8 +42,20 @@ enum {
 	HIKARU_FORMAT_ABGR8888 = 8,
 };
 
+/* PHARRIER lists the following polygon types:
+ *
+ * opaque, shadow A, shadow B, transparent, background, translucent.
+ *
+ * Each of them is associated to a GPU HW performance counter, so the hardware
+ * very likely distinguishes between them too. I can't be sure, but the
+ * enumeration below looks so fitting...
+ */
+
 #define HIKARU_POLY_OPAQUE		0x3
+//#define HIKARU_POLY_SHADOW_A		0x5
+//#define HIKAUR_POLY_SHADOW_B		0x7
 #define HIKARU_POLY_PUNCHTHROUGH	0x9
+#define HIKARU_POLY_BACKGROUND		0XB
 #define HIKARU_POLY_TRANSLUCENT		0xD
 
 #define HIKARU_GPU_OBJ_SET	(1 << 0)

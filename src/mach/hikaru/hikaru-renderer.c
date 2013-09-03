@@ -651,13 +651,11 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	switch (hr->gpu->poly_type) {
 	case HIKARU_POLY_OPAQUE:
 	case HIKARU_POLY_PUNCHTHROUGH:
+	default:
 		glDisable (GL_BLEND);
 		break;
 	case HIKARU_POLY_TRANSLUCENT:
 		glEnable (GL_BLEND);
-		break;
-	default:
-		VK_ASSERT (0);
 		break;
 	}
 
@@ -727,15 +725,13 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 	switch (hr->gpu->poly_type) {
 	case HIKARU_POLY_OPAQUE:
 	case HIKARU_POLY_PUNCHTHROUGH:
+	default:
 		dst->col[3] = 1.0f;
 		break;
 	case HIKARU_POLY_TRANSLUCENT:
 		/* XXX mmm, this equation doesn't look great in PHARRIER... */
 		dst->col[3] = clampf (hr->gpu->poly_alpha +
 		                      src->info.bit.alpha * k, 0.0f, 1.0f);
-		break;
-	default:
-		VK_ASSERT (0);
 		break;
 	}
 }
