@@ -1990,6 +1990,57 @@ D (0x101)
 
 }
 
+/* 103	Set Poly Type
+ * 113	Set Poly Type
+ *
+ *	AAAAAAAA -------- -------o oooxoooo
+ *
+ * A = Base mesh alpha value
+ * x = Unknown
+ *
+ *  3: Opaque. Alpha is ignored.
+ *  9: Punch-through. Alpha is ignored.
+ *  D: Translucent.
+ *
+ * Information kindly contributed by DreamZzz.
+ *
+ * See AT:@0C049CDA, PH:@0C0173CA, AT:@0C69A220.
+ */
+
+static void
+get_poly_type (uint32_t *inst, uint32_t *type, float *alpha)
+{
+	*type	= (inst[0] >> 9) & 7;
+	*alpha	= (inst[0] >> 24) * (1.0f / 255.0f);
+}
+
+I (0x103)
+{
+	get_poly_type (inst, &gpu->poly_type, &gpu->poly_alpha);
+}
+
+D (0x103)
+{
+	static const char *poly_type_name[8] = {
+		"invalid 0",
+		"opaque",
+		"shadow A",
+		"shadow B",
+		"transparent",
+		"background",
+		"translucent",
+		"invalid 7"
+	};
+	uint32_t type;
+	float alpha;
+
+	get_poly_type (inst, &type, &alpha);
+
+	UNHANDLED |= !!(inst[0] & 0x00FFF000);
+
+	DISASM ("mesh: set poly type [%s alpha=%f]", poly_type_name[type], alpha);
+}
+
 /* 12x	Mesh: Push Position (Static)
  * 1Ax	Mesh: Push Position (Dynamic)
  * 1Bx	Mesh: Push All (Position, Normal, Texcoords) (Dynamic)
@@ -2416,57 +2467,6 @@ D (0x0D1)
 
 	DISASM ("unk: unknown [%X %X %X]",
 	        inst[0] >> 16, inst[1] & 0xFFFF, inst[1] >> 16);
-}
-
-/* 103	Set Poly Type
- * 113	Set Poly Type
- *
- *	AAAAAAAA -------- -------o oooxoooo
- *
- * A = Base mesh alpha value
- * x = Unknown
- *
- *  3: Opaque. Alpha is ignored.
- *  9: Punch-through. Alpha is ignored.
- *  D: Translucent.
- *
- * Information kindly contributed by DreamZzz.
- *
- * See AT:@0C049CDA, PH:@0C0173CA, AT:@0C69A220.
- */
-
-static void
-get_poly_type (uint32_t *inst, uint32_t *type, float *alpha)
-{
-	*type	= (inst[0] >> 9) & 7;
-	*alpha	= (inst[0] >> 24) * (1.0f / 255.0f);
-}
-
-I (0x103)
-{
-	get_poly_type (inst, &gpu->poly_type, &gpu->poly_alpha);
-}
-
-D (0x103)
-{
-	static const char *poly_type_name[8] = {
-		"invalid 0",
-		"opaque",
-		"shadow A",
-		"shadow B",
-		"transparent",
-		"background",
-		"translucent",
-		"invalid 7"
-	};
-	uint32_t type;
-	float alpha;
-
-	get_poly_type (inst, &type, &alpha);
-
-	UNHANDLED |= !!(inst[0] & 0x00FFF000);
-
-	DISASM ("mesh: set poly type [%s alpha=%f]", poly_type_name[type], alpha);
 }
 
 /****************************************************************************
