@@ -35,7 +35,6 @@
 #define HR_DEBUG_DISABLE_3D		(1 << 3)
 #define HR_DEBUG_DISABLE_TEXTURES	(1 << 4)
 #define HR_DEBUG_FORCE_DEBUG_TEXTURE	(1 << 5)
-#define HR_DEBUG_FORCE_RAND_COLOR	(1 << 6)
 #define HR_DEBUG_SELECT_MESH		(1 << 7)
 #define HR_DEBUG_USE_DEBUG_PROJ		(1 << 8)
 #define HR_DEBUG_DUMP_TEXHEADS		(1 << 9)
@@ -56,7 +55,6 @@ static struct {
 	{ HR_DEBUG_DISABLE_3D,		SDLK_3,	"HR_DEBUG_DISABLE_3D",	false },
 	{ HR_DEBUG_DISABLE_TEXTURES,	SDLK_t,	"",			false },
 	{ HR_DEBUG_FORCE_DEBUG_TEXTURE,	SDLK_d,	"",			false },
-	{ HR_DEBUG_FORCE_RAND_COLOR,	SDLK_c, "",			false },
 	{ HR_DEBUG_SELECT_MESH,		SDLK_s, "",			false },
 	{ HR_DEBUG_USE_DEBUG_PROJ,	SDLK_p, "",			false },
 	{ HR_DEBUG_DUMP_TEXHEADS,	~0,	"HR_DUMP_TEXHEADS",	false },
@@ -681,12 +679,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 	/* XXX at the moment we use only color 1 (it's responsible for the
 	 * BOOTROM CRT test). */
 
-	if (hr->debug.flags & HR_DEBUG_FORCE_RAND_COLOR) {
-		float r = (rand () & 0xFF) / 255.0f;
-		dst->col[0] = r;
-		dst->col[1] = r;
-		dst->col[2] = r;
-	} else if (hr->debug.flags & HR_DEBUG_POLY_TYPE) {
+	if (hr->debug.flags & HR_DEBUG_POLY_TYPE) {
 		dst->col[0] = (hr->gpu->poly_type == HIKARU_POLY_OPAQUE) ? 1.0f : 0.0f;
 		dst->col[1] = (hr->gpu->poly_type == HIKARU_POLY_PUNCHTHROUGH) ? 1.0f : 0.0f;
 		dst->col[2] = (hr->gpu->poly_type == HIKARU_POLY_TRANSLUCENT) ? 1.0f : 0.0f;
