@@ -172,18 +172,6 @@ hikaru_mie_reset (vk_device_t *dev, vk_reset_type_t type)
 	mie->hack = vk_util_get_bool_option ("MIE_HACK", false);
 }
 
-static int
-hikaru_mie_save_state (vk_device_t *dev, FILE *fp)
-{
-	return -1;
-}
-
-static int
-hikaru_mie_load_state (vk_device_t *dev, FILE *fp)
-{
-	return -1;
-}
-
 static void
 hikaru_mie_destroy (vk_device_t **dev_)
 {
@@ -209,8 +197,8 @@ hikaru_mie_new (vk_machine_t *mach)
 	dev->exec	= hikaru_mie_exec;
 	dev->get	= hikaru_mie_get;
 	dev->put	= hikaru_mie_put;
-	dev->save_state	= hikaru_mie_save_state;
-	dev->load_state	= hikaru_mie_load_state;
+	dev->save_state	= NULL;
+	dev->load_state	= NULL;
 
 	mie->regs = vk_buffer_le32_new (0x20, 0);
 	if (!mie->regs)
