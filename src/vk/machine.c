@@ -129,9 +129,11 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 
 	for (i = 0; !ret && i < mach->devices->used; i += sizeof (vk_device_t *)) {
 		dev = *((vk_device_t **) &mach->devices->data[i]);
-		ret = (mode == VK_STATE_LOAD) ?
-		      vk_device_load_state (dev, state) :
-		      vk_device_save_state (dev, state);
+		if (mode == VK_STATE_LOAD) {
+			vk_device_reset (dev, VK_RESET_TYPE_HARD);
+			ret = vk_device_load_state (dev, state);
+		} else
+			ret = vk_device_save_state (dev, state);
 	}
 
 	if (ret) {
@@ -140,9 +142,11 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 		goto fail;
 	}
 
-	ret = (mode == VK_STATE_LOAD) ?
-	      mach->load_state (mach, state) :
-	      mach->save_state (mach, state);
+	if (mode == VK_STATE_LOAD) {
+		vk_machine_reset (mach, VK_RESET_TYPE_HARD);
+		ret = mach->load_state (mach, state);
+	} else
+		ret = mach->save_state (mach, state);
 	if (ret) {
 		VK_ERROR ("%s state failed; cannot load machine",
 		          mode == VK_STATE_LOAD ? "load" : "save");
@@ -151,8 +155,10 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 
 fail:
 	vk_state_destroy (&state, ret);
-	if (ret && mode == VK_STATE_LOAD)
+	if (ret && mode == VK_STATE_LOAD) {
+		VK_ERROR ("load state failed: resetting machine");
 		vk_machine_reset (mach, VK_RESET_TYPE_HARD);
+	}
 	return ret;
 }
 
