@@ -36,6 +36,23 @@ struct vk_device_t {
 	int	(* load_state)(vk_device_t *dev, FILE *fp);
 };
 
+#define VK_DEVICE_ALLOC(derivedptr_, mach_) \
+	do { \
+		vk_device_t *base; \
+	\
+		VK_ASSERT (mach_); \
+	\
+		(derivedptr_) = ALLOC (typeof (*(derivedptr_))); \
+		if (!(derivedptr_)) \
+			break; \
+	\
+		base = &((derivedptr_)->base); \
+		base->mach = (mach_); \
+	\
+		vk_machine_register_device ((mach_), (void *) base); \
+	\
+	} while (0)
+
 static inline void
 vk_device_destroy (vk_device_t **dev_)
 {
