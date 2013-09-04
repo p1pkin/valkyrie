@@ -132,12 +132,6 @@ hikaru_aica_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val
 	return 0;
 }
 
-static int
-hikaru_aica_exec (vk_device_t *dev, int cycles)
-{
-	return -1;
-}
-
 static void
 hikaru_aica_reset (vk_device_t *dev, vk_reset_type_t type)
 {
@@ -172,7 +166,7 @@ hikaru_aica_new (vk_machine_t *mach, vk_buffer_t *ram, bool master)
 
 	dev->destroy	= hikaru_aica_destroy;
 	dev->reset	= hikaru_aica_reset;
-	dev->exec	= hikaru_aica_exec;
+	dev->exec	= NULL;
 	dev->get	= hikaru_aica_get;
 	dev->put	= hikaru_aica_put;
 	dev->save_state	= NULL;
