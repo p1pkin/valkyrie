@@ -67,12 +67,9 @@
 
 typedef struct {
 	vk_device_t base;
-
-	uint8_t regs[0x20];
+	vk_buffer_t *regs;
 	bool hack;
 } hikaru_mie_t;
-
-#define REG(addr_)	(*(uint16_t *) &mie->regs[(addr_) & 0x1F])
 
 static uint16_t get_mainbd_switches (void)
 {
@@ -87,7 +84,7 @@ hikaru_mie_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 
 	set_ptr (val, size, 0);
 	if (addr >= 0x00800000 && addr <= 0x00800014) {
-		uint16_t *val16 = (uint16_t *) val;
+		uint16_t *val16 = (uint16_t *) val, tmp;
 		if (size != 2)
 			return -1;
 		switch (addr & 0xFF) {
@@ -99,15 +96,16 @@ hikaru_mie_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 		case 0x08:
 			/* XXX hack: passes the check at @0C00B860 in all the
 			 * BOOTROM versions */
-			REG(0x08) ^= 0xF;
+			tmp = vk_buffer_get (mie->regs, 2, 0x08);
+			vk_buffer_put (mie->regs, 2, 0x08, tmp ^ 0xF);
 			break;
 		case 0x0C:
-			REG(0x0C) = 0xFFFF & ~get_mainbd_switches (); /* active low */
+			vk_buffer_put (mie->regs, 2, 0x0C, 0xFFFF & ~get_mainbd_switches ());
 			break;
 		default:
 			return -1;
 		}
-		*val16 = REG(addr);
+		*val16 = vk_buffer_get (mie->regs, 2, addr & 0x1F);
 	} else if (addr == 0x0082F000) {
 		return 0;
 	} else if (addr >= 0x00830000 && addr <= 0x0083FFFF) {
@@ -168,9 +166,8 @@ hikaru_mie_reset (vk_device_t *dev, vk_reset_type_t type)
 {
 	hikaru_mie_t *mie = (hikaru_mie_t *) dev;
 
-	memset (mie->regs, 0, sizeof (mie->regs));
-
-	REG(0x00) = 0xFFFF;
+	vk_buffer_clear (mie->regs);
+	vk_buffer_put (mie->regs, 2, 0x00, 0xFFFF);
 
 	mie->hack = vk_util_get_bool_option ("MIE_HACK", false);
 }
@@ -215,5 +212,15 @@ hikaru_mie_new (vk_machine_t *mach)
 	dev->save_state	= hikaru_mie_save_state;
 	dev->load_state	= hikaru_mie_load_state;
 
+	mie->regs = vk_buffer_le32_new (0x20, 0);
+	if (!mie->regs)
+		goto fail;
+
+	vk_machine_register_buffer (mach, mie->regs);
+
 	return dev;
+
+fail:
+	vk_device_destroy (&dev);
+	return NULL;
 }
