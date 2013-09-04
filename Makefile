@@ -3,8 +3,10 @@ LD := gcc
 
 DEFS := -DVK_HAVE_HIKARU
 
-CFLAGS  := $(DEFS) -I src -I /usr/include/json -O3 -fomit-frame-pointer -flto -Wall -Wno-strict-aliasing -march=native
-#CFLAGS  := $(DEFS) -I src -I /usr/include/json -O0 -g -Wall
+COMMON_FLAGS = $(DEFS) -I src -I /usr/include/json -Wall -Wno-strict-aliasing -Wno-format -Wno-unused-local-typedefs
+
+CFLAGS  := $(COMMON_FLAGS) -O3 -fomit-frame-pointer -flto -march=native
+#CFLAGS  := $(COMMON_FLAGS) -O0 -g
 LDFLAGS := -lm -lSDL -lGL -lGLEW -ljansson
 
 .PHONY: all install clean
