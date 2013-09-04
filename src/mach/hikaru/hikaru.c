@@ -521,8 +521,6 @@ hikaru_reset (vk_machine_t *mach, vk_reset_type_t type)
 	hikaru->unk01000100_m = 0;
 	hikaru->unk1A800008_s = 0xFFFF;
 	hikaru->unk1B000100_s = 0xFEFF;
-
-	vk_renderer_reset (hikaru->base.renderer);
 }
 
 static const char *

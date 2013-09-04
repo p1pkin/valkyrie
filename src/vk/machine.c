@@ -87,6 +87,7 @@ void
 vk_machine_reset (vk_machine_t *mach, vk_reset_type_t type)
 {
 	mach->reset (mach, type);
+	vk_renderer_reset (mach->renderer);
 }
 
 int
