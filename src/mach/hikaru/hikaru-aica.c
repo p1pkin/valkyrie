@@ -162,31 +162,44 @@ hikaru_aica_save_state (vk_device_t *dev, FILE *fp)
 static void
 hikaru_aica_destroy (vk_device_t **dev_)
 {
-	/* TODO */
+	hikaru_aica_t *aica = (hikaru_aica_t *) *dev_;
+
+	if (aica)
+		vk_buffer_destroy (&aica->regs);
+
+	free (aica);
+	*dev_ = NULL;
 }
 
 vk_device_t *
 hikaru_aica_new (vk_machine_t *mach, vk_buffer_t *ram, bool master)
 {
-	hikaru_aica_t *aica = ALLOC (hikaru_aica_t);
-	vk_device_t *device = (vk_device_t *) aica;
-	if (aica) {
-		aica->base.mach = mach;
+	hikaru_aica_t *aica;
+	vk_device_t *dev;
 
-		aica->base.destroy	= hikaru_aica_destroy;
-		aica->base.reset	= hikaru_aica_reset;
-		aica->base.exec		= hikaru_aica_exec;
-		aica->base.get		= hikaru_aica_get;
-		aica->base.put		= hikaru_aica_put;
-		aica->base.save_state	= hikaru_aica_save_state;
-		aica->base.load_state	= hikaru_aica_load_state;
+	VK_DEVICE_ALLOC (aica, mach);
+	dev = (vk_device_t *) aica;
+	if (!aica)
+		return NULL;
 
-		/* XXX register ARM7 processor in the main loop */
+	dev->destroy	= hikaru_aica_destroy;
+	dev->reset	= hikaru_aica_reset;
+	dev->exec	= hikaru_aica_exec;
+	dev->get	= hikaru_aica_get;
+	dev->put	= hikaru_aica_put;
+	dev->save_state	= hikaru_aica_save_state;
+	dev->load_state	= hikaru_aica_load_state;
 
-		aica->ram = ram;
-		aica->master = master;
+	aica->ram	= ram;
+	aica->master	= master;
 
-		aica->regs = vk_buffer_le32_new (0x3C00, 0);
-	}
-	return device;
+	aica->regs	= vk_buffer_le32_new (0x3C00, 0);
+	if (!aica->regs)
+		goto fail;
+
+	return dev;
+
+fail:
+	vk_device_destroy (&dev);
+	return NULL;
 }
