@@ -86,7 +86,20 @@ vk_machine_load_game (vk_machine_t *mach, vk_game_t *game)
 void
 vk_machine_reset (vk_machine_t *mach, vk_reset_type_t type)
 {
+	unsigned i;
+
+	for (i = 0; i < mach->buffers->used; i += sizeof (vk_buffer_t *)) {
+		vk_buffer_t *buf = *((vk_buffer_t **) &mach->buffers->data[i]);
+		vk_buffer_clear (buf);
+	}
+
+	for (i = 0; i < mach->devices->used; i += sizeof (vk_device_t *)) {
+		vk_device_t *dev = *((vk_device_t **) &mach->devices->data[i]);
+		vk_device_reset (dev, type);
+	}
+
 	mach->reset (mach, type);
+
 	vk_renderer_reset (mach->renderer);
 }
 

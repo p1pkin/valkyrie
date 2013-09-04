@@ -491,35 +491,13 @@ hikaru_reset (vk_machine_t *mach, vk_reset_type_t type)
 {
 	hikaru_t *hikaru = (hikaru_t *) mach;
 
-	vk_buffer_clear (hikaru->ram_m);
-	vk_buffer_clear (hikaru->ram_s);
-	vk_buffer_clear (hikaru->cmdram);
-	vk_buffer_clear (hikaru->texram[0]);
-	vk_buffer_clear (hikaru->texram[1]);
-	vk_buffer_clear (hikaru->fb);
-	vk_buffer_clear (hikaru->aica_ram_m);
-	vk_buffer_clear (hikaru->aica_ram_s);
-	vk_buffer_clear (hikaru->mie_ram);
-	vk_buffer_clear (hikaru->bram);
-
 	/* XXX load bram from file */
-
-	vk_device_reset ((vk_device_t *) hikaru->sh_m, type);
-	vk_device_reset ((vk_device_t *) hikaru->sh_s, type);
 
 	vk_cpu_set_state (hikaru->sh_s, VK_CPU_STATE_RUN);
 
 	/* Port A's are active low */
 	hikaru->porta_m = 0xFFFF;
 	hikaru->porta_s = 0xFFFF;
-
-	vk_device_reset (hikaru->memctl_m, type);
-	vk_device_reset (hikaru->memctl_s, type);
-	vk_device_reset (hikaru->mscomm, type);
-	vk_device_reset (hikaru->mie, type);
-	vk_device_reset (hikaru->aica_m, type);
-	vk_device_reset (hikaru->aica_s, type);
-	vk_device_reset (hikaru->gpu, type);
 
 	hikaru->unk01000000_m = 0;
 	hikaru->unk01000100_m = 0;
