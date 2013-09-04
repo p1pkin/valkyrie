@@ -20,7 +20,6 @@
 #define __VK_DEVICE_H__
 
 #include "vk/machine.h"
-#include "vk/device.h"
 
 typedef struct vk_device_t vk_device_t;
 
