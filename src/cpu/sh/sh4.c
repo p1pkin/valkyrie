@@ -37,6 +37,7 @@
 
 #include "vk/core.h"
 #include "vk/cpu.h"
+#include "vk/state.h"
 
 #include "sh4.h"
 #include "sh4-ireg.h"
@@ -1389,6 +1390,77 @@ sh4_reset (vk_device_t *dev, vk_reset_type_t type)
 	ctx->tmu.counter[2] = 0xFFFFFFFF;
 }
 
+#define SAVE(thing_) \
+		vk_state_put (state, (void *) &(thing_), sizeof (thing_))
+
+#define LOAD(thing_) \
+		vk_state_get (state, (void *) &(thing_), sizeof (thing_))
+
+static int
+sh4_load_state (vk_device_t *dev, vk_state_t *state)
+{
+	sh4_t *ctx = (sh4_t *) dev;
+	int ret = 0;
+
+	LOAD (ctx->in_slot);
+	LOAD (ctx->r);
+	LOAD (ctx->pc);
+	LOAD (ctx->sr);
+	LOAD (ctx->pr);
+	LOAD (ctx->gbr);
+	LOAD (ctx->vbr);
+	LOAD (ctx->dbr);
+	LOAD (ctx->mac);
+	LOAD (ctx->spc);
+	LOAD (ctx->ssr);
+	LOAD (ctx->sgr);
+	LOAD (ctx->rbank);
+	LOAD (ctx->f);
+	LOAD (ctx->x);
+	LOAD (ctx->fpul);
+	LOAD (ctx->fpscr);
+	LOAD (ctx->intc);
+	LOAD (ctx->dmac);
+	LOAD (ctx->tmu);
+	LOAD (ctx->config);
+
+	return ret;
+}
+
+static int
+sh4_save_state (vk_device_t *dev, vk_state_t *state)
+{
+	sh4_t *ctx = (sh4_t *) dev;
+	int ret = 0;
+
+	SAVE (ctx->in_slot);
+	SAVE (ctx->r);
+	SAVE (ctx->pc);
+	SAVE (ctx->sr);
+	SAVE (ctx->pr);
+	SAVE (ctx->gbr);
+	SAVE (ctx->vbr);
+	SAVE (ctx->dbr);
+	SAVE (ctx->mac);
+	SAVE (ctx->spc);
+	SAVE (ctx->ssr);
+	SAVE (ctx->sgr);
+	SAVE (ctx->rbank);
+	SAVE (ctx->f);
+	SAVE (ctx->x);
+	SAVE (ctx->fpul);
+	SAVE (ctx->fpscr);
+	SAVE (ctx->intc);
+	SAVE (ctx->dmac);
+	SAVE (ctx->tmu);
+	SAVE (ctx->config);
+
+	return ret;
+}
+
+#undef SAVE
+#undef LOAD
+
 static const char *
 sh4_get_debug_string (vk_cpu_t *cpu)
 {
@@ -1436,6 +1508,8 @@ sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master, bool le)
 
 	dev->reset		= sh4_reset;
 	dev->destroy		= sh4_destroy;
+	dev->load_state		= sh4_load_state;
+	dev->save_state		= sh4_save_state;
 
 	cpu->set_state		= sh4_set_state;
 	cpu->run		= sh4_run;
@@ -1448,6 +1522,8 @@ sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master, bool le)
 	ctx->iregs = vk_buffer_le32_new (0x10000, 0);
 	if (!ctx->iregs)
 		goto fail;
+
+	vk_machine_register_buffer (mach, ctx->iregs);
 
 	setup_insns_handlers ();
 
