@@ -1,21 +1,19 @@
 /* 
  * Valkyrie
- * Copyright (C) 2011, Stefano Teso
+ * Copyright (C) 2011-2013, Stefano Teso
  * 
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
+ * Valkyrie is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Valkyrie is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
+ * along with Valkyrie.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __VK_MACH_H__
@@ -70,47 +68,12 @@ struct vk_machine_t {
 #define VK_MACH_ASSERT(mach_, cond_) \
 	VK_ASSERT (cond_)
 
-static inline void
-vk_machine_destroy (vk_machine_t **mach_)
-{
-	if (mach_)
-		(*mach_)->destroy (mach_);
-}
-
-static inline int
-vk_machine_load_game (vk_machine_t *mach, vk_game_t *game)
-{
-	return mach->load_game (mach, game);
-}
-
-static inline void
-vk_machine_reset (vk_machine_t *mach, vk_reset_type_t type)
-{
-	mach->reset (mach, type);
-}
-
-static inline int
-vk_machine_run_frame (vk_machine_t *mach)
-{
-	return mach->run_frame (mach);
-}
-
-static inline int
-vk_machine_load_state (vk_machine_t *mach, FILE *fp)
-{
-	return mach->load_state (mach, fp);
-}
-
-static inline int
-vk_machine_save_state (vk_machine_t *mach, FILE *fp)
-{
-	return mach->save_state (mach, fp);
-}
-
-static inline const char *
-vk_machine_get_debug_string (vk_machine_t *mach)
-{
-	return mach->get_debug_string (mach);
-}
+void		 vk_machine_destroy (vk_machine_t **mach_);
+int		 vk_machine_load_game (vk_machine_t *mach, vk_game_t *game);
+void		 vk_machine_reset (vk_machine_t *mach, vk_reset_type_t type);
+int		 vk_machine_run_frame (vk_machine_t *mach);
+int		 vk_machine_load_state (vk_machine_t *mach, FILE *fp);
+int		 vk_machine_save_state (vk_machine_t *mach, FILE *fp);
+const char	*vk_machine_get_debug_string (vk_machine_t *mach);
 
 #endif /* __VK_MACH_H__ */

@@ -17,6 +17,7 @@ VK_OBJ := \
 	src/vk/buffer.o \
 	src/vk/region.o \
 	src/vk/mmap.o \
+	src/vk/machine.o \
 	src/vk/games.o \
 	src/vk/input.o \
 	src/vk/renderer.o \
