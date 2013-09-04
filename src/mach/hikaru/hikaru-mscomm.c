@@ -112,18 +112,6 @@ hikaru_mscomm_reset (vk_device_t *dev, vk_reset_type_t type)
 	vk_buffer_clear (comm->regs);
 }
 
-static int
-hikaru_mscomm_save_state (vk_device_t *dev, FILE *fp)
-{
-	return -1;
-}
-
-static int
-hikaru_mscomm_load_state (vk_device_t *dev, FILE *fp)
-{
-	return -1;
-}
-
 static void
 hikaru_mscomm_destroy (vk_device_t **dev_)
 {
@@ -152,8 +140,8 @@ hikaru_mscomm_new (vk_machine_t *mach)
 	dev->exec	= hikaru_mscomm_exec;
 	dev->get	= hikaru_mscomm_get;
 	dev->put	= hikaru_mscomm_put;
-	dev->save_state	= hikaru_mscomm_save_state;
-	dev->load_state	= hikaru_mscomm_load_state;
+	dev->save_state	= NULL;
+	dev->load_state	= NULL;
 
 	comm->regs = vk_buffer_le32_new (0x40, 0);
 	if (!comm->regs)
