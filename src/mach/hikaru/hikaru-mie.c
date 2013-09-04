@@ -171,6 +171,8 @@ hikaru_mie_reset (vk_device_t *dev, vk_reset_type_t type)
 	memset (mie->regs, 0, sizeof (mie->regs));
 
 	REG(0x00) = 0xFFFF;
+
+	mie->hack = vk_util_get_bool_option ("MIE_HACK", false);
 }
 
 static int
@@ -212,8 +214,6 @@ hikaru_mie_new (vk_machine_t *mach)
 	dev->put	= hikaru_mie_put;
 	dev->save_state	= hikaru_mie_save_state;
 	dev->load_state	= hikaru_mie_load_state;
-
-	mie->hack = vk_util_get_bool_option ("MIE_HACK", false);
 
 	return dev;
 }
