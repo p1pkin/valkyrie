@@ -539,15 +539,15 @@ hikaru_load_state (vk_machine_t *mach, vk_state_t *state)
 	hikaru_t *hikaru = (hikaru_t *) mach;
 	int ret = 0;
 
-	SAVE (hikaru->porta_m);
-	SAVE (hikaru->porta_m_bit0_buffer);
-	SAVE (hikaru->porta_s);
-	SAVE (hikaru->porta_s_bit1_buffer);
-	SAVE (hikaru->unk01000000_m);
-	SAVE (hikaru->unk01000100_m);
-	SAVE (hikaru->unk1A800008_s);
-	SAVE (hikaru->unk1B000100_s);
-	SAVE (hikaru->rombd_config);
+	LOAD (hikaru->porta_m);
+	LOAD (hikaru->porta_m_bit0_buffer);
+	LOAD (hikaru->porta_s);
+	LOAD (hikaru->porta_s_bit1_buffer);
+	LOAD (hikaru->unk01000000_m);
+	LOAD (hikaru->unk01000100_m);
+	LOAD (hikaru->unk1A800008_s);
+	LOAD (hikaru->unk1B000100_s);
+	LOAD (hikaru->rombd_config);
 
 	return ret;
 }
@@ -558,15 +558,15 @@ hikaru_save_state (vk_machine_t *mach, vk_state_t *state)
 	hikaru_t *hikaru = (hikaru_t *) mach;
 	int ret = 0;
 
-	LOAD (hikaru->porta_m);
-	LOAD (hikaru->porta_m_bit0_buffer);
-	LOAD (hikaru->porta_s);
-	LOAD (hikaru->porta_s_bit1_buffer);
-	LOAD (hikaru->unk01000000_m);
-	LOAD (hikaru->unk01000100_m);
-	LOAD (hikaru->unk1A800008_s);
-	LOAD (hikaru->unk1B000100_s);
-	LOAD (hikaru->rombd_config);
+	SAVE (hikaru->porta_m);
+	SAVE (hikaru->porta_m_bit0_buffer);
+	SAVE (hikaru->porta_s);
+	SAVE (hikaru->porta_s_bit1_buffer);
+	SAVE (hikaru->unk01000000_m);
+	SAVE (hikaru->unk01000100_m);
+	SAVE (hikaru->unk1A800008_s);
+	SAVE (hikaru->unk1B000100_s);
+	SAVE (hikaru->rombd_config);
 
 	return ret;
 }
