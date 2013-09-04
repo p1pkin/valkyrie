@@ -1014,7 +1014,7 @@ hikaru_gpu_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 	VK_ASSERT (size == 4 ||
 	           (size == 2 && (addr == 0x15000010 || addr == 0x00400000)));
 
-	*val32 = 0;
+	set_ptr (val, size, 0);
 	if (addr == 0x00400000) {
 		set_ptr (val, size, gpu->unk_00400000);
 	} else if (addr >= 0x15000000 && addr < 0x15000100) {
