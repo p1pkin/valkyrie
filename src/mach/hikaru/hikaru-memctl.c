@@ -750,6 +750,8 @@ hikaru_memctl_new (vk_machine_t *mach, bool master)
 	if (!memctl->regs)
 			goto fail;
 
+	vk_machine_register_buffer (mach, memctl->regs);
+
 	return dev;
 
 fail:
