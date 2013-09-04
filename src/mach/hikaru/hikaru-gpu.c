@@ -1213,11 +1213,10 @@ hikaru_gpu_load_state (vk_device_t *dev, FILE *fp)
 static void
 hikaru_gpu_destroy (vk_device_t **dev_)
 {
-	if (dev_) {
-		hikaru_gpu_t *gpu = (hikaru_gpu_t *) *dev_;
-		free (gpu);
-		*dev_ = NULL;
-	}
+	hikaru_gpu_t *gpu = (hikaru_gpu_t *) *dev_;
+
+	free (gpu);
+	*dev_ = NULL;
 }
 
 vk_device_t *
@@ -1227,13 +1226,13 @@ hikaru_gpu_new (vk_machine_t *mach,
                 vk_buffer_t *texram[2],
                 vk_renderer_t *renderer)
 {
-	hikaru_gpu_t *gpu = ALLOC (hikaru_gpu_t);
-	vk_device_t *dev = (vk_device_t *) gpu;
+	hikaru_gpu_t *gpu;
+	vk_device_t *dev;
 
+	VK_DEVICE_ALLOC (gpu, mach);
+	dev = (vk_device_t *) gpu;
 	if (!gpu)
 		return NULL;
-
-	dev->mach = mach;
 
 	dev->destroy	= hikaru_gpu_destroy;
 	dev->reset	= hikaru_gpu_reset;
