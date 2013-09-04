@@ -20,6 +20,7 @@
 #define __VK_MACH_H__
 
 #include "vk/core.h"
+#include "vk/vector.h"
 #include "vk/games.h"
 #include "vk/renderer.h"
 
@@ -37,6 +38,10 @@ struct vk_machine_t {
 
 	vk_game_t	*game;
 	vk_renderer_t	*renderer;
+
+	vk_vector_t	*buffers;
+	vk_vector_t	*devices;
+	vk_vector_t	*cpus;
 
 	void		 (* destroy)(vk_machine_t **mach_);
 	int		 (* load_game) (vk_machine_t *mach, vk_game_t *game);
@@ -69,6 +74,9 @@ struct vk_machine_t {
 	VK_ASSERT (cond_)
 
 void		 vk_machine_destroy (vk_machine_t **mach_);
+void		 vk_machine_register_buffer (vk_machine_t *, void *);
+void		 vk_machine_register_device (vk_machine_t *, void *);
+void		 vk_machine_register_cpu (vk_machine_t *, void *);
 int		 vk_machine_load_game (vk_machine_t *mach, vk_game_t *game);
 void		 vk_machine_reset (vk_machine_t *mach, vk_reset_type_t type);
 int		 vk_machine_run_frame (vk_machine_t *mach);

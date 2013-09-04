@@ -21,8 +21,53 @@
 void
 vk_machine_destroy (vk_machine_t **mach_)
 {
-	if (mach_)
-		(*mach_)->destroy (mach_);
+	if (mach_) {
+		vk_machine_t *mach = *mach_;
+
+		vk_vector_destroy (&mach->buffers);
+		vk_vector_destroy (&mach->devices);
+		vk_vector_destroy (&mach->cpus);
+
+		mach->destroy (mach_);
+	}
+}
+
+static void
+register_component (vk_vector_t **where_, void *what, unsigned num_default)
+{
+	void **entry;
+
+	VK_ASSERT (where_);
+	VK_ASSERT (what);
+	VK_ASSERT (num_default);
+
+	if (!*where_) {
+		*where_ = vk_vector_new (num_default, sizeof (void *));
+		VK_ASSERT (*where_);
+	}
+
+	entry = (void **) vk_vector_append_entry (*where_);
+	VK_ASSERT (entry);
+
+	*entry = what;
+}
+
+void
+vk_machine_register_buffer (vk_machine_t *mach, void *ptr)
+{
+	register_component (&mach->buffers, ptr, 16);
+}
+
+void
+vk_machine_register_device (vk_machine_t *mach, void *ptr)
+{
+	register_component (&mach->devices, ptr, 16);
+}
+
+void
+vk_machine_register_cpu (vk_machine_t *mach, void *ptr)
+{
+	register_component (&mach->cpus, ptr, 4);
 }
 
 int
