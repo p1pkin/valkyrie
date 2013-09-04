@@ -197,6 +197,8 @@ hikaru_aica_new (vk_machine_t *mach, vk_buffer_t *ram, bool master)
 	if (!aica->regs)
 		goto fail;
 
+	vk_machine_register_buffer (mach, aica->regs);
+
 	return dev;
 
 fail:
