@@ -1199,13 +1199,13 @@ hikaru_gpu_get_debug_str (vk_device_t *dev)
 }
 
 static int
-hikaru_gpu_save_state (vk_device_t *dev, FILE *fp)
+hikaru_gpu_save_state (vk_device_t *dev, vk_state_t *state)
 {
 	return -1;
 }
 
 static int
-hikaru_gpu_load_state (vk_device_t *dev, FILE *fp)
+hikaru_gpu_load_state (vk_device_t *dev, vk_state_t *state)
 {
 	return -1;
 }
