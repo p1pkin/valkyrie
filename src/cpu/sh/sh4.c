@@ -1423,19 +1423,21 @@ sh4_destroy (vk_cpu_t **cpu_)
 vk_cpu_t *
 sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master, bool le)
 {
-	sh4_t *ctx = ALLOC (sh4_t);
+	vk_cpu_t *cpu;
+	sh4_t *ctx;
+
+	VK_CPU_ALLOC (ctx, mach, mmap);
 	if (!ctx)
 		goto fail;
 
-	ctx->base.mach = mach;
-	ctx->base.mmap = mmap;
+	cpu = &ctx->base;
 
-	ctx->base.set_state		= sh4_set_state;
-	ctx->base.run			= sh4_run;
-	ctx->base.reset			= sh4_reset;
-	ctx->base.set_irq_state		= sh4_set_irq_state;
-	ctx->base.get_debug_string	= sh4_get_debug_string;
-	ctx->base.destroy		= sh4_destroy;
+	cpu->set_state		= sh4_set_state;
+	cpu->run		= sh4_run;
+	cpu->reset		= sh4_reset;
+	cpu->set_irq_state	= sh4_set_irq_state;
+	cpu->get_debug_string	= sh4_get_debug_string;
+	cpu->destroy		= sh4_destroy;
 
 	ctx->config.master = master;
 	ctx->config.little_endian = le;
