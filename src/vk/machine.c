@@ -134,6 +134,9 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 		goto fail;
 	}
 
+	if (mode == VK_STATE_LOAD)
+		vk_machine_reset (mach, VK_RESET_TYPE_HARD);
+
 	for (i = 0; !ret && i < mach->buffers->used; i += sizeof (vk_buffer_t *)) {
 		buf = *((vk_buffer_t **) &mach->buffers->data[i]);
 		ret = (mode == VK_STATE_LOAD) ?
@@ -161,7 +164,6 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 	}
 
 	if (mode == VK_STATE_LOAD) {
-		vk_machine_reset (mach, VK_RESET_TYPE_HARD);
 		ret = mach->load_state (mach, state);
 	} else
 		ret = mach->save_state (mach, state);
