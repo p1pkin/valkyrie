@@ -155,12 +155,6 @@ hikaru_mie_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 	return 0;
 }
 
-static int
-hikaru_mie_exec (vk_device_t *dev, int cycles)
-{
-	return -1;
-}
-
 static void
 hikaru_mie_reset (vk_device_t *dev, vk_reset_type_t type)
 {
@@ -194,7 +188,7 @@ hikaru_mie_new (vk_machine_t *mach)
 
 	dev->destroy	= hikaru_mie_destroy;
 	dev->reset	= hikaru_mie_reset;
-	dev->exec	= hikaru_mie_exec;
+	dev->exec	= NULL;
 	dev->get	= hikaru_mie_get;
 	dev->put	= hikaru_mie_put;
 	dev->save_state	= NULL;
