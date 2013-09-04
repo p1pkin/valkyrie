@@ -1198,17 +1198,70 @@ hikaru_gpu_get_debug_str (vk_device_t *dev)
 	return (const char *) out;
 }
 
+#define SAVE(thing_) \
+		ret |= vk_state_put (state, (void *) &(thing_), sizeof (thing_))
+
+#define LOAD(thing_) \
+		ret |= vk_state_get (state, (void *) &(thing_), sizeof (thing_))
+
 static int
 hikaru_gpu_save_state (vk_device_t *dev, vk_state_t *state)
 {
-	return -1;
+	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
+	int ret = 0;
+
+	SAVE (gpu->regs_15);
+	SAVE (gpu->regs_18);
+	SAVE (gpu->regs_1A);
+	SAVE (gpu->regs_1A_unit);
+	SAVE (gpu->regs_1A_fifo);
+	SAVE (gpu->unk_00400000);
+	SAVE (gpu->frame_type);
+	SAVE (gpu->cp);
+	SAVE (gpu->in_mesh);
+	SAVE (gpu->static_mesh_precision);
+	SAVE (gpu->poly_type);
+	SAVE (gpu->poly_alpha);
+	SAVE (gpu->viewports);
+	SAVE (gpu->modelviews);
+	SAVE (gpu->materials);
+	SAVE (gpu->texheads);
+	SAVE (gpu->lights);
+	SAVE (gpu->layers);
+
+	return ret;
 }
 
 static int
 hikaru_gpu_load_state (vk_device_t *dev, vk_state_t *state)
 {
-	return -1;
+	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
+	int ret = 0;
+
+	LOAD (gpu->regs_15);
+	LOAD (gpu->regs_18);
+	LOAD (gpu->regs_1A);
+	LOAD (gpu->regs_1A_unit);
+	LOAD (gpu->regs_1A_fifo);
+	LOAD (gpu->unk_00400000);
+	LOAD (gpu->frame_type);
+	LOAD (gpu->cp);
+	LOAD (gpu->in_mesh);
+	LOAD (gpu->static_mesh_precision);
+	LOAD (gpu->poly_type);
+	LOAD (gpu->poly_alpha);
+	LOAD (gpu->viewports);
+	LOAD (gpu->modelviews);
+	LOAD (gpu->materials);
+	LOAD (gpu->texheads);
+	LOAD (gpu->lights);
+	LOAD (gpu->layers);
+
+	return ret;
 }
+
+#undef SAVE
+#undef LOAD
 
 static void
 hikaru_gpu_destroy (vk_device_t **dev_)
