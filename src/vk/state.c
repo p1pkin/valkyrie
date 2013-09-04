@@ -23,7 +23,7 @@
 vk_state_t *
 vk_state_new (const char *path, uint32_t mode)
 {
-	char template[32], header[32];
+	char template[32] = "", header[32];
 	vk_state_t *state;
 	size_t size;
 
