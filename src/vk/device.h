@@ -20,6 +20,7 @@
 #define __VK_DEVICE_H__
 
 #include "vk/machine.h"
+#include "vk/device.h"
 
 typedef struct vk_device_t vk_device_t;
 
@@ -32,8 +33,8 @@ struct vk_device_t {
 	int	(* exec)(vk_device_t *dev, int cycles);
 	int	(* get)(vk_device_t *dev, unsigned size, uint32_t addr, void *val);
 	int	(* put)(vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val);
-	int	(* save_state)(vk_device_t *dev, FILE *fp);
-	int	(* load_state)(vk_device_t *dev, FILE *fp);
+	int	(* save_state)(vk_device_t *dev, vk_state_t *state);
+	int	(* load_state)(vk_device_t *dev, vk_state_t *state);
 };
 
 #define VK_DEVICE_ALLOC(derivedptr_, mach_) \
@@ -99,21 +100,21 @@ vk_device_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 }
 
 static inline int
-vk_device_save_state (vk_device_t *dev, FILE *fp)
+vk_device_save_state (vk_device_t *dev, vk_state_t *state)
 {
 	VK_ASSERT (dev);
 	VK_ASSERT (dev->save_state);
 	VK_ASSERT (fp);
-	return dev->save_state (dev, fp);
+	return dev->save_state (dev, state);
 }
 
 static inline int
-vk_device_load_state (vk_device_t *dev, FILE *fp)
+vk_device_load_state (vk_device_t *dev, vk_state_t *state)
 {
 	VK_ASSERT (dev);
 	VK_ASSERT (dev->load_state);
 	VK_ASSERT (fp);
-	return dev->load_state (dev, fp);
+	return dev->load_state (dev, state);
 }
 
 static inline void
