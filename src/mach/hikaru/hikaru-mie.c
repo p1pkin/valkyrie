@@ -188,30 +188,32 @@ hikaru_mie_load_state (vk_device_t *dev, FILE *fp)
 static void
 hikaru_mie_destroy (vk_device_t **dev_)
 {
-	if (dev_) {
-		hikaru_mie_t *mie = (hikaru_mie_t *) *dev_;
-		free (mie);
-		*dev_ = NULL;
-	}
+	hikaru_mie_t *mie = (hikaru_mie_t *) *dev_;
+
+	free (mie);
+	*dev_ = NULL;
 }
 
 vk_device_t *
 hikaru_mie_new (vk_machine_t *mach)
 {
-	hikaru_mie_t *mie = ALLOC (hikaru_mie_t);
-	if (mie) {
-		mie->base.mach = mach;
+	hikaru_mie_t *mie;
+	vk_device_t *dev;
 
-		mie->base.destroy	= hikaru_mie_destroy;
-		mie->base.reset		= hikaru_mie_reset;
-		mie->base.exec		= hikaru_mie_exec;
-		mie->base.get		= hikaru_mie_get;
-		mie->base.put		= hikaru_mie_put;
-		mie->base.save_state	= hikaru_mie_save_state;
-		mie->base.load_state	= hikaru_mie_load_state;
+	VK_DEVICE_ALLOC (mie, mach);
+	dev = (vk_device_t *) mie;
+	if (!mie)
+		return NULL;
 
-		mie->hack =
-			vk_util_get_bool_option ("MIE_HACK", false);
-	}
-	return (vk_device_t *) mie;
+	dev->destroy	= hikaru_mie_destroy;
+	dev->reset	= hikaru_mie_reset;
+	dev->exec	= hikaru_mie_exec;
+	dev->get	= hikaru_mie_get;
+	dev->put	= hikaru_mie_put;
+	dev->save_state	= hikaru_mie_save_state;
+	dev->load_state	= hikaru_mie_load_state;
+
+	mie->hack = vk_util_get_bool_option ("MIE_HACK", false);
+
+	return dev;
 }
