@@ -20,6 +20,7 @@
 #define __VK_CPU_H__
 
 #include "vk/mmap.h"
+#include "vk/device.h"
 #include "vk/machine.h"
 
 typedef enum {
@@ -43,14 +44,12 @@ typedef struct vk_cpu_t vk_cpu_t;
 typedef uint32_t (* vk_cpu_patch_t)(vk_cpu_t *, uint32_t, uint32_t);
 
 struct vk_cpu_t {
-	vk_machine_t	*mach;
+	vk_device_t	base;
 	vk_mmap_t	*mmap;
 	vk_cpu_state_t	 state;
 	int remaining;
 	vk_cpu_patch_t	patch;
 
-	void		 (* destroy) (vk_cpu_t **cpu_);
-	void		 (* reset) (vk_cpu_t *cpu, vk_reset_type_t type);
 	int		 (* run) (vk_cpu_t *cpu, int cycles);
 	void		 (* set_state) (vk_cpu_t *cpu, vk_cpu_state_t state);
 	int		 (* set_irq_state) (vk_cpu_t *cpu, unsigned num, vk_irq_state_t state);
@@ -59,6 +58,7 @@ struct vk_cpu_t {
 
 #define VK_CPU_ALLOC(derivedptr_, mach_, mmap_) \
 	do { \
+		vk_device_t *dev; \
 		vk_cpu_t *cpu; \
 	\
 		VK_ASSERT (mach_); \
@@ -68,8 +68,10 @@ struct vk_cpu_t {
 		if (!(derivedptr_)) \
 			break; \
 	\
-		cpu = &((derivedptr_)->base); \
-		cpu->mach = (mach_); \
+		dev = (vk_device_t *) (derivedptr_); \
+		dev->mach = (mach_); \
+	\
+		cpu = (vk_cpu_t *) (derivedptr_); \
 		cpu->mmap = (mmap_); \
 	\
 		vk_machine_register_cpu ((mach_), (void *) cpu); \
@@ -101,26 +103,6 @@ struct vk_cpu_t {
 			VK_ABORT ("%s : assertion failed, aborting", str); \
 		} \
 	} while (0);
-
-static inline void
-vk_cpu_destroy (vk_cpu_t **cpu_)
-{
-	if (cpu_) {
-		vk_cpu_t *cpu = *cpu_;
-		VK_ASSERT (cpu != NULL);
-		VK_ASSERT (cpu->destroy != NULL);
-		cpu->destroy (cpu_);
-	}
-}
-
-static inline void
-vk_cpu_reset (vk_cpu_t *cpu, vk_reset_type_t type)
-{
-	VK_ASSERT (cpu != NULL);
-	VK_ASSERT (cpu->reset != NULL);
-	VK_ASSERT (type <= VK_NUM_RESET_TYPES);
-	cpu->reset (cpu, type);
-}
 
 static inline int
 vk_cpu_run (vk_cpu_t *cpu, int cycles)

@@ -1307,8 +1307,9 @@ static const sh4_irq_state_t default_irq_state[SH4_NUM_IESOURCES] = {
 };
 
 static void
-sh4_reset (vk_cpu_t *cpu, vk_reset_type_t type)
+sh4_reset (vk_device_t *dev, vk_reset_type_t type)
 {
+	vk_cpu_t *cpu = (vk_cpu_t *) dev;
 	sh4_t *ctx = (sh4_t *) cpu;
 	uint32_t tmp;
 
@@ -1410,34 +1411,36 @@ sh4_set_porta_handlers (vk_cpu_t *cpu,
 }
 
 static void
-sh4_destroy (vk_cpu_t **cpu_)
+sh4_destroy (vk_device_t **dev_)
 {
-	if (cpu_) {
-		sh4_t *ctx = (sh4_t *) *cpu_;
+	if (dev_) {
+		sh4_t *ctx = (sh4_t *) *dev_;
 		vk_buffer_destroy (&ctx->iregs);
 		free (ctx);
-		*cpu_ = NULL;
+		*dev_ = NULL;
 	}
 }
 
 vk_cpu_t *
 sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master, bool le)
 {
+	vk_device_t *dev;
 	vk_cpu_t *cpu;
 	sh4_t *ctx;
 
 	VK_CPU_ALLOC (ctx, mach, mmap);
+	cpu = (vk_cpu_t *) ctx;
+	dev = (vk_device_t *) ctx;
 	if (!ctx)
 		goto fail;
 
-	cpu = &ctx->base;
+	dev->reset		= sh4_reset;
+	dev->destroy		= sh4_destroy;
 
 	cpu->set_state		= sh4_set_state;
 	cpu->run		= sh4_run;
-	cpu->reset		= sh4_reset;
 	cpu->set_irq_state	= sh4_set_irq_state;
 	cpu->get_debug_string	= sh4_get_debug_string;
-	cpu->destroy		= sh4_destroy;
 
 	ctx->config.master = master;
 	ctx->config.little_endian = le;
@@ -1450,6 +1453,6 @@ sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master, bool le)
 
 	return (vk_cpu_t *) ctx;
 fail:
-	vk_cpu_destroy ((vk_cpu_t **) &ctx);
+	vk_device_destroy (&dev);
 	return NULL;
 }

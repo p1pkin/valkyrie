@@ -176,7 +176,8 @@
 static int
 porta_get_m (sh4_t *ctx, uint16_t *val)
 {
-	hikaru_t *hikaru = (hikaru_t *) ctx->base.mach;
+	vk_device_t *dev = (vk_device_t *) ctx;
+	hikaru_t *hikaru = (hikaru_t *) dev->mach;
 	*val = hikaru->porta_m;
 	return 0;
 }
@@ -184,7 +185,8 @@ porta_get_m (sh4_t *ctx, uint16_t *val)
 static int
 porta_get_s (sh4_t *ctx, uint16_t *val)
 {
-	hikaru_t *hikaru = (hikaru_t *) ctx->base.mach;
+	vk_device_t *dev = (vk_device_t *) ctx;
+	hikaru_t *hikaru = (hikaru_t *) dev->mach;
 	*val = hikaru->porta_s;
 	return 0;
 }
@@ -194,7 +196,8 @@ porta_get_s (sh4_t *ctx, uint16_t *val)
 static int
 porta_put_m (sh4_t *ctx, uint16_t val)
 {
-	hikaru_t *hikaru = (hikaru_t *) ctx->base.mach;
+	vk_device_t *dev = (vk_device_t *) ctx;
+	hikaru_t *hikaru = (hikaru_t *) dev->mach;
 	hikaru->porta_m = val;
 
 	/* This is a simple hack to detect three consecutive cycles of
@@ -231,7 +234,8 @@ porta_put_m (sh4_t *ctx, uint16_t val)
 static int
 porta_put_s (sh4_t *ctx, uint16_t val)
 {
-	hikaru_t *hikaru = (hikaru_t *) ctx->base.mach;
+	vk_device_t *dev = (vk_device_t *) ctx;
+	hikaru_t *hikaru = (hikaru_t *) dev->mach;
 	hikaru->porta_s = val;
 	hikaru->porta_s_bit1_buffer = (hikaru->porta_s_bit1_buffer << 1) |
 	                              ((val >> 1) & 1);
@@ -500,8 +504,8 @@ hikaru_reset (vk_machine_t *mach, vk_reset_type_t type)
 
 	/* XXX load bram from file */
 
-	vk_cpu_reset (hikaru->sh_m, type);
-	vk_cpu_reset (hikaru->sh_s, type);
+	vk_device_reset ((vk_device_t *) hikaru->sh_m, type);
+	vk_device_reset ((vk_device_t *) hikaru->sh_s, type);
 
 	vk_cpu_set_state (hikaru->sh_s, VK_CPU_STATE_RUN);
 
@@ -956,8 +960,8 @@ hikaru_destroy (vk_machine_t **mach_)
 			vk_device_destroy (&hikaru->mie);
 			vk_device_destroy (&hikaru->gpu);
 
-			vk_cpu_destroy (&hikaru->sh_m);
-			vk_cpu_destroy (&hikaru->sh_s);
+			vk_device_destroy ((vk_device_t **) &hikaru->sh_m);
+			vk_device_destroy ((vk_device_t **) &hikaru->sh_s);
 
 			vk_mmap_destroy (&hikaru->mmap_m);
 			vk_mmap_destroy (&hikaru->mmap_s);
