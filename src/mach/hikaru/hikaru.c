@@ -974,6 +974,17 @@ hikaru_init (hikaru_t *hikaru)
 	    !hikaru->bram || !hikaru->mie_ram)
 		goto fail;
 
+	vk_machine_register_buffer (mach, (void *) hikaru->ram_m);
+	vk_machine_register_buffer (mach, (void *) hikaru->ram_s);
+	vk_machine_register_buffer (mach, (void *) hikaru->cmdram);
+	vk_machine_register_buffer (mach, (void *) hikaru->fb);
+	vk_machine_register_buffer (mach, (void *) hikaru->texram[0]);
+	vk_machine_register_buffer (mach, (void *) hikaru->texram[1]);
+	vk_machine_register_buffer (mach, (void *) hikaru->aica_ram_m);
+	vk_machine_register_buffer (mach, (void *) hikaru->aica_ram_s);
+	vk_machine_register_buffer (mach, (void *) hikaru->mie_ram);
+	vk_machine_register_buffer (mach, (void *) hikaru->bram);
+
 	if (game) {
 		char *version;
 
