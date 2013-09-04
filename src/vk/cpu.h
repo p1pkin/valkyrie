@@ -71,6 +71,8 @@ struct vk_cpu_t {
 		dev = (vk_device_t *) (derivedptr_); \
 		dev->mach = (mach_); \
 	\
+		vk_machine_register_device ((mach_), (void *) dev); \
+	\
 		cpu = (vk_cpu_t *) (derivedptr_); \
 		cpu->mmap = (mmap_); \
 	\
