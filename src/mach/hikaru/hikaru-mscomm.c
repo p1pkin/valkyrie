@@ -127,29 +127,41 @@ hikaru_mscomm_load_state (vk_device_t *dev, FILE *fp)
 static void
 hikaru_mscomm_destroy (vk_device_t **dev_)
 {
-	if (dev_) {
-		hikaru_mscomm_t *mscomm = (hikaru_mscomm_t *) *dev_;
-		free (mscomm);
-		*dev_ = NULL;
-	}
+	hikaru_mscomm_t *comm = (hikaru_mscomm_t *) *dev_;
+
+	if (comm)
+		vk_buffer_destroy (&comm->regs);
+
+	free (comm);
+	*dev_ = NULL;
 }
 
 vk_device_t *
 hikaru_mscomm_new (vk_machine_t *mach)
 {
-	hikaru_mscomm_t *comm = ALLOC (hikaru_mscomm_t);
-	if (comm) {
-		comm->base.mach = mach;
+	hikaru_mscomm_t *comm;
+	vk_device_t *dev;
 
-		comm->base.destroy	= hikaru_mscomm_destroy;
-		comm->base.reset	= hikaru_mscomm_reset;
-		comm->base.exec		= hikaru_mscomm_exec;
-		comm->base.get		= hikaru_mscomm_get;
-		comm->base.put		= hikaru_mscomm_put;
-		comm->base.save_state	= hikaru_mscomm_save_state;
-		comm->base.load_state	= hikaru_mscomm_load_state;
+	VK_DEVICE_ALLOC (comm, mach);
+	dev = (vk_device_t *) comm;
+	if (!comm)
+		return NULL;
 
-		comm->regs = vk_buffer_le32_new (0x40, 0);
-	}
-	return (vk_device_t *) comm;
+	dev->destroy	= hikaru_mscomm_destroy;
+	dev->reset	= hikaru_mscomm_reset;
+	dev->exec	= hikaru_mscomm_exec;
+	dev->get	= hikaru_mscomm_get;
+	dev->put	= hikaru_mscomm_put;
+	dev->save_state	= hikaru_mscomm_save_state;
+	dev->load_state	= hikaru_mscomm_load_state;
+
+	comm->regs = vk_buffer_le32_new (0x40, 0);
+	if (!comm->regs)
+		goto fail;
+
+	return dev;
+
+fail:
+	vk_device_destroy (&dev);
+	return NULL;
 }
