@@ -57,6 +57,25 @@ struct vk_cpu_t {
 	const char	*(* get_debug_string) (vk_cpu_t *cpu);
 };
 
+#define VK_CPU_ALLOC(derivedptr_, mach_, mmap_) \
+	do { \
+		vk_cpu_t *cpu; \
+	\
+		VK_ASSERT (mach_); \
+		VK_ASSERT (mmap_); \
+	\
+		(derivedptr_) = ALLOC (typeof (*(derivedptr_))); \
+		if (!(derivedptr_)) \
+			break; \
+	\
+		cpu = &((derivedptr_)->base); \
+		cpu->mach = (mach_); \
+		cpu->mmap = (mmap_); \
+	\
+		vk_machine_register_cpu ((mach_), (void *) cpu); \
+	\
+	} while (0)
+
 #define VK_CPU_LOG(cpu_, fmt_, args_...) \
 	do { \
 		const char *str = vk_cpu_get_debug_string ((vk_cpu_t *) cpu_); \
