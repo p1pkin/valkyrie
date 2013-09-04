@@ -159,6 +159,8 @@ hikaru_mscomm_new (vk_machine_t *mach)
 	if (!comm->regs)
 		goto fail;
 
+	vk_machine_register_buffer (mach, comm->regs);
+
 	return dev;
 
 fail:
