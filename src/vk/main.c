@@ -54,7 +54,6 @@ static vk_machine_t *mach;
 static int
 load_or_save_state (vk_machine_t *mach, bool flag)
 {
-	FILE *fp = NULL;
 	char *path;
 	int ret;
 
@@ -62,23 +61,15 @@ load_or_save_state (vk_machine_t *mach, bool flag)
 	if (ret <= 0)
 		goto fail;
 
-	fp = fopen (path, flag ? "rb" : "wb");
-	if (!fp) {
-		ret = -1;
-		goto fail;
-	}
+	ret = flag ? vk_machine_load_state (mach, path) :
+	             vk_machine_save_state (mach, path);
 
-	ret = flag ? vk_machine_load_state (mach, fp) :
-	             vk_machine_save_state (mach, fp);
-
-	if (!ret) {
+	if (!ret)
 		printf ("%s state '%s'", flag ? "loaded" : "saved", path);
-	} else {
+	else
 		VK_ERROR ("failed to %s state '%s'", flag ? "load" : "save", path);
-	}
+
 fail:
-	if (fp)
-		fclose (fp);
 	free (path);
 	return ret;
 }

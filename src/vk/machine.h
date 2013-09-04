@@ -80,8 +80,8 @@ void		 vk_machine_register_cpu (vk_machine_t *, void *);
 int		 vk_machine_load_game (vk_machine_t *mach, vk_game_t *game);
 void		 vk_machine_reset (vk_machine_t *mach, vk_reset_type_t type);
 int		 vk_machine_run_frame (vk_machine_t *mach);
-int		 vk_machine_load_state (vk_machine_t *mach, FILE *fp);
-int		 vk_machine_save_state (vk_machine_t *mach, FILE *fp);
+int		 vk_machine_load_state (vk_machine_t *mach, const char *path);
+int		 vk_machine_save_state (vk_machine_t *mach, const char *path);
 const char	*vk_machine_get_debug_string (vk_machine_t *mach);
 
 #endif /* __VK_MACH_H__ */

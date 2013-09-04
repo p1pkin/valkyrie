@@ -93,15 +93,15 @@ vk_machine_run_frame (vk_machine_t *mach)
 }
 
 int
-vk_machine_load_state (vk_machine_t *mach, FILE *fp)
+vk_machine_load_state (vk_machine_t *mach, const char *path)
 {
-	return mach->load_state (mach, fp);
+	return -1;
 }
 
 int
-vk_machine_save_state (vk_machine_t *mach, FILE *fp)
+vk_machine_save_state (vk_machine_t *mach, const char *path)
 {
-	return mach->save_state (mach, fp);
+	return -1;
 }
 
 const char *
