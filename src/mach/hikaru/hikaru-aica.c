@@ -147,18 +147,6 @@ hikaru_aica_reset (vk_device_t *dev, vk_reset_type_t type)
 	aica->rtc[2] = 0;
 }
 
-static int
-hikaru_aica_load_state (vk_device_t *dev, FILE *fp)
-{
-	return -1;
-}
-
-static int
-hikaru_aica_save_state (vk_device_t *dev, FILE *fp)
-{
-	return -1;
-}
-
 static void
 hikaru_aica_destroy (vk_device_t **dev_)
 {
@@ -187,8 +175,8 @@ hikaru_aica_new (vk_machine_t *mach, vk_buffer_t *ram, bool master)
 	dev->exec	= hikaru_aica_exec;
 	dev->get	= hikaru_aica_get;
 	dev->put	= hikaru_aica_put;
-	dev->save_state	= hikaru_aica_save_state;
-	dev->load_state	= hikaru_aica_load_state;
+	dev->save_state	= NULL;
+	dev->load_state	= NULL;
 
 	aica->ram	= ram;
 	aica->master	= master;
