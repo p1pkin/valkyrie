@@ -93,7 +93,7 @@ process_events (void)
 			case SDLK_F1:
 				load_or_save_state (mach, true);
 				break;
-			case SDLK_F2:
+			case SDLK_F5:
 				load_or_save_state (mach, false);
 				break;
 			default:
