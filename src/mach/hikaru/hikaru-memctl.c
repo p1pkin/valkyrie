@@ -702,13 +702,13 @@ hikaru_memctl_reset (vk_device_t *dev, vk_reset_type_t type)
 }
 
 static int
-hikaru_memctl_save_state (vk_device_t *dev, FILE *fp)
+hikaru_memctl_save_state (vk_device_t *dev, vk_state_t *state)
 {
 	return -1;
 }
 
 static int
-hikaru_memctl_load_state (vk_device_t *dev, FILE *fp)
+hikaru_memctl_load_state (vk_device_t *dev, vk_state_t *state)
 {
 	return -1;
 }
