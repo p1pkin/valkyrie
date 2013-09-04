@@ -716,41 +716,43 @@ hikaru_memctl_load_state (vk_device_t *dev, FILE *fp)
 static void
 hikaru_memctl_destroy (vk_device_t **dev_)
 {
-	if (dev_) {
-		hikaru_memctl_t *memctl = (hikaru_memctl_t *) *dev_;
-		if (memctl)
-			vk_buffer_destroy (&memctl->regs);
-		free (memctl);
-		*dev_ = NULL;
-	}
+	hikaru_memctl_t *memctl = (hikaru_memctl_t *) *dev_;
+
+	if (memctl)
+		vk_buffer_destroy (&memctl->regs);
+
+	free (memctl);
+	*dev_ = NULL;
 }
 
 vk_device_t *
 hikaru_memctl_new (vk_machine_t *mach, bool master)
 {
-	hikaru_memctl_t *memctl = ALLOC (hikaru_memctl_t);
-	vk_device_t *device = (vk_device_t *) memctl;
-	if (!memctl)
-		goto fail;
+	hikaru_memctl_t *memctl;
+	vk_device_t *dev;
 
-	memctl->master = master;
-	memctl->regs = vk_buffer_le32_new (0x40, 0);
+	VK_DEVICE_ALLOC (memctl, mach);
+	dev = (vk_device_t *) memctl;
+	if (!memctl)
+		return NULL;
+
+	dev->destroy	= hikaru_memctl_destroy;
+	dev->reset	= hikaru_memctl_reset;
+	dev->exec	= hikaru_memctl_exec;
+	dev->get	= hikaru_memctl_get;
+	dev->put	= hikaru_memctl_put;
+	dev->save_state	= hikaru_memctl_save_state;
+	dev->load_state	= hikaru_memctl_load_state;
+
+	memctl->master	= master;
+
+	memctl->regs	= vk_buffer_le32_new (0x40, 0);
 	if (!memctl->regs)
 			goto fail;
 
-	memctl->base.mach = mach;
-
-	memctl->base.destroy	= hikaru_memctl_destroy;
-	memctl->base.reset	= hikaru_memctl_reset;
-	memctl->base.exec	= hikaru_memctl_exec;
-	memctl->base.get	= hikaru_memctl_get;
-	memctl->base.put	= hikaru_memctl_put;
-	memctl->base.save_state	= hikaru_memctl_save_state;
-	memctl->base.load_state	= hikaru_memctl_load_state;
-
-	return device;
+	return dev;
 
 fail:
-	hikaru_memctl_destroy (&device);
+	vk_device_destroy (&dev);
 	return NULL;
 }
