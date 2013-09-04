@@ -56,18 +56,22 @@ void
 vk_machine_register_buffer (vk_machine_t *mach, void *ptr)
 {
 	register_component (&mach->buffers, ptr, 16);
+	VK_LOG ("machine: registered buffer %p, size=%08X",
+	        ptr, vk_buffer_get_size ((vk_buffer_t *) ptr));
 }
 
 void
 vk_machine_register_device (vk_machine_t *mach, void *ptr)
 {
 	register_component (&mach->devices, ptr, 16);
+	VK_LOG ("machine: registered device %p", ptr);
 }
 
 void
 vk_machine_register_cpu (vk_machine_t *mach, void *ptr)
 {
 	register_component (&mach->cpus, ptr, 4);
+	VK_LOG ("machine: registered cpu %p", ptr);
 }
 
 int
