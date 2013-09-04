@@ -82,6 +82,8 @@ vk_state_put (vk_state_t *state, void *src, uint32_t size)
 	if (state->mode != VK_STATE_SAVE)
 		return -1;
 
+	VK_LOG ("state: W%08X %p", size, src);
+
 	num = fwrite (src, 1, size, state->fp);
 	return (num != size || ferror (state->fp)) ? -1 : 0;
 }
@@ -93,6 +95,8 @@ vk_state_get (vk_state_t *state, void *dst, uint32_t size)
 
 	if (state->mode != VK_STATE_LOAD)
 		return -1;
+
+	VK_LOG ("state: R%08X %p", size, dst);
 
 	num = fread (dst, 1, size, state->fp);
 	return (num != size || ferror (state->fp)) ? -1 : 0;

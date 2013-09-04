@@ -88,13 +88,17 @@ vk_machine_reset (vk_machine_t *mach, vk_reset_type_t type)
 {
 	unsigned i;
 
+	VK_LOG ("resetting machine %p", mach);
+
 	for (i = 0; i < mach->buffers->used; i += sizeof (vk_buffer_t *)) {
 		vk_buffer_t *buf = *((vk_buffer_t **) &mach->buffers->data[i]);
+		VK_LOG ("resetting buf %p", (void *) buf);
 		vk_buffer_clear (buf);
 	}
 
 	for (i = 0; i < mach->devices->used; i += sizeof (vk_device_t *)) {
 		vk_device_t *dev = *((vk_device_t **) &mach->devices->data[i]);
+		VK_LOG ("resetting dev %p", (void *) dev);
 		vk_device_reset (dev, type);
 	}
 
