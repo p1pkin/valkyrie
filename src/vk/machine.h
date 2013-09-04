@@ -23,6 +23,7 @@
 #include "vk/vector.h"
 #include "vk/games.h"
 #include "vk/renderer.h"
+#include "vk/state.h"
 
 typedef enum {
 	VK_RESET_TYPE_HARD,
@@ -47,8 +48,8 @@ struct vk_machine_t {
 	int		 (* load_game) (vk_machine_t *mach, vk_game_t *game);
 	void		 (* reset) (vk_machine_t *mach, vk_reset_type_t type);
 	int		 (* run_frame) (vk_machine_t *mach);
-	int		 (* load_state) (vk_machine_t *mach, FILE *fp);
-	int		 (* save_state) (vk_machine_t *mach, FILE *fp);
+	int		 (* load_state) (vk_machine_t *mach, vk_state_t *state);
+	int		 (* save_state) (vk_machine_t *mach, vk_state_t *state);
 	const char	*(* get_debug_string)(vk_machine_t *mach);
 };
 

@@ -548,15 +548,13 @@ hikaru_get_debug_string (vk_machine_t *mach)
 }
 
 static int
-hikaru_load_state (vk_machine_t *mach, FILE *fp)
+hikaru_load_state (vk_machine_t *mach, vk_state_t *state)
 {
-	vk_machine_reset (mach, VK_RESET_TYPE_HARD);
-	/* XXX now load each component (including the CPUs and the unknown HW) */
 	return -1;
 }
 
 static int
-hikaru_save_state (vk_machine_t *mach, FILE *fp)
+hikaru_save_state (vk_machine_t *mach, vk_state_t *state)
 {
 	return -1;
 }
