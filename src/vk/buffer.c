@@ -305,3 +305,21 @@ vk_buffer_dumpf (vk_buffer_t *buffer, const char *fmt, ...)
 
 	vk_buffer_dump (buffer, path);
 }
+
+int
+vk_buffer_load_state (vk_buffer_t *buffer, vk_state_t *state)
+{
+	VK_ASSERT (buffer);
+	VK_ASSERT (state);
+
+	return vk_state_get (state, buffer->ptr, buffer->size);
+}
+
+int
+vk_buffer_save_state (vk_buffer_t *buffer, vk_state_t *state)
+{
+	VK_ASSERT (buffer);
+	VK_ASSERT (state);
+
+	return vk_state_put (state, buffer->ptr, buffer->size);
+}
