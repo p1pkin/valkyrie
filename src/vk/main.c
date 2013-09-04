@@ -260,7 +260,7 @@ main (const int argc, char **argv)
 	//signal (SIGINT,  finalize);
 	//signal (SIGKILL, finalize);
 
-	mach->reset (mach, VK_RESET_TYPE_HARD);
+	vk_machine_reset (mach, VK_RESET_TYPE_HARD);
 
 	printf ("Running");
 	main_loop (mach);
