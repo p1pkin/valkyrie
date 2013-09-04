@@ -17,6 +17,9 @@
  */
 
 #include "vk/machine.h"
+#include "vk/state.h"
+#include "vk/buffer.h"
+#include "vk/device.h"
 
 void
 vk_machine_destroy (vk_machine_t **mach_)
@@ -92,16 +95,77 @@ vk_machine_run_frame (vk_machine_t *mach)
 	return mach->run_frame (mach);
 }
 
+static int
+load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
+{
+	vk_state_t *state;
+	vk_buffer_t *buf;
+	vk_device_t *dev;
+	unsigned i;
+	int ret = 0;
+
+	VK_ASSERT (mach);
+
+	state = vk_state_new (path, mode);
+	if (!state) {
+		VK_ERROR ("%s state failed: cannot create state object",
+		          mode == VK_STATE_LOAD ? "load" : "save");
+		ret = -1;
+		goto fail;
+	}
+
+	for (i = 0; !ret && i < mach->buffers->used; i += sizeof (vk_buffer_t *)) {
+		buf = *((vk_buffer_t **) &mach->buffers->data[i]);
+		ret = (mode == VK_STATE_LOAD) ?
+		      vk_buffer_load_state (buf, state) :
+		      vk_buffer_save_state (buf, state);
+	}
+
+	if (ret) {
+		VK_ERROR ("%s state failed: cannot load buffer",
+		          mode == VK_STATE_LOAD ? "load" : "save");
+		goto fail;
+	}
+
+	for (i = 0; !ret && i < mach->devices->used; i += sizeof (vk_device_t *)) {
+		dev = *((vk_device_t **) &mach->devices->data[i]);
+		ret = (mode == VK_STATE_LOAD) ?
+		      vk_device_load_state (dev, state) :
+		      vk_device_save_state (dev, state);
+	}
+
+	if (ret) {
+		VK_ERROR ("%s state failed: cannot load device",
+		          mode == VK_STATE_LOAD ? "load" : "save");
+		goto fail;
+	}
+
+	ret = (mode == VK_STATE_LOAD) ?
+	      mach->load_state (mach, state) :
+	      mach->save_state (mach, state);
+	if (ret) {
+		VK_ERROR ("%s state failed; cannot load machine",
+		          mode == VK_STATE_LOAD ? "load" : "save");
+		goto fail;
+	}
+
+fail:
+	vk_state_destroy (&state, ret);
+	if (ret && mode == VK_STATE_LOAD)
+		vk_machine_reset (mach, VK_RESET_TYPE_HARD);
+	return ret;
+}
+
 int
 vk_machine_load_state (vk_machine_t *mach, const char *path)
 {
-	return -1;
+	return load_save_state (mach, path, VK_STATE_LOAD);
 }
 
 int
 vk_machine_save_state (vk_machine_t *mach, const char *path)
 {
-	return -1;
+	return load_save_state (mach, path, VK_STATE_SAVE);
 }
 
 const char *
