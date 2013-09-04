@@ -119,15 +119,17 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 	vk_state_t *state;
 	vk_buffer_t *buf;
 	vk_device_t *dev;
+	char *op;
 	unsigned i;
 	int ret = 0;
 
 	VK_ASSERT (mach);
 
+	op = (mode == VK_STATE_LOAD) ? "load" : "save";
+
 	state = vk_state_new (path, mode);
 	if (!state) {
-		VK_ERROR ("%s state failed: cannot create state object",
-		          mode == VK_STATE_LOAD ? "load" : "save");
+		VK_ERROR ("%s state failed: cannot create state object", op);
 		ret = -1;
 		goto fail;
 	}
@@ -140,8 +142,7 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 	}
 
 	if (ret) {
-		VK_ERROR ("%s state failed: cannot load buffer",
-		          mode == VK_STATE_LOAD ? "load" : "save");
+		VK_ERROR ("%s state failed: cannot %s buffer", op, op);
 		goto fail;
 	}
 
@@ -155,8 +156,7 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 	}
 
 	if (ret) {
-		VK_ERROR ("%s state failed: cannot load device",
-		          mode == VK_STATE_LOAD ? "load" : "save");
+		VK_ERROR ("%s state failed: cannot %s device", op, op);
 		goto fail;
 	}
 
@@ -166,8 +166,7 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 	} else
 		ret = mach->save_state (mach, state);
 	if (ret) {
-		VK_ERROR ("%s state failed; cannot load machine",
-		          mode == VK_STATE_LOAD ? "load" : "save");
+		VK_ERROR ("%s state failed; cannot %s machine", op, op);
 		goto fail;
 	}
 
