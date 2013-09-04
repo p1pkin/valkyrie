@@ -103,18 +103,20 @@ static inline int
 vk_device_save_state (vk_device_t *dev, vk_state_t *state)
 {
 	VK_ASSERT (dev);
-	VK_ASSERT (dev->save_state);
-	VK_ASSERT (fp);
-	return dev->save_state (dev, state);
+	VK_ASSERT (state);
+	if (dev->save_state)
+		return dev->save_state (dev, state);
+	return 0;
 }
 
 static inline int
 vk_device_load_state (vk_device_t *dev, vk_state_t *state)
 {
 	VK_ASSERT (dev);
-	VK_ASSERT (dev->load_state);
-	VK_ASSERT (fp);
-	return dev->load_state (dev, state);
+	VK_ASSERT (state);
+	if (dev->load_state)
+		return dev->load_state (dev, state);
+	return 0;
 }
 
 static inline void
