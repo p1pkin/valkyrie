@@ -41,7 +41,6 @@ struct vk_machine_t {
 	vk_renderer_t	*renderer;
 
 	void		 (* destroy)(vk_machine_t **mach_);
-	int		 (* parse_args) (vk_machine_t *mach, int argc, char **argv);
 	int		 (* load_game) (vk_machine_t *mach, vk_game_t *game);
 	void		 (* reset) (vk_machine_t *mach, vk_reset_type_t type);
 	int		 (* run_frame) (vk_machine_t *mach);
@@ -76,12 +75,6 @@ vk_machine_destroy (vk_machine_t **mach_)
 {
 	if (mach_)
 		(*mach_)->destroy (mach_);
-}
-
-static inline int
-vk_machine_parse_args (vk_machine_t *mach, int argc, char **argv)
-{
-	return mach->parse_args (mach, argc, argv);
 }
 
 static inline int

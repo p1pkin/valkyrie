@@ -561,13 +561,6 @@ hikaru_save_state (vk_machine_t *mach, FILE *fp)
 	return -1;
 }
 
-static int
-hikaru_parse_args (vk_machine_t *mach, int argc, char **argv)
-{
-	/* no-op */
-	return 0;
-}
-
 static void
 hikaru_dump (vk_machine_t *mach)
 {
@@ -1080,7 +1073,6 @@ hikaru_new (vk_game_t *game)
 	mach->game = game;
 
 	mach->destroy		= hikaru_destroy;
-	mach->parse_args	= hikaru_parse_args;
 	mach->reset		= hikaru_reset;
 	mach->run_frame		= hikaru_run_frame;
 	mach->load_state	= hikaru_load_state;

@@ -269,9 +269,6 @@ main (const int argc, char **argv)
 	//signal (SIGINT,  finalize);
 	//signal (SIGKILL, finalize);
 
-	if (vk_machine_parse_args (mach, argc, argv))
-		goto fail;
-
 	mach->reset (mach, VK_RESET_TYPE_HARD);
 
 	printf ("Running");
