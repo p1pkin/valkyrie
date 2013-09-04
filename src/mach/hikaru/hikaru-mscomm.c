@@ -99,12 +99,6 @@ hikaru_mscomm_put (vk_device_t *dev, unsigned size, uint32_t addr, uint64_t val)
 	return 0;
 }
 
-static int
-hikaru_mscomm_exec (vk_device_t *dev, int cycles)
-{
-	return -1;
-}
-
 static void
 hikaru_mscomm_reset (vk_device_t *dev, vk_reset_type_t type)
 {
@@ -137,7 +131,7 @@ hikaru_mscomm_new (vk_machine_t *mach)
 
 	dev->destroy	= hikaru_mscomm_destroy;
 	dev->reset	= hikaru_mscomm_reset;
-	dev->exec	= hikaru_mscomm_exec;
+	dev->exec	= NULL;
 	dev->get	= hikaru_mscomm_get;
 	dev->put	= hikaru_mscomm_put;
 	dev->save_state	= NULL;
