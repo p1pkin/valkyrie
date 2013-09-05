@@ -98,16 +98,17 @@ typedef struct {
 } hikaru_gpu_modelview_t;
 
 typedef struct {
-	vec3b_t color[2];		/* 091, 291 */
-	vec3s_t material_color;		/* 691 */
-	vec3b_t shininess;		/* 491 */
-	uint8_t specularity;		/* 491 */
-	uint32_t shading_mode	: 2;	/* 881 */
-	uint32_t depth_blend	: 1;	/* 881 */
-	uint32_t has_texture	: 1;	/* 881 */
-	uint32_t has_alpha	: 1;	/* 881 */
-	uint32_t has_highlight	: 1;	/* 881 */
-	uint32_t blending_mode	: 2;	/* A81 */
+	vec4b_t color[2];
+	vec3b_t specularity;
+	uint8_t shininess;
+	vec3s_t material_color;
+	uint32_t shading_mode	: 2;	
+	uint32_t depth_blend	: 1;	
+	uint32_t has_texture	: 1;	
+	uint32_t has_alpha	: 1;	
+	uint32_t has_highlight	: 1;	
+	uint32_t blending_mode	: 2;	
+	uint32_t alpha_test	: 6;
 	uint32_t set		: 1;
 } hikaru_gpu_material_t;
 

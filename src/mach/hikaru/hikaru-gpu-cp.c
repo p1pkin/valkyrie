@@ -1109,10 +1109,10 @@ I (0x091)
 		mat->color[i][2] = (inst[1] >> 16) & 0xFF;
 		break;
 	case 4:
-		mat->shininess[0] = inst[1] & 0xFF;
-		mat->shininess[1] = (inst[1] >> 8) & 0xFF;
-		mat->shininess[2] = (inst[1] >> 16) & 0xFF;
-		mat->specularity = inst[1] >> 24;
+		mat->specularity[0] = inst[1] & 0xFF;
+		mat->specularity[1] = (inst[1] >> 8) & 0xFF;
+		mat->specularity[2] = (inst[1] >> 16) & 0xFF;
+		mat->shininess      = inst[1] >> 24;
 		break;
 	case 6:
 		mat->material_color[0] = inst[0] >> 16;
@@ -1173,7 +1173,7 @@ D (0x091)
  *
  * 881	Material: Set Flags
  *
- *	XXXXXXXX xyhatzSS ----ssso oooooooo
+ *	XXXXXXXX xyhatzSS -------o oooooooo
  *
  * X = Unknown
  *
@@ -1183,43 +1183,53 @@ D (0x091)
  *
  * y = Unknown.
  *
+ *	Used in BRAVEFF.
+ *
  * S = Shading mode
  *
- *	0 = None? Used by sky and lights in AIRTRIX.
- *	1 = Linear?
- *	2 = Flat??
- *	3 = Phong??
+ *	0 = Unlit.
+ *	1 = Gouraud.
+ *	2 = Flat?
  *
  * z = Depth blend (fog)
  *
  *	Probably decides whether the material is affected by fog, and that's it.
  *
- * t = Enable texture
+ * t = Textured
+ *
  * a = Alpha mode
+ *
+ *	Apparently only used for the skate in AIRTRIX.
+ *
  * h = Highlight mode
+ *
+ *	Apparently unused.
  *
  * See PH:@0C0CF700.
  *
  *
  * A81	Material: Set Blending Mode
  *
- *	-------- ------mm ----ssso oooooooo
+ *	-------- ------mm -------o oooooooo
  *
  * m = Blending Mode
+ *
+ *	Apparently almost always zero. It is 2 only for lights and star patches
+ *	in AIRTRIX.
  *
  * See PH:@0C0CF7FA.
  *
  *
- * C81	Material: Set Unknown
+ * C81	Material: Set Alpha Test
  *
- *	-------- --U----- ----ssso oooooooo
+ *	-------- --IIIIII -------o oooooooo
  *
- * U = Unknown
+ * I = Index
  *
- * It may be related to command 154, see PH:@0C0CF872 and
- * PH:@0C0CF872.
+ *	Within the alpha threshold table uploaded by instruction 154. The MSB
+ *	may mean "disabled".
  *
- * These can come in pairs, see e.g., AT:@0C0380AC.
+ * See PH:@0C0CF872 and PH:@0C0CF872.
  */
 
 I (0x081)
@@ -1243,6 +1253,7 @@ I (0x081)
 		break;
 
 	case 0xC:
+		mat->alpha_test = (inst[0] >> 16) & 0x3F;
 		break;
 	}
 }
@@ -2372,15 +2383,15 @@ D (0x088)
 
 /* 154	Commit Alpha Threshold
  *
- *	-------- --nnnnnn -------o oooooooo
+ *	-------- --IIIIII -------o oooooooo
  *	hhhhhhhh hhhhhhhh hhhhhhhh llllllll
  *
- * n = Unknown
+ * I = Index
  * l = Alpha low threshold
  * h = Alpha high threshold
  *
- * See PH:@0C017798, PH:@0C0CF868. It may be related to
- * command C81, see PH:@0C0CF872 and PH:@0C0CF872.
+ * See PH:@0C017798, PH:@0C0CF868. Used by instruction C81, see PH:@0C0CF872
+ * and PH:@0C0CF872.
  */
 
 I (0x154)
