@@ -2396,6 +2396,9 @@ D (0x088)
 
 I (0x154)
 {
+	uint32_t index = (inst[0] >> 16) & 0x3F;
+
+	gpu->alpha_table[index].full = inst[1];
 }
 
 D (0x154)

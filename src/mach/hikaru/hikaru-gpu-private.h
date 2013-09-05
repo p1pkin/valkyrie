@@ -218,6 +218,14 @@ typedef struct {
 		uint32_t base;
 	} lights;
 
+	union {
+		struct {
+			uint32_t lo : 8;
+			uint32_t hi : 24;
+		} part;
+		uint32_t full;
+	} alpha_table[0x40];
+
 	struct {
 		hikaru_gpu_layer_t layer[2][2];
 		bool enabled;
