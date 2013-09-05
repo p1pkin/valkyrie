@@ -834,10 +834,13 @@ D (0x004)
 
 /* 003	Recall Viewport
  *
- *	-------- -----iii -UU----o oooooooo
+ *	-------- -----iii -CC----o oooooooo
  *
  * i = Index
- * U = Unknown (2003 and 4003 variants are used in BRAVEFF title screen)
+ *
+ * C = Conditional
+ *
+ *	It may depend on 561 (SGNASCAR) or 161 (BRAVEFF).
  *
  * See PH:@0C015AF6, PH:@0C015B12, PH:@0C015B32.
  */
@@ -846,14 +849,16 @@ I (0x003)
 {
 	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
 
-	*vp = gpu->viewports.table[get_viewport_index (inst)];
+	if (!(inst[0] & 0xF000))
+		*vp = gpu->viewports.table[get_viewport_index (inst)];
 }
 
 D (0x003)
 {
 	UNHANDLED |= !!(inst[0] & 0xFFF89E00);
 
-	DISASM ("vp: recall @%u", get_viewport_index (inst));
+	DISASM ("vp: recall @%u [cond=%X]",
+	        get_viewport_index (inst), (inst[0] >> 12) & 0xF);
 }
 
 /*
