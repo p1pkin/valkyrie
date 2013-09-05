@@ -948,6 +948,10 @@ I (0x161)
 	switch ((inst[0] >> 8) & 0xF) {
 
 	case 1:
+		/* Ignore conditional version. */
+		if (inst[0] & 0x0008F000)
+			return;
+
 		push = (inst[0] >> 18) & 1;
 		elem = (inst[0] >> 16) & 3;
 
