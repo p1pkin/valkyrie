@@ -717,6 +717,9 @@ calc_full_texture_size (hikaru_gpu_texhead_t *texhead)
 	return size * 2;
 }
 
+/* XXX are we actually copying the mipmap data here? additional stuff may
+ * also include color tables! */
+
 static void
 copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_gpu_texhead_t *texhead)
 {
