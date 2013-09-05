@@ -1746,8 +1746,6 @@ D (0x051)
 		break;
 	case 4:
 		UNHANDLED |= !!(inst[0] & 0xFEFFF000);
-		UNHANDLED |= (inst[0] & 0x01000000) == 0 ||
-		             (inst[1] & 0xFF000000) == 0;
 		
 		DISASM ("lit: set color 2 [%u %X]",
 		        ((inst[0] >> 24) & 1) ^ 1, inst[1]);
