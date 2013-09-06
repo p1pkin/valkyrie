@@ -1209,7 +1209,6 @@ hikaru_gpu_save_state (vk_device_t *dev, vk_state_t *state)
 	int ret = 0;
 
 	SAVE (gpu->regs);
-	SAVE (gpu->frame_type);
 	SAVE (gpu->cp);
 	SAVE (gpu->in_mesh);
 	SAVE (gpu->static_mesh_precision);
@@ -1232,7 +1231,6 @@ hikaru_gpu_load_state (vk_device_t *dev, vk_state_t *state)
 	int ret = 0;
 
 	LOAD (gpu->regs);
-	LOAD (gpu->frame_type);
 	LOAD (gpu->cp);
 	LOAD (gpu->in_mesh);
 	LOAD (gpu->static_mesh_precision);

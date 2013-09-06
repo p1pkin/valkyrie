@@ -219,19 +219,17 @@ check_self_loop (hikaru_gpu_t *gpu, uint32_t target)
 static void
 push_pc (hikaru_gpu_t *gpu)
 {
-	unsigned i = gpu->frame_type;
-	VK_ASSERT ((gpu->cp.sp[i] >> 24) == 0x48);
-	vk_buffer_put (gpu->cmdram, 4, gpu->cp.sp[i] & 0x3FFFFFF, PC);
-	gpu->cp.sp[i] -= 4;
+	VK_ASSERT ((gpu->cp.sp[0] >> 24) == 0x48);
+	vk_buffer_put (gpu->cmdram, 4, gpu->cp.sp[0] & 0x3FFFFFF, PC);
+	gpu->cp.sp[0] -= 4;
 }
 
 static void
 pop_pc (hikaru_gpu_t *gpu)
 {
-	unsigned i = gpu->frame_type;
-	gpu->cp.sp[i] += 4;
-	VK_ASSERT ((gpu->cp.sp[i] >> 24) == 0x48);
-	PC = vk_buffer_get (gpu->cmdram, 4, gpu->cp.sp[i] & 0x3FFFFFF) + 8;
+	gpu->cp.sp[0] += 4;
+	VK_ASSERT ((gpu->cp.sp[0] >> 24) == 0x48);
+	PC = vk_buffer_get (gpu->cmdram, 4, gpu->cp.sp[0] & 0x3FFFFFF) + 8;
 }
 
 static int

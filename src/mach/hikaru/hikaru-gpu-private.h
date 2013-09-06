@@ -174,8 +174,6 @@ typedef struct {
 		uint16_t _00400000;
 	} regs;
 
-	unsigned frame_type;
-
 	/* CS Execution State */
 
 	struct {
