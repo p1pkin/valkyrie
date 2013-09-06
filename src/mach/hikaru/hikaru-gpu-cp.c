@@ -989,7 +989,7 @@ I (0x161)
 
 	case 1:
 		/* Ignore conditional version. */
-		if (inst[0] & 0x0008F000)
+		if (inst[0] & 0x000CF000)
 			return;
 
 		push = (inst[0] >> 18) & 1;
