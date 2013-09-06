@@ -69,12 +69,14 @@ on_cp_begin (hikaru_gpu_t *gpu)
 	SP(0) = REG15 (0x74);
 	SP(1) = REG15 (0x78);
 
-	gpu->in_mesh = false;
-	gpu->static_mesh_precision = -1.0f;
+	gpu->state.in_mesh = 0;
 
-	gpu->materials.base = 0;
-	gpu->texheads.base  = 0;
-	gpu->lights.base    = 0;
+	memset ((void *) &POLY, 0, sizeof (POLY));
+	MV.depth = 0;
+	MV.total = 0;
+	MAT.base = 0;
+	TEX.base = 0;
+	LIT.base = 0;
 }
 
 static void
@@ -181,7 +183,7 @@ print_disasm (hikaru_gpu_t *gpu, uint32_t *inst, const char *fmt, ...)
 	VK_ASSERT (inst);
 	VK_ASSERT (nwords <= 8);
 
-	if (!gpu->options.log_cp)
+	if (!gpu->debug.log_cp)
 		return;
 
 	va_start (args, fmt);
@@ -194,7 +196,7 @@ print_disasm (hikaru_gpu_t *gpu, uint32_t *inst, const char *fmt, ...)
 	}
 	tmp += sprintf (tmp, "%c %c ",
 	                UNHANDLED ? '!' : ' ',
-	                gpu->in_mesh ? 'M' : ' ');
+	                gpu->state.in_mesh ? 'M' : ' ');
 	vsnprintf (tmp, sizeof (out), fmt, args);
 	va_end (args);
 
@@ -277,16 +279,16 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 			break;
 		}
 
-		if (!gpu->in_mesh && (flags & FLAG_BEGIN)) {
+		if (!gpu->state.in_mesh && (flags & FLAG_BEGIN)) {
 			bool is_static = (flags & FLAG_STATIC) != 0;
 			hikaru_renderer_begin_mesh (HR, PC, is_static);
-			gpu->in_mesh = true;
-		} else if (gpu->in_mesh && !(flags & FLAG_CONTINUE)) {
+			gpu->state.in_mesh = 1;
+		} else if (gpu->state.in_mesh && !(flags & FLAG_CONTINUE)) {
 			hikaru_renderer_end_mesh (HR, PC);
-			gpu->in_mesh = false;
+			gpu->state.in_mesh = 0;
 		}
 
-		if (gpu->options.log_cp) {
+		if (gpu->debug.log_cp) {
 			UNHANDLED = 0;
 			disasm[op] (gpu, inst);
 			if (UNHANDLED)
@@ -337,7 +339,7 @@ get_jump_address (hikaru_gpu_t *gpu, uint32_t *inst)
 static float
 get_distance_to_current_mesh (hikaru_gpu_t *gpu)
 {
-	hikaru_gpu_modelview_t *mv = &gpu->modelviews.table[gpu->modelviews.depth];
+	hikaru_gpu_modelview_t *mv = &MV.table[MV.depth];
 	float xx, yy, zz;
 
 	/* Compute the distance between the camera (0,0,0) and the
@@ -660,7 +662,7 @@ decode_clip_xy (uint32_t c)
 
 I (0x021)
 {
-	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
+	hikaru_gpu_viewport_t *vp = &VP.scratch;
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
@@ -750,7 +752,7 @@ D (0x021)
 
 I (0x011)
 {
-	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
+	hikaru_gpu_viewport_t *vp = &VP.scratch;
 
 	vp->color.ambient[0] = inst[0] >> 16;
 	vp->color.ambient[1] = inst[1] & 0xFFFF;
@@ -784,7 +786,7 @@ D (0x011)
 
 I (0x191)
 {
-	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
+	hikaru_gpu_viewport_t *vp = &VP.scratch;
 
 	vp->color.clear[0] = inst[1] & 0xFF;
 	vp->color.clear[1] = (inst[1] >> 8) & 0xFF;
@@ -814,9 +816,9 @@ D (0x191)
 
 I (0x004)
 {
-	hikaru_gpu_viewport_t *vp = &gpu->viewports.table[get_viewport_index (inst)];
+	hikaru_gpu_viewport_t *vp = &VP.table[get_viewport_index (inst)];
 
-	*vp = gpu->viewports.scratch;
+	*vp = VP.scratch;
 
 	vp->flags = HIKARU_GPU_OBJ_SET | HIKARU_GPU_OBJ_DIRTY;
 }
@@ -843,10 +845,10 @@ D (0x004)
 
 I (0x003)
 {
-	hikaru_gpu_viewport_t *vp = &gpu->viewports.scratch;
+	hikaru_gpu_viewport_t *vp = &VP.scratch;
 
 	if (!(inst[0] & 0xF000))
-		*vp = gpu->viewports.table[get_viewport_index (inst)];
+		*vp = VP.table[get_viewport_index (inst)];
 }
 
 D (0x003)
@@ -937,8 +939,8 @@ D (0x003)
 
 I (0x161)
 {
-	hikaru_gpu_modelview_t *mv = &gpu->modelviews.table[gpu->modelviews.depth];
-	hikaru_gpu_light_t *lt = &gpu->lights.scratch;
+	hikaru_gpu_modelview_t *mv = &MV.table[MV.depth];
+	hikaru_gpu_light_t *lt = &LIT.scratch;
 	uint32_t push, elem;
 
 	switch ((inst[0] >> 8) & 0xF) {
@@ -971,11 +973,11 @@ I (0x161)
 		/* Last element during upload. */
 		if (elem == 0) {
 			if (push) {
-				gpu->modelviews.depth++;
-				gpu->modelviews.total++;
-				VK_ASSERT (gpu->modelviews.depth < NUM_MODELVIEWS);
+				MV.depth++;
+				MV.total++;
+				VK_ASSERT (MV.depth < NUM_MODELVIEWS);
 			} else
-				gpu->modelviews.depth = 0;
+				MV.depth = 0;
 		}
 		break;
 	case 5:
@@ -1096,7 +1098,7 @@ static void hikaru_gpu_disasm_0x081 (hikaru_gpu_t *, uint32_t *);
 
 I (0x091)
 {
-	hikaru_gpu_material_t *mat = &gpu->materials.scratch;
+	hikaru_gpu_material_t *mat = &MAT.scratch;
 	uint32_t i;
 
 	switch ((inst[0] >> 8) & 15) {
@@ -1234,7 +1236,7 @@ D (0x091)
 
 I (0x081)
 {
-	hikaru_gpu_material_t *mat = &gpu->materials.scratch;
+	hikaru_gpu_material_t *mat = &MAT.scratch;
 
 	switch ((inst[0] >> 8) & 0xF) {
 	case 0:
@@ -1307,7 +1309,7 @@ D (0x081)
 
 I (0x084)
 {
-	uint32_t index = gpu->materials.base + get_material_index (inst);
+	uint32_t index = MAT.base + get_material_index (inst);
 
 	if (index >= NUM_MATERIALS) {
 		VK_ERROR ("CP: material commit index exceeds MAX (%u >= %u), skipping",
@@ -1315,8 +1317,8 @@ I (0x084)
 		return;
 	}
 
-	gpu->materials.table[index] = gpu->materials.scratch;
-	gpu->materials.table[index].set = true;
+	MAT.table[index] = MAT.scratch;
+	MAT.table[index].set = true;
 }
 
 D (0x084)
@@ -1342,16 +1344,16 @@ I (0x083)
 	uint32_t index = get_material_index (inst);
 
 	if (!(inst[0] & 0x1000))
-		gpu->materials.base = index;
+		MAT.base = index;
 	else {
-		index += gpu->materials.base;
+		index += MAT.base;
 		if (index >= NUM_MATERIALS) {
 			VK_ERROR ("CP: material recall index exceeds MAX (%u >= %u), skipping",
 			          index, NUM_MATERIALS);
 			return;
 		}
 
-		gpu->materials.scratch = gpu->materials.table[index];
+		MAT.scratch = MAT.table[index];
 	}
 }
 
@@ -1442,7 +1444,7 @@ get_texhead_index (uint32_t *inst)
 
 I (0x0C1)
 {
-	hikaru_gpu_texhead_t *th = &gpu->texheads.scratch;
+	hikaru_gpu_texhead_t *th = &TEX.scratch;
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
@@ -1522,7 +1524,7 @@ D (0x0C1)
 
 I (0x0C4)
 {
-	uint32_t index = gpu->texheads.base + get_texhead_index (inst);
+	uint32_t index = TEX.base + get_texhead_index (inst);
 
 	if (index >= NUM_TEXHEADS) {
 		VK_ERROR ("CP: texhead commit index exceedes MAX (%u >= %u), skipping",
@@ -1530,8 +1532,8 @@ I (0x0C4)
 		return;
 	}
 
-	gpu->texheads.table[index] = gpu->texheads.scratch;
-	gpu->texheads.table[index].set = true;
+	TEX.table[index] = TEX.scratch;
+	TEX.table[index].set = true;
 }
 
 D (0x0C4)
@@ -1558,16 +1560,16 @@ I (0x0C3)
 	uint32_t index = get_texhead_index (inst);
 
 	if (!(inst[0] & 0x1000))
-		gpu->texheads.base = index;
+		TEX.base = index;
 	else {
-		index += gpu->texheads.base;
+		index += TEX.base;
 		if (index >= NUM_TEXHEADS) {
 			VK_ERROR ("CP: texhead recall index exceeds MAX (%u >= %u), skipping",
 			          index, NUM_TEXHEADS);
 			return;
 		}
 
-		gpu->texheads.scratch = gpu->texheads.table[index];
+		TEX.scratch = TEX.table[index];
 	}
 }
 
@@ -1662,7 +1664,7 @@ get_lightset_index (uint32_t *inst)
 
 I (0x061)
 {
-	hikaru_gpu_light_t *lit = &gpu->lights.scratch;
+	hikaru_gpu_light_t *lit = &LIT.scratch;
 
 	lit->emission_type	= (inst[0] >> 16) & 3;
 	lit->emission_p		= *(float *) &inst[1];
@@ -1708,7 +1710,7 @@ D (0x061)
 
 I (0x051)
 {
-	hikaru_gpu_light_t *lit = &gpu->lights.scratch;
+	hikaru_gpu_light_t *lit = &LIT.scratch;
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
@@ -1797,8 +1799,8 @@ I (0x104)
 {
 	uint32_t index = get_light_index (inst);
 
-	gpu->lights.table[index] = gpu->lights.scratch;
-	gpu->lights.table[index].set = true;
+	LIT.table[index] = LIT.scratch;
+	LIT.table[index].set = true;
 }
 
 D (0x104)
@@ -1827,7 +1829,7 @@ I (0x064)
 {
 	hikaru_gpu_lightset_t *ls;
 
-	uint32_t index = gpu->lights.base + get_lightset_index (inst);
+	uint32_t index = LIT.base + get_lightset_index (inst);
 	uint32_t light0 = inst[1] & (NUM_LIGHTS - 1);
 	uint32_t light1 = (inst[1] >> 16) & (NUM_LIGHTS - 1);
 	uint32_t light2 = inst[2] & (NUM_LIGHTS - 1);
@@ -1839,12 +1841,12 @@ I (0x064)
 		return;
 	}
 
-	ls = &gpu->lights.sets[index];
+	ls = &LIT.sets[index];
 
-	ls->lights[0] = &gpu->lights.table[light0];
-	ls->lights[1] = &gpu->lights.table[light1];
-	ls->lights[2] = &gpu->lights.table[light2];
-	ls->lights[3] = &gpu->lights.table[light3];
+	ls->lights[0] = &LIT.table[light0];
+	ls->lights[1] = &LIT.table[light1];
+	ls->lights[2] = &LIT.table[light2];
+	ls->lights[3] = &LIT.table[light3];
 	ls->set = true;
 }
 
@@ -1876,17 +1878,17 @@ I (0x043)
 	uint32_t mask  = (inst[0] >> 24) & 0xF;
 
 	if (!(inst[0] & 0x1000))
-		gpu->lights.base = index;
+		LIT.base = index;
 	else {
-		index += gpu->lights.base;
+		index += LIT.base;
 		if (index >= NUM_LIGHTSETS) {
 			VK_ERROR ("CP: lightset recall index exceeds MAX (%u >= %u), skipping",
 			          index, NUM_LIGHTSETS);
 			return;
 		}
 
-		gpu->lights.scratchset = gpu->lights.sets[index];
-		gpu->lights.scratchset.mask = mask;
+		LIT.scratchset = LIT.sets[index];
+		LIT.scratchset.mask = mask;
 	}
 }
 
@@ -1960,7 +1962,7 @@ I (0x101)
 		break;
 	case 9:
 		log = (inst[0] >> 16) & 0xFF;
-		gpu->static_mesh_precision = 1.0f / (1 << (0x8F - log - 2));
+		POLY.static_mesh_precision = 1.0f / (1 << (0x8F - log - 2));
 		break;
 	default:
 		VK_ASSERT (0);
@@ -2030,7 +2032,13 @@ get_poly_type (uint32_t *inst, uint32_t *type, float *alpha)
 
 I (0x103)
 {
-	get_poly_type (inst, &gpu->poly_type, &gpu->poly_alpha);
+	uint32_t type;
+	float alpha;
+
+	get_poly_type (inst, &type, &alpha);
+
+	POLY.type  = type;
+	POLY.alpha = alpha;
 }
 
 D (0x103)
@@ -2159,11 +2167,11 @@ I (0x12C)
 
 	v.info.full = inst[0];
 
-	VK_ASSERT (gpu->static_mesh_precision > 0.0f);
+	VK_ASSERT (POLY.static_mesh_precision > 0.0f);
 
-	v.pos[0] = (int16_t)(inst[1] >> 16) * gpu->static_mesh_precision;
-	v.pos[1] = (int16_t)(inst[2] >> 16) * gpu->static_mesh_precision;
-	v.pos[2] = (int16_t)(inst[3] >> 16) * gpu->static_mesh_precision;
+	v.pos[0] = (int16_t)(inst[1] >> 16) * POLY.static_mesh_precision;
+	v.pos[1] = (int16_t)(inst[2] >> 16) * POLY.static_mesh_precision;
+	v.pos[2] = (int16_t)(inst[3] >> 16) * POLY.static_mesh_precision;
 
 	v.nrm[0] = (int16_t)((inst[1] & 0x3FF) << 6) / 16384.0f;
 	v.nrm[1] = (int16_t)((inst[2] & 0x3FF) << 6) / 16384.0f;
@@ -2396,7 +2404,7 @@ I (0x154)
 {
 	uint32_t index = (inst[0] >> 16) & 0x3F;
 
-	gpu->alpha_table[index].full = inst[1];
+	ATABLE[index].full = inst[1];
 }
 
 D (0x154)

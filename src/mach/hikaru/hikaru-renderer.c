@@ -483,7 +483,8 @@ vk_mtx3x3f_det (mtx3x3f_t a)
 static void
 upload_current_state (hikaru_renderer_t *hr, unsigned i)
 {
-	hikaru_gpu_viewport_t *vp = &hr->gpu->viewports.scratch;
+	hikaru_gpu_t *gpu = hr->gpu;
+	hikaru_gpu_viewport_t *vp = &VP.scratch;
 
 	/* Viewport */
 	if (vp->flags & HIKARU_GPU_OBJ_DIRTY)
@@ -525,7 +526,7 @@ upload_current_state (hikaru_renderer_t *hr, unsigned i)
 
 	/* Modelview */
 	{
-		hikaru_gpu_modelview_t *mv = &hr->gpu->modelviews.table[i];
+		hikaru_gpu_modelview_t *mv = &MV.table[i];
 
 		LOG ("mv  = %s", get_gpu_modelview_str (mv));
 
@@ -535,8 +536,8 @@ upload_current_state (hikaru_renderer_t *hr, unsigned i)
 
 	/* Material and Texhead */
 	{
-		hikaru_gpu_material_t *mat = &hr->gpu->materials.scratch;
-		hikaru_gpu_texhead_t *th   = &hr->gpu->texheads.scratch;
+		hikaru_gpu_material_t *mat = &MAT.scratch;
+		hikaru_gpu_texhead_t *th   = &TEX.scratch;
 
 		LOG ("mat = %s", get_gpu_material_str (mat));
 		if (mat->set && mat->has_texture)
@@ -561,7 +562,7 @@ upload_current_state (hikaru_renderer_t *hr, unsigned i)
 
 	/* Lights */
 	{
-		hikaru_gpu_lightset_t *ls = &hr->gpu->lights.scratchset;
+		hikaru_gpu_lightset_t *ls = &LIT.scratchset;
 		unsigned i;
 
 		if ((hr->debug.flags & HR_DEBUG_LIGHTNING) == 0 ||
@@ -609,7 +610,8 @@ upload_current_state (hikaru_renderer_t *hr, unsigned i)
 static void
 draw_current_mesh (hikaru_renderer_t *hr)
 {
-	unsigned num_instances = hr->gpu->modelviews.total + 1, i;
+	hikaru_gpu_t *gpu = hr->gpu;
+	unsigned num_instances = MV.total + 1, i;
 	GLuint vbo;
 
 	LOG ("==== DRAWING MESH (current=%u #vertices=%u instances=%u) ====",
@@ -639,7 +641,7 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	glEnableClientState (GL_COLOR_ARRAY);
 	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 
-	switch (hr->gpu->poly_type) {
+	switch (POLY.type) {
 	case HIKARU_POLYTYPE_OPAQUE:
 	case HIKARU_POLYTYPE_TRANSPARENT:
 	default:
@@ -665,8 +667,8 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	glDeleteBuffers (1, &vbo);
 
 skip_:
-	hr->gpu->modelviews.total = 0;
-	hr->gpu->modelviews.depth = 0; /* XXX not really needed. */
+	MV.total = 0;
+	MV.depth = 0; /* XXX not really needed. */
 	hr->debug.current_mesh++;
 }
 
@@ -693,7 +695,8 @@ clampf (float x, float min_, float max_)
 static void
 copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_t *src)
 {
-	hikaru_gpu_material_t *mat = &hr->gpu->materials.scratch;
+	hikaru_gpu_t *gpu = hr->gpu;
+	hikaru_gpu_material_t *mat = &MAT.scratch;
 	const float k = 1.0f / 255.0f;
 
 	/* XXX at the moment we use only color 1 (it's responsible for the
@@ -710,9 +713,9 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 			{ 0.0f, 0.0f, 1.0f },	/* translucent */
 			{ 0.0f, 0.0f, 0.0f }	/* invalid 7 */
 		};
-		dst->col[0] = color[hr->gpu->poly_type][0];
-		dst->col[1] = color[hr->gpu->poly_type][1];
-		dst->col[2] = color[hr->gpu->poly_type][2];
+		dst->col[0] = color[POLY.type][0];
+		dst->col[1] = color[POLY.type][1];
+		dst->col[2] = color[POLY.type][2];
 	} else if (mat->set) {
 		dst->col[0] = mat->color[1][0] * k;
 		dst->col[1] = mat->color[1][1] * k;
@@ -723,7 +726,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 		dst->col[2] = 1.0f;
 	}
 
-	switch (hr->gpu->poly_type) {
+	switch (POLY.type) {
 	case HIKARU_POLYTYPE_OPAQUE:
 	case HIKARU_POLYTYPE_TRANSPARENT:
 	default:
@@ -731,8 +734,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 		break;
 	case HIKARU_POLYTYPE_TRANSLUCENT:
 		/* XXX mmm, this equation doesn't look great in PHARRIER... */
-		dst->col[3] = clampf (hr->gpu->poly_alpha +
-		                      src->info.bit.alpha * k, 0.0f, 1.0f);
+		dst->col[3] = clampf (POLY.alpha + src->info.bit.alpha * k, 0.0f, 1.0f);
 		break;
 	}
 }
@@ -741,7 +743,8 @@ static void
 copy_texcoords (hikaru_renderer_t *hr,
                 hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_t *src)
 {
-	hikaru_gpu_texhead_t *th = &hr->gpu->texheads.scratch;
+	hikaru_gpu_t *gpu = hr->gpu;
+	hikaru_gpu_texhead_t *th = &TEX.scratch;
 	float height = th->height;
 
 	if (th->format == HIKARU_FORMAT_ABGR1111)
@@ -995,9 +998,10 @@ draw_layer (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 static void
 draw_layers (hikaru_renderer_t *hr, bool background)
 {
+	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_gpu_layer_t *layer;
 
-	if (!hr->gpu->layers.enabled)
+	if (!LAYERS.enabled)
 		return;
 
 	if (background)
@@ -1021,11 +1025,11 @@ draw_layers (hikaru_renderer_t *hr, bool background)
 
 	/* Only draw unit 0 for now. I think unit 1 is there only for
 	 * multi-monitor, which case we don't care about. */
-	layer = &hr->gpu->layers.layer[0][1];
+	layer = &LAYERS.layer[0][1];
 	if (!layer->enabled || !(hr->debug.flags & HR_DEBUG_DISABLE_LAYER2))
 		draw_layer (hr, layer);
 
-	layer = &hr->gpu->layers.layer[0][0];
+	layer = &LAYERS.layer[0][0];
 	if (!layer->enabled || !(hr->debug.flags & HR_DEBUG_DISABLE_LAYER1))
 		draw_layer (hr, layer);
 }

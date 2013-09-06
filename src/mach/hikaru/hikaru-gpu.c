@@ -570,7 +570,7 @@ hikaru_gpu_fill_layer_info (hikaru_gpu_t *gpu)
 	uint32_t unit, bank;
 
 	VK_LOG ("==== BEGIN LAYERS ==== [1A:100=%X]", REG1A (0x100));
-	gpu->layers.enabled = 1; // REG1A (0x100) & 1;
+	LAYERS.enabled = 1; // REG1A (0x100) & 1;
 
 	for (unit = 0; unit < 2; unit++) {
 
@@ -582,7 +582,7 @@ hikaru_gpu_fill_layer_info (hikaru_gpu_t *gpu)
 		for (bank = 2; bank < 4; bank++) {
 			uint32_t bank_offs = bank * 8, lo, hi, format, shift;
 			hikaru_gpu_layer_t *layer =
-				&gpu->layers.layer[unit][bank-2];
+				&LAYERS.layer[unit][bank-2];
 	
 			/* Is the layer enabled? */
 			layer->enabled = REG1AUNIT (unit, 0x34) >> (bank - 2);
@@ -741,7 +741,7 @@ copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_gpu_texhead_t *texhea
 	endx = basex + texhead->width;
 	endy = basey + texhead->height;
 
-	if (gpu->options.log_idma) {
+	if (gpu->debug.log_idma) {
 		VK_LOG ("GPU IDMA: %ux%u to (%X,%X), area in TEXRAM is ([%u,%u],[%u,%u]); dst addr = %08X",
 		        texhead->width, texhead->height,
 		        texhead->slotx, texhead->sloty,
@@ -796,7 +796,7 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	 * mipmap or two, it shouldn't be that big of a problem. */
 	texhead.has_mipmap = (size == exp_size[1]) ? 1 : 0;
 
-	if (gpu->options.log_idma) {
+	if (gpu->debug.log_idma) {
 		VK_LOG ("GPU IDMA %08X %08X %08X %08X : %s",
 		        entry[0], entry[1], entry[2], entry[3],
 		        get_gpu_texhead_str (&texhead));
@@ -935,7 +935,7 @@ hikaru_gpu_begin_dma (hikaru_gpu_t *gpu)
 	w = regs[2] & 0xFFFF;
 	h = regs[2] >> 16;
 
-	if (gpu->options.log_dma) {
+	if (gpu->debug.log_dma) {
 		VK_LOG ("GPU DMA: [%08X %08X %08X %08X] { %u %u } --> { %u %u }, %ux%u",
 		        regs[0], regs[1], regs[2], regs[3],
 			src_x, src_y, dst_x, dst_y, w, h);
@@ -1173,11 +1173,7 @@ hikaru_gpu_reset (vk_device_t *dev, vk_reset_type_t type)
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
 
 	memset ((void *) &gpu->regs, 0, sizeof (gpu->regs));
-
-	memset (&gpu->viewports, 0, sizeof (gpu->viewports));
-	memset (&gpu->materials, 0, sizeof (gpu->materials));
-	memset (&gpu->texheads, 0, sizeof (gpu->texheads));
-	memset (&gpu->lights, 0, sizeof (gpu->lights));
+	memset ((void *) &gpu->state, 0, sizeof (gpu->state));
 
 	gpu->cp.is_running = 0;
 }
@@ -1210,16 +1206,7 @@ hikaru_gpu_save_state (vk_device_t *dev, vk_state_t *state)
 
 	SAVE (gpu->regs);
 	SAVE (gpu->cp);
-	SAVE (gpu->in_mesh);
-	SAVE (gpu->static_mesh_precision);
-	SAVE (gpu->poly_type);
-	SAVE (gpu->poly_alpha);
-	SAVE (gpu->viewports);
-	SAVE (gpu->modelviews);
-	SAVE (gpu->materials);
-	SAVE (gpu->texheads);
-	SAVE (gpu->lights);
-	SAVE (gpu->layers);
+	SAVE (gpu->state);
 
 	return ret;
 }
@@ -1232,16 +1219,7 @@ hikaru_gpu_load_state (vk_device_t *dev, vk_state_t *state)
 
 	LOAD (gpu->regs);
 	LOAD (gpu->cp);
-	LOAD (gpu->in_mesh);
-	LOAD (gpu->static_mesh_precision);
-	LOAD (gpu->poly_type);
-	LOAD (gpu->poly_alpha);
-	LOAD (gpu->viewports);
-	LOAD (gpu->modelviews);
-	LOAD (gpu->materials);
-	LOAD (gpu->texheads);
-	LOAD (gpu->lights);
-	LOAD (gpu->layers);
+	LOAD (gpu->state);
 
 	return ret;
 }
@@ -1287,11 +1265,11 @@ hikaru_gpu_new (vk_machine_t *mach,
 	gpu->texram[1]	= texram[1];
 	gpu->renderer	= renderer;
 
-	gpu->options.log_dma =
+	gpu->debug.log_dma =
 		vk_util_get_bool_option ("GPU_LOG_DMA", false);
-	gpu->options.log_idma =
+	gpu->debug.log_idma =
 		vk_util_get_bool_option ("GPU_LOG_IDMA", false);
-	gpu->options.log_cp =
+	gpu->debug.log_cp =
 		vk_util_get_bool_option ("GPU_LOG_CP", false);
 
 	hikaru_gpu_cp_init (gpu);

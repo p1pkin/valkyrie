@@ -181,60 +181,65 @@ typedef struct {
 		uint32_t is_unhandled	: 1;
 	} cp;
 
-	/* Rendering State */
-	bool in_mesh;
-	float static_mesh_precision;
-	uint32_t poly_type;
-	float poly_alpha;
-
 	struct {
-		hikaru_gpu_viewport_t table[NUM_VIEWPORTS];
-		hikaru_gpu_viewport_t scratch;
-	} viewports;
+		uint32_t in_mesh	: 1;
 
-	struct {
-		hikaru_gpu_modelview_t table[NUM_MODELVIEWS];
-		uint32_t depth, total;
-	} modelviews;
-
-	struct {
-		hikaru_gpu_material_t table[NUM_MATERIALS];
-		hikaru_gpu_material_t scratch;
-		uint32_t base;
-	} materials;
-
-	struct {
-		hikaru_gpu_texhead_t table[NUM_TEXHEADS];
-		hikaru_gpu_texhead_t scratch;
-		uint32_t base;
-	} texheads;
-
-	struct {
-		hikaru_gpu_lightset_t sets[NUM_LIGHTSETS];
-		hikaru_gpu_lightset_t scratchset;
-		hikaru_gpu_light_t table[NUM_LIGHTS];
-		hikaru_gpu_light_t scratch;
-		uint32_t base;
-	} lights;
-
-	union {
 		struct {
-			uint32_t lo : 8;
-			uint32_t hi : 24;
-		} part;
-		uint32_t full;
-	} alpha_table[0x40];
+			uint32_t type	: 3;
+			float alpha;
+			float static_mesh_precision;
+		} poly;
+
+		struct {
+			hikaru_gpu_viewport_t table[NUM_VIEWPORTS];
+			hikaru_gpu_viewport_t scratch;
+		} viewports;
+	
+		struct {
+			hikaru_gpu_modelview_t table[NUM_MODELVIEWS];
+			uint32_t depth, total;
+		} modelviews;
+	
+		struct {
+			hikaru_gpu_material_t table[NUM_MATERIALS];
+			hikaru_gpu_material_t scratch;
+			uint32_t base;
+		} materials;
+	
+		struct {
+			hikaru_gpu_texhead_t table[NUM_TEXHEADS];
+			hikaru_gpu_texhead_t scratch;
+			uint32_t base;
+		} texheads;
+	
+		struct {
+			hikaru_gpu_lightset_t sets[NUM_LIGHTSETS];
+			hikaru_gpu_lightset_t scratchset;
+			hikaru_gpu_light_t table[NUM_LIGHTS];
+			hikaru_gpu_light_t scratch;
+			uint32_t base;
+		} lights;
+
+		union {
+			struct {
+				uint32_t lo : 8;
+				uint32_t hi : 24;
+			} part;
+			uint32_t full;
+		} alpha_table[0x40];
+
+		struct {
+			hikaru_gpu_layer_t layer[2][2];
+			bool enabled;
+		} layers;
+
+	} state;
 
 	struct {
-		hikaru_gpu_layer_t layer[2][2];
-		bool enabled;
-	} layers;
-
-	struct {
-		bool log_dma;
-		bool log_idma;
-		bool log_cp;
-	} options;
+		uint32_t log_dma	: 1;
+		uint32_t log_idma	: 1;
+		uint32_t log_cp		: 1;
+	} debug;
 
 } hikaru_gpu_t;
 
@@ -247,6 +252,15 @@ typedef struct {
 #define PC		gpu->cp.pc
 #define SP(i_)		gpu->cp.sp[i_]
 #define UNHANDLED	gpu->cp.is_unhandled
+
+#define POLY		gpu->state.poly
+#define VP		gpu->state.viewports
+#define MV		gpu->state.modelviews
+#define MAT		gpu->state.materials
+#define TEX		gpu->state.texheads
+#define LIT		gpu->state.lights
+#define ATABLE		gpu->state.alpha_table
+#define LAYERS		gpu->state.layers
 
 /****************************************************************************
  Renderer
