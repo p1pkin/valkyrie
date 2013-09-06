@@ -174,12 +174,11 @@ typedef struct {
 		uint16_t _00400000;
 	} regs;
 
-	/* CS Execution State */
-
 	struct {
-		uint32_t pc, sp[2];
-		bool is_running;
-		bool unhandled;
+		uint32_t pc;
+		uint32_t sp[2];
+		uint32_t is_running	: 1;
+		uint32_t is_unhandled	: 1;
 	} cp;
 
 	/* Rendering State */
@@ -244,6 +243,10 @@ typedef struct {
 #define REG1A(addr_)	(*(uint32_t *) &gpu->regs._1A[(addr_) & 0x1FF])
 #define REG1AUNIT(n,a)	(*(uint32_t *) &gpu->regs._1A_unit[n][(a) & 0x3F])
 #define REG1ADMA(a)	(*(uint32_t *) &gpu->regs._1A_dma[(a) & 0xF])
+
+#define PC		gpu->cp.pc
+#define SP(i_)		gpu->cp.sp[i_]
+#define UNHANDLED	gpu->cp.is_unhandled
 
 /****************************************************************************
  Renderer

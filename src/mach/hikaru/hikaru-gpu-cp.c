@@ -65,9 +65,9 @@ on_cp_begin (hikaru_gpu_t *gpu)
 {
 	gpu->cp.is_running = true;
 
-	gpu->cp.pc = REG15 (0x70);
-	gpu->cp.sp[0] = REG15 (0x74);
-	gpu->cp.sp[1] = REG15 (0x78);
+	PC = REG15 (0x70);
+	SP(0) = REG15 (0x74);
+	SP(1) = REG15 (0x78);
 
 	gpu->in_mesh = false;
 	gpu->static_mesh_precision = -1.0f;
@@ -145,8 +145,6 @@ hikaru_gpu_cp_on_put (hikaru_gpu_t *gpu)
  * stored in bits 4-5 of the first word.
  */
 
-#define PC        gpu->cp.pc
-#define UNHANDLED gpu->cp.unhandled
 #define HR        ((hikaru_renderer_t *) gpu->renderer)
 
 #define FLAG_JUMP	(1 << 0)
@@ -219,17 +217,17 @@ check_self_loop (hikaru_gpu_t *gpu, uint32_t target)
 static void
 push_pc (hikaru_gpu_t *gpu)
 {
-	VK_ASSERT ((gpu->cp.sp[0] >> 24) == 0x48);
-	vk_buffer_put (gpu->cmdram, 4, gpu->cp.sp[0] & 0x3FFFFFF, PC);
-	gpu->cp.sp[0] -= 4;
+	VK_ASSERT ((SP(0) >> 24) == 0x48);
+	vk_buffer_put (gpu->cmdram, 4, SP(0) & 0x3FFFFFF, PC);
+	SP(0) -= 4;
 }
 
 static void
 pop_pc (hikaru_gpu_t *gpu)
 {
-	gpu->cp.sp[0] += 4;
-	VK_ASSERT ((gpu->cp.sp[0] >> 24) == 0x48);
-	PC = vk_buffer_get (gpu->cmdram, 4, gpu->cp.sp[0] & 0x3FFFFFF) + 8;
+	SP(0) += 4;
+	VK_ASSERT ((SP(0) >> 24) == 0x48);
+	PC = vk_buffer_get (gpu->cmdram, 4, SP(0) & 0x3FFFFFF) + 8;
 }
 
 static int
@@ -289,9 +287,9 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 		}
 
 		if (gpu->options.log_cp) {
-			gpu->cp.unhandled = false;
+			UNHANDLED = 0;
 			disasm[op] (gpu, inst);
-			if (gpu->cp.unhandled)
+			if (UNHANDLED)
 				VK_ERROR ("CP @%08X : unhandled instruction", PC);
 		}
 
