@@ -72,6 +72,7 @@ on_cp_begin (hikaru_gpu_t *gpu)
 	gpu->state.in_mesh = 0;
 
 	memset ((void *) &POLY, 0, sizeof (POLY));
+	VP.depth = 0;
 	MV.depth = 0;
 	MV.total = 0;
 	MAT.base = 0;
@@ -832,13 +833,19 @@ D (0x004)
 
 /* 003	Recall Viewport
  *
- *	-------- -----iii -CC----o oooooooo
+ *	-------- -----iii -pP----o oooooooo
  *
  * i = Index
  *
- * C = Conditional
+ * P = Push
  *
- *	It may depend on 561 (SGNASCAR) or 161 (BRAVEFF).
+ *	Pushes current viewport on the stack and uses the one specified by i.
+ *
+ * p = Pop
+ *
+ *	Pops the viewport on the stack and uses it.
+ *
+ * Information kindly provided by DreamZzz.
  *
  * See PH:@0C015AF6, PH:@0C015B12, PH:@0C015B32.
  */
@@ -847,16 +854,51 @@ I (0x003)
 {
 	hikaru_gpu_viewport_t *vp = &VP.scratch;
 
-	if (!(inst[0] & 0xF000))
+	switch ((inst[0] >> 12) & 0xF) {
+	case 0:
 		*vp = VP.table[get_viewport_index (inst)];
+		break;
+	case 2:
+		VP.stack[VP.depth] = *vp;
+		VP.depth++;
+		VK_ASSERT (VP.depth < 32);
+
+		*vp = VP.table[get_viewport_index (inst)];
+		break;
+	case 4:
+		VP.depth--;
+		VK_ASSERT (VP.depth >= 0);
+		*vp = VP.stack[VP.depth];
+		break;
+	default:
+		VK_ASSERT (0);
+		break;
+	}
 }
 
 D (0x003)
 {
+	char *op;
+
+	switch ((inst[0] >> 12) & 0xF) {
+	case 0:
+		op = "";
+		break;
+	case 2:
+		op = "push";
+		break;
+	case 4:
+		op = "pop";
+		break;
+	default:
+		op = "unknown";
+		UNHANDLED = 1;
+		break;
+	}
+
 	UNHANDLED |= !!(inst[0] & 0xFFF89E00);
 
-	DISASM ("vp: recall @%u [cond=%X]",
-	        get_viewport_index (inst), (inst[0] >> 12) & 0xF);
+	DISASM ("vp: recall @%u %s", get_viewport_index (inst), op);
 }
 
 /*

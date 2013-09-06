@@ -193,6 +193,8 @@ typedef struct {
 		struct {
 			hikaru_gpu_viewport_t table[NUM_VIEWPORTS];
 			hikaru_gpu_viewport_t scratch;
+			hikaru_gpu_viewport_t stack[32];
+			int32_t depth;
 		} viewports;
 	
 		struct {
