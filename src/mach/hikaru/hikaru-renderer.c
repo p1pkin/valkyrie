@@ -868,6 +868,16 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 	}
 }
 
+static void
+clear_mesh_data (hikaru_renderer_t *hr)
+{
+	memset ((void *) &hr->mesh.vtx, 0, sizeof (hr->mesh.vtx));
+	hr->mesh.num_pushed = 0;
+	hr->mesh.num_tris = 0;
+	hr->mesh.addr[0] = ~0;
+	hr->mesh.addr[1] = ~0;
+}
+
 void
 hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
                             bool is_static)
@@ -877,7 +887,7 @@ hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
 	if (hr->debug.flags & HR_DEBUG_DISABLE_3D)
 		return;
 
-	memset ((void *) &hr->mesh, 0, sizeof (hr->mesh));
+	clear_mesh_data (hr);
 	hr->mesh.addr[0] = addr;
 }
 
@@ -890,10 +900,9 @@ hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr)
 		return;
 
 	hr->mesh.addr[1] = addr;
-
 	draw_current_mesh (hr);
 
-	memset ((void *) &hr->mesh, 0, sizeof (hr->mesh));
+	clear_mesh_data (hr);
 }
 
 /****************************************************************************
