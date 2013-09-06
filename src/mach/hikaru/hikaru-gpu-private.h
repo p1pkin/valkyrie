@@ -165,12 +165,14 @@ typedef struct {
 
 	vk_renderer_t *renderer;
 
-	uint8_t regs_15[0x100];
-	uint8_t regs_18[0x100];
-	uint8_t regs_1A[0x104];
-	uint8_t regs_1A_unit[2][0x40];
-	uint8_t regs_1A_fifo[0x10];
-	uint16_t unk_00400000;
+	struct {
+		uint8_t _15[0x100];
+		uint8_t _18[0x100];
+		uint8_t _1A[0x104];
+		uint8_t _1A_unit[2][0x40];
+		uint8_t _1A_dma[0x10];
+		uint16_t _00400000;
+	} regs;
 
 	unsigned frame_type;
 
@@ -239,11 +241,11 @@ typedef struct {
 
 } hikaru_gpu_t;
 
-#define REG15(addr_)	(*(uint32_t *) &gpu->regs_15[(addr_) & 0xFF])
-#define REG18(addr_)	(*(uint32_t *) &gpu->regs_18[(addr_) & 0xFF])
-#define REG1A(addr_)	(*(uint32_t *) &gpu->regs_1A[(addr_) & 0x1FF])
-#define REG1AUNIT(n,a)	(*(uint32_t *) &gpu->regs_1A_unit[n][(a) & 0x3F])
-#define REG1AFIFO(a)	(*(uint32_t *) &gpu->regs_1A_fifo[(a) & 0xF])
+#define REG15(addr_)	(*(uint32_t *) &gpu->regs._15[(addr_) & 0xFF])
+#define REG18(addr_)	(*(uint32_t *) &gpu->regs._18[(addr_) & 0xFF])
+#define REG1A(addr_)	(*(uint32_t *) &gpu->regs._1A[(addr_) & 0x1FF])
+#define REG1AUNIT(n,a)	(*(uint32_t *) &gpu->regs._1A_unit[n][(a) & 0x3F])
+#define REG1ADMA(a)	(*(uint32_t *) &gpu->regs._1A_dma[(a) & 0xF])
 
 /****************************************************************************
  Renderer

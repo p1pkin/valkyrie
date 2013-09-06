@@ -110,7 +110,7 @@ main (int argc, char **argv)
 		gpu->cp.pc = 0x48000100;
 		gpu->cp.sp[0] = 0x48020000;
 		gpu->cp.sp[1] = 0x48020000;
-		*(uint32_t *) &gpu->regs_15[0x58] = 3;
+		REG15(0x58) = 3;
 
 		vk_renderer_begin_frame (mach->renderer);
 		vk_device_exec (hikaru->gpu, 4*1000*1000);

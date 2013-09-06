@@ -923,21 +923,21 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 static void
 hikaru_gpu_begin_dma (hikaru_gpu_t *gpu)
 {
-	uint32_t *fifo = (uint32_t *) gpu->regs_1A_fifo;
+	uint32_t *regs = &REG1ADMA (0);
 	uint32_t src_x, src_y, dst_x, dst_y, w, h, i, j;
 
-	src_x = fifo[0] & 0x7FF;
-	src_y = fifo[0] >> 11;
+	src_x = regs[0] & 0x7FF;
+	src_y = regs[0] >> 11;
 
-	dst_x = fifo[1] & 0x7FF;
-	dst_y = fifo[1] >> 11;
+	dst_x = regs[1] & 0x7FF;
+	dst_y = regs[1] >> 11;
 
-	w = fifo[2] & 0xFFFF;
-	h = fifo[2] >> 16;
+	w = regs[2] & 0xFFFF;
+	h = regs[2] >> 16;
 
 	if (gpu->options.log_dma) {
 		VK_LOG ("GPU DMA: [%08X %08X %08X %08X] { %u %u } --> { %u %u }, %ux%u",
-		        fifo[0], fifo[1], fifo[2], fifo[3],
+		        regs[0], regs[1], regs[2], regs[3],
 			src_x, src_y, dst_x, dst_y, w, h);
 	}
 
@@ -1019,7 +1019,7 @@ hikaru_gpu_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 
 	set_ptr (val, size, 0);
 	if (addr == 0x00400000) {
-		set_ptr (val, size, gpu->unk_00400000);
+		set_ptr (val, size, gpu->regs._00400000);
 	} else if (addr >= 0x15000000 && addr < 0x15000100) {
 		switch (addr & 0xFF) {
 		case 0x10:
@@ -1075,7 +1075,7 @@ hikaru_gpu_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val)
 	           (size == 2 && addr == 0x00400000));
 
 	if (addr == 0x00400000) {
-		gpu->unk_00400000 = val;
+		gpu->regs._00400000 = val;
 	} else if (addr >= 0x15000000 && addr < 0x15000100) {
 		switch (addr & 0xFF) {
 		case 0x00:
@@ -1154,7 +1154,7 @@ hikaru_gpu_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val)
 		/* "SEGA" */
 		VK_ASSERT (val == 0x53454741);
 	} else if (addr >= 0x1A040000 && addr < 0x1A040010) {
-		REG1AFIFO (addr) = val;
+		REG1ADMA (addr) = val;
 		if (addr == 0x1A04000C && (val & 1) == 1)
 			hikaru_gpu_begin_dma (gpu);
 	} else if (addr == 0x1A0A1600) {
@@ -1172,12 +1172,7 @@ hikaru_gpu_reset (vk_device_t *dev, vk_reset_type_t type)
 {
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
 
-	memset (gpu->regs_15, 0, 0x100);
-	memset (gpu->regs_18, 0, 0x100);
-	memset (gpu->regs_1A, 0, 0x104);
-	memset (gpu->regs_1A_unit[0], 0, 0x40);
-	memset (gpu->regs_1A_unit[1], 0, 0x40);
-	memset (gpu->regs_1A_fifo, 0, 0x10);
+	memset ((void *) &gpu->regs, 0, sizeof (gpu->regs));
 
 	memset (&gpu->viewports, 0, sizeof (gpu->viewports));
 	memset (&gpu->materials, 0, sizeof (gpu->materials));
@@ -1213,12 +1208,7 @@ hikaru_gpu_save_state (vk_device_t *dev, vk_state_t *state)
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
 	int ret = 0;
 
-	SAVE (gpu->regs_15);
-	SAVE (gpu->regs_18);
-	SAVE (gpu->regs_1A);
-	SAVE (gpu->regs_1A_unit);
-	SAVE (gpu->regs_1A_fifo);
-	SAVE (gpu->unk_00400000);
+	SAVE (gpu->regs);
 	SAVE (gpu->frame_type);
 	SAVE (gpu->cp);
 	SAVE (gpu->in_mesh);
@@ -1241,12 +1231,7 @@ hikaru_gpu_load_state (vk_device_t *dev, vk_state_t *state)
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
 	int ret = 0;
 
-	LOAD (gpu->regs_15);
-	LOAD (gpu->regs_18);
-	LOAD (gpu->regs_1A);
-	LOAD (gpu->regs_1A_unit);
-	LOAD (gpu->regs_1A_fifo);
-	LOAD (gpu->unk_00400000);
+	LOAD (gpu->regs);
 	LOAD (gpu->frame_type);
 	LOAD (gpu->cp);
 	LOAD (gpu->in_mesh);
