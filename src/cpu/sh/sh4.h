@@ -134,26 +134,26 @@ struct sh4_t {
 	bool		in_slot;
 
 	/* Registers */
-	uint32_t	r[16];
-	uint32_t	pc;
-	sh4_sr_t	sr;
-	uint32_t	pr;
-	uint32_t	gbr;
-	uint32_t	vbr;
-	uint32_t	dbr;
-	pair32u_t	mac;
-	uint32_t	spc;
-	sh4_sr_t	ssr;
-	uint32_t	sgr;
-	uint32_t	rbank[8];
-
-	/* Floating-point registers */
-	union {
-		alias32uf_t f[16];
-		alias64uf_t d[8];
-	} f, x;
-	alias32uf_t	fpul;
-	sh4_fpscr_t	fpscr;
+	struct {
+		uint32_t	r[16];
+		uint32_t	pc;
+		sh4_sr_t	sr;
+		uint32_t	pr;
+		uint32_t	gbr;
+		uint32_t	vbr;
+		uint32_t	dbr;
+		pair32u_t	mac;
+		uint32_t	spc;
+		sh4_sr_t	ssr;
+		uint32_t	sgr;
+		uint32_t	rbank[8];
+		union {
+			alias32uf_t f[16];
+			alias64uf_t d[8];
+		} f, x;
+		alias32uf_t	fpul;
+		sh4_fpscr_t	fpscr;
+	} regs;
 
 	/* On-Chip Modules */
 	vk_buffer_t	*iregs;

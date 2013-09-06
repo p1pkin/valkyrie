@@ -831,9 +831,9 @@ hikaru_set_rombd_config (hikaru_t *hikaru)
 
 /* XXX actually make sh4_t opaque and add accessors for the registers; that's
  * going to be needed for any possible future debugger anyway. */
-#define R(n_)	ctx->r[n_]
-#define PR	ctx->pr
-#define T	ctx->sr.bit.t
+#define R(n_)	ctx->regs.r[n_]
+#define PR	ctx->regs.pr
+#define T	ctx->regs.sr.bit.t
 
 static uint32_t
 patch_airtrix (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)

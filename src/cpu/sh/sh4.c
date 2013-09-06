@@ -50,40 +50,40 @@
 #define _SIMM8	((int32_t)(int8_t) inst)
 #define _SIMM12 ((int32_t)((inst & 0xFFF) | ((inst & 0x800) ? 0xFFFFF000 : 0)))
 
-#define PC	ctx->pc
-#define PR	ctx->pr
-#define SR	ctx->sr
-#define MAC	ctx->mac.full
-#define MACH	ctx->mac.field.hi
-#define MACL	ctx->mac.field.lo
-#define GBR	ctx->gbr
-#define VBR	ctx->vbr
-#define SSR	ctx->ssr
-#define SPC	ctx->spc
-#define DBR	ctx->dbr
-#define SGR	ctx->sgr
+#define PC	ctx->regs.pc
+#define PR	ctx->regs.pr
+#define SR	ctx->regs.sr
+#define MAC	ctx->regs.mac.full
+#define MACH	ctx->regs.mac.field.hi
+#define MACL	ctx->regs.mac.field.lo
+#define GBR	ctx->regs.gbr
+#define VBR	ctx->regs.vbr
+#define SSR	ctx->regs.ssr
+#define SPC	ctx->regs.spc
+#define DBR	ctx->regs.dbr
+#define SGR	ctx->regs.sgr
 
-#define R(n_)	ctx->r[n_]
+#define R(n_)	ctx->regs.r[n_]
 #define R0	R(0)
 #define RN	R(_RN)
 #define RM	R(_RM)
 #define SP	R(15)
 
-#define RBANK(n_) ctx->rbank[n_]
+#define RBANK(n_) ctx->regs.rbank[n_]
 
 #define T	SR.bit.t
 #define S	SR.bit.s
 #define Q	SR.bit.q
 #define M	SR.bit.m
 
-#define FPSCR	ctx->fpscr
-#define FPUL	ctx->fpul
+#define FPSCR	ctx->regs.fpscr
+#define FPUL	ctx->regs.fpul
 
-#define FR(n_)	ctx->f.f[n_]
-#define DR(n_)	ctx->f.d[(n_)/2]
+#define FR(n_)	ctx->regs.f.f[n_]
+#define DR(n_)	ctx->regs.f.d[(n_)/2]
 
-#define XF(n_)	ctx->x.f[n_]
-#define XD(n_)	ctx->x.d[(n_)/2]
+#define XF(n_)	ctx->regs.x.f[n_]
+#define XD(n_)	ctx->regs.x.d[(n_)/2]
 
 #define FRN	FR(_RN)
 #define FRM	FR(_RM)
@@ -1318,19 +1318,11 @@ sh4_reset (vk_device_t *dev, vk_reset_type_t type)
 	              VK_CPU_STATE_RUN :
 	              VK_CPU_STATE_STOP;
 
-	memset (ctx->r, 0, sizeof (ctx->r));
-	memset (ctx->f.f, 0, sizeof (ctx->f.f));
-	memset (ctx->x.f, 0, sizeof (ctx->x.f));
-	memset (ctx->rbank, 0, sizeof (ctx->rbank));
+	ctx->in_slot = false;
+
+	memset ((void *) &ctx->regs, 0, sizeof (ctx->regs));
 
 	PC = 0xA0000000;
-	PR = 0;
-	SPC = 0;
-	SGR = 0;
-	VBR = 0;
-	GBR = 0;
-	DBR = 0;
-	MAC = 0;
 
 	SR.full = 0;
 	SR.bit.i = 0xF;
@@ -1338,12 +1330,9 @@ sh4_reset (vk_device_t *dev, vk_reset_type_t type)
 	SR.bit.rb = 1;
 	SR.bit.md = 1;
 
-	SSR.full = 0;
-
 	FPSCR.full = 0;
 	FPSCR.bit.rm = 1;
 	FPSCR.bit.dn = 1;
-	FPUL.u    = 0;
 
 	/* See Table A.1, "Address List" */
 	vk_buffer_clear (ctx->iregs);
@@ -1370,21 +1359,14 @@ sh4_reset (vk_device_t *dev, vk_reset_type_t type)
 	IREG_PUT (2, SCIF_SCFSR2, 0x0060);
 	IREG_PUT (2, UDI_SDIR, 0xFFFF);
 
-	ctx->in_slot = false;
-
 	ctx->intc.pending = false;
 	ctx->intc.index = -1;
 	VK_ASSERT (sizeof (ctx->intc.irqs) == sizeof (default_irq_state));
 	memcpy (ctx->intc.irqs, default_irq_state, sizeof (default_irq_state));
 
-	ctx->dmac.is_running[0] = false;
-	ctx->dmac.is_running[1] = false;
-	ctx->dmac.is_running[2] = false;
-	ctx->dmac.is_running[3] = false;
+	memset ((void *) &ctx->dmac, 0, sizeof (ctx->dmac));
 
-	ctx->tmu.is_running[0] = false;
-	ctx->tmu.is_running[1] = false;
-	ctx->tmu.is_running[2] = false;
+	memset ((void *) &ctx->tmu, 0, sizeof (ctx->tmu));
 	ctx->tmu.counter[0] = 0xFFFFFFFF;
 	ctx->tmu.counter[1] = 0xFFFFFFFF;
 	ctx->tmu.counter[2] = 0xFFFFFFFF;
@@ -1403,22 +1385,7 @@ sh4_load_state (vk_device_t *dev, vk_state_t *state)
 	int ret = 0;
 
 	LOAD (ctx->in_slot);
-	LOAD (ctx->r);
-	LOAD (ctx->pc);
-	LOAD (ctx->sr);
-	LOAD (ctx->pr);
-	LOAD (ctx->gbr);
-	LOAD (ctx->vbr);
-	LOAD (ctx->dbr);
-	LOAD (ctx->mac);
-	LOAD (ctx->spc);
-	LOAD (ctx->ssr);
-	LOAD (ctx->sgr);
-	LOAD (ctx->rbank);
-	LOAD (ctx->f);
-	LOAD (ctx->x);
-	LOAD (ctx->fpul);
-	LOAD (ctx->fpscr);
+	LOAD (ctx->regs);
 	LOAD (ctx->intc);
 	LOAD (ctx->dmac);
 	LOAD (ctx->tmu);
@@ -1434,22 +1401,7 @@ sh4_save_state (vk_device_t *dev, vk_state_t *state)
 	int ret = 0;
 
 	SAVE (ctx->in_slot);
-	SAVE (ctx->r);
-	SAVE (ctx->pc);
-	SAVE (ctx->sr);
-	SAVE (ctx->pr);
-	SAVE (ctx->gbr);
-	SAVE (ctx->vbr);
-	SAVE (ctx->dbr);
-	SAVE (ctx->mac);
-	SAVE (ctx->spc);
-	SAVE (ctx->ssr);
-	SAVE (ctx->sgr);
-	SAVE (ctx->rbank);
-	SAVE (ctx->f);
-	SAVE (ctx->x);
-	SAVE (ctx->fpul);
-	SAVE (ctx->fpscr);
+	SAVE (ctx->regs);
 	SAVE (ctx->intc);
 	SAVE (ctx->dmac);
 	SAVE (ctx->tmu);
