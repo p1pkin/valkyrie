@@ -716,18 +716,15 @@ upload_current_lightset (hikaru_renderer_t *hr)
 
 		glLightfv (n, GL_SPECULAR, tmp);
 
-		/* Set the direction vector */
-		if (lt->type == 0 && lt->has_dir) {
+		/* Set the direction/position */
+		if (lt->has_dir) {
 			tmp[0] = lt->dir[0];
 			tmp[1] = lt->dir[1];
 			tmp[2] = lt->dir[2];
 			tmp[3] = 0.0f;
 
 			glLightfv (n, GL_POSITION, tmp);
-		}
-
-		/* Set the position vector */
-		if (lt->type == 3 && lt->has_pos) {
+		} else if (lt->has_pos) {
 			tmp[0] = lt->pos[0];
 			tmp[1] = lt->pos[1];
 			tmp[2] = lt->pos[2];
