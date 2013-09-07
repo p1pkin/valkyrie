@@ -706,7 +706,7 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		/* Set the specular color */
 		/* XXX a relativey wild guess. */
 		if (lt->_451_enabled &&
-		    !(hr->debug.flags & HR_DEBUG_LIGHT_S)) {
+		    (hr->debug.flags & HR_DEBUG_LIGHT_S)) {
 			tmp[0] = lt->_451_color[0] * k;
 			tmp[1] = lt->_451_color[1] * k;
 			tmp[2] = lt->_451_color[2] * k;
