@@ -619,14 +619,6 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		goto disable;
 	}
 
-	if (ls->disabled != 0xE &&
-	    ls->disabled != 0xC &&
-	    ls->disabled != 0x8 &&
-	    ls->disabled != 0) {
-		VK_ERROR ("attempting to use lightset with unknown mask %X!", ls->disabled);
-		goto disable;
-	}
-
 	/* If the material is unset, treat it as shading_mode is 1; that way
 	 * we can actually check lighting in the viewer. */
 	if (mat->set && mat->shading_mode == 0)
@@ -657,7 +649,7 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		hikaru_gpu_light_t *lt;
 
 		if (ls->disabled & (1 << i))
-			break;
+			continue;
 
 		lt = &LIT.table[ls->index[i]];
 
