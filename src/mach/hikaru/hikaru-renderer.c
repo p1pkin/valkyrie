@@ -854,7 +854,7 @@ draw_current_mesh (hikaru_renderer_t *hr)
 		break;
 	}
 
-	if (!(hr->debug.flags & HR_DEBUG_CULLFACE))
+	if (hr->debug.flags & HR_DEBUG_CULLFACE)
 		glDisable (GL_CULL_FACE);
 	else {
 		glEnable (GL_CULL_FACE);
