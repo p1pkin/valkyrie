@@ -38,9 +38,14 @@
 #define HR_DEBUG_SELECT_MESH		(1 << 7)
 #define HR_DEBUG_DUMP_TEXHEADS		(1 << 9)
 #define HR_DEBUG_NORMALS		(1 << 10)
-#define HR_DEBUG_LIGHTNING		(1 << 11)
+#define HR_DEBUG_LIGHTING		(1 << 11)
 #define HR_DEBUG_CULLFACE		(1 << 12)
 #define HR_DEBUG_POLYTYPE_TYPE		(1 << 13)
+#define HR_DEBUG_LIGHT_TYPE		(1 << 14)
+#define HR_DEBUG_LIGHT_A		(1 << 15)
+#define HR_DEBUG_LIGHT_D		(1 << 16)
+#define HR_DEBUG_LIGHT_S		(1 << 17)
+#define HR_DEBUG_LIGHT_COMP		(7 << 15)
 
 static struct {
 	uint32_t flag;
@@ -57,9 +62,13 @@ static struct {
 	{ HR_DEBUG_SELECT_MESH,		SDLK_s, "",			false },
 	{ HR_DEBUG_DUMP_TEXHEADS,	~0,	"HR_DUMP_TEXHEADS",	false },
 	{ HR_DEBUG_NORMALS,		SDLK_n, "",			false },
-	{ HR_DEBUG_LIGHTNING,		SDLK_l, "",			false },
+	{ HR_DEBUG_LIGHTING,		SDLK_l, "HR_DEBUG_LIGHTING",	false },
 	{ HR_DEBUG_CULLFACE,		SDLK_f, "",			false },
-	{ HR_DEBUG_POLYTYPE_TYPE,		SDLK_m, "",			false }
+	{ HR_DEBUG_POLYTYPE_TYPE,	SDLK_m, "",			false },
+	{ HR_DEBUG_LIGHT_TYPE,		SDLK_z, "",			false },
+	{ HR_DEBUG_LIGHT_A,		~0,	"",			false },
+	{ HR_DEBUG_LIGHT_D,		~0,	"",			false },
+	{ HR_DEBUG_LIGHT_S,		~0,	"",			false }
 };
 
 static void
@@ -79,6 +88,43 @@ update_debug_flags (hikaru_renderer_t *hr)
 		hr->debug.selected_mesh += 1;
 	if (vk_input_get_key (SDLK_KP_MINUS))
 		hr->debug.selected_mesh -= 1;
+
+	if (vk_input_get_key (SDLK_6)) {
+		hr->debug.light_type = 0;
+		hr->debug.flags |= HR_DEBUG_LIGHT_TYPE;
+		fprintf (stderr, "HR: selected light type 0\n");
+	} else if (vk_input_get_key (SDLK_7)) {
+		hr->debug.light_type = 1;
+		hr->debug.flags |= HR_DEBUG_LIGHT_TYPE;
+		fprintf (stderr, "HR: selected light type 1\n");
+	} else if (vk_input_get_key (SDLK_8)) {
+		hr->debug.light_type = 2;
+		hr->debug.flags |= HR_DEBUG_LIGHT_TYPE;
+		fprintf (stderr, "HR: selected light type 2\n");
+	} else if (vk_input_get_key (SDLK_9)) {
+		hr->debug.light_type = 3;
+		hr->debug.flags |= HR_DEBUG_LIGHT_TYPE;
+		fprintf (stderr, "HR: selected light type 3\n");
+	} else if (vk_input_get_key (SDLK_0))
+		hr->debug.flags &= ~HR_DEBUG_LIGHT_TYPE;
+
+	if (vk_input_get_key (SDLK_z)) {
+		switch (hr->debug.flags & HR_DEBUG_LIGHT_COMP) {
+		case HR_DEBUG_LIGHT_A:
+			hr->debug.flags = (hr->debug.flags & ~HR_DEBUG_LIGHT_A) | HR_DEBUG_LIGHT_D;
+			break;
+		case HR_DEBUG_LIGHT_D:
+			hr->debug.flags = (hr->debug.flags & ~HR_DEBUG_LIGHT_D) | HR_DEBUG_LIGHT_S;
+			break;
+		case HR_DEBUG_LIGHT_S:
+			hr->debug.flags = (hr->debug.flags & ~HR_DEBUG_LIGHT_S) | HR_DEBUG_LIGHT_COMP;
+			break;
+		case HR_DEBUG_LIGHT_COMP:
+			hr->debug.flags = (hr->debug.flags & ~HR_DEBUG_LIGHT_COMP) | HR_DEBUG_LIGHT_A;
+			break;
+		}
+		VK_ERROR ("light comp = %08X", hr->debug.flags & HR_DEBUG_LIGHT_COMP);
+	}
 }
 
 static void
@@ -86,6 +132,9 @@ read_debug_flags (hikaru_renderer_t *hr)
 {
 	unsigned i;
 
+	hr->debug.light_type = 0;
+
+	hr->debug.flags = HR_DEBUG_LIGHT_COMP;
 	for (i = 0; i < NUMELEM (debug_controls); i++) {
 		char *env = debug_controls[i].env;
 		if (env[0] != '\0' &&
@@ -468,37 +517,13 @@ is_viewport_valid (hikaru_gpu_viewport_t *vp)
 	return true;
 }
 
-#if 0
-static float
-vk_mtx3x3f_det (mtx3x3f_t a)
-{
-	float subdet0 = mv->mtx[1][1] * mv->mtx[2][2] - mv->mtx[2][1] * mv->mtx[1][2];
-	float subdet1 = mv->mtx[1][0] * mv->mtx[2][2] - mv->mtx[1][2] * mv->mtx[2][0];
-	float subdet2 = mv->mtx[1][0] * mv->mtx[2][1] - mv->mtx[1][1] * mv->mtx[2][0];
-
-	return mv->mtx[0][0] * subdet0 - mv->mtx[0][1] * subdet1 + mv->mtx[0][2] * subdet2;
-}
-#endif
-
 static void
-upload_current_state (hikaru_renderer_t *hr, unsigned i)
+upload_current_viewport (hikaru_renderer_t *hr)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_gpu_viewport_t *vp = &VP.scratch;
 
-	/* Viewport */
-	if (vp->flags & HIKARU_GPU_OBJ_DIRTY)
-	{
-		static const GLenum depth_func[8] = {
-			GL_NEVER,	/* 0 */
-			GL_LESS,	/* 1 */
-			GL_EQUAL,	/* 2 */
-			GL_LEQUAL,	/* 3 */
-			GL_GREATER,	/* 4 */
-			GL_NOTEQUAL,	/* 5 */
-			GL_GEQUAL,	/* 6 */
-			GL_ALWAYS	/* 7 */
-		};
+	if (vp->flags & HIKARU_GPU_OBJ_DIRTY) {
 
 		const float h = vp->clip.t - vp->clip.b;
 		const float w = vp->clip.r - vp->clip.l;
@@ -509,8 +534,9 @@ upload_current_state (hikaru_renderer_t *hr, unsigned i)
 
 		LOG ("vp  = %s : [w=%f h=%f dcx=%f dcy=%f]",
 		     get_gpu_viewport_str (vp), w, h, dcx, dcy);
+
 		if (!is_viewport_valid (vp))
-			LOG ("*** INVALID VIEWPORT!!! ***");
+			VK_ERROR ("invalid viewport [%s]", get_gpu_viewport_str (vp));
 
 		glMatrixMode (GL_PROJECTION);
 		glLoadIdentity ();
@@ -523,88 +549,261 @@ upload_current_state (hikaru_renderer_t *hr, unsigned i)
 
 		vp->flags &= ~HIKARU_GPU_OBJ_DIRTY;
 	}
+}
 
-	/* Modelview */
-	{
-		hikaru_gpu_modelview_t *mv = &MV.table[i];
+/* TODO track dirty state */
+static void
+upload_current_modelview (hikaru_renderer_t *hr, unsigned i)
+{
+	hikaru_gpu_t *gpu = hr->gpu;
+	hikaru_gpu_modelview_t *mv = &MV.table[i];
 
-		LOG ("mv  = %s", get_gpu_modelview_str (mv));
+	LOG ("mv  = %s", get_gpu_modelview_str (mv));
 
-		glMatrixMode (GL_MODELVIEW);
-		glLoadMatrixf ((GLfloat *) &mv->mtx[0][0]);
+	glMatrixMode (GL_MODELVIEW);
+	glLoadMatrixf ((GLfloat *) &mv->mtx[0][0]);
+}
+
+/* TODO track dirty state */
+static void
+upload_current_material_texhead (hikaru_renderer_t *hr)
+{
+	hikaru_gpu_t *gpu = hr->gpu;
+	hikaru_gpu_material_t *mat = &MAT.scratch;
+	hikaru_gpu_texhead_t *th   = &TEX.scratch;
+
+	LOG ("mat = %s", get_gpu_material_str (mat));
+	if (mat->set && mat->has_texture)
+		LOG ("th  = %s", get_gpu_texhead_str (th));
+
+	if ((hr->debug.flags & HR_DEBUG_DISABLE_TEXTURES) ||
+	    !mat->set || !th->set || !mat->has_texture)
+		glDisable (GL_TEXTURE_2D);
+	else {
+		vk_surface_t *surface;
+
+		surface = (hr->debug.flags & HR_DEBUG_FORCE_DEBUG_TEXTURE) ?
+		          NULL : decode_texhead (hr, th);
+
+		if (!surface)
+			surface = hr->textures.debug;
+
+		vk_surface_bind (surface);
+		glEnable (GL_TEXTURE_2D);
+	}
+}
+
+/* TODO track dirty state */
+static void
+upload_current_lightset (hikaru_renderer_t *hr)
+{
+	static const float k = 1.0f / 255.0f;
+
+	hikaru_gpu_t *gpu = hr->gpu;
+	hikaru_gpu_viewport_t *vp = &VP.scratch;
+	hikaru_gpu_material_t *mat = &MAT.scratch;
+	hikaru_gpu_lightset_t *ls = &LIT.scratchset;
+	GLfloat tmp[4];
+	unsigned i, n;
+
+	if (!(hr->debug.flags & HR_DEBUG_LIGHTING))
+		goto disable;
+
+	if (!ls->set) {
+		VK_ERROR ("attempting to use unset lightset!");
+		goto disable;
 	}
 
-	/* Material and Texhead */
-	{
-		hikaru_gpu_material_t *mat = &MAT.scratch;
-		hikaru_gpu_texhead_t *th   = &TEX.scratch;
+	if (ls->disabled == 0xF) {
+		VK_ERROR ("attempting to use lightset with no light!");
+		goto disable;
+	}
 
-		LOG ("mat = %s", get_gpu_material_str (mat));
-		if (mat->set && mat->has_texture)
-			LOG ("th  = %s", get_gpu_texhead_str (th));
+	if (ls->disabled != 0xE &&
+	    ls->disabled != 0xC &&
+	    ls->disabled != 0x8 &&
+	    ls->disabled != 0) {
+		VK_ERROR ("attempting to use lightset with unknown mask %X!", ls->disabled);
+		goto disable;
+	}
 
-		if ((hr->debug.flags & HR_DEBUG_DISABLE_TEXTURES) ||
-		    !mat->set || !th->set || !mat->has_texture)
-			glDisable (GL_TEXTURE_2D);
-		else {
-			vk_surface_t *surface;
+	/* If the material is unset, treat it as shading_mode is 1; that way
+	 * we can actually check lighting in the viewer. */
+	if (mat->set && mat->shading_mode == 0)
+		goto disable;
 
-			surface = (hr->debug.flags & HR_DEBUG_FORCE_DEBUG_TEXTURE) ?
-			          NULL : decode_texhead (hr, th);
+	/* Lights are positioned according to the scene, irrespective of
+	 * the modelview matrix. */
+	glMatrixMode (GL_MODELVIEW);
+	glPushMatrix ();
+	glLoadIdentity ();
 
-			if (!surface)
-				surface = hr->textures.debug;
+	glEnable (GL_LIGHTING);
 
-			vk_surface_bind (surface);
-			glEnable (GL_TEXTURE_2D);
+	for (i = 0; i < 4; i++) {
+		hikaru_gpu_light_t *lt;
+
+		if (ls->disabled & (1 << i))
+			break;
+
+		lt = &LIT.table[ls->index[i]];
+
+		if (!lt->set) {
+			VK_ERROR ("attempting to use unset light %u!", ls->index[i]);
+			continue;
 		}
-	}
 
-	/* Lights */
-	{
-		hikaru_gpu_lightset_t *ls = &LIT.scratchset;
-		unsigned i;
+		LOG ("light%u = enabled, %s", i, get_gpu_light_str (lt));
 
-		if ((hr->debug.flags & HR_DEBUG_LIGHTNING) == 0 ||
-		    !ls->set || ls->mask == 0xF)
-			glDisable (GL_LIGHTING);
-		else {
-			glMatrixMode (GL_MODELVIEW);
-			glPushMatrix ();
+		n = GL_LIGHT0 + i;
 
-			/* Perhaps the light position should be affected by
-			 * the modelview active when the light is defined? */
-
-			glEnable (GL_LIGHTING);
-			glEnable (GL_COLOR_MATERIAL);
-			glColorMaterial (GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
-
-			for (i = 0; i < 4; i++) {
-				if (!(ls->mask & (1 << i))) {
-					float position[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-					float diffuse[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-					hikaru_gpu_light_t *lt = ls->lights[i];
-
-					LOG ("light%u = %s", i, get_gpu_light_str (lt));
-
-					position[0] = lt->vecB[0];
-					position[1] = lt->vecB[1];
-					position[2] = lt->vecB[2];
-
-					diffuse[0] = lt->_051_color[0] * (1.0f / 1023.0f);
-					diffuse[1] = lt->_051_color[1] * (1.0f / 1023.0f);
-					diffuse[2] = lt->_051_color[2] * (1.0f / 1023.0f);
-
-					glEnable (GL_LIGHT0 + i);
-					glLightfv (GL_LIGHT0 + i, GL_DIFFUSE, diffuse);
-					glLightfv (GL_LIGHT0 + i, GL_POSITION, position);
-				} else
-					glDisable (GL_LIGHT0 + i);
-			}
-
-			glPopMatrix ();
+		/* Check the light type */
+		switch (lt->type) {
+		case 0: /* directional */
+			break;
+		case 1: /* point */
+		case 2: /* unknown */
+		default:
+			VK_ERROR ("light %u has unhandled type %u!", ls->index[i], lt->type);
+			glDisable (n);
+			continue;
+		case 3: /* spot */
+			break;
 		}
+
+		if (hr->debug.flags & HR_DEBUG_LIGHT_TYPE) {
+			if (lt->type == hr->debug.light_type)
+				glEnable (n);
+			else
+				glDisable (n);
+		}
+
+		/* Set the ambient color */
+		if (i == 0 &&
+		    !(hr->debug.flags & HR_DEBUG_LIGHT_A)) {
+			tmp[0] = vp->color.ambient[0] * k;
+			tmp[1] = vp->color.ambient[1] * k;
+			tmp[2] = vp->color.ambient[2] * k;
+		} else
+			tmp[0] = tmp[1] = tmp[2] = 0.0f;
+		tmp[3] = 1.0f;
+
+		glLightfv (n, GL_AMBIENT, tmp);
+
+		/* Set the diffuse color */
+		/* XXX the index uploaded with 051 may be related to the
+		 * table uploaded by 194, which may contain alpha values. */
+		if (hr->debug.flags & HR_DEBUG_LIGHT_D) {
+			tmp[0] = lt->_051_color[0] * k;
+			tmp[1] = lt->_051_color[1] * k;
+			tmp[2] = lt->_051_color[2] * k;
+		} else
+			tmp[0] = tmp[1] = tmp[2] = 1.0f;
+		tmp[3] = 1.0f;
+
+		glLightfv (n, GL_DIFFUSE, tmp);
+
+		/* Set the specular color */
+		/* XXX a relativey wild guess. */
+		if (lt->_451_enabled &&
+		    !(hr->debug.flags & HR_DEBUG_LIGHT_S)) {
+			tmp[0] = lt->_451_color[0] * k;
+			tmp[1] = lt->_451_color[1] * k;
+			tmp[2] = lt->_451_color[2] * k;
+		} else
+			tmp[0] = tmp[1] = tmp[2] = 0.0f;
+		tmp[3] = 1.0f;
+
+		glLightfv (n, GL_SPECULAR, tmp);
+
+		/* Set the direction vector */
+		if (lt->type == 0 && lt->has_dir) {
+			tmp[0] = lt->dir[0];
+			tmp[1] = lt->dir[1];
+			tmp[2] = lt->dir[2];
+			tmp[3] = 0.0f;
+
+			glLightfv (n, GL_POSITION, tmp);
+		}
+
+		/* Set the position vector */
+		if (lt->type == 3 && lt->has_pos) {
+			tmp[0] = lt->pos[0];
+			tmp[1] = lt->pos[1];
+			tmp[2] = lt->pos[2];
+			tmp[3] = 1.0f;
+
+			glLightfv (n, GL_POSITION, tmp);
+		}
+
+		/* Set the attenuation */
+		/* XXX for the moment, just set it to a uniform quadratic
+		 * attenuation, irrespective of the real settings. */
+
+		if (lt->att_base == 1.0f && lt->att_offs == 1.0f) {
+			/* Constant light, no attenuation */
+			tmp[0] = 1.0f;
+			tmp[1] = 0.0f;
+			tmp[2] = 0.0f;
+		} else {
+			tmp[0] = 1.0f;
+			tmp[1] = 0.0f;
+			tmp[3] = 0.0f;
+		}
+
+		glLightf (n, GL_CONSTANT_ATTENUATION, tmp[0]);
+		glLightf (n, GL_LINEAR_ATTENUATION, tmp[1]);
+		glLightf (n, GL_QUADRATIC_ATTENUATION, tmp[2]);
 	}
+
+	/* We upload the material properties here, as we don't store all
+	 * of them in the vertex_t yet (we will when we upgrade the renderer
+	 * to GL 3.0 and GLSL). */
+
+	/* Set the diffuse color */
+	if (hr->debug.flags & HR_DEBUG_LIGHT_D) {
+		tmp[0] = mat->color[0][0] * k;
+		tmp[1] = mat->color[0][1] * k;
+		tmp[2] = mat->color[0][2] * k;
+		tmp[3] = 1.0f;
+	} else {
+		tmp[0] = tmp[1] = tmp[2] = 0.0f;
+		tmp[3] = 1.0f;
+	}
+
+	glMaterialfv (GL_FRONT_AND_BACK, GL_DIFFUSE, tmp);
+
+	/* Set the ambient color */
+	if (hr->debug.flags & HR_DEBUG_LIGHT_A) {
+		tmp[0] = mat->color[1][0] * k;
+		tmp[1] = mat->color[1][1] * k;
+		tmp[2] = mat->color[1][2] * k;
+	} else {
+		tmp[0] = tmp[1] = tmp[2] = 0.0f;
+		tmp[3] = 1.0f;
+	}
+
+	glMaterialfv (GL_FRONT_AND_BACK, GL_AMBIENT, tmp);
+
+	/* Set the specular color */
+	if (hr->debug.flags & HR_DEBUG_LIGHT_S) {
+		tmp[0] = mat->specularity[0] * k;
+		tmp[1] = mat->specularity[1] * k;
+		tmp[2] = mat->specularity[2] * k;
+		tmp[3] = mat->shininess * k;
+	} else {
+		tmp[0] = tmp[1] = tmp[2] = 0.0f;
+		tmp[3] = 1.0f;
+	}
+
+	glMaterialfv (GL_FRONT_AND_BACK, GL_SPECULAR, tmp);
+	glMaterialf (GL_FRONT_AND_BACK, GL_SHININESS, tmp[3]);
+
+	glPopMatrix ();
+	return;
+
+disable:
+	glDisable (GL_LIGHTING);
 }
 
 static void
@@ -621,6 +820,9 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	    (hr->debug.current_mesh != hr->debug.selected_mesh))
 		goto skip_;
 
+	upload_current_viewport (hr);
+	upload_current_material_texhead (hr);
+
 	glGenBuffers (1, &vbo);
 	glBindBuffer (GL_ARRAY_BUFFER, vbo);
 	glBufferData (GL_ARRAY_BUFFER,
@@ -631,14 +833,14 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	                 (const GLvoid *) offsetof (hikaru_gpu_vertex_t, pos));
 	glNormalPointer (GL_FLOAT, sizeof (hikaru_gpu_vertex_t),
 	                 (const GLvoid *) offsetof (hikaru_gpu_vertex_t, nrm));
-	glColorPointer (4, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t),
-	                (const GLvoid *) offsetof (hikaru_gpu_vertex_t, col));
+//	glColorPointer (4, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t),
+//	                (const GLvoid *) offsetof (hikaru_gpu_vertex_t, col));
 	glTexCoordPointer (2, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t),
 	                   (const GLvoid *) offsetof (hikaru_gpu_vertex_t, txc));
 
 	glEnableClientState (GL_VERTEX_ARRAY);
 	glEnableClientState (GL_NORMAL_ARRAY);
-	glEnableClientState (GL_COLOR_ARRAY);
+//	glEnableClientState (GL_COLOR_ARRAY);
 	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 
 	switch (POLY.type) {
@@ -660,7 +862,8 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	}
 
 	for (i = 0; i < num_instances; i++) {
-		upload_current_state (hr, i);
+		upload_current_modelview (hr, i);
+		upload_current_lightset (hr);
 		glDrawArrays (GL_TRIANGLES, 0, hr->mesh.num_tris * 3);
 	}
 

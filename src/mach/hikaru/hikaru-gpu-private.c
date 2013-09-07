@@ -136,14 +136,16 @@ get_gpu_texhead_str (hikaru_gpu_texhead_t *texhead)
 }
 
 const char *
-get_gpu_light_str (hikaru_gpu_light_t *light)
+get_gpu_light_str (hikaru_gpu_light_t *lit)
 {
 	static char out[512];
 
-	sprintf (out, "(%5.3f %5.3f %u) (%7.3f %7.3f %7.3f) (%7.3f %7.3f %7.3f)",
-	         light->emission_p, light->emission_q, light->emission_type,
-	         light->vec9[0], light->vec9[1], light->vec9[2],
-	         light->vecB[0], light->vecB[1], light->vecB[2]);
+	sprintf (out, "%u (%+10.3f %+10.3f) dir=%u (%+10.3f %+10.3f %+10.3f) pos=%u (%+10.3f %+10.3f %+10.3f) [%u %03X %03X %03X] [%u %02X %02X %02X]",
+	         lit->type, lit->att_base, lit->att_offs,
+	         lit->has_dir, lit->dir[0], lit->dir[1], lit->dir[2],
+	         lit->has_pos, lit->pos[0], lit->pos[1], lit->pos[2],
+	         lit->_051_index, lit->_051_color[0], lit->_051_color[0], lit->_051_color[0],
+	         lit->_451_enabled, lit->_451_color[0], lit->_451_color[0], lit->_451_color[0]);
 
 	return (const char *) out;
 };

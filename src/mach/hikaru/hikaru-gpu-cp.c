@@ -982,12 +982,12 @@ D (0x003)
 I (0x161)
 {
 	hikaru_gpu_modelview_t *mv = &MV.table[MV.depth];
-	hikaru_gpu_light_t *lt = &LIT.scratch;
+	hikaru_gpu_light_t *lit = &LIT.scratch;
 	uint32_t push, elem;
 
 	switch ((inst[0] >> 8) & 0xF) {
 
-	case 1:
+	case 0x1:
 		/* Ignore conditional version. */
 		if (inst[0] & 0x000CF000)
 			return;
@@ -1022,17 +1022,29 @@ I (0x161)
 				MV.depth = 0;
 		}
 		break;
-	case 5:
+	case 0x5:
 		break;
-	case 9:
-		lt->vec9[0] = *(float *) &inst[1];
-		lt->vec9[1] = *(float *) &inst[2];
-		lt->vec9[2] = *(float *) &inst[3];
-		break;
+	case 0x9:
 	case 0xB:
-		lt->vecB[0] = *(float *) &inst[1];
-		lt->vecB[1] = *(float *) &inst[2];
-		lt->vecB[2] = *(float *) &inst[3];
+		switch (inst[0] & 0x000FF000) {
+		case 0x00008000: /* Direction */
+			lit->has_dir = 1;
+			lit->dir[0] = *(float *) &inst[1];
+			lit->dir[1] = *(float *) &inst[2];
+			lit->dir[2] = *(float *) &inst[3];
+			break;
+		case 0x00010000: /* Position */
+			lit->has_pos = 1;
+			lit->pos[0] = *(float *) &inst[1];
+			lit->pos[1] = *(float *) &inst[2];
+			lit->pos[2] = *(float *) &inst[3];
+			break;
+		case 0x00016000: /* Use old position */
+		default:
+			VK_ERROR ("CP @%08X: unhandled light 161 param: %08X",
+			          PC, inst[0]);
+			break;
+		}
 		break;
 	default:
 		VK_ASSERT (0);
@@ -1661,12 +1673,17 @@ get_lightset_index (uint32_t *inst)
  *	-------- ------tt ----oooo oooooooo
  *	pppppppp pppppppp pppppppp pppppppp
  *	qqqqqqqq qqqqqqqq qqqqqqqq qqqqqqqq
- *	???????? ???????? ???????? ????????
+ *	-------- -------- -------- --------
  *
  * t = Light type
- * p = Unknown \ power/emission/exponent/dacay/XXX
- * q = Unknown /
- * ? = Used in BRAVEFF title?
+ *
+ *	0 = Directional
+ *	1 = Omnidirectional/Point
+ *	2 = ?
+ *	3 = Spot (likely)
+ *
+ * p = Attenuation base
+ * q = Attenuation offset
  *
  * Type 0:
  *
@@ -1708,9 +1725,12 @@ I (0x061)
 {
 	hikaru_gpu_light_t *lit = &LIT.scratch;
 
-	lit->emission_type	= (inst[0] >> 16) & 3;
-	lit->emission_p		= *(float *) &inst[1];
-	lit->emission_q		= *(float *) &inst[2];
+	lit->type	= (inst[0] >> 16) & 3;
+	lit->att_base	= *(float *) &inst[1];
+	lit->att_offs	= *(float *) &inst[2];
+
+	lit->has_pos	= 0;
+	lit->has_dir	= 0;
 }
 
 D (0x061)
@@ -1745,8 +1765,6 @@ D (0x061)
  *
  * R, G, B = Color.
  *
- * Seems related to B61.
- *
  * See PH:@0C017A7C, PH:@0C017B6C, PH:@0C017C58, PH:@0C017CD4, PH:@0C017D64.
  */
 
@@ -1766,7 +1784,6 @@ I (0x051)
 		lit->_451_enabled  = ((inst[0] >> 24) & 1) ^ 1;
 		lit->_451_color[0] = inst[1] & 0xFF;
 		lit->_451_color[1] = (inst[1] >> 8) & 0xFF;
-		lit->_451_color[2] = (inst[1] >> 16) & 0xFF;
 		break;
 	default:
 		VK_ASSERT (0);
@@ -1857,12 +1874,11 @@ D (0x104)
  *      -------- nnnnnnnn ---M---o oooooooo
  *      ------bb bbbbbbbb ------aa aaaaaaaa
  *      ------dd dddddddd ------cc cccccccc
- *      ???????? ???????? ???????? ????????
+ *	-------- -------- -------- -------- 
  *
  * M = Unknown (0 in the BOOTROM, 1 elsewhere)
  * n = Lightset index
  * a,b,c,d = Indices of four lights
- * ? = Used in BRAVEFF title?
  *
  * See PH:@0C017DF0.
  */
@@ -1870,12 +1886,7 @@ D (0x104)
 I (0x064)
 {
 	hikaru_gpu_lightset_t *ls;
-
 	uint32_t index = LIT.base + get_lightset_index (inst);
-	uint32_t light0 = inst[1] & (NUM_LIGHTS - 1);
-	uint32_t light1 = (inst[1] >> 16) & (NUM_LIGHTS - 1);
-	uint32_t light2 = inst[2] & (NUM_LIGHTS - 1);
-	uint32_t light3 = (inst[2] >> 16) & (NUM_LIGHTS - 1);
 
 	if (index >= NUM_LIGHTSETS) {
 		VK_ERROR ("CP: lightset commit index exceeds MAX (%u >= %u), skipping",
@@ -1885,10 +1896,10 @@ I (0x064)
 
 	ls = &LIT.sets[index];
 
-	ls->lights[0] = &LIT.table[light0];
-	ls->lights[1] = &LIT.table[light1];
-	ls->lights[2] = &LIT.table[light2];
-	ls->lights[3] = &LIT.table[light3];
+	ls->index[0] = inst[1] & (NUM_LIGHTS - 1);
+	ls->index[1] = (inst[1] >> 16) & (NUM_LIGHTS - 1);
+	ls->index[2] = inst[2] & (NUM_LIGHTS - 1);
+	ls->index[3] = (inst[2] >> 16) & (NUM_LIGHTS - 1);
 	ls->set = true;
 }
 
@@ -1917,7 +1928,6 @@ D (0x064)
 I (0x043)
 {
 	uint32_t index = get_lightset_index (inst);
-	uint32_t mask  = (inst[0] >> 24) & 0xF;
 
 	if (!(inst[0] & 0x1000))
 		LIT.base = index;
@@ -1930,7 +1940,7 @@ I (0x043)
 		}
 
 		LIT.scratchset = LIT.sets[index];
-		LIT.scratchset.mask = mask;
+		LIT.scratchset.disabled = (inst[0] >> 24) & 0xF;
 	}
 }
 

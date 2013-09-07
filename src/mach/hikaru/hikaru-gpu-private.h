@@ -130,23 +130,31 @@ typedef struct {
 	uint32_t set		: 1;
 } hikaru_gpu_texhead_t;
 
+enum {
+	HIKARU_LIGHT_DIRECTIONAL	= 0,
+	HIKARU_LIGHT_POINT		= 1,
+	HIKARU_LIGHT_SPOT		= 3
+};
+
 typedef struct {
-	uint32_t emission_type	: 2;
-	float emission_p;
-	float emission_q;
-	vec3f_t vec9;
-	vec3f_t vecB;
+	vec3f_t pos;
+	vec3f_t dir;
+	vec3s_t _051_color;
+	vec3b_t _451_color;
+	float att_base;
+	float att_offs;
+	uint32_t type		: 2;
+	uint32_t has_pos	: 1;
+	uint32_t has_dir	: 1;
 	uint32_t _051_index	: 4;
 	uint32_t _051_bit	: 1;
-	vec3s_t _051_color;
 	uint32_t _451_enabled	: 1;
-	vec3b_t _451_color;
 	uint32_t set		: 1;
 } hikaru_gpu_light_t;
 
 typedef struct {
-	hikaru_gpu_light_t *lights[4];
-	uint32_t mask		: 4;
+	uint16_t index[4];
+	uint32_t disabled	: 4;
 	uint32_t set		: 1;
 } hikaru_gpu_lightset_t;
 
@@ -323,6 +331,7 @@ typedef struct {
 	struct {
 		uint32_t flags;
 		uint32_t current_mesh, selected_mesh;
+		uint32_t light_type;
 	} debug;
 
 } hikaru_renderer_t;
