@@ -681,7 +681,8 @@ upload_current_lightset (hikaru_renderer_t *hr)
 				glEnable (n);
 			else
 				glDisable (n);
-		}
+		} else
+			glEnable (n);
 
 		/* The ambient light is only global */
 		tmp[0] = tmp[1] = tmp[2] = 0.0f;
