@@ -640,6 +640,19 @@ upload_current_lightset (hikaru_renderer_t *hr)
 
 	glEnable (GL_LIGHTING);
 
+	/* Set the global ambient. */
+	/* XXX for some reason this is always (0,0,0)! */
+	if (!(hr->debug.flags & HR_DEBUG_LIGHT_A)) {
+		tmp[0] = vp->color.ambient[0] * k;
+		tmp[1] = vp->color.ambient[1] * k;
+		tmp[2] = vp->color.ambient[2] * k;
+	} else
+		tmp[0] = tmp[1] = tmp[2] = 0.0f;
+	tmp[3] = 1.0f;
+
+	glLightModelfv (GL_LIGHT_MODEL_AMBIENT, tmp);
+
+	/* For each of the four lights in the current lightset */
 	for (i = 0; i < 4; i++) {
 		hikaru_gpu_light_t *lt;
 
@@ -678,14 +691,8 @@ upload_current_lightset (hikaru_renderer_t *hr)
 				glDisable (n);
 		}
 
-		/* Set the ambient color */
-		if (i == 0 &&
-		    !(hr->debug.flags & HR_DEBUG_LIGHT_A)) {
-			tmp[0] = vp->color.ambient[0] * k;
-			tmp[1] = vp->color.ambient[1] * k;
-			tmp[2] = vp->color.ambient[2] * k;
-		} else
-			tmp[0] = tmp[1] = tmp[2] = 0.0f;
+		/* The ambient light is only global */
+		tmp[0] = tmp[1] = tmp[2] = 0.0f;
 		tmp[3] = 1.0f;
 
 		glLightfv (n, GL_AMBIENT, tmp);
