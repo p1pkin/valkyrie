@@ -1701,7 +1701,7 @@ get_lightset_index (uint32_t *inst)
  *  p = 1.0f / (FR4**2 - FR5**2)
  *  q = -FR5**2
  *
- * NOTE: it sets (16,GBR) to X and (17,GBR) to Y.
+ * NOTE: it sets (16,GBR) to FR5 and (17,GBR) to FR5*FR5.
  *
  * Type 2:
  *

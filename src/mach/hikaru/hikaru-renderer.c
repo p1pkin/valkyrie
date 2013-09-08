@@ -662,27 +662,11 @@ upload_current_lightset (hikaru_renderer_t *hr)
 
 		n = GL_LIGHT0 + i;
 
-		/* Check the light type */
-		switch (lt->type) {
-		case 0: /* directional */
-			break;
-		case 1: /* point */
-		case 2: /* unknown */
-		default:
-			VK_ERROR ("light %u has unhandled type %u!", ls->index[i], lt->type);
-			glDisable (n);
-			continue;
-		case 3: /* spot */
-			break;
-		}
-
-		if (hr->debug.flags & HR_DEBUG_LIGHT_TYPE) {
-			if (lt->type == hr->debug.light_type)
-				glEnable (n);
-			else
-				glDisable (n);
-		} else
+		if (!(hr->debug.flags & HR_DEBUG_LIGHT_TYPE) ||
+		    lt->type == hr->debug.light_type)
 			glEnable (n);
+		else
+			glDisable (n);
 
 		/* The ambient light is only global */
 		tmp[0] = tmp[1] = tmp[2] = 0.0f;
@@ -716,36 +700,79 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		glLightfv (n, GL_SPECULAR, tmp);
 
 		/* Set the direction/position */
-		if (lt->has_dir) {
+		if (lt->has_dir && !lt->has_pos) {
+			/* directional light */
 			tmp[0] = lt->dir[0];
 			tmp[1] = lt->dir[1];
 			tmp[2] = lt->dir[2];
 			tmp[3] = 0.0f;
-
 			glLightfv (n, GL_POSITION, tmp);
-		} else if (lt->has_pos) {
+		} else if (!lt->has_dir && lt->has_pos) {
+			/* point light */
 			tmp[0] = lt->pos[0];
 			tmp[1] = lt->pos[1];
 			tmp[2] = lt->pos[2];
 			tmp[3] = 1.0f;
-
 			glLightfv (n, GL_POSITION, tmp);
+		} else if (lt->has_dir && lt->has_pos) {
+			/* spotlight */
+			glPushMatrix ();
+			glLoadIdentity ();
+
+			tmp[0] = lt->dir[0];
+			tmp[1] = lt->dir[1];
+			tmp[2] = lt->dir[2];
+			glTranslatef (tmp[0], tmp[1], tmp[2]);
+
+			tmp[0] = lt->dir[0];
+			tmp[1] = lt->dir[1];
+			tmp[2] = lt->dir[2];
+			tmp[3] = 1.0f;
+			glLightfv (n, GL_POSITION, tmp);
+
+			/* XXX let's make it very hard to miss spotlights! */
+			glLightf (n, GL_SPOT_EXPONENT, 128.0f);
+
+			glPopMatrix ();
 		}
 
 		/* Set the attenuation */
-		/* XXX for the moment, just set it to a uniform quadratic
-		 * attenuation, irrespective of the real settings. */
+		/* XXX most attenuation types are impossible to do correctly
+		 * with OpenGL fixed-function quadratic attenuation model. */
+		if (lt->type == 0 &&
+		    (lt->att_base == 1.0f && lt->att_offs == 1.0f)) {
+			/* constant */
 
-		if (lt->att_base == 1.0f && lt->att_offs == 1.0f) {
-			/* Constant light, no attenuation */
 			tmp[0] = 1.0f;
 			tmp[1] = 0.0f;
 			tmp[2] = 0.0f;
-		} else {
-			tmp[0] = 1.0f;
-			tmp[1] = 0.0f;
+		} else if (lt->type == 0) {
+			/* linear */
+			float min, max;
+
+			VK_ASSERT (lt->att_base < 0.0f);
+			VK_ASSERT (lt->att_offs < 0.0f);
+
+			min = -lt->att_offs;
+			max = min + 1.0f / lt->att_base;
+
+			tmp[0] = 0.0f;
+			tmp[1] = 1.0f / min;
+			tmp[2] = 0.0f;
+		} else if (lt->type == 1) {
+			/* square */
+			VK_ASSERT (0);
+		} else if (lt->type == 2) {
+			/* reciprocal */
+			VK_ASSERT (0);
+		} else if (lt->type == 3) {
+			/* reciprocal 2 */
+
+			tmp[0] = 0.0f;
+			tmp[1] = 0.2f;
 			tmp[3] = 0.0f;
-		}
+		} else
+			VK_ASSERT (0);
 
 		glLightf (n, GL_CONSTANT_ATTENUATION, tmp[0]);
 		glLightf (n, GL_LINEAR_ATTENUATION, tmp[1]);
