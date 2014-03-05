@@ -29,47 +29,65 @@
  Debug
 ****************************************************************************/
 
-#define HR_DEBUG_LOG			(1 << 0)
-#define HR_DEBUG_DISABLE_LAYER1		(1 << 1)
-#define HR_DEBUG_DISABLE_LAYER2		(1 << 2)
-#define HR_DEBUG_DISABLE_3D		(1 << 3)
-#define HR_DEBUG_DISABLE_TEXTURES	(1 << 4)
-#define HR_DEBUG_FORCE_DEBUG_TEXTURE	(1 << 5)
-#define HR_DEBUG_SELECT_MESH		(1 << 7)
-#define HR_DEBUG_DUMP_TEXHEADS		(1 << 9)
-#define HR_DEBUG_NORMALS		(1 << 10)
-#define HR_DEBUG_LIGHTING		(1 << 11)
-#define HR_DEBUG_CULLFACE		(1 << 12)
-#define HR_DEBUG_POLYTYPE_TYPE		(1 << 13)
-#define HR_DEBUG_LIGHT_TYPE		(1 << 14)
-#define HR_DEBUG_LIGHT_A		(1 << 15)
-#define HR_DEBUG_LIGHT_D		(1 << 16)
-#define HR_DEBUG_LIGHT_S		(1 << 17)
-#define HR_DEBUG_LIGHT_COMP		(7 << 15)
+enum {
+	HR_DEBUG_LOG,
+	HR_DEBUG_NO_LAYER1,
+	HR_DEBUG_NO_LAYER2,
+	HR_DEBUG_NO_3D,
+	HR_DEBUG_SELECT_CULLFACE,
+	HR_DEBUG_NO_TEXTURES,
+	HR_DEBUG_USE_DEBUG_TEXTURE,
+	HR_DEBUG_DUMP_TEXTURES,
+	HR_DEBUG_SELECT_POLYTYPE,
+	HR_DEBUG_DRAW_NORMALS,
+	HR_DEBUG_NO_LIGHTING,
+	HR_DEBUG_NO_AMBIENT,
+	HR_DEBUG_NO_DIFFUSE,
+	HR_DEBUG_NO_SPECULAR,
+	HR_DEBUG_SELECT_ATT_TYPE,
 
-static struct {
-	uint32_t flag;
-	uint32_t key;
-	char env[64];
-	bool default_;
-} debug_controls[] = {
-	{ HR_DEBUG_LOG,			~0,	"HR_LOG",		false },
-	{ HR_DEBUG_DISABLE_LAYER1,	SDLK_1,	"",			false },
-	{ HR_DEBUG_DISABLE_LAYER2,	SDLK_2,	"",			false },
-	{ HR_DEBUG_DISABLE_3D,		SDLK_3,	"HR_DEBUG_DISABLE_3D",	false },
-	{ HR_DEBUG_DISABLE_TEXTURES,	SDLK_t,	"",			false },
-	{ HR_DEBUG_FORCE_DEBUG_TEXTURE,	SDLK_d,	"",			false },
-	{ HR_DEBUG_SELECT_MESH,		SDLK_s, "",			false },
-	{ HR_DEBUG_DUMP_TEXHEADS,	~0,	"HR_DUMP_TEXHEADS",	false },
-	{ HR_DEBUG_NORMALS,		SDLK_n, "",			false },
-	{ HR_DEBUG_LIGHTING,		SDLK_l, "HR_DEBUG_LIGHTING",	false },
-	{ HR_DEBUG_CULLFACE,		SDLK_f, "",			false },
-	{ HR_DEBUG_POLYTYPE_TYPE,	SDLK_m, "",			false },
-	{ HR_DEBUG_LIGHT_TYPE,		SDLK_z, "",			false },
-	{ HR_DEBUG_LIGHT_A,		~0,	"",			false },
-	{ HR_DEBUG_LIGHT_D,		~0,	"",			false },
-	{ HR_DEBUG_LIGHT_S,		~0,	"",			false }
+	HR_NUM_DEBUG_VARS
 };
+
+static const struct {
+	int32_t min, max;
+	uint32_t key;
+	bool print;
+	char name[32];
+} debug_controls[] = {
+	[HR_DEBUG_LOG]			= {  0, 1,     ~0, false, "LOG" },
+	[HR_DEBUG_NO_LAYER1]		= {  0, 1, SDLK_1, false, "NO LAYER1" },
+	[HR_DEBUG_NO_LAYER2]		= {  0, 1, SDLK_2, false, "NO LAYER2" },
+	[HR_DEBUG_NO_3D]		= {  0, 1, SDLK_3, false, "NO 3D" },
+	[HR_DEBUG_SELECT_CULLFACE]	= { -1, 1, SDLK_c,  true, "SELECT CULLFACE" },
+	[HR_DEBUG_NO_TEXTURES]		= {  0, 1, SDLK_t, false, "NO TEXTURES" },
+	[HR_DEBUG_USE_DEBUG_TEXTURE]	= {  0, 1, SDLK_y, false, "USE DEBUG TEXTURE" },
+	[HR_DEBUG_DUMP_TEXTURES]	= {  0, 1,     ~0, false, "DUMP TEXTURES" },
+	[HR_DEBUG_SELECT_POLYTYPE]	= { -1, 7, SDLK_p,  true, "SELECT POLYTYPE" },
+	[HR_DEBUG_DRAW_NORMALS]		= {  0, 1, SDLK_n, false, "DRAW NORMALS" },
+	[HR_DEBUG_NO_LIGHTING]		= {  0, 1, SDLK_l, false, "NO LIGHTING" },
+	[HR_DEBUG_NO_AMBIENT]		= {  0, 1, SDLK_a, false, "NO AMBIENT" },
+	[HR_DEBUG_NO_DIFFUSE]		= {  0, 1, SDLK_d, false, "NO DIFFUSE" },
+	[HR_DEBUG_NO_SPECULAR]		= {  0, 1, SDLK_s, false, "NO SPECULAR" },
+	[HR_DEBUG_SELECT_ATT_TYPE]	= { -1, 3, SDLK_z,  true, "SELECT ATT TYPE" },
+};
+
+static void
+init_debug_flags (hikaru_renderer_t *hr)
+{
+	unsigned i;
+
+	hr->debug.flags = (int32_t *) calloc (HR_NUM_DEBUG_VARS, sizeof (int32_t));
+	VK_ASSERT (hr->debug.flags);
+
+	for (i = 0; i < NUMELEM (debug_controls); i++)
+		hr->debug.flags[i] = debug_controls[i].min;
+
+	hr->debug.flags[HR_DEBUG_LOG] =
+		vk_util_get_bool_option ("HR_LOG", false) ? 1 : 0;
+	hr->debug.flags[HR_DEBUG_DUMP_TEXTURES] =
+		vk_util_get_bool_option ("HR_DUMP_TEXTURES", false) ? 1 : 0;
+}
 
 static void
 update_debug_flags (hikaru_renderer_t *hr)
@@ -78,76 +96,26 @@ update_debug_flags (hikaru_renderer_t *hr)
 
 	for (i = 0; i < NUMELEM (debug_controls); i++) {
 		uint32_t key = debug_controls[i].key;
-		if (key != ~0 && vk_input_get_key (key))
-			hr->debug.flags ^= debug_controls[i].flag;
-	}
-
-	if (vk_input_get_key (SDLK_KP_PERIOD))
-		hr->debug.selected_mesh = 0;
-	if (vk_input_get_key (SDLK_KP_PLUS))
-		hr->debug.selected_mesh += 1;
-	if (vk_input_get_key (SDLK_KP_MINUS))
-		hr->debug.selected_mesh -= 1;
-
-	if (vk_input_get_key (SDLK_6)) {
-		hr->debug.light_type = 0;
-		hr->debug.flags |= HR_DEBUG_LIGHT_TYPE;
-		fprintf (stderr, "HR: selected light type 0\n");
-	} else if (vk_input_get_key (SDLK_7)) {
-		hr->debug.light_type = 1;
-		hr->debug.flags |= HR_DEBUG_LIGHT_TYPE;
-		fprintf (stderr, "HR: selected light type 1\n");
-	} else if (vk_input_get_key (SDLK_8)) {
-		hr->debug.light_type = 2;
-		hr->debug.flags |= HR_DEBUG_LIGHT_TYPE;
-		fprintf (stderr, "HR: selected light type 2\n");
-	} else if (vk_input_get_key (SDLK_9)) {
-		hr->debug.light_type = 3;
-		hr->debug.flags |= HR_DEBUG_LIGHT_TYPE;
-		fprintf (stderr, "HR: selected light type 3\n");
-	} else if (vk_input_get_key (SDLK_0))
-		hr->debug.flags &= ~HR_DEBUG_LIGHT_TYPE;
-
-	if (vk_input_get_key (SDLK_z)) {
-		switch (hr->debug.flags & HR_DEBUG_LIGHT_COMP) {
-		case HR_DEBUG_LIGHT_A:
-			hr->debug.flags = (hr->debug.flags & ~HR_DEBUG_LIGHT_A) | HR_DEBUG_LIGHT_D;
-			break;
-		case HR_DEBUG_LIGHT_D:
-			hr->debug.flags = (hr->debug.flags & ~HR_DEBUG_LIGHT_D) | HR_DEBUG_LIGHT_S;
-			break;
-		case HR_DEBUG_LIGHT_S:
-			hr->debug.flags = (hr->debug.flags & ~HR_DEBUG_LIGHT_S) | HR_DEBUG_LIGHT_COMP;
-			break;
-		case HR_DEBUG_LIGHT_COMP:
-			hr->debug.flags = (hr->debug.flags & ~HR_DEBUG_LIGHT_COMP) | HR_DEBUG_LIGHT_A;
-			break;
+		if (key != ~0 && vk_input_get_key (key)) {
+			hr->debug.flags[i] += 1;
+			if (hr->debug.flags[i] > debug_controls[i].max)
+				hr->debug.flags[i] = debug_controls[i].min;
+			if (debug_controls[i].print)
+				VK_LOG ("HR DEBUG: '%s' = %d\n",
+				        debug_controls[i].name, hr->debug.flags[i]);
 		}
-		VK_ERROR ("light comp = %08X", hr->debug.flags & HR_DEBUG_LIGHT_COMP);
 	}
 }
 
 static void
-read_debug_flags (hikaru_renderer_t *hr)
+destroy_debug_flags (hikaru_renderer_t *hr)
 {
-	unsigned i;
-
-	hr->debug.light_type = 0;
-
-	hr->debug.flags = HR_DEBUG_LIGHT_COMP;
-	for (i = 0; i < NUMELEM (debug_controls); i++) {
-		char *env = debug_controls[i].env;
-		if (env[0] != '\0' &&
-		    vk_util_get_bool_option (env, debug_controls[i].default_))
-			hr->debug.flags |= debug_controls[i].flag;
-	}
-
-	VK_LOG ("HR: debug flags = %08X", hr->debug.flags);
+	free (hr->debug.flags);
 }
 
 #define LOG(fmt_, args_...) \
 	do { \
-		if (hr->debug.flags & HR_DEBUG_LOG) \
+		if (hr->debug.flags[HR_DEBUG_LOG]) \
 			fprintf (stdout, "\tHR: " fmt_"\n", ##args_); \
 	} while (0)
 
@@ -439,7 +407,7 @@ decode_texhead (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 		break;
 	}
 
-	if (surface && (hr->debug.flags & HR_DEBUG_DUMP_TEXHEADS))
+	if (surface && hr->debug.flags[HR_DEBUG_DUMP_TEXTURES])
 		dump_texhead (hr, texhead, surface);
 
 	/* Cache the decoded texhead. */
@@ -576,13 +544,13 @@ upload_current_material_texhead (hikaru_renderer_t *hr)
 	if (mat->set && mat->has_texture)
 		LOG ("th  = %s", get_gpu_texhead_str (th));
 
-	if ((hr->debug.flags & HR_DEBUG_DISABLE_TEXTURES) ||
+	if (hr->debug.flags[HR_DEBUG_NO_TEXTURES] ||
 	    !mat->set || !th->set || !mat->has_texture)
 		glDisable (GL_TEXTURE_2D);
 	else {
 		vk_surface_t *surface;
 
-		surface = (hr->debug.flags & HR_DEBUG_FORCE_DEBUG_TEXTURE) ?
+		surface = hr->debug.flags[HR_DEBUG_USE_DEBUG_TEXTURE] ?
 		          NULL : decode_texhead (hr, th);
 
 		if (!surface)
@@ -606,7 +574,7 @@ upload_current_lightset (hikaru_renderer_t *hr)
 	GLfloat tmp[4];
 	unsigned i, n;
 
-	if (!(hr->debug.flags & HR_DEBUG_LIGHTING))
+	if (hr->debug.flags[HR_DEBUG_NO_LIGHTING])
 		goto disable;
 
 	if (!ls->set) {
@@ -634,12 +602,13 @@ upload_current_lightset (hikaru_renderer_t *hr)
 
 	/* Set the global ambient. */
 	/* XXX for some reason this is always (0,0,0)! */
-	if (!(hr->debug.flags & HR_DEBUG_LIGHT_A)) {
+	if (hr->debug.flags[HR_DEBUG_NO_AMBIENT])
+		tmp[0] = tmp[1] = tmp[2] = 0.0f;
+	else {
 		tmp[0] = vp->color.ambient[0] * k;
 		tmp[1] = vp->color.ambient[1] * k;
 		tmp[2] = vp->color.ambient[2] * k;
-	} else
-		tmp[0] = tmp[1] = tmp[2] = 0.0f;
+	}
 	tmp[3] = 1.0f;
 
 	glLightModelfv (GL_LIGHT_MODEL_AMBIENT, tmp);
@@ -662,8 +631,8 @@ upload_current_lightset (hikaru_renderer_t *hr)
 
 		n = GL_LIGHT0 + i;
 
-		if (!(hr->debug.flags & HR_DEBUG_LIGHT_TYPE) ||
-		    lt->type == hr->debug.light_type)
+		if ((hr->debug.flags[HR_DEBUG_SELECT_ATT_TYPE] < 0) ||
+		    (hr->debug.flags[HR_DEBUG_SELECT_ATT_TYPE] == lt->type))
 			glEnable (n);
 		else
 			glDisable (n);
@@ -677,24 +646,26 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		/* Set the diffuse color */
 		/* XXX the index uploaded with 051 may be related to the
 		 * table uploaded by 194, which may contain alpha values. */
-		if (hr->debug.flags & HR_DEBUG_LIGHT_D) {
+		if (hr->debug.flags[HR_DEBUG_NO_DIFFUSE])
+			tmp[0] = tmp[1] = tmp[2] = 1.0f;
+		else {
 			tmp[0] = lt->_051_color[0] * k;
 			tmp[1] = lt->_051_color[1] * k;
 			tmp[2] = lt->_051_color[2] * k;
-		} else
-			tmp[0] = tmp[1] = tmp[2] = 1.0f;
+		}
 		tmp[3] = 1.0f;
 
 		glLightfv (n, GL_DIFFUSE, tmp);
 
 		/* Set the specular color */
 		/* XXX a relativey wild guess. */
-		if (hr->debug.flags & HR_DEBUG_LIGHT_S) {
+		if (hr->debug.flags[HR_DEBUG_NO_SPECULAR])
+			tmp[0] = tmp[1] = tmp[2] = 0.0f;
+		else {
 			tmp[0] = lt->_051_color[0] * k;
 			tmp[1] = lt->_051_color[1] * k;
 			tmp[2] = lt->_051_color[2] * k;
-		} else
-			tmp[0] = tmp[1] = tmp[2] = 0.0f;
+		}
 		tmp[3] = 1.0f;
 
 		glLightfv (n, GL_SPECULAR, tmp);
@@ -784,38 +755,39 @@ upload_current_lightset (hikaru_renderer_t *hr)
 	 * to GL 3.0 and GLSL). */
 
 	/* Set the diffuse color */
-	if (hr->debug.flags & HR_DEBUG_LIGHT_D) {
+	if (hr->debug.flags[HR_DEBUG_NO_DIFFUSE]) {
+		tmp[0] = tmp[1] = tmp[2] = 0.0f;
+		tmp[3] = 1.0f;
+	} else {
 		tmp[0] = mat->color[0][0] * k;
 		tmp[1] = mat->color[0][1] * k;
 		tmp[2] = mat->color[0][2] * k;
-		tmp[3] = 1.0f;
-	} else {
-		tmp[0] = tmp[1] = tmp[2] = 0.0f;
 		tmp[3] = 1.0f;
 	}
 
 	glMaterialfv (GL_FRONT_AND_BACK, GL_DIFFUSE, tmp);
 
 	/* Set the ambient color */
-	if (hr->debug.flags & HR_DEBUG_LIGHT_A) {
+	if (hr->debug.flags[HR_DEBUG_NO_AMBIENT]) {
+		tmp[0] = tmp[1] = tmp[2] = 0.0f;
+		tmp[3] = 1.0f;
+	} else {
 		tmp[0] = mat->color[1][0] * k;
 		tmp[1] = mat->color[1][1] * k;
 		tmp[2] = mat->color[1][2] * k;
-	} else {
-		tmp[0] = tmp[1] = tmp[2] = 0.0f;
-		tmp[3] = 1.0f;
 	}
 
 	glMaterialfv (GL_FRONT_AND_BACK, GL_AMBIENT, tmp);
 
 	/* Set the specular color */
-	if (hr->debug.flags & HR_DEBUG_LIGHT_S) {
+	if (hr->debug.flags[HR_DEBUG_NO_SPECULAR]) {
+		tmp[0] = tmp[1] = tmp[2] = tmp[3] = 0.0f;
+	} else {
 		tmp[0] = mat->specularity[0] * k;
 		tmp[1] = mat->specularity[1] * k;
 		tmp[2] = mat->specularity[2] * k;
 		tmp[3] = mat->shininess * k * 128.0f;
-	} else
-		tmp[0] = tmp[1] = tmp[2] = tmp[3] = 0.0f;
+	}
 
 	glMaterialfv (GL_FRONT_AND_BACK, GL_SPECULAR, tmp);
 	glMaterialf (GL_FRONT_AND_BACK, GL_SHININESS, tmp[3]);
@@ -834,12 +806,12 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	unsigned num_instances = MV.total + 1, i;
 	GLuint vbo;
 
-	LOG ("==== DRAWING MESH (current=%u #vertices=%u instances=%u) ====",
-	     hr->debug.current_mesh, hr->mesh.num_pushed, num_instances);
+	if (hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] >= 0 &&
+	    hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] != POLY.type)
+		return;
 
-	if ((hr->debug.flags & HR_DEBUG_SELECT_MESH) &&
-	    (hr->debug.current_mesh != hr->debug.selected_mesh))
-		goto skip_;
+	LOG ("==== DRAWING MESH (#vertices=%u instances=%u) ====",
+	     hr->mesh.num_pushed, num_instances);
 
 	upload_current_viewport (hr);
 	upload_current_material_texhead (hr);
@@ -875,11 +847,17 @@ draw_current_mesh (hikaru_renderer_t *hr)
 		break;
 	}
 
-	if (hr->debug.flags & HR_DEBUG_CULLFACE)
+	glEnable (GL_CULL_FACE);
+	switch (hr->debug.flags[HR_DEBUG_SELECT_CULLFACE]) {
+	case -1:
 		glDisable (GL_CULL_FACE);
-	else {
-		glEnable (GL_CULL_FACE);
+		break;
+	case 0:
 		glCullFace (GL_BACK);
+		break;
+	case 1:
+		glCullFace (GL_FRONT);
+		break;
 	}
 
 	for (i = 0; i < num_instances; i++) {
@@ -893,7 +871,6 @@ draw_current_mesh (hikaru_renderer_t *hr)
 skip_:
 	MV.total = 0;
 	MV.depth = 0; /* XXX not really needed. */
-	hr->debug.current_mesh++;
 }
 
 #define VK_COPY_VEC2F(dst_, src_) \
@@ -926,21 +903,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 	/* XXX at the moment we use only color 1 (it's responsible for the
 	 * BOOTROM CRT test). */
 
-	if (hr->debug.flags & HR_DEBUG_POLYTYPE_TYPE) {
-		static const float color[8][3] = {
-			{ 0.0f, 0.0f, 0.0f },	/* invalid 0 */
-			{ 1.0f, 1.0f, 1.0f },	/* opaque */
-			{ 0.5f, 0.0f, 0.0f },	/* shadow A */
-			{ 0.0f, 0.0f, 0.5f },	/* shadow B */
-			{ 0.0f, 1.0f, 0.0f },	/* transparent */
-			{ 0.3f, 0.3f, 0.3f },	/* background */
-			{ 0.0f, 0.0f, 1.0f },	/* translucent */
-			{ 0.0f, 0.0f, 0.0f }	/* invalid 7 */
-		};
-		dst->col[0] = color[POLY.type][0];
-		dst->col[1] = color[POLY.type][1];
-		dst->col[2] = color[POLY.type][2];
-	} else if (mat->set) {
+	if (mat->set) {
 		dst->col[0] = mat->color[1][0] * k;
 		dst->col[1] = mat->color[1][1] * k;
 		dst->col[2] = mat->color[1][2] * k;
@@ -1021,7 +984,7 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 	VK_ASSERT (num == 1 || num == 3);
 	VK_ASSERT (v->info.bit.tricap == 0 || v->info.bit.tricap == 7);
 
-	if (hr->debug.flags & HR_DEBUG_DISABLE_3D)
+	if (hr->debug.flags[HR_DEBUG_NO_3D])
 		return;
 
 	switch (num) {
@@ -1058,7 +1021,7 @@ hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
 		/* Set the normal. */
 		if (push & HR_PUSH_NRM) {
 			VK_COPY_VEC3F (VTX(2).nrm, v->nrm);
-			if (hr->debug.flags & HR_DEBUG_NORMALS) {
+			if (hr->debug.flags[HR_DEBUG_DRAW_NORMALS]) {
 				VTX(2).col[0] = (v->nrm[0] * 0.5f) + 0.5f;
 				VTX(2).col[1] = (v->nrm[1] * 0.5f) + 0.5f;
 				VTX(2).col[2] = (v->nrm[2] * 0.5f) + 0.5f;
@@ -1108,7 +1071,7 @@ hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
 {
 	VK_ASSERT (hr);
 
-	if (hr->debug.flags & HR_DEBUG_DISABLE_3D)
+	if (hr->debug.flags[HR_DEBUG_NO_3D])
 		return;
 
 	clear_mesh_data (hr);
@@ -1120,7 +1083,7 @@ hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr)
 {
 	VK_ASSERT (hr);
 
-	if (hr->debug.flags & HR_DEBUG_DISABLE_3D)
+	if (hr->debug.flags[HR_DEBUG_NO_3D])
 		return;
 
 	hr->mesh.addr[1] = addr;
@@ -1259,11 +1222,11 @@ draw_layers (hikaru_renderer_t *hr, bool background)
 	/* Only draw unit 0 for now. I think unit 1 is there only for
 	 * multi-monitor, which case we don't care about. */
 	layer = &LAYERS.layer[0][1];
-	if (!layer->enabled || !(hr->debug.flags & HR_DEBUG_DISABLE_LAYER2))
+	if (!layer->enabled || !(hr->debug.flags[HR_DEBUG_NO_LAYER2]))
 		draw_layer (hr, layer);
 
 	layer = &LAYERS.layer[0][0];
-	if (!layer->enabled || !(hr->debug.flags & HR_DEBUG_DISABLE_LAYER1))
+	if (!layer->enabled || !(hr->debug.flags[HR_DEBUG_NO_LAYER1]))
 		draw_layer (hr, layer);
 }
 
@@ -1278,7 +1241,6 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 
 	/* Fill in the debug stuff. */
 	update_debug_flags (hr);
-	hr->debug.current_mesh = 0;
 
 	/* clear the frame buffer to a bright pink color */
 	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
@@ -1318,6 +1280,8 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 		vk_surface_destroy (&hr->textures.debug);
 
 		clear_texture_cache (hr);
+
+		destroy_debug_flags (hr);
 	}
 }
 
@@ -1368,8 +1332,7 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 	if (ret)
 		goto fail;
 
-	/* Read options from the environment */
-	read_debug_flags (hr);
+	init_debug_flags (hr);
 
 	/* Create a few surfaces */
 	if (!build_default_surfaces (hr))

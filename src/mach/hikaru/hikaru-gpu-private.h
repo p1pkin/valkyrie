@@ -329,9 +329,7 @@ typedef struct {
 	} textures;
 
 	struct {
-		uint32_t flags;
-		uint32_t current_mesh, selected_mesh;
-		uint32_t light_type;
+		int32_t *flags;
 	} debug;
 
 } hikaru_renderer_t;
