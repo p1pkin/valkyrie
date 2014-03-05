@@ -3,11 +3,14 @@ LD := gcc
 
 DEFS := -DVK_HAVE_HIKARU
 
+PKG_CFLAGS := `pkg-config --cflags gl glew sdl jansson`
+PKG_LDFLAGS := `pkg-config --libs gl glew sdl jansson`
+
 COMMON_FLAGS = $(DEFS) -I src -I /usr/include/json -Wall -Wno-strict-aliasing -Wno-format -Wno-unused-local-typedefs
 
-CFLAGS  := $(COMMON_FLAGS) -O3 -fomit-frame-pointer -flto -march=native
-#CFLAGS  := $(COMMON_FLAGS) -O0 -g
-LDFLAGS := -lm -lSDL -lGL -lGLEW -ljansson
+CFLAGS  := $(COMMON_FLAGS) $(PKG_CFLAGS) -O3 -fomit-frame-pointer -flto -march=native
+#CFLAGS  := $(COMMON_FLAGS) $(PKG_CFLAGS) -O0 -g
+LDFLAGS := -lm $(PKG_LDFLAGS)
 
 .PHONY: all install clean
 
@@ -42,19 +45,19 @@ HIKARU_OBJ := \
 all: bin/valkyrie bin/hikaru-gpu-viewer bin/vkbswap
 
 bin/valkyrie: $(VK_OBJ) $(HIKARU_OBJ) src/vk/main.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $+ -o $@
+	$(CC) $+ -o $@ $(CFLAGS) $(LDFLAGS) 
 
 bin/hikaru-gpu-viewer: $(VK_OBJ) $(HIKARU_OBJ) src/mach/hikaru/hikaru-gpu-viewer.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $+ -o $@
+	$(CC) $+ -o $@ $(CFLAGS) $(LDFLAGS)
 
 bin/vkbswap: $(VK_OBJ) src/utils/bswap.o
-	$(CC) $(CFLAGS) $(LDFLAGS) $+ -o $@
+	$(CC) $+ -o $@ $(CFLAGS) $(LDFLAGS)
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) -c $< -o $@ $(CFLAGS)
 
 %.o: %.c %.h
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) -c $< -o $@ $(CFLAGS)
 
 install:
 	@( mkdir -pv $(HOME)/.local/bin )
