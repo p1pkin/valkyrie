@@ -723,8 +723,6 @@ get_material_specular (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float 
 static void
 upload_current_lightset (hikaru_renderer_t *hr)
 {
-	static const float k = 1.0f / 255.0f;
-
 	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_gpu_material_t *mat = &MAT.scratch;
 	hikaru_gpu_lightset_t *ls = &LIT.scratchset;
