@@ -693,6 +693,20 @@ get_material_diffuse (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float *
 	}
 }
 
+static void
+get_material_ambient (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float *out)
+{
+	if (hr->debug.flags[HR_DEBUG_NO_AMBIENT]) {
+		out[0] = out[1] = out[2] = 0.0f;
+	} else {
+		out[0] = mat->ambient[0] * INV255;
+		out[1] = mat->ambient[1] * INV255;
+		out[2] = mat->ambient[2] * INV255;
+	}
+	out[3] = 1.0f;
+}
+
+
 /* TODO track dirty state */
 static void
 upload_current_lightset (hikaru_renderer_t *hr)
@@ -824,15 +838,7 @@ upload_current_lightset (hikaru_renderer_t *hr)
 	glMaterialfv (GL_FRONT_AND_BACK, GL_DIFFUSE, tmp);
 
 	/* Set the ambient color */
-	if (hr->debug.flags[HR_DEBUG_NO_AMBIENT]) {
-		tmp[0] = tmp[1] = tmp[2] = 0.0f;
-		tmp[3] = 1.0f;
-	} else {
-		tmp[0] = mat->ambient[0] * k;
-		tmp[1] = mat->ambient[1] * k;
-		tmp[2] = mat->ambient[2] * k;
-	}
-
+	get_material_ambient (hr, mat, tmp);
 	glMaterialfv (GL_FRONT_AND_BACK, GL_AMBIENT, tmp);
 
 	/* Set the specular color */
