@@ -112,25 +112,6 @@ vk_renderer_init (vk_renderer_t *renderer)
 	glMatrixMode (GL_MODELVIEW);
 	glLoadIdentity ();
 
-	/* Set the clear color */
-	glClearColor (0.0, 0.0, 0.0, 1.0);
-
-	/* Z-Test */
-	glDisable (GL_DEPTH_TEST);
-
-	/* Blending */
-	glEnable (GL_BLEND);
-	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	/* Shading Model */
-	glShadeModel (GL_SMOOTH);
-
-	/* Culling */
-	glDisable (GL_CULL_FACE);
-
-	/* Lighting */
-	glDisable (GL_LIGHTING);
-
 	return 0;
 }
 

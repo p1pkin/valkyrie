@@ -838,14 +838,15 @@ draw_current_mesh (hikaru_renderer_t *hr)
 
 	switch (POLY.type) {
 	case HIKARU_POLYTYPE_OPAQUE:
-	case HIKARU_POLYTYPE_TRANSPARENT:
 	default:
 		glDisable (GL_BLEND);
 		break;
+	case HIKARU_POLYTYPE_TRANSPARENT:
 	case HIKARU_POLYTYPE_TRANSLUCENT:
 		glEnable (GL_BLEND);
 		break;
 	}
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glEnable (GL_CULL_FACE);
 	switch (hr->debug.flags[HR_DEBUG_SELECT_CULLFACE]) {
@@ -1217,6 +1218,7 @@ draw_layers (hikaru_renderer_t *hr, bool background)
 
 	glColor3f (1.0f, 1.0f, 1.0f);
 	glEnable (GL_BLEND);
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable (GL_TEXTURE_2D);
 
 	/* Only draw unit 0 for now. I think unit 1 is there only for
@@ -1243,7 +1245,6 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	update_debug_flags (hr);
 
 	/* clear the frame buffer to a bright pink color */
-	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	/* Reset the modelview matrix */
@@ -1329,6 +1330,9 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 		goto fail;
 
 	clear_texture_cache (hr);
+
+	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
+	glShadeModel (GL_SMOOTH);
 
 	return (vk_renderer_t *) hr;
 
