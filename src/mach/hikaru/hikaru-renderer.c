@@ -595,6 +595,19 @@ get_light_diffuse (hikaru_renderer_t *hr, hikaru_gpu_light_t *lit, float *out)
 	out[3] = 1.0f;
 }
 
+static void
+get_light_specular (hikaru_renderer_t *hr, hikaru_gpu_light_t *lit, float *out)
+{
+	if (hr->debug.flags[HR_DEBUG_NO_SPECULAR])
+		out[0] = out[1] = out[2] = 1.0f;
+	else {
+		out[0] = lit->specular[0] * INV255;
+		out[1] = lit->specular[1] * INV255;
+		out[2] = lit->specular[2] * INV255;
+	}
+	out[3] = 1.0f;
+}
+
 /* TODO track dirty state */
 static void
 upload_current_lightset (hikaru_renderer_t *hr)
@@ -667,16 +680,7 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		glLightfv (n, GL_DIFFUSE, tmp);
 
 		/* Set the specular color */
-		/* XXX a relativey wild guess. */
-		if (hr->debug.flags[HR_DEBUG_NO_SPECULAR])
-			tmp[0] = tmp[1] = tmp[2] = 0.0f;
-		else {
-			tmp[0] = lt->specular[0] * k;
-			tmp[1] = lt->specular[1] * k;
-			tmp[2] = lt->specular[2] * k;
-		}
-		tmp[3] = 1.0f;
-
+		get_light_specular (hr, lt, tmp);
 		glLightfv (n, GL_SPECULAR, tmp);
 
 		/* Set the direction/position */
