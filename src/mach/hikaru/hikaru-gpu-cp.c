@@ -1276,12 +1276,9 @@ D (0x091)
  *
  *	-------- --IIIIII -------o oooooooo
  *
- * I = Index
+ * I = Index intop the alpha threshold table (see instruction 154).
  *
- *	Within the alpha threshold table uploaded by instruction 154. The MSB
- *	may mean "disabled".
- *
- * See PH:@0C0CF872 and PH:@0C0CF872.
+ * See PH:@0C0CF868-@0C0CF876.
  */
 
 I (0x081)
