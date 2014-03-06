@@ -563,6 +563,25 @@ upload_current_material_texhead (hikaru_renderer_t *hr)
 
 #define INV255	(1.0f / 255.0f)
 
+typedef enum {
+	HIKARU_LIGHT_TYPE_DIRECTIONAL,
+	HIKARU_LIGHT_TYPE_POSITIONAL,
+	HIKARU_LIGHT_TYPE_SPOT,
+
+	HIKARU_NUM_LIGHT_TYPES
+} hikaru_light_type_t;
+
+static hikaru_light_type_t
+get_light_type (hikaru_gpu_light_t *lit)
+{
+	VK_ASSERT (lit->has_dir || lit->has_pos);
+	if (lit->has_dir && lit->has_pos)
+		return HIKARU_LIGHT_TYPE_SPOT;
+	else if (lit->has_pos)
+		return HIKARU_LIGHT_TYPE_POSITIONAL;
+	return HIKARU_LIGHT_TYPE_DIRECTIONAL;
+}
+
 static void
 get_light_ambient (hikaru_renderer_t *hr, float *out)
 {
@@ -684,22 +703,22 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		glLightfv (n, GL_SPECULAR, tmp);
 
 		/* Set the direction/position */
-		if (lt->has_dir && !lt->has_pos) {
-			/* directional light */
+		switch (get_light_type (lt)) {
+		case HIKARU_LIGHT_TYPE_DIRECTIONAL:
 			tmp[0] = lt->dir[0];
 			tmp[1] = lt->dir[1];
 			tmp[2] = lt->dir[2];
 			tmp[3] = 0.0f;
 			glLightfv (n, GL_POSITION, tmp);
-		} else if (!lt->has_dir && lt->has_pos) {
-			/* point light */
+			break;
+		case HIKARU_LIGHT_TYPE_POSITIONAL:
 			tmp[0] = lt->pos[0];
 			tmp[1] = lt->pos[1];
 			tmp[2] = lt->pos[2];
 			tmp[3] = 1.0f;
 			glLightfv (n, GL_POSITION, tmp);
-		} else if (lt->has_dir && lt->has_pos) {
-			/* spotlight */
+			break;
+		case HIKARU_LIGHT_TYPE_SPOT:
 			glPushMatrix ();
 			glLoadIdentity ();
 
@@ -718,6 +737,9 @@ upload_current_lightset (hikaru_renderer_t *hr)
 			glLightf (n, GL_SPOT_EXPONENT, 128.0f);
 
 			glPopMatrix ();
+			break;
+		default:
+			VK_ASSERT (!"unreachable");
 		}
 
 		/* Set the attenuation */
