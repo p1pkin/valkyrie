@@ -1040,6 +1040,9 @@ I (0x161)
 			lit->pos[2] = *(float *) &inst[3];
 			break;
 		case 0x00016000: /* Use old position */
+			lit->has_pos = 1;
+			/* XXX TODO */
+			break;
 		default:
 			VK_ERROR ("CP @%08X: unhandled light 161 param: %08X",
 			          PC, inst[0]);
