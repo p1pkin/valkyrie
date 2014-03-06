@@ -759,9 +759,9 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		tmp[0] = tmp[1] = tmp[2] = 0.0f;
 		tmp[3] = 1.0f;
 	} else {
-		tmp[0] = mat->color[0][0] * k;
-		tmp[1] = mat->color[0][1] * k;
-		tmp[2] = mat->color[0][2] * k;
+		tmp[0] = mat->diffuse[0] * k;
+		tmp[1] = mat->diffuse[1] * k;
+		tmp[2] = mat->diffuse[2] * k;
 		tmp[3] = 1.0f;
 	}
 
@@ -772,9 +772,9 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		tmp[0] = tmp[1] = tmp[2] = 0.0f;
 		tmp[3] = 1.0f;
 	} else {
-		tmp[0] = mat->color[1][0] * k;
-		tmp[1] = mat->color[1][1] * k;
-		tmp[2] = mat->color[1][2] * k;
+		tmp[0] = mat->ambient[0] * k;
+		tmp[1] = mat->ambient[1] * k;
+		tmp[2] = mat->ambient[2] * k;
 	}
 
 	glMaterialfv (GL_FRONT_AND_BACK, GL_AMBIENT, tmp);
@@ -905,9 +905,10 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 	 * BOOTROM CRT test). */
 
 	if (mat->set) {
-		dst->col[0] = mat->color[1][0] * k;
-		dst->col[1] = mat->color[1][1] * k;
-		dst->col[2] = mat->color[1][2] * k;
+		/* XXX check me! */
+		dst->col[0] = mat->diffuse[0] * k;
+		dst->col[1] = mat->diffuse[1] * k;
+		dst->col[2] = mat->diffuse[2] * k;
 	} else {
 		dst->col[0] = 1.0f;
 		dst->col[1] = 1.0f;

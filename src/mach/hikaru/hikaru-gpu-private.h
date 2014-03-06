@@ -98,7 +98,8 @@ typedef struct {
 } hikaru_gpu_modelview_t;
 
 typedef struct {
-	vec4b_t color[2];
+	vec4b_t diffuse;
+	vec4b_t ambient;
 	vec3b_t specularity;
 	uint8_t shininess;
 	vec3s_t material_color;

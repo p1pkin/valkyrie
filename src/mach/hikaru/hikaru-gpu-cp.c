@@ -1153,16 +1153,16 @@ static void hikaru_gpu_disasm_0x081 (hikaru_gpu_t *, uint32_t *);
 I (0x091)
 {
 	hikaru_gpu_material_t *mat = &MAT.scratch;
-	uint32_t i;
 
 	switch ((inst[0] >> 8) & 15) {
 	case 0:
+		mat->diffuse[0] = inst[1] & 0xFF;
+		mat->diffuse[1] = (inst[1] >> 8) & 0xFF;
+		mat->diffuse[2] = (inst[1] >> 16) & 0xFF;
 	case 2:
-		i = (inst[0] >> 9) & 1;
-
-		mat->color[i][0] = inst[1] & 0xFF;
-		mat->color[i][1] = (inst[1] >> 8) & 0xFF;
-		mat->color[i][2] = (inst[1] >> 16) & 0xFF;
+		mat->ambient[0] = inst[1] & 0xFF;
+		mat->ambient[1] = (inst[1] >> 8) & 0xFF;
+		mat->ambient[2] = (inst[1] >> 16) & 0xFF;
 		break;
 	case 4:
 		mat->specularity[0] = inst[1] & 0xFF;
