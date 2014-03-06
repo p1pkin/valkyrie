@@ -113,19 +113,43 @@ typedef struct {
 } hikaru_gpu_material_t;
 
 typedef struct {
+	union {
+		struct {
+			uint32_t 	: 16;
+			uint32_t unk1	: 2;
+			uint32_t 	: 2;
+			uint32_t unk2	: 8;
+			uint32_t 	: 4;
+		};
+		uint32_t full;
+	} _0C1;
+	union {
+		struct {
+			uint32_t	: 14;
+			uint32_t unk1	: 2;
+			uint32_t logw	: 3;
+			uint32_t logh	: 3;
+			uint32_t wrapu	: 1;
+			uint32_t wrapv	: 1;
+			uint32_t repeatu: 1;
+			uint32_t repeatv: 1;
+			uint32_t format	: 3;
+			uint32_t unk2	: 3;
+		};
+		uint32_t full;
+	} _2C1;
+	union {
+		struct {
+			uint32_t	: 12;
+			uint32_t bank	: 1;
+			uint32_t	: 3;
+			uint32_t slotx	: 8;
+			uint32_t sloty	: 8;
+		};
+		uint32_t full;
+	} _4C1;
 	uint32_t width;
 	uint32_t height;
-	uint16_t slotx;
-	uint16_t sloty;
-	uint32_t format		: 3;
-	uint32_t bank		: 1;
-	uint32_t wrap_u		: 1;
-	uint32_t wrap_v		: 1;
-	uint32_t repeat_u	: 1;
-	uint32_t repeat_v	: 1;
-	uint32_t _0C1_mode	: 4;
-	uint32_t _0C1_value	: 8;
-	uint32_t _2C1_unk	: 5;
 	uint32_t has_mipmap	: 1;
 	uint32_t set		: 1;
 } hikaru_gpu_texhead_t;

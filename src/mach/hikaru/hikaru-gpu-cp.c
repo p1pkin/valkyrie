@@ -1502,28 +1502,17 @@ I (0x0C1)
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
-		th->_0C1_mode	= (inst[0] >> 16) & 0xF;
-		th->_0C1_value  = (inst[0] >> 20) & 0xFF;
+		th->_0C1.full = inst[0];
 		break;
 	case 2:
-		th->width	= 16 << ((inst[0] >> 16) & 7);
-		th->height	= 16 << ((inst[0] >> 19) & 7);
-		th->wrap_u	= (inst[0] >> 22) & 1;
-		th->wrap_v	= (inst[0] >> 23) & 1;
-		th->repeat_u	= (inst[0] >> 24) & 1;
-		th->repeat_v	= (inst[0] >> 25) & 1;
-		th->format	= (inst[0] >> 26) & 7;
-		th->_2C1_unk	=  ((inst[0] >> 14) & 3) |
-		                  (((inst[0] >> 29) & 7) << 2);
-
-		/* XXX move this to the renderer */
-		if (th->format == HIKARU_FORMAT_ABGR1111)
+		th->_2C1.full = inst[0];
+		th->width	= 16 << th->_2C1.logw;
+		th->height	= 16 << th->_2C1.logh;
+		if (th->_2C1.format == HIKARU_FORMAT_ABGR1111)
 			th->width *= 2; /* pixels per word */
 		break;
 	case 4:
-		th->bank  = (inst[0] >> 12) & 1;
-		th->slotx = (inst[0] >> 16) & 0xFF;
-		th->sloty = inst[0] >> 24;
+		th->_4C1.full = inst[0];
 		break;
 	default:
 		VK_ASSERT (0);

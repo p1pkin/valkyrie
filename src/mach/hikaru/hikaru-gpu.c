@@ -736,7 +736,7 @@ copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_gpu_texhead_t *texhea
 		mask = 32*MB-1;
 	}
 
-	slot_to_coords (&basex, &basey, texhead->slotx, texhead->sloty);
+	slot_to_coords (&basex, &basey, texhead->_4C1.slotx, texhead->_4C1.sloty);
 
 	endx = basex + texhead->width;
 	endy = basey + texhead->height;
@@ -744,7 +744,7 @@ copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_gpu_texhead_t *texhea
 	if (gpu->debug.log_idma) {
 		VK_LOG ("GPU IDMA: %ux%u to (%X,%X), area in TEXRAM is ([%u,%u],[%u,%u]); dst addr = %08X",
 		        texhead->width, texhead->height,
-		        texhead->slotx, texhead->sloty,
+		        texhead->_4C1.slotx, texhead->_4C1.sloty,
 		        basex, basey, endx, endy,
 		        basey * 4096 + basex * 2);
 	}
@@ -756,7 +756,7 @@ copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_gpu_texhead_t *texhea
 	}
 
 	offs = bus_addr & mask;
-	bank = texhead->bank;
+	bank = texhead->_4C1.bank;
 	for (y = 0; y < texhead->height; y++) {
 		for (x = 0; x < texhead->width; x++, offs += 2) {
 			uint32_t temp = (basey + y) * 4096 + (basex + x) * 2;
@@ -780,12 +780,16 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	bus_addr = entry[0];
 	size     = entry[1];
 
-	texhead.slotx	= entry[2] & 0xFF;
-	texhead.sloty	= (entry[2] >> 8) & 0xFF;
-	texhead.width	= 16 << ((entry[2] >> 16) & 7);
-	texhead.height	= 16 << ((entry[2] >> 19) & 7);
-	texhead.format	= (entry[2] >> 26) & 7;
-	texhead.bank	= entry[3] & 1;
+	texhead._4C1.bank	= entry[3] & 1;
+	texhead._4C1.sloty	= (entry[2] >> 8) & 0xFF;
+	texhead._4C1.slotx	= entry[2] & 0xFF;
+	texhead._2C1.logw	= (entry[2] >> 16) & 7;
+	texhead._2C1.logh	= (entry[2] >> 19) & 7;
+	texhead._2C1.format	= (entry[2] >> 26) & 7;
+
+	/* XXX correct width for 1111 textures here as well? */
+	texhead.width	= 16 << texhead._2C1.logw;
+	texhead.height	= 16 << texhead._2C1.logh;
 
 	/* Compute the expected size in bytes */
 	exp_size[0] = texhead.width * texhead.height * 2;
@@ -815,16 +819,16 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 		/* continue anyway */
 	}
 
-	if (texhead.format != HIKARU_FORMAT_ABGR1555 &&
-	    texhead.format != HIKARU_FORMAT_ABGR4444 &&
-	    texhead.format != HIKARU_FORMAT_ABGR1111 &&
-	    texhead.format != HIKARU_FORMAT_ALPHA8) {
+	if (texhead._2C1.format != HIKARU_FORMAT_ABGR1555 &&
+	    texhead._2C1.format != HIKARU_FORMAT_ABGR4444 &&
+	    texhead._2C1.format != HIKARU_FORMAT_ABGR1111 &&
+	    texhead._2C1.format != HIKARU_FORMAT_ALPHA8) {
 		VK_ERROR ("GPU IDMA: unknown texhead format: %s",
 		          get_gpu_texhead_str (&texhead));
 		/* continue anyway */
 	}
 
-	if (texhead.slotx < 0x80 || texhead.sloty < 0xC0) {
+	if (texhead._4C1.slotx < 0x80 || texhead._4C1.sloty < 0xC0) {
 		VK_ERROR ("GPU IDMA: unknown texhead slot, skipping: %s",
 		          get_gpu_texhead_str (&texhead));
 		return;
@@ -1273,8 +1277,6 @@ hikaru_gpu_new (vk_machine_t *mach,
 		vk_util_get_bool_option ("GPU_LOG_CP", false);
 
 	hikaru_gpu_cp_init (gpu);
-
-	VK_STATIC_ASSERT (sizeof (hikaru_gpu_texhead_t) == (sizeof (uint32_t) * 4));
 
 	return dev;
 }
