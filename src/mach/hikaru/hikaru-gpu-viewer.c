@@ -16,8 +16,6 @@
  * along with Valkyrie.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <unistd.h>
-
 #include "vk/core.h"
 #include "vk/input.h"
 #include "mach/hikaru/hikaru-gpu.h"

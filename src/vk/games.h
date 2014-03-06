@@ -19,8 +19,6 @@
 #ifndef __VK_GAMES_H__
 #define __VK_GAMES_H__
 
-#include <jansson.h>
-
 #include "vk/buffer.h"
 
 typedef struct {

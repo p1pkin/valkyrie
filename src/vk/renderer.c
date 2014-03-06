@@ -18,9 +18,6 @@
  * 02110-1301, USA.
  */
 
-#include <GL/glew.h>
-#include <SDL/SDL.h>
-
 #include "vk/renderer.h"
 
 void

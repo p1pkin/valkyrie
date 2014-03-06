@@ -19,8 +19,6 @@
 #ifndef __HIKARU_GPU_PRIVATE_H__
 #define __HIKARU_GPU_PRIVATE_H__
 
-#include <math.h>
-
 #include "vk/device.h"
 #include "vk/surface.h"
 

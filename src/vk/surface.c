@@ -19,9 +19,6 @@
  */
 
 /* TODO support mipmaps */
-#include <GL/glew.h>
-
-#include "vk/core.h"
 #include "vk/surface.h"
 
 static const struct {

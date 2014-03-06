@@ -19,16 +19,6 @@
 /* TODO: move to a scheduler-based system, so that machines register their
  * components and the scheduler executes them. */
 
-#define _GNU_SOURCE
-
-#include <getopt.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <pwd.h>
-
-#include <SDL/SDL.h>
-
 #include "vk/machine.h"
 #include "vk/input.h"
 #include "vk/renderer.h"

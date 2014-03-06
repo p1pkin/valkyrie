@@ -19,9 +19,7 @@
 #ifndef __VK_INPUT_H__
 #define __VK_INPUT_H__
 
-#include <stdbool.h>
-
-#include <SDL/SDL.h>
+#include "vk/core.h"
 
 bool	vk_input_get_key (unsigned key);
 void	vk_input_set_key (unsigned key, bool state);

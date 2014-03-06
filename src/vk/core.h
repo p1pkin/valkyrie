@@ -30,6 +30,17 @@
 #include <math.h>
 #include <endian.h> /* See mesa p_config.h */
 
+#include <getopt.h>
+#include <signal.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <pwd.h>
+
+#include <GL/glew.h>
+#include <SDL/SDL.h>
+
+#include <jansson.h>
+
 #include "vk/types.h"
 
 #ifndef __BYTE_ORDER
