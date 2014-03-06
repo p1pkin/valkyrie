@@ -1165,15 +1165,15 @@ I (0x091)
 		mat->ambient[2] = (inst[1] >> 16) & 0xFF;
 		break;
 	case 4:
-		mat->specularity[0] = inst[1] & 0xFF;
-		mat->specularity[1] = (inst[1] >> 8) & 0xFF;
-		mat->specularity[2] = (inst[1] >> 16) & 0xFF;
-		mat->shininess      = inst[1] >> 24;
+		mat->specular[0] = inst[1] & 0xFF;
+		mat->specular[1] = (inst[1] >> 8) & 0xFF;
+		mat->specular[2] = (inst[1] >> 16) & 0xFF;
+		mat->specular[3] = inst[1] >> 24;
 		break;
 	case 6:
-		mat->material_color[0] = inst[0] >> 16;
-		mat->material_color[1] = inst[1] & 0xFFFF;
-		mat->material_color[2] = inst[1] >> 16;
+		mat->unknown[0] = inst[0] >> 16;
+		mat->unknown[1] = inst[1] & 0xFFFF;
+		mat->unknown[2] = inst[1] >> 16;
 		break;
 	case 0xA:
 	case 0xC:

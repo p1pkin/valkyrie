@@ -87,16 +87,11 @@ get_gpu_material_str (hikaru_gpu_material_t *material)
 {
 	static char out[512];
 
-	sprintf (out, "Dif=#%02X%02X%02X Amb=#%02X%02X%02X Spc=%u,#%02X%02X%02X Mat=#%04X,%04X,%04X ShadingMode=%u ZBlend=%u Tex=%u Alpha=%u High=%u BlendMode=%u",
+	sprintf (out, "Dif=#%02X%02X%02X Amb=#%02X%02X%02X Spc=#%02X%02X%02X|%02X Mat=#%04X,%04X,%04X ShadingMode=%u ZBlend=%u Tex=%u Alpha=%u High=%u BlendMode=%u",
 	         material->diffuse[0], material->diffuse[1], material->diffuse[2],
 	         material->ambient[0], material->ambient[1], material->ambient[2],
-	         material->shininess,
-	         material->specularity[0],
-	         material->specularity[1],
-	         material->specularity[2],
-	         material->material_color[0],
-	         material->material_color[1],
-	         material->material_color[2],
+	         material->specular[0], material->specular[1], material->specular[2], material->specular[4],
+	         material->unknown[0], material->unknown[1], material->unknown[2],
 	         material->shading_mode, material->depth_blend,
 	         material->has_texture, material->has_alpha,
 	         material->has_highlight, material->blending_mode);

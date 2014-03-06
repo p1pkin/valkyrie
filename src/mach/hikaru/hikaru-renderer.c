@@ -783,10 +783,10 @@ upload_current_lightset (hikaru_renderer_t *hr)
 	if (hr->debug.flags[HR_DEBUG_NO_SPECULAR]) {
 		tmp[0] = tmp[1] = tmp[2] = tmp[3] = 0.0f;
 	} else {
-		tmp[0] = mat->specularity[0] * k;
-		tmp[1] = mat->specularity[1] * k;
-		tmp[2] = mat->specularity[2] * k;
-		tmp[3] = mat->shininess * k * 128.0f;
+		tmp[0] = mat->specular[0] * k;
+		tmp[1] = mat->specular[1] * k;
+		tmp[2] = mat->specular[2] * k;
+		tmp[3] = mat->specular[3] * k * 128.0f;
 	}
 
 	glMaterialfv (GL_FRONT_AND_BACK, GL_SPECULAR, tmp);

@@ -100,9 +100,8 @@ typedef struct {
 typedef struct {
 	vec4b_t diffuse;
 	vec4b_t ambient;
-	vec3b_t specularity;
-	uint8_t shininess;
-	vec3s_t material_color;
+	vec4b_t specular;
+	vec3s_t unknown;
 	uint32_t shading_mode	: 2;	
 	uint32_t depth_blend	: 1;	
 	uint32_t has_texture	: 1;	
