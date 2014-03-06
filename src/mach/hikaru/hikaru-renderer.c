@@ -561,6 +561,23 @@ upload_current_material_texhead (hikaru_renderer_t *hr)
 	}
 }
 
+#define INV255	(1.0f / 255.0f)
+
+static void
+get_light_ambient (hikaru_renderer_t *hr, float *out)
+{
+	hikaru_gpu_t *gpu = hr->gpu;
+
+	if (hr->debug.flags[HR_DEBUG_NO_AMBIENT])
+		out[0] = out[1] = out[2] = 0.0f;
+	else {
+		out[0] = VP.scratch.color.ambient[0] * INV255;
+		out[1] = VP.scratch.color.ambient[1] * INV255;
+		out[2] = VP.scratch.color.ambient[2] * INV255;
+	}
+	out[3] = 1.0f;
+}
+
 /* TODO track dirty state */
 static void
 upload_current_lightset (hikaru_renderer_t *hr)
@@ -568,7 +585,6 @@ upload_current_lightset (hikaru_renderer_t *hr)
 	static const float k = 1.0f / 255.0f;
 
 	hikaru_gpu_t *gpu = hr->gpu;
-	hikaru_gpu_viewport_t *vp = &VP.scratch;
 	hikaru_gpu_material_t *mat = &MAT.scratch;
 	hikaru_gpu_lightset_t *ls = &LIT.scratchset;
 	GLfloat tmp[4];
@@ -601,16 +617,8 @@ upload_current_lightset (hikaru_renderer_t *hr)
 	glEnable (GL_LIGHTING);
 
 	/* Set the global ambient. */
-	/* XXX for some reason this is always (0,0,0)! */
-	if (hr->debug.flags[HR_DEBUG_NO_AMBIENT])
-		tmp[0] = tmp[1] = tmp[2] = 0.0f;
-	else {
-		tmp[0] = vp->color.ambient[0] * k;
-		tmp[1] = vp->color.ambient[1] * k;
-		tmp[2] = vp->color.ambient[2] * k;
-	}
-	tmp[3] = 1.0f;
-
+	get_light_ambient (hr, tmp);
+	glLightModelf (GL_LIGHT_MODEL_TWO_SIDE, 1.0f);
 	glLightModelfv (GL_LIGHT_MODEL_AMBIENT, tmp);
 
 	/* For each of the four lights in the current lightset */
