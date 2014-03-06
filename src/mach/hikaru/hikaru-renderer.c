@@ -649,9 +649,9 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		if (hr->debug.flags[HR_DEBUG_NO_DIFFUSE])
 			tmp[0] = tmp[1] = tmp[2] = 1.0f;
 		else {
-			tmp[0] = lt->_051_color[0] * k;
-			tmp[1] = lt->_051_color[1] * k;
-			tmp[2] = lt->_051_color[2] * k;
+			tmp[0] = lt->diffuse[0] * k;
+			tmp[1] = lt->diffuse[1] * k;
+			tmp[2] = lt->diffuse[2] * k;
 		}
 		tmp[3] = 1.0f;
 
@@ -662,9 +662,9 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		if (hr->debug.flags[HR_DEBUG_NO_SPECULAR])
 			tmp[0] = tmp[1] = tmp[2] = 0.0f;
 		else {
-			tmp[0] = lt->_051_color[0] * k;
-			tmp[1] = lt->_051_color[1] * k;
-			tmp[2] = lt->_051_color[2] * k;
+			tmp[0] = lt->specular[0] * k;
+			tmp[1] = lt->specular[1] * k;
+			tmp[2] = lt->specular[2] * k;
 		}
 		tmp[3] = 1.0f;
 

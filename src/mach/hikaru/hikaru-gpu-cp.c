@@ -1774,16 +1774,17 @@ I (0x051)
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
-		lit->_051_bit      = (inst[0] >> 23) & 1;
-		lit->_051_index    = (inst[0] >> 16) & 0xF;
-		lit->_051_color[0] = inst[1] & 0x3FF;
-		lit->_051_color[1] = (inst[1] >> 10) & 0x3FF;
-		lit->_051_color[2] = (inst[1] >> 20) & 0x3FF;
+		lit->_051_bit   = (inst[0] >> 23) & 1;
+		lit->_051_index = (inst[0] >> 16) & 0xF;
+		lit->diffuse[0] = inst[1] & 0x3FF;
+		lit->diffuse[1] = (inst[1] >> 10) & 0x3FF;
+		lit->diffuse[2] = (inst[1] >> 20) & 0x3FF;
 		break;
 	case 4:
 		lit->_451_enabled  = ((inst[0] >> 24) & 1) ^ 1;
-		lit->_451_color[0] = inst[1] & 0xFF;
-		lit->_451_color[1] = (inst[1] >> 8) & 0xFF;
+		lit->specular[0] = inst[1] & 0xFF;
+		lit->specular[1] = (inst[1] >> 8) & 0xFF;
+		lit->specular[2] = (inst[1] >> 16) & 0xFF;
 		break;
 	default:
 		VK_ASSERT (0);

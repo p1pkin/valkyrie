@@ -144,8 +144,8 @@ get_gpu_light_str (hikaru_gpu_light_t *lit)
 	         lit->type, lit->att_base, lit->att_offs,
 	         lit->has_dir, lit->dir[0], lit->dir[1], lit->dir[2],
 	         lit->has_pos, lit->pos[0], lit->pos[1], lit->pos[2],
-	         lit->_051_index, lit->_051_color[0], lit->_051_color[0], lit->_051_color[0],
-	         lit->_451_enabled, lit->_451_color[0], lit->_451_color[0], lit->_451_color[0]);
+	         lit->_051_index, lit->diffuse[0], lit->diffuse[0], lit->diffuse[0],
+	         lit->_451_enabled, lit->specular[0], lit->specular[0], lit->specular[0]);
 
 	return (const char *) out;
 };

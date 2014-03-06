@@ -140,8 +140,8 @@ enum {
 typedef struct {
 	vec3f_t pos;
 	vec3f_t dir;
-	vec3s_t _051_color;
-	vec3b_t _451_color;
+	vec3s_t diffuse;
+	vec3b_t specular;
 	float att_base;
 	float att_offs;
 	uint32_t type		: 2;
