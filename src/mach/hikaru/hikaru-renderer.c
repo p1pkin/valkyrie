@@ -662,12 +662,6 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		else
 			glDisable (n);
 
-		/* The ambient light is only global */
-		tmp[0] = tmp[1] = tmp[2] = 0.0f;
-		tmp[3] = 1.0f;
-
-		glLightfv (n, GL_AMBIENT, tmp);
-
 		/* Set the diffuse color */
 		get_light_diffuse (hr, lt, tmp);
 		glLightfv (n, GL_DIFFUSE, tmp);
