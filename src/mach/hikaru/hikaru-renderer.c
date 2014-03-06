@@ -1300,16 +1300,6 @@ build_debug_surface (void)
 	return surface;
 }
 
-static bool
-build_default_surfaces (hikaru_renderer_t *hr)
-{
-	hr->textures.debug = build_debug_surface ();
-	if (!hr->textures.debug)
-		return false;
-
-	return true;
-}
-
 vk_renderer_t *
 hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 {
@@ -1334,8 +1324,8 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 
 	init_debug_flags (hr);
 
-	/* Create a few surfaces */
-	if (!build_default_surfaces (hr))
+	hr->textures.debug = build_debug_surface ();
+	if (!hr->textures.debug)
 		goto fail;
 
 	clear_texture_cache (hr);
