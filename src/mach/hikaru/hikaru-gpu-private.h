@@ -99,7 +99,7 @@ typedef struct {
 
 typedef struct {
 	vec4b_t diffuse;
-	vec4b_t ambient;
+	vec3b_t ambient;
 	vec4b_t specular;
 	vec3s_t unknown;
 	uint32_t shading_mode	: 2;	
