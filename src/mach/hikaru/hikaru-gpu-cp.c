@@ -1730,29 +1730,23 @@ D (0x061)
 	        (inst[0] >> 16) & 3, *(float *) &inst[1], *(float *) &inst[2]);
 }
 
-/* 051	Light: Set Color 1
+/* 051	Light: Set Diffuse
  *
- *	-------- u---nnnn -------o oooooooo
+ *	-------- D---XXXX -------o oooooooo
  *	--BBBBBB BBBBGGGG GGGGGGRR RRRRRRRR
  *
- * u = Unknown
- * n = Unknown
- *
- *	An index of some sort?
- *
- * R, G, B = Color (likely diffuse)
+ * D = Disabled?
+ * X = Index/Mode.
  *
  * See PH:@0C0178C6; for a,b,c computation see PH:@0C03DC66.
  *
  *
- * 451	Light: Set Color 2
+ * 451	Light: Set Specular
  *
  *	-------D -------- -------o oooooooo
- *	???????? BBBBBBBB GGGGGGGG RRRRRRRR
+ *	-------- BBBBBBBB GGGGGGGG RRRRRRRR
  *
  * D = Disabled.
- *
- * R, G, B = Color.
  *
  * See PH:@0C017A7C, PH:@0C017B6C, PH:@0C017C58, PH:@0C017CD4, PH:@0C017D64.
  */
@@ -1788,14 +1782,12 @@ D (0x051)
 		UNHANDLED |= !!(inst[0] & 0xFF70F000);
 		UNHANDLED |= !!(inst[1] & 0xC0000000);
 
-		DISASM ("lit: set color 1 [%u %X]",
-		        (inst[0] >> 16) & 0xFF, inst[1]);
+		DISASM ("lit: set diffuse [%X]", inst[1]);
 		break;
 	case 4:
 		UNHANDLED |= !!(inst[0] & 0xFEFFF000);
 		
-		DISASM ("lit: set color 2 [%u %X]",
-		        ((inst[0] >> 24) & 1) ^ 1, inst[1]);
+		DISASM ("lit: set specular [%X]", inst[1]);
 		break;
 	default:
 		VK_ASSERT (0);
