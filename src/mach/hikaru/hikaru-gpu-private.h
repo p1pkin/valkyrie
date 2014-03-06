@@ -154,12 +154,6 @@ typedef struct {
 	uint32_t set		: 1;
 } hikaru_gpu_texhead_t;
 
-enum {
-	HIKARU_LIGHT_DIRECTIONAL	= 0,
-	HIKARU_LIGHT_POINT		= 1,
-	HIKARU_LIGHT_SPOT		= 3
-};
-
 typedef struct {
 	vec3f_t pos;
 	vec3f_t dir;
