@@ -578,6 +578,23 @@ get_light_ambient (hikaru_renderer_t *hr, float *out)
 	out[3] = 1.0f;
 }
 
+static void
+get_light_diffuse (hikaru_renderer_t *hr, hikaru_gpu_light_t *lit, float *out)
+{
+	/* NOTE: the index uploaded with the diffuse color may be related
+	 * to the table uploaded by instruction 194 (which may contain alpha
+	 * values, or alpha ramps, or something...) */
+
+	if (hr->debug.flags[HR_DEBUG_NO_DIFFUSE])
+		out[0] = out[1] = out[2] = 1.0f;
+	else {
+		out[0] = lit->diffuse[0] * INV255;
+		out[1] = lit->diffuse[1] * INV255;
+		out[2] = lit->diffuse[2] * INV255;
+	}
+	out[3] = 1.0f;
+}
+
 /* TODO track dirty state */
 static void
 upload_current_lightset (hikaru_renderer_t *hr)
@@ -652,17 +669,7 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		glLightfv (n, GL_AMBIENT, tmp);
 
 		/* Set the diffuse color */
-		/* XXX the index uploaded with 051 may be related to the
-		 * table uploaded by 194, which may contain alpha values. */
-		if (hr->debug.flags[HR_DEBUG_NO_DIFFUSE])
-			tmp[0] = tmp[1] = tmp[2] = 1.0f;
-		else {
-			tmp[0] = lt->diffuse[0] * k;
-			tmp[1] = lt->diffuse[1] * k;
-			tmp[2] = lt->diffuse[2] * k;
-		}
-		tmp[3] = 1.0f;
-
+		get_light_diffuse (hr, lt, tmp);
 		glLightfv (n, GL_DIFFUSE, tmp);
 
 		/* Set the specular color */
