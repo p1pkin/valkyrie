@@ -706,6 +706,18 @@ get_material_ambient (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float *
 	out[3] = 1.0f;
 }
 
+static void
+get_material_specular (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float *out)
+{
+	if (hr->debug.flags[HR_DEBUG_NO_SPECULAR]) {
+		out[0] = out[1] = out[2] = out[3] = 0.0f;
+	} else {
+		out[0] = mat->specular[0] * INV255;
+		out[1] = mat->specular[1] * INV255;
+		out[2] = mat->specular[2] * INV255;
+		out[3] = mat->specular[3] * INV255 * 128.0f;
+	}
+}
 
 /* TODO track dirty state */
 static void
@@ -842,15 +854,7 @@ upload_current_lightset (hikaru_renderer_t *hr)
 	glMaterialfv (GL_FRONT_AND_BACK, GL_AMBIENT, tmp);
 
 	/* Set the specular color */
-	if (hr->debug.flags[HR_DEBUG_NO_SPECULAR]) {
-		tmp[0] = tmp[1] = tmp[2] = tmp[3] = 0.0f;
-	} else {
-		tmp[0] = mat->specular[0] * k;
-		tmp[1] = mat->specular[1] * k;
-		tmp[2] = mat->specular[2] * k;
-		tmp[3] = mat->specular[3] * k * 128.0f;
-	}
-
+	get_material_specular (hr, mat, tmp);
 	glMaterialfv (GL_FRONT_AND_BACK, GL_SPECULAR, tmp);
 	glMaterialf (GL_FRONT_AND_BACK, GL_SHININESS, tmp[3]);
 
