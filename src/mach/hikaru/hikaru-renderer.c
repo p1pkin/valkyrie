@@ -879,14 +879,14 @@ draw_current_mesh (hikaru_renderer_t *hr)
 	                 (const GLvoid *) offsetof (hikaru_gpu_vertex_t, pos));
 	glNormalPointer (GL_FLOAT, sizeof (hikaru_gpu_vertex_t),
 	                 (const GLvoid *) offsetof (hikaru_gpu_vertex_t, nrm));
-//	glColorPointer (4, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t),
-//	                (const GLvoid *) offsetof (hikaru_gpu_vertex_t, col));
+	glColorPointer (4, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t),
+	                (const GLvoid *) offsetof (hikaru_gpu_vertex_t, col));
 	glTexCoordPointer (2, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t),
 	                   (const GLvoid *) offsetof (hikaru_gpu_vertex_t, txc));
 
 	glEnableClientState (GL_VERTEX_ARRAY);
 	glEnableClientState (GL_NORMAL_ARRAY);
-//	glEnableClientState (GL_COLOR_ARRAY);
+	glEnableClientState (GL_COLOR_ARRAY);
 	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 
 	switch (POLY.type) {
