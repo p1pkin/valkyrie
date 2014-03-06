@@ -732,7 +732,11 @@ upload_current_lightset (hikaru_renderer_t *hr)
 			tmp[2] = 0.0f;
 		} else if (lt->type == 1) {
 			/* square */
-			VK_ASSERT (0);
+			/* XXX used in BRAVEFF */
+
+			tmp[0] = 0.0f;
+			tmp[1] = 0.2f;
+			tmp[3] = 0.0f;
 		} else if (lt->type == 2) {
 			/* reciprocal */
 			VK_ASSERT (0);
