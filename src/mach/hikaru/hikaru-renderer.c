@@ -922,7 +922,6 @@ draw_current_mesh (hikaru_renderer_t *hr)
 
 	glDeleteBuffers (1, &vbo);
 
-skip_:
 	MV.total = 0;
 	MV.depth = 0; /* XXX not really needed. */
 }
