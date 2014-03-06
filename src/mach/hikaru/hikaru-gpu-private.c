@@ -21,9 +21,9 @@
 #include "mach/hikaru/hikaru-renderer.h"
 
 void
-slot_to_coords (uint32_t *basex, uint32_t *basey, uint32_t slotx, uint32_t sloty)
+get_texhead_coords (uint32_t *x, uint32_t *y, hikaru_gpu_texhead_t *tex)
 {
-	if (slotx < 0x80 || sloty < 0xC0) {
+	if (tex->_4C1.slotx < 0x80 || tex->_4C1.sloty < 0xC0) {
 		/*
 		 * This case is triggered by the following CP code, used by
 		 * the BOOTROM:
@@ -36,12 +36,12 @@ slot_to_coords (uint32_t *basex, uint32_t *basey, uint32_t slotx, uint32_t sloty
 		 *
 		 * Note how the params to 2C1 and 4C1 are swapped.
 		 */
-		VK_ERROR ("GPU: invalid slot %X,%X", slotx, sloty);
-		*basex = 0;
-		*basey = 0;
+		VK_ERROR ("GPU: invalid slot %X,%X", tex->_4C1.slotx, tex->_4C1.sloty);
+		*x = 0;
+		*y = 0;
 	} else {
-		*basex = (slotx - 0x80) * 16;
-		*basey = (sloty - 0xC0) * 16;
+		*x = (tex->_4C1.slotx - 0x80) * 16;
+		*y = (tex->_4C1.sloty - 0xC0) * 16;
 	}
 }
 
@@ -115,7 +115,7 @@ get_gpu_texhead_str (hikaru_gpu_texhead_t *texhead)
 	static char out[512];
 	uint32_t basex, basey;
 
-	slot_to_coords (&basex, &basey, texhead->_4C1.slotx, texhead->_4C1.sloty);
+	get_texhead_coords (&basex, &basey, texhead);
 
 	sprintf (out, "[bank=%X slot=(%X,%X) pos=(%X,%X) -> offs=%08X] [size=%ux%u format=%s] 0C1=%08X 2C1=%08X",
 	         texhead->_4C1.bank, texhead->_4C1.slotx, texhead->_4C1.sloty,

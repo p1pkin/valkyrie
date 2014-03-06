@@ -170,7 +170,7 @@ decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 	if (!surface)
 		return NULL;
 
-	slot_to_coords (&basex, &basey, texhead->_4C1.slotx, texhead->_4C1.sloty); 
+	get_texhead_coords (&basex, &basey, texhead); 
 
 	for (y = 0; y < texhead->height; y ++) {
 		for (x = 0; x < texhead->width; x += 4) {
@@ -224,7 +224,7 @@ decode_texhead_abgr1555 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 	if (!surface)
 		return NULL;
 
-	slot_to_coords (&basex, &basey, texhead->_4C1.slotx, texhead->_4C1.sloty); 
+	get_texhead_coords (&basex, &basey, texhead); 
 
 	for (y = 0; y < texhead->height; y++) {
 		uint32_t base = (basey + y) * 4096 + basex * 2;
@@ -265,7 +265,7 @@ decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 	if (!surface)
 		return NULL;
 
-	slot_to_coords (&basex, &basey, texhead->_4C1.slotx, texhead->_4C1.sloty); 
+	get_texhead_coords (&basex, &basey, texhead); 
 
 	for (y = 0; y < texhead->height; y++) {
 		uint32_t base = (basey + y) * 4096 + basex * 2;
@@ -302,7 +302,7 @@ decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 	if (!surface)
 		return NULL;
 
-	slot_to_coords (&basex, &basey, texhead->_4C1.slotx, texhead->_4C1.sloty); 
+	get_texhead_coords (&basex, &basey, texhead); 
 
 	for (y = 0; y < h; y++) {
 		uint32_t base = (basey + y) * 4096 + basex * 2;

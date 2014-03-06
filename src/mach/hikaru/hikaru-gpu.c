@@ -736,7 +736,7 @@ copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_gpu_texhead_t *texhea
 		mask = 32*MB-1;
 	}
 
-	slot_to_coords (&basex, &basey, texhead->_4C1.slotx, texhead->_4C1.sloty);
+	get_texhead_coords (&basex, &basey, texhead);
 
 	endx = basex + texhead->width;
 	endy = basey + texhead->height;
