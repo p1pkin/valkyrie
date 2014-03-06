@@ -953,6 +953,9 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 {
 	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_gpu_material_t *mat = &MAT.scratch;
+	float base_alpha = POLY.alpha;
+	float mat_alpha = mat->diffuse[3] * INV255;
+	float vertex_alpha = src->info.bit.alpha;
 
 	/* XXX at the moment we use only color 1 (it's responsible for the
 	 * BOOTROM CRT test). */
@@ -994,7 +997,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 		break;
 	case HIKARU_POLYTYPE_TRANSLUCENT:
 		/* XXX mmm, this equation doesn't look great in PHARRIER... */
-		dst->col[3] = clampf (POLY.alpha + src->info.bit.alpha * INV255, 0.0f, 1.0f);
+		dst->col[3] = clampf (base_alpha + mat_alpha + vertex_alpha, 0.0f, 1.0f);
 		break;
 	}
 }
