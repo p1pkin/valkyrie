@@ -679,6 +679,20 @@ get_light_specular (hikaru_renderer_t *hr, hikaru_gpu_light_t *lit, float *out)
 	out[3] = 1.0f;
 }
 
+static void
+get_material_diffuse (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float *out)
+{
+	if (hr->debug.flags[HR_DEBUG_NO_DIFFUSE]) {
+		out[0] = out[1] = out[2] = 0.0f;
+		out[3] = 1.0f;
+	} else {
+		out[0] = mat->diffuse[0] * INV255;
+		out[1] = mat->diffuse[1] * INV255;
+		out[2] = mat->diffuse[2] * INV255;
+		out[3] = mat->diffuse[3] * INV255;
+	}
+}
+
 /* TODO track dirty state */
 static void
 upload_current_lightset (hikaru_renderer_t *hr)
@@ -806,16 +820,7 @@ upload_current_lightset (hikaru_renderer_t *hr)
 	 * to GL 3.0 and GLSL). */
 
 	/* Set the diffuse color */
-	if (hr->debug.flags[HR_DEBUG_NO_DIFFUSE]) {
-		tmp[0] = tmp[1] = tmp[2] = 0.0f;
-		tmp[3] = 1.0f;
-	} else {
-		tmp[0] = mat->diffuse[0] * k;
-		tmp[1] = mat->diffuse[1] * k;
-		tmp[2] = mat->diffuse[2] * k;
-		tmp[3] = 1.0f;
-	}
-
+	get_material_diffuse (hr, mat, tmp);
 	glMaterialfv (GL_FRONT_AND_BACK, GL_DIFFUSE, tmp);
 
 	/* Set the ambient color */
