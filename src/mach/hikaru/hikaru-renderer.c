@@ -571,6 +571,16 @@ typedef enum {
 	HIKARU_NUM_LIGHT_TYPES
 } hikaru_light_type_t;
 
+typedef enum {
+	HIKARU_LIGHT_ATT_INF = -1,
+	HIKARU_LIGHT_ATT_LINEAR = 0,
+	HIKARU_LIGHT_ATT_SQUARE = 1,
+	HIKARU_LIGHT_ATT_INVLINEAR = 2,
+	HIKARU_LIGHT_ATT_INVSQUARE = 3,
+
+	HIKARU_NUM_LIGHT_ATTS
+} hikaru_light_att_t;
+
 static hikaru_light_type_t
 get_light_type (hikaru_gpu_light_t *lit)
 {
@@ -580,6 +590,48 @@ get_light_type (hikaru_gpu_light_t *lit)
 	else if (lit->has_pos)
 		return HIKARU_LIGHT_TYPE_POSITIONAL;
 	return HIKARU_LIGHT_TYPE_DIRECTIONAL;
+}
+
+static hikaru_light_att_t
+get_light_attenuation_type (hikaru_gpu_light_t *lit)
+{
+	if (lit->type == 0 && lit->att_base == 1.0f && lit->att_offs == 1.0f)
+		return HIKARU_LIGHT_ATT_INF;
+	return lit->type;
+}
+
+static void
+get_light_attenuation (hikaru_renderer_t *hr, hikaru_gpu_light_t *lit, float *out)
+{
+	float min, max;
+
+	/* XXX OpenGL fixed-function attenuation model can't represent most
+	 * Hikaru light models... */
+
+	switch (get_light_attenuation_type (lit)) {
+	case HIKARU_LIGHT_ATT_INF:
+		out[0] = 1.0f;
+		out[1] = 0.0f;
+		out[2] = 0.0f;
+		break;
+	case HIKARU_LIGHT_ATT_LINEAR:
+		VK_ASSERT (lit->att_base < 0.0 && lit->att_offs < 0.0f);
+		min = -lit->att_offs;
+		max = min + 1.0f / lit->att_base;
+		out[0] = 0.0f;
+		out[1] = 1.0f / min;
+		out[2] = 0.0f;
+		break;
+	case HIKARU_LIGHT_ATT_SQUARE:
+		/* Used in BRAVEFF */
+	case HIKARU_LIGHT_ATT_INVLINEAR:
+	case HIKARU_LIGHT_ATT_INVSQUARE:
+	default:
+		out[0] = 0.0f;
+		out[1] = 0.2f;
+		out[2] = 0.0f;
+		break;
+	}
 }
 
 static void
@@ -743,47 +795,7 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		}
 
 		/* Set the attenuation */
-		/* XXX most attenuation types are impossible to do correctly
-		 * with OpenGL fixed-function quadratic attenuation model. */
-		if (lt->type == 0 &&
-		    (lt->att_base == 1.0f && lt->att_offs == 1.0f)) {
-			/* constant */
-
-			tmp[0] = 1.0f;
-			tmp[1] = 0.0f;
-			tmp[2] = 0.0f;
-		} else if (lt->type == 0) {
-			/* linear */
-			float min, max;
-
-			VK_ASSERT (lt->att_base < 0.0f);
-			VK_ASSERT (lt->att_offs < 0.0f);
-
-			min = -lt->att_offs;
-			max = min + 1.0f / lt->att_base;
-
-			tmp[0] = 0.0f;
-			tmp[1] = 1.0f / min;
-			tmp[2] = 0.0f;
-		} else if (lt->type == 1) {
-			/* square */
-			/* XXX used in BRAVEFF */
-
-			tmp[0] = 0.0f;
-			tmp[1] = 0.2f;
-			tmp[3] = 0.0f;
-		} else if (lt->type == 2) {
-			/* reciprocal */
-			VK_ASSERT (0);
-		} else if (lt->type == 3) {
-			/* reciprocal 2 */
-
-			tmp[0] = 0.0f;
-			tmp[1] = 0.2f;
-			tmp[3] = 0.0f;
-		} else
-			VK_ASSERT (0);
-
+		get_light_attenuation (hr, lt, tmp);
 		glLightf (n, GL_CONSTANT_ATTENUATION, tmp[0]);
 		glLightf (n, GL_LINEAR_ATTENUATION, tmp[1]);
 		glLightf (n, GL_QUADRATIC_ATTENUATION, tmp[2]);
