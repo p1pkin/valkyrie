@@ -35,6 +35,7 @@ enum {
 	HR_DEBUG_NO_LAYER2,
 	HR_DEBUG_NO_3D,
 	HR_DEBUG_SELECT_CULLFACE,
+	HR_DEBUG_SELECT_BASE_COLOR,
 	HR_DEBUG_NO_TEXTURES,
 	HR_DEBUG_USE_DEBUG_TEXTURE,
 	HR_DEBUG_DUMP_TEXTURES,
@@ -59,7 +60,8 @@ static const struct {
 	[HR_DEBUG_NO_LAYER1]		= {  0, 1, SDLK_1, false, "NO LAYER1" },
 	[HR_DEBUG_NO_LAYER2]		= {  0, 1, SDLK_2, false, "NO LAYER2" },
 	[HR_DEBUG_NO_3D]		= {  0, 1, SDLK_3, false, "NO 3D" },
-	[HR_DEBUG_SELECT_CULLFACE]	= { -1, 1, SDLK_c,  true, "SELECT CULLFACE" },
+	[HR_DEBUG_SELECT_BASE_COLOR]	= {  0, 3, SDLK_c,  true, "SELECT BASE COLOR" },
+	[HR_DEBUG_SELECT_CULLFACE]	= { -1, 1, SDLK_f,  true, "SELECT CULLFACE" },
 	[HR_DEBUG_NO_TEXTURES]		= {  0, 1, SDLK_t, false, "NO TEXTURES" },
 	[HR_DEBUG_USE_DEBUG_TEXTURE]	= {  0, 1, SDLK_y, false, "USE DEBUG TEXTURE" },
 	[HR_DEBUG_DUMP_TEXTURES]	= {  0, 1,     ~0, false, "DUMP TEXTURES" },
@@ -956,10 +958,28 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 	 * BOOTROM CRT test). */
 
 	if (mat->set) {
-		/* XXX check me! */
-		dst->col[0] = mat->diffuse[0] * INV255;
-		dst->col[1] = mat->diffuse[1] * INV255;
-		dst->col[2] = mat->diffuse[2] * INV255;
+		switch (hr->debug.flags[HR_DEBUG_SELECT_BASE_COLOR]) {
+		case 0:
+			dst->col[0] = mat->diffuse[0] * INV255;
+			dst->col[1] = mat->diffuse[1] * INV255;
+			dst->col[2] = mat->diffuse[2] * INV255;
+			break;
+		case 1:
+			dst->col[0] = mat->ambient[0] * INV255;
+			dst->col[1] = mat->ambient[1] * INV255;
+			dst->col[2] = mat->ambient[2] * INV255;
+			break;
+		case 2:
+			dst->col[0] = mat->specular[0] * INV255;
+			dst->col[1] = mat->specular[1] * INV255;
+			dst->col[2] = mat->specular[2] * INV255;
+			break;
+		default:
+			dst->col[0] = mat->unknown[0] * INV255;
+			dst->col[1] = mat->unknown[1] * INV255;
+			dst->col[2] = mat->unknown[2] * INV255;
+			break;
+		}
 	} else {
 		dst->col[0] = 1.0f;
 		dst->col[1] = 1.0f;
