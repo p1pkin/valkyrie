@@ -541,11 +541,11 @@ upload_current_material_texhead (hikaru_renderer_t *hr)
 	hikaru_gpu_texhead_t *th   = &TEX.scratch;
 
 	LOG ("mat = %s", get_gpu_material_str (mat));
-	if (mat->set && mat->has_texture)
+	if (mat->set && mat->_881.has_texture)
 		LOG ("th  = %s", get_gpu_texhead_str (th));
 
 	if (hr->debug.flags[HR_DEBUG_NO_TEXTURES] ||
-	    !mat->set || !th->set || !mat->has_texture)
+	    !mat->set || !th->set || !mat->_881.has_texture)
 		glDisable (GL_TEXTURE_2D);
 	else {
 		vk_surface_t *surface;
@@ -744,7 +744,7 @@ upload_current_lightset (hikaru_renderer_t *hr)
 
 	/* If the material is unset, treat it as shading_mode is 1; that way
 	 * we can actually check lighting in the viewer. */
-	if (mat->set && mat->shading_mode == 0)
+	if (mat->set && mat->_881.shading_mode == 0)
 		goto disable;
 
 	/* Lights are positioned according to the scene, irrespective of

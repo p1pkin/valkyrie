@@ -102,13 +102,46 @@ typedef struct {
 	vec3b_t ambient;
 	vec4b_t specular;
 	vec3s_t unknown;
-	uint32_t shading_mode	: 2;	
-	uint32_t depth_blend	: 1;	
-	uint32_t has_texture	: 1;	
-	uint32_t has_alpha	: 1;	
-	uint32_t has_highlight	: 1;	
-	uint32_t blending_mode	: 2;	
-	uint32_t alpha_test	: 6;
+	union {
+		struct {
+			uint32_t		: 12;
+			uint32_t unk1		: 1;
+			uint32_t		: 3;
+			uint32_t unk2		: 4;
+			uint32_t		: 12;
+		};
+		uint32_t full;
+	} _081;
+	union {
+		struct {
+			uint32_t		: 16;
+			uint32_t shading_mode	: 2;
+			uint32_t depth_blend	: 1;
+			uint32_t has_texture	: 1;
+			uint32_t has_alpha	: 1;
+			uint32_t has_highlight	: 1;
+			uint32_t unk1		: 1;
+			uint32_t unk2		: 1;
+			uint32_t unk3		: 8;
+		};
+		uint32_t full;
+	} _881;
+	union {
+		struct {
+			uint32_t		: 16;
+			uint32_t blending_mode	: 2;
+			uint32_t		: 14;
+		};
+		uint32_t full;
+	} _A81;
+	union {
+		struct {
+			uint32_t		: 16;
+			uint32_t alpha_index	: 6;
+			uint32_t		: 10;
+		};
+		uint32_t full;
+	} _C81;
 	uint32_t set		: 1;
 } hikaru_gpu_material_t;
 

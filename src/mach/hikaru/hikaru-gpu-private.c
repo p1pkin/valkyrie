@@ -87,14 +87,13 @@ get_gpu_material_str (hikaru_gpu_material_t *material)
 {
 	static char out[512];
 
-	sprintf (out, "Dif=#%02X%02X%02X|%02X Amb=#%02X%02X%02X Spc=#%02X%02X%02X|%02X Mat=#%04X,%04X,%04X ShadingMode=%u ZBlend=%u Tex=%u Alpha=%u High=%u BlendMode=%u",
+	sprintf (out, "Dif=#%02X%02X%02X|%02X Amb=#%02X%02X%02X Spc=#%02X%02X%02X|%02X Mat=#%04X,%04X,%04X 081=%08X 881=%08X A81=%08X C81=%08X",
 	         material->diffuse[0], material->diffuse[1], material->diffuse[2], material->diffuse[3],
 	         material->ambient[0], material->ambient[1], material->ambient[2],
 	         material->specular[0], material->specular[1], material->specular[2], material->specular[4],
 	         material->unknown[0], material->unknown[1], material->unknown[2],
-	         material->shading_mode, material->depth_blend,
-	         material->has_texture, material->has_alpha,
-	         material->has_highlight, material->blending_mode);
+	         material->_081.full, material->_881.full,
+	         material->_A81.full, material->_C81.full);
 
 	return (const char *) out;
 }

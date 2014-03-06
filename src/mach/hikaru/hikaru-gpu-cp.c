@@ -1107,39 +1107,34 @@ get_material_index (uint32_t *inst)
 
 /* 091	Material: Set Primary Color
  *
- *	-------- -------- -----00o oooooooo
- *	uuuuuuuu bbbbbbbb gggggggg rrrrrrrr
- *
- * u = Unknown, seen in BRAVEFF title screen.
- * r,g,b = RGB color
+ *	-------- -------- -------o oooooooo
+ *	AAAAAAAA BBBBBBBB GGGGGGGG RRRRRRRR
  *
  * See PH:@0C0CF742.
  *
  *
  * 291	Material: Set Secondary Color
  *
- *	-------- -------- -----01o oooooooo
- *	uuuuuuuu bbbbbbbb gggggggg rrrrrrrr
- *
- * r,g,b = RGB color
+ *	-------- -------- -------o oooooooo
+ *	-------- BBBBBBBB GGGGGGGG RRRRRRRR
  *
  * See PH:@0C0CF742.
  *
  *
  * 491	Material: Set Shininess
  *
- *	-------- -------- -----10o oooooooo
- *	ssssssss bbbbbbbb gggggggg rrrrrrrr
+ *	-------- -------- -------o oooooooo
+ *	SSSSSSSS BBBBBBBB GGGGGGGG RRRRRRRR
  *
- * s = Specular shininess
+ * S = Shininess
  *
  * See PH:@0C0CF798, PH:@0C01782C.
  *
  *
  * 691	Material: Set Material Color
  *
- *	rrrrrrrr rrrrrrrr -----11o oooooooo
- *	bbbbbbbb bbbbbbbb gggggggg gggggggg
+ *	RRRRRRRR RRRRRRRR -------o oooooooo
+ *	BBBBBBBB BBBBBBBB GGGGGGGG GGGGGGGG
  *
  * See PH:@0C0CF7CC.
  *
@@ -1223,7 +1218,7 @@ D (0x091)
 
 /* 081	Material: Set Unknown
  *
- *	-------- ----mmmm ---n000o oooooooo
+ *	-------- ----mmmm ---n---o oooooooo
  *
  * n, m = Unknown
  *
@@ -1294,23 +1289,17 @@ I (0x081)
 	hikaru_gpu_material_t *mat = &MAT.scratch;
 
 	switch ((inst[0] >> 8) & 0xF) {
-	case 0:
+	case 0x0:
+		mat->_081.full = inst[0];
 		break;
-
-	case 8:
-		mat->shading_mode	= (inst[0] >> 16) & 3;
-		mat->depth_blend	= (inst[0] >> 18) & 1;
-		mat->has_texture	= (inst[0] >> 19) & 1;
-		mat->has_alpha		= (inst[0] >> 20) & 1;
-		mat->has_highlight	= (inst[0] >> 21) & 1;
+	case 0x8:
+		mat->_881.full = inst[0];
 		break;
-
 	case 0xA:
-		mat->blending_mode = (inst[0] >> 16) & 3;
+		mat->_A81.full = inst[0];
 		break;
-
 	case 0xC:
-		mat->alpha_test = (inst[0] >> 16) & 0x3F;
+		mat->_C81.full = inst[0];
 		break;
 	}
 }
