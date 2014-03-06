@@ -757,7 +757,6 @@ upload_current_lightset (hikaru_renderer_t *hr)
 
 	glEnable (GL_LIGHTING);
 
-	/* Set the global ambient. */
 	get_light_ambient (hr, tmp);
 	glLightModelf (GL_LIGHT_MODEL_TWO_SIDE, 1.0f);
 	glLightModelfv (GL_LIGHT_MODEL_AMBIENT, tmp);
@@ -786,15 +785,11 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		else
 			glDisable (n);
 
-		/* Set the diffuse color */
 		get_light_diffuse (hr, lt, tmp);
 		glLightfv (n, GL_DIFFUSE, tmp);
-
-		/* Set the specular color */
 		get_light_specular (hr, lt, tmp);
 		glLightfv (n, GL_SPECULAR, tmp);
 
-		/* Set the direction/position */
 		switch (get_light_type (lt)) {
 		case HIKARU_LIGHT_TYPE_DIRECTIONAL:
 			tmp[0] = lt->dir[0];
@@ -834,7 +829,6 @@ upload_current_lightset (hikaru_renderer_t *hr)
 			VK_ASSERT (!"unreachable");
 		}
 
-		/* Set the attenuation */
 		get_light_attenuation (hr, lt, tmp);
 		glLightf (n, GL_CONSTANT_ATTENUATION, tmp[0]);
 		glLightf (n, GL_LINEAR_ATTENUATION, tmp[1]);
@@ -845,15 +839,10 @@ upload_current_lightset (hikaru_renderer_t *hr)
 	 * of them in the vertex_t yet (we will when we upgrade the renderer
 	 * to GL 3.0 and GLSL). */
 
-	/* Set the diffuse color */
 	get_material_diffuse (hr, mat, tmp);
 	glMaterialfv (GL_FRONT_AND_BACK, GL_DIFFUSE, tmp);
-
-	/* Set the ambient color */
 	get_material_ambient (hr, mat, tmp);
 	glMaterialfv (GL_FRONT_AND_BACK, GL_AMBIENT, tmp);
-
-	/* Set the specular color */
 	get_material_specular (hr, mat, tmp);
 	glMaterialfv (GL_FRONT_AND_BACK, GL_SPECULAR, tmp);
 	glMaterialf (GL_FRONT_AND_BACK, GL_SHININESS, tmp[3]);
