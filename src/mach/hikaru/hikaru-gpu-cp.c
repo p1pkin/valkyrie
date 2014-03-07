@@ -2411,31 +2411,28 @@ D (0x088)
 	DISASM ("unk: unknown");
 }
 
-/* 154	Commit Alpha Threshold
+/* 154	Mat: Set Alpha Threshold
  *
  *	-------- --IIIIII -------o oooooooo
- *	hhhhhhhh hhhhhhhh hhhhhhhh llllllll
+ *	HHHHHHHH HHHHHHHH HHHHHHHH LLLLLLLL
  *
  * I = Index
  * l = Alpha low threshold
  * h = Alpha high threshold
  *
- * See PH:@0C017798, PH:@0C0CF868. Used by instruction C81, see PH:@0C0CF872
- * and PH:@0C0CF872.
+ * See PH:@0C017798, PH:@0C0CF868. Used by instruction C81.
  */
 
 I (0x154)
 {
-	uint32_t index = (inst[0] >> 16) & 0x3F;
-
-	ATABLE[index].full = inst[1];
+	ATABLE[(inst[0] >> 16) & 0x3F].full = inst[1];
 }
 
 D (0x154)
 {
 	UNHANDLED |= !!(inst[0] & 0xFFC0F000);
 
-	DISASM ("unk: set alpha thresh [%u (%X %X)]",
+	DISASM ("mat: set alpha thresh [%u (%X %X)]",
 	        (inst[0] >> 16) & 0x3F, inst[1] & 0xFF, inst[1] >> 8);
 }
 
