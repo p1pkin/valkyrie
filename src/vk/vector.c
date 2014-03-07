@@ -100,3 +100,11 @@ vk_vector_clear (vk_vector_t *vector)
 	memset (vector->data, 0, vector->element_size * vector->size);
 	vector->used = 0;
 }
+
+void
+vk_vector_clear_fast (vk_vector_t *vector)
+{
+	VK_ASSERT (vector);
+
+	vector->used = 0;
+}

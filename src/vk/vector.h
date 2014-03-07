@@ -33,5 +33,6 @@ void		 vk_vector_destroy (vk_vector_t **vector_);
 void		*vk_vector_append_entry (vk_vector_t *vector);
 void		 vk_vector_append (vk_vector_t *vector, void *key);
 void		 vk_vector_clear (vk_vector_t *vector);
+void		 vk_vector_clear_fast (vk_vector_t *vector);
 
 #endif /* __VK_VECTOR_H__ */
