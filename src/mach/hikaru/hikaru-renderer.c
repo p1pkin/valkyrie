@@ -705,7 +705,7 @@ hikaru_mesh_new (void)
 		return NULL;
 
 	glGenBuffers (1, &mesh->vbo);
-	if (!mesh->vbo);
+	if (!mesh->vbo)
 		goto fail;
 
 	return mesh;
@@ -723,6 +723,8 @@ hikaru_mesh_upload_pushed_data (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	VK_ASSERT (mesh);
 	VK_ASSERT (mesh->vbo);
+
+	mesh->num_tris = hr->push.num_tris;
 
 	glBindBuffer (GL_ARRAY_BUFFER, mesh->vbo);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (hikaru_gpu_vertex_t) * mesh->num_tris * 3,
