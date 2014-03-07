@@ -369,29 +369,6 @@ struct hikaru_gpu_vertex_t {
 	vec2f_t padding2;
 } __attribute__ ((packed));
 
-typedef struct {
-	vk_renderer_t base;
-
-	hikaru_gpu_t *gpu;
-
-	struct {
-		hikaru_gpu_vertex_t	vtx[4];
-		hikaru_gpu_vertex_t	vbo[MAX_VERTICES_PER_MESH];
-		uint32_t		num_pushed;
-		uint32_t		num_tris;
-		uint32_t		addr[2];
-	} mesh;
-
-	struct {
-		vk_surface_t *debug;
-	} textures;
-
-	struct {
-		int32_t *flags;
-	} debug;
-
-} hikaru_renderer_t;
-
 /****************************************************************************
  Definitions
 ****************************************************************************/
@@ -438,14 +415,17 @@ void hikaru_gpu_cp_vblank_out (hikaru_gpu_t *);
 void hikaru_gpu_cp_on_put (hikaru_gpu_t *);
 
 /* hikaru-renderer.c */
-void hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
+void hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
                                  bool is_static);
-void hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr);
-void hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
+void hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr);
+void hikaru_renderer_push_vertices (vk_renderer_t *rend,
                                     hikaru_gpu_vertex_t *v,
                                     uint32_t push,
                                     unsigned num);
-void hikaru_renderer_invalidate_texcache (hikaru_renderer_t *hr,
-                                          hikaru_gpu_texhead_t *th);
+
+void		 hikaru_renderer_invalidate_texcache (vk_renderer_t *rend,
+		                                      hikaru_gpu_texhead_t *th);
+vk_surface_t	*hikaru_renderer_decode_texture (vk_renderer_t *rend,
+		                                 hikaru_gpu_texhead_t *th);
 
 #endif /* __HIKARU_GPU_PRIVATE_H__ */

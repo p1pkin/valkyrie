@@ -148,7 +148,7 @@ hikaru_gpu_cp_on_put (hikaru_gpu_t *gpu)
  * stored in bits 4-5 of the first word.
  */
 
-#define HR        ((hikaru_renderer_t *) gpu->renderer)
+#define HR        gpu->renderer
 
 #define FLAG_JUMP	(1 << 0)
 #define FLAG_BEGIN	(1 << 1)
@@ -2186,8 +2186,7 @@ I (0x12C)
 	v.nrm[1] = (int16_t)((inst[2] & 0x3FF) << 6) / 16384.0f;
 	v.nrm[2] = (int16_t)((inst[3] & 0x3FF) << 6) / 16384.0f;
 
-	hikaru_renderer_push_vertices ((hikaru_renderer_t *) HR,
-	                               &v, HR_PUSH_POS | HR_PUSH_NRM, 1);
+	hikaru_renderer_push_vertices (HR, &v, HR_PUSH_POS | HR_PUSH_NRM, 1);
 }
 
 D (0x12C)
@@ -2207,8 +2206,7 @@ I (0x1AC)
 	v.pos[1] = *(float *) &inst[2];
 	v.pos[2] = *(float *) &inst[3];
 
-	hikaru_renderer_push_vertices ((hikaru_renderer_t *) HR,
-	                               &v, HR_PUSH_POS, 1);
+	hikaru_renderer_push_vertices (HR, &v, HR_PUSH_POS, 1);
 }
 
 D (0x1AC)
@@ -2235,8 +2233,7 @@ I (0x1B8)
 	v.txc[0] = ((int16_t) inst[4]) / 16.0f;
 	v.txc[1] = ((int16_t) (inst[4] >> 16)) / 16.0f;
 
-	hikaru_renderer_push_vertices ((hikaru_renderer_t *) HR, &v,
-	                               HR_PUSH_POS | HR_PUSH_NRM | HR_PUSH_TXC, 1);
+	hikaru_renderer_push_vertices (HR, &v, HR_PUSH_POS | HR_PUSH_NRM | HR_PUSH_TXC, 1);
 }
 
 D (0x1B8)

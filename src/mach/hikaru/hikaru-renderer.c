@@ -21,32 +21,11 @@
 #include "vk/input.h"
 
 #include "mach/hikaru/hikaru-renderer.h"
-#include "mach/hikaru/hikaru-gpu-private.h"
+#include "mach/hikaru/hikaru-renderer-private.h"
 
 /****************************************************************************
  Debug
 ****************************************************************************/
-
-enum {
-	HR_DEBUG_LOG,
-	HR_DEBUG_NO_LAYER1,
-	HR_DEBUG_NO_LAYER2,
-	HR_DEBUG_NO_3D,
-	HR_DEBUG_SELECT_CULLFACE,
-	HR_DEBUG_SELECT_BASE_COLOR,
-	HR_DEBUG_NO_TEXTURES,
-	HR_DEBUG_USE_DEBUG_TEXTURE,
-	HR_DEBUG_DUMP_TEXTURES,
-	HR_DEBUG_SELECT_POLYTYPE,
-	HR_DEBUG_DRAW_NORMALS,
-	HR_DEBUG_NO_LIGHTING,
-	HR_DEBUG_NO_AMBIENT,
-	HR_DEBUG_NO_DIFFUSE,
-	HR_DEBUG_NO_SPECULAR,
-	HR_DEBUG_SELECT_ATT_TYPE,
-
-	HR_NUM_DEBUG_VARS
-};
 
 static const struct {
 	int32_t min, max;
@@ -77,9 +56,6 @@ init_debug_flags (hikaru_renderer_t *hr)
 {
 	unsigned i;
 
-	hr->debug.flags = (int32_t *) calloc (HR_NUM_DEBUG_VARS, sizeof (int32_t));
-	VK_ASSERT (hr->debug.flags);
-
 	for (i = 0; i < NUMELEM (debug_controls); i++)
 		hr->debug.flags[i] = debug_controls[i].min;
 
@@ -107,356 +83,12 @@ update_debug_flags (hikaru_renderer_t *hr)
 	}
 }
 
-static void
-destroy_debug_flags (hikaru_renderer_t *hr)
-{
-	free (hr->debug.flags);
-}
-
 #define LOG(fmt_, args_...) \
 	do { \
 		if (hr->debug.flags[HR_DEBUG_LOG]) \
 			fprintf (stdout, "\tHR: " fmt_"\n", ##args_); \
 	} while (0)
 
-/****************************************************************************
- Texhead Decoding
-****************************************************************************/
-
-static void
-get_wrap_modes (int *wrap_u, int *wrap_v, hikaru_gpu_texhead_t *th)
-{
-	*wrap_u = *wrap_v = -1;
-
-	if (th->_2C1.wrapu == 0)
-		*wrap_u = GL_CLAMP;
-	else if (th->_2C1.repeatu == 0)
-		*wrap_u = GL_REPEAT;
-	else
-		*wrap_u = GL_MIRRORED_REPEAT;
-
-	if (th->_2C1.wrapv == 0)
-		*wrap_v = GL_CLAMP;
-	else if (th->_2C1.repeatv == 0)
-		*wrap_v = GL_REPEAT;
-	else
-		*wrap_v = GL_MIRRORED_REPEAT;
-}
-
-static uint32_t
-rgba1111_to_rgba4444 (uint8_t pixel)
-{
-	static const uint32_t table[16] = {
-		0x0000, 0xF000, 0x0F00, 0xFF00,
-		0x00F0, 0xF0F0, 0x0FF0, 0xFFF0,
-		0x000F, 0xF00F, 0x0F0F, 0xFF0F,
-		0x00FF, 0xF0FF, 0x0FFF, 0xFFFF,
-	};
-
-	return table[pixel & 15];
-}
-
-static vk_surface_t *
-decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
-{
-	vk_buffer_t *texram = hr->gpu->texram[texhead->_4C1.bank];
-	uint32_t basex, basey, x, y;
-	int wrap_u, wrap_v;
-	vk_surface_t *surface;
-
-	get_wrap_modes (&wrap_u, &wrap_v, texhead);
-	surface = vk_surface_new (texhead->width, texhead->height*2,
-	                          VK_SURFACE_FORMAT_RGBA4444, wrap_u, wrap_v);
-	if (!surface)
-		return NULL;
-
-	get_texhead_coords (&basex, &basey, texhead); 
-
-	for (y = 0; y < texhead->height; y ++) {
-		for (x = 0; x < texhead->width; x += 4) {
-			uint32_t offs = (basey + y) * 4096 + (basex + x);
-			uint32_t texels = vk_buffer_get (texram, 4, offs);
-			vk_surface_put16 (surface, x + 0, y*2 + 0,
-			                  rgba1111_to_rgba4444 (texels >> 28));
-			vk_surface_put16 (surface, x + 1, y*2 + 0,
-			                  rgba1111_to_rgba4444 (texels >> 24));
-			vk_surface_put16 (surface, x + 0, y*2 + 1,
-			                  rgba1111_to_rgba4444 (texels >> 20));
-			vk_surface_put16 (surface, x + 1, y*2 + 1,
-			                  rgba1111_to_rgba4444 (texels >> 16));
-			vk_surface_put16 (surface, x + 2, y*2 + 0,
-			                  rgba1111_to_rgba4444 (texels >> 12));
-			vk_surface_put16 (surface, x + 3, y*2 + 0,
-			                  rgba1111_to_rgba4444 (texels >>  8));
-			vk_surface_put16 (surface, x + 2, y*2 + 1,
-			                  rgba1111_to_rgba4444 (texels >>  4));
-			vk_surface_put16 (surface, x + 3, y*2 + 1,
-			                  rgba1111_to_rgba4444 (texels >>  0));
-		}
-	}
-	return surface;
-}
-
-static uint16_t
-abgr1555_to_rgba5551 (uint16_t c)
-{
-	uint16_t r, g, b, a;
-
-	r = (c >>  0) & 0x1F;
-	g = (c >>  5) & 0x1F;
-	b = (c >> 10) & 0x1F;
-	a = (c >> 15) & 1;
-
-	return (r << 11) | (g << 6) | (b << 1) | a;
-}
-
-static vk_surface_t *
-decode_texhead_abgr1555 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
-{
-	vk_buffer_t *texram = hr->gpu->texram[texhead->_4C1.bank];
-	uint32_t basex, basey, x, y;
-	int wrap_u, wrap_v;
-	vk_surface_t *surface;
-
-	get_wrap_modes (&wrap_u, &wrap_v, texhead);
-	surface = vk_surface_new (texhead->width, texhead->height,
-	                          VK_SURFACE_FORMAT_RGBA5551, wrap_u, wrap_v);
-	if (!surface)
-		return NULL;
-
-	get_texhead_coords (&basex, &basey, texhead); 
-
-	for (y = 0; y < texhead->height; y++) {
-		uint32_t base = (basey + y) * 4096 + basex * 2;
-		for (x = 0; x < texhead->width; x += 2) {
-			uint32_t offs  = base + x * 2;
-			uint32_t texels = vk_buffer_get (texram, 4, offs);
-			vk_surface_put16 (surface, x+0, y, abgr1555_to_rgba5551 (texels >> 16));
-			vk_surface_put16 (surface, x+1, y, abgr1555_to_rgba5551 (texels));
-		}
-	}
-	return surface;
-}
-
-static uint16_t
-abgr4444_to_rgba4444 (uint16_t c)
-{
-	uint16_t r, g, b, a;
-
-	r = (c >>  0) & 0xF;
-	g = (c >>  4) & 0xF;
-	b = (c >>  8) & 0xF;
-	a = (c >> 12) & 0xF;
-
-	return (r << 12) | (g << 8) | (b << 4) | a;
-}
-
-static vk_surface_t *
-decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
-{
-	vk_buffer_t *texram = hr->gpu->texram[texhead->_4C1.bank];
-	uint32_t basex, basey, x, y;
-	int wrap_u, wrap_v;
-	vk_surface_t *surface;
-
-	get_wrap_modes (&wrap_u, &wrap_v, texhead);
-	surface = vk_surface_new (texhead->width, texhead->height,
-	                          VK_SURFACE_FORMAT_RGBA4444, wrap_u, wrap_v);
-	if (!surface)
-		return NULL;
-
-	get_texhead_coords (&basex, &basey, texhead); 
-
-	for (y = 0; y < texhead->height; y++) {
-		uint32_t base = (basey + y) * 4096 + basex * 2;
-		for (x = 0; x < texhead->width; x += 2) {
-			uint32_t offs  = base + x * 2;
-			uint32_t texels = vk_buffer_get (texram, 4, offs);
-			vk_surface_put16 (surface, x+0, y, abgr4444_to_rgba4444 (texels >> 16));
-			vk_surface_put16 (surface, x+1, y, abgr4444_to_rgba4444 (texels));
-		}
-	}
-	return surface;
-}
-
-static uint32_t
-a8_to_rgba8888 (uint32_t a)
-{
-	a &= 0xFF;
-	return (a << 24) | (a << 16) | (a << 8) | a;
-}
-
-static vk_surface_t *
-decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
-{
-	vk_buffer_t *texram = hr->gpu->texram[texhead->_4C1.bank];
-	uint32_t basex, basey, x, y, h, w;
-	int wrap_u, wrap_v;
-	vk_surface_t *surface;
-
-	h = texhead->height / 2;
-	w = texhead->width / 4;
-
-	get_wrap_modes (&wrap_u, &wrap_v, texhead);
-	surface = vk_surface_new (w * 4, h, VK_SURFACE_FORMAT_RGBA8888, wrap_u, wrap_v);
-	if (!surface)
-		return NULL;
-
-	get_texhead_coords (&basex, &basey, texhead); 
-
-	for (y = 0; y < h; y++) {
-		uint32_t base = (basey + y) * 4096 + basex * 2;
-		for (x = 0; x < w; x++) {
-			uint32_t offs = base + x * 4;
-			uint32_t texels = vk_buffer_get (texram, 4, offs);
-			vk_surface_put32 (surface, 4*x+0, y, a8_to_rgba8888 (texels >> 24));
-			vk_surface_put32 (surface, 4*x+1, y, a8_to_rgba8888 (texels >> 16));
-			vk_surface_put32 (surface, 4*x+2, y, a8_to_rgba8888 (texels >> 8));
-			vk_surface_put32 (surface, 4*x+3, y, a8_to_rgba8888 (texels));
-		}
-	}
-	return surface;
-}
-
-static struct {
-	hikaru_gpu_texhead_t	texhead;
-	vk_surface_t		*surface;
-} texcache[2][0x40][0x80];
-static bool is_texcache_clear[2] = { false, false };
-
-static bool
-is_texhead_eq (hikaru_renderer_t *hr,
-               hikaru_gpu_texhead_t *a, hikaru_gpu_texhead_t *b)
-{
-	return (a->_2C1.format == b->_2C1.format) &&
-	       (a->_4C1.bank == b->_4C1.bank) &&
-	       (a->_4C1.slotx == b->_4C1.slotx) &&
-	       (a->_4C1.sloty == b->_4C1.sloty) &&
-	       (a->width == b->width) &&
-	       (a->height == b->height);
-}
-
-static void
-dump_texhead (hikaru_renderer_t *hr,
-              hikaru_gpu_texhead_t *texhead,
-              vk_surface_t *surface)
-{
-	static unsigned num = 0;
-
-	vk_machine_t *mach = ((vk_device_t *) hr->gpu)->mach;
-	char path[256];
-	FILE *fp;
-
-	sprintf (path, "texheads/%s-texhead%u-%02X-%02X-%ux%u-%u.bin",
-	         mach->game->name, num,
-	         texhead->_4C1.slotx, texhead->_4C1.sloty,
-	         texhead->width, texhead->height,
-	         texhead->_2C1.format);
-	fp = fopen (path, "wb");
-	if (!fp)
-		return;
-
-	vk_surface_dump (surface, path);
-
-	fclose (fp);
-	num += 1;
-}
-
-static vk_surface_t *
-decode_texhead (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
-{
-	hikaru_gpu_texhead_t *cached;
-	vk_surface_t *surface = NULL;
-	uint32_t bank, slotx, sloty, realx, realy;
-
-	bank  = texhead->_4C1.bank;
-	slotx = texhead->_4C1.slotx;
-	sloty = texhead->_4C1.sloty;
-
-	/* Handle invalid slots here. */
-	if (slotx < 0x80 || sloty < 0xC0)
-		return NULL;
-
-	realx = slotx - 0x80;
-	realy = sloty - 0xC0;
-
-	/* Lookup the texhead in the cache. */
-	cached = &texcache[bank][realy][realx].texhead;
-	if (is_texhead_eq (hr, texhead, cached)) {
-		surface = texcache[bank][realy][realx].surface;
-		if (surface)
-			return surface;
-	}
-
-	/* Texhead not cached, decode it. */
-	switch (texhead->_2C1.format) {
-	case HIKARU_FORMAT_ABGR1555:
-		surface = decode_texhead_abgr1555 (hr, texhead);
-		break;
-	case HIKARU_FORMAT_ABGR4444:
-		surface = decode_texhead_abgr4444 (hr, texhead);
-		break;
-	case HIKARU_FORMAT_ABGR1111:
-		surface = decode_texhead_rgba1111 (hr, texhead);
-		break;
-	case HIKARU_FORMAT_ALPHA8:
-		surface = decode_texhead_a8 (hr, texhead);
-		break;
-	default:
-		VK_ASSERT (0);
-		break;
-	}
-
-	if (surface && hr->debug.flags[HR_DEBUG_DUMP_TEXTURES])
-		dump_texhead (hr, texhead, surface);
-
-	/* Cache the decoded texhead. */
-	texcache[bank][realy][realx].texhead = *texhead;
-	texcache[bank][realy][realx].surface = surface;
-	is_texcache_clear[bank] = false;
-
-	/* Upload the surface to the GL. */
-	vk_surface_commit (surface);
-	return surface;
-}
-
-static void
-clear_texture_cache_bank (hikaru_renderer_t *hr, unsigned bank)
-{
-	unsigned x, y;
-
-	if (is_texcache_clear[bank])
-		return;
-	is_texcache_clear[bank] = true;
-
-	/* Free all allocated surfaces. */
-	for (y = 0; y < 0x40; y++)
-		for (x = 0; x < 0x80; x++)
-			vk_surface_destroy (&texcache[bank][y][x].surface);
-
-	/* Zero out the cache itself, to avoid spurious hits. Note that
-	 * texture RAM origin is (80,C0), so (slotx, sloty) will never match
-	 * a zeroed out cache entries. */
-	memset ((void *) &texcache[bank], 0, sizeof (texcache[bank]));
-}
-
-static void
-clear_texture_cache (hikaru_renderer_t *hr)
-{
-	clear_texture_cache_bank (hr, 0);
-	clear_texture_cache_bank (hr, 1);
-}
-
-void
-hikaru_renderer_invalidate_texcache (hikaru_renderer_t *hr,
-                                     hikaru_gpu_texhead_t *th)
-{
-	VK_ASSERT (hr);
-	VK_ASSERT (th);
-
-	/* Simplest approach possible, clear the whole bank. */
-	clear_texture_cache_bank (hr, th->_4C1.bank);
-}
 
 /****************************************************************************
  3D Rendering
@@ -551,7 +183,7 @@ upload_current_material_texhead (hikaru_renderer_t *hr)
 		vk_surface_t *surface;
 
 		surface = hr->debug.flags[HR_DEBUG_USE_DEBUG_TEXTURE] ?
-		          NULL : decode_texhead (hr, th);
+		          NULL : hikaru_renderer_decode_texture (&hr->base, th);
 
 		if (!surface)
 			surface = hr->textures.debug;
@@ -1046,11 +678,12 @@ add_triangle (hikaru_renderer_t *hr)
 }
 
 void
-hikaru_renderer_push_vertices (hikaru_renderer_t *hr,
+hikaru_renderer_push_vertices (vk_renderer_t *rend,
                                hikaru_gpu_vertex_t *v,
                                uint32_t push,
                                unsigned num)
 {
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 	unsigned i;
 
 	VK_ASSERT (hr);
@@ -1140,9 +773,10 @@ clear_mesh_data (hikaru_renderer_t *hr)
 }
 
 void
-hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
+hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
                             bool is_static)
 {
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 	VK_ASSERT (hr);
 
 	if (hr->debug.flags[HR_DEBUG_NO_3D])
@@ -1153,8 +787,9 @@ hikaru_renderer_begin_mesh (hikaru_renderer_t *hr, uint32_t addr,
 }
 
 void
-hikaru_renderer_end_mesh (hikaru_renderer_t *hr, uint32_t addr)
+hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr)
 {
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 	VK_ASSERT (hr);
 
 	if (hr->debug.flags[HR_DEBUG_NO_3D])
@@ -1340,9 +975,7 @@ hikaru_renderer_end_frame (vk_renderer_t *renderer)
 static void
 hikaru_renderer_reset (vk_renderer_t *renderer)
 {
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-
-	clear_texture_cache (hr);
+	hikaru_renderer_invalidate_texcache (renderer, NULL);
 }
 
 static void
@@ -1352,10 +985,7 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
 
 		vk_surface_destroy (&hr->textures.debug);
-
-		clear_texture_cache (hr);
-
-		destroy_debug_flags (hr);
+		hikaru_renderer_invalidate_texcache (*renderer_, NULL);
 	}
 }
 
@@ -1401,8 +1031,6 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 	hr->textures.debug = build_debug_surface ();
 	if (!hr->textures.debug)
 		goto fail;
-
-	clear_texture_cache (hr);
 
 	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
 	glShadeModel (GL_SMOOTH);
