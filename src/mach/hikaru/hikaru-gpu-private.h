@@ -287,6 +287,14 @@ typedef struct {
 			uint32_t full;
 		} alpha_table[0x40];
 
+		union {
+			struct {
+				uint32_t hi : 16;
+				uint32_t lo : 16;
+			};
+			uint32_t full;
+		} light_table[4][0x20];
+
 		struct {
 			hikaru_gpu_layer_t layer[2][2];
 			bool enabled;
@@ -319,6 +327,7 @@ typedef struct {
 #define TEX		gpu->state.texheads
 #define LIT		gpu->state.lights
 #define ATABLE		gpu->state.alpha_table
+#define LTABLE		gpu->state.light_table
 #define LAYERS		gpu->state.layers
 
 /****************************************************************************

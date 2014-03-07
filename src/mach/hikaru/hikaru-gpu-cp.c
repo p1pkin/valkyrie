@@ -2439,30 +2439,31 @@ D (0x154)
 	        (inst[0] >> 16) & 0x3F, inst[1] & 0xFF, inst[1] >> 8);
 }
 
-/* 194	Commit Ramp Data (Penumbra Table?)
+/* 194	Light: Set Table
  *
- *	nnnnnnnn mmmmmmmm -------o oooooooo
- *	aaaaaaaa aaaaaaaa bbbbbbbb bbbbbbbb
+ *	------NN ---MMMMM -------o oooooooo
+ *	LLLLLLLL LLLLLLLL HHHHHHHH HHHHHHHH
  *
- * NOTE: these come in groups of 8. The data for each group
- * comes from a different ptr.
- *
- * NOTE: seems to be light related.
+ * NOTE: definitely related to lighting; possibly spotlight angles.
  *
  * See PH:@0C017A3E.
  */
 
 I (0x194)
 {
+	uint32_t index1 = (inst[0] >> 24) & 3;
+	uint32_t index2 = (inst[0] >> 16) & 0x1F;
+
+	LTABLE[index1][index2].full = inst[1];
 }
 
 D (0x194)
 {
-	UNHANDLED |= !!(inst[0] & 0x0000F000);
+	UNHANDLED |= !!(inst[0] & 0xFCE0F000);
 
-	DISASM ("unk: set ramp [%u %u (%X %X)]",
-	        (inst[0] >> 16) & 0xFF, inst[0] >> 24,
-	         inst[1] & 0xFFFF, inst[1] >> 16);
+	DISASM ("light: set table [%u:%u lo=%X hi=%X]",
+	        (inst[0] >> 24) & 3, (inst[0] >> 16) & 0x1F,
+	        inst[1] >> 16, inst[1] & 0xFFFF);
 }
 
 /* 3A1	Set Lo Addresses
