@@ -114,7 +114,7 @@ clear_rendstate_lists (hikaru_renderer_t *hr)
 }
 
 /****************************************************************************
- 3D Rendering
+ Viewports
 ****************************************************************************/
 
 static bool
@@ -174,6 +174,10 @@ upload_current_viewport (hikaru_renderer_t *hr)
 	}
 }
 
+/****************************************************************************
+ Modelviews
+****************************************************************************/
+
 /* TODO track dirty state */
 static void
 upload_current_modelview (hikaru_renderer_t *hr, unsigned i)
@@ -186,6 +190,10 @@ upload_current_modelview (hikaru_renderer_t *hr, unsigned i)
 	glMatrixMode (GL_MODELVIEW);
 	glLoadMatrixf ((GLfloat *) &mv->mtx[0][0]);
 }
+
+/****************************************************************************
+ Materials & Texheads
+****************************************************************************/
 
 /* TODO track dirty state */
 static void
@@ -215,6 +223,10 @@ upload_current_material_texhead (hikaru_renderer_t *hr)
 		glEnable (GL_TEXTURE_2D);
 	}
 }
+
+/****************************************************************************
+ Lights
+****************************************************************************/
 
 #define INV255	(1.0f / 255.0f)
 
