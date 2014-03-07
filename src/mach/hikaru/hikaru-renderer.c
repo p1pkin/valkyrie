@@ -83,13 +83,6 @@ update_debug_flags (hikaru_renderer_t *hr)
 	}
 }
 
-#define LOG(fmt_, args_...) \
-	do { \
-		if (hr->debug.flags[HR_DEBUG_LOG]) \
-			fprintf (stdout, "\tHR: " fmt_"\n", ##args_); \
-	} while (0)
-
-
 /****************************************************************************
  3D Rendering
 ****************************************************************************/
@@ -802,145 +795,6 @@ hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr)
 }
 
 /****************************************************************************
- 2D Rendering
-****************************************************************************/
-
-static inline uint32_t
-coords_to_offs_16 (uint32_t x, uint32_t y)
-{
-	return y * 4096 + x * 2;
-}
-
-static inline uint32_t
-coords_to_offs_32 (uint32_t x, uint32_t y)
-{
-	return y * 4096 + x * 4;
-}
-
-static vk_surface_t *
-decode_layer_argb1555 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
-{
-	vk_buffer_t *fb = hr->gpu->fb;
-	vk_surface_t *surface;
-	uint32_t x, y;
-
-	surface = vk_surface_new (640, 480, VK_SURFACE_FORMAT_RGBA5551, -1, -1);
-	if (!surface)
-		return NULL;
-
-	for (y = 0; y < 480; y++) {
-		uint32_t yoffs = (layer->y0 + y) * 4096;
-		for (x = 0; x < 640; x += 2) {
-			uint32_t offs = yoffs + layer->x0 * 4 + x * 2;
-			uint32_t texels = vk_buffer_get (fb, 4, offs);
-			vk_surface_put16 (surface, x+0, y, abgr1555_to_rgba5551 (texels >> 16));
-			vk_surface_put16 (surface, x+1, y, abgr1555_to_rgba5551 (texels));
-		}
-	}
-	return surface;
-}
-
-static vk_surface_t *
-decode_layer_argb8888 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
-{
-	vk_buffer_t *fb = hr->gpu->fb;
-	vk_surface_t *surface;
-	uint32_t x, y;
-
-	surface = vk_surface_new (640, 480, VK_SURFACE_FORMAT_RGBA8888, -1, -1);
-	if (!surface)
-		return NULL;
-
-	for (y = 0; y < 480; y++) {
-		for (x = 0; x < 640; x++) {
-			uint32_t offs = coords_to_offs_32 (layer->x0 + x, layer->y0 + y);
-			uint32_t texel = vk_buffer_get (fb, 4, offs);
-			vk_surface_put32 (surface, x, y, bswap32 (texel));
-		}
-	}
-	return surface;
-}
-
-static void
-draw_layer (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
-{
-	vk_surface_t *surface;
-
-	VK_ASSERT (hr);
-	VK_ASSERT (layer);
-
-	/* XXX cache the layers and use dirty rectangles to upload only the
-	 * quads that changed. */
-	/* XXX change the renderer so that the ortho projection can be
-	 * set up correctly depending on the actual window size. */
-
-	if (layer->format == HIKARU_FORMAT_ABGR8888)
-		surface = decode_layer_argb8888 (hr, layer);
-	else
-		surface = decode_layer_argb1555 (hr, layer);
-
-	if (!surface) {
-		VK_ERROR ("HR LAYER: can't decode layer, skipping");
-		return;
-	}
-
-	LOG ("drawing LAYER %s", get_gpu_layer_str (layer));
-
-	vk_surface_commit (surface);
-	glBegin (GL_TRIANGLE_STRIP);
-		glTexCoord2f (0.0f, 0.0f);
-		glVertex3f (0.0f, 0.0f, 0.0f);
-		glTexCoord2f (1.0f, 0.0f);
-		glVertex3f (1.0f, 0.0f, 0.0f);
-		glTexCoord2f (0.0f, 1.0f);
-		glVertex3f (0.0f, 1.0f, 0.0f);
-		glTexCoord2f (1.0f, 1.0f);
-		glVertex3f (1.0f, 1.0f, 0.0f);
-	glEnd ();
-	vk_surface_destroy (&surface);
-}
-
-static void
-draw_layers (hikaru_renderer_t *hr, bool background)
-{
-	hikaru_gpu_t *gpu = hr->gpu;
-	hikaru_gpu_layer_t *layer;
-
-	if (!LAYERS.enabled)
-		return;
-
-	if (background)
-		return;
-
-	/* Setup 2D state. */
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity ();
-	glOrtho (0.0f, 1.0f, 1.0f, 0.0f, -1.0f, 1.0f);
-
-	glMatrixMode (GL_MODELVIEW);
-	glLoadIdentity ();
-
-	glDisable (GL_CULL_FACE);
-	glDisable (GL_DEPTH_TEST);
-	glDisable (GL_LIGHTING);
-
-	glColor3f (1.0f, 1.0f, 1.0f);
-	glEnable (GL_BLEND);
-	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable (GL_TEXTURE_2D);
-
-	/* Only draw unit 0 for now. I think unit 1 is there only for
-	 * multi-monitor, which case we don't care about. */
-	layer = &LAYERS.layer[0][1];
-	if (!layer->enabled || !(hr->debug.flags[HR_DEBUG_NO_LAYER2]))
-		draw_layer (hr, layer);
-
-	layer = &LAYERS.layer[0][0];
-	if (!layer->enabled || !(hr->debug.flags[HR_DEBUG_NO_LAYER1]))
-		draw_layer (hr, layer);
-}
-
-/****************************************************************************
  Interface
 ****************************************************************************/
 
@@ -960,16 +814,14 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	glLoadIdentity ();
 
 	/* Draw the background layers. */
-	draw_layers (hr, true);
+	hikaru_renderer_draw_layers (renderer, true);
 }
 
 static void
 hikaru_renderer_end_frame (vk_renderer_t *renderer)
 {
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-
 	/* Draw the foreground layers. */
-	draw_layers (hr, false);
+	hikaru_renderer_draw_layers (renderer, false);
 }
 
 static void

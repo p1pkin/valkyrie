@@ -38,6 +38,7 @@ HIKARU_OBJ := \
 	src/mach/hikaru/hikaru-memctl.o \
 	src/mach/hikaru/hikaru-renderer.o \
 	src/mach/hikaru/hikaru-renderer-texture.o \
+	src/mach/hikaru/hikaru-renderer-layers.o \
 	src/mach/hikaru/hikaru-gpu.o \
 	src/mach/hikaru/hikaru-gpu-cp.o \
 	src/mach/hikaru/hikaru-gpu-private.o \
