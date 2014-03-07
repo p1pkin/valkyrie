@@ -584,79 +584,64 @@ decode_clip_xy (uint32_t c)
 	return (float) ((((int32_t) (int16_t) c) << 3) >> 3);
 }
 
-/* 021	Viewport: Set Z Clip
+/* 021	Viewport: Set Z Clipping
  *
- *	-------- -------- -----00o oooooooo
+ *	-------- -------- -------o oooooooo
  *	FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF
  *	ffffffff ffffffff ffffffff ffffffff
- *	nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn
+ *	NNNNNNNN NNNNNNNN NNNNNNNN NNNNNNNN
  *
- * F = far depth clipping plane
- * f = far depth clipping plane (?)
- * n = near depth clipping plane
- *
- * Both f and F are computed as:
- *
- *  (height / 2) / tanf(some_angle / 2)
- *
- * which assuming some_angle is fovy, is the formula for computing the far
- * clipping planes. I have no idea why there are two identical entries tho.
- * Note however that in SGNASCAR F and f may be different!
+ * F = Far clipping plane
+ * f = Alt. far clipping plane (see SGNASCAR)
+ * N = Near clipping plane
  *
  * See PH:@0C01587C, PH:@0C0158A4, PH:@0C0158E8.
  *
  *
- * 221	Viewport: Set XY Clip
+ * 221	Viewport: Set XY Clipping and Offset
  *
- *	-------- -------- -----01o oooooooo
- *	jjjjjjjj jjjjjjjj cccccccc cccccccc
- *	--YYYYYY YYYYYYYY -XXXXXXX XXXXXXXX
- *	--yyyyyy yyyyyyyy -xxxxxxx xxxxxxxx
+ *	-------- -------- -------o oooooooo
+ *	YYYYYYYY YYYYYYYY XXXXXXXX XXXXXXXX
+ *	--BBBBBB BBBBBBBB -LLLLLLL LLLLLLLL
+ *	--TTTTTT TTTTTTTT -RRRRRRR RRRRRRRR
  *
- * c,j = center?
- * x,y = left, bottom clipping planes
- * X,Y = right, top clipping planes
- *
- * NOTE: according to the code, X can be at most 640, Y can be at most 512;
- * and at least one of x and y must be zero.
+ * T, B, L, R = Clipping planes
+ * X, Y = Viewport offset
  *
  * See PH:@0C015924
  *
  *
- * 421	Viewport: Set Z Buffer Config
+ * 421	Viewport: Set Depth Range
  *
- *	-------- -------- -----10o oooooooo
- *	nnnnnnnn nnnnnnnn nnnnnnnn nnnnnnnn
- *	ffffffff ffffffff ffffffff ffffffff
+ *	-------- -------- -------o oooooooo
+ *	mmmmmmmm mmmmmmmm mmmmmmmm mmmmmmmm
+ *	MMMMMMMM MMMMMMMM MMMMMMMM MMMMMMMM
  *	FFF----- -------- -------- --------
  *
- * n = depth buffer minimum
- * f = depth buffer maximum
- * F = depth function
+ * m = Minimum
+ * M = Maximum
+ * F = Depth test function
  *
  * See PH:@0C015AA6
  *
  *
- * 621	Viewport: Set Z Queue Config
+ * 621	Viewport: Set Depth Queue
  *
- *	-------- ----ttDu -----11o oooooooo
+ *	-------- ---TT-DU -------o oooooooo
  *	AAAAAAAA BBBBBBBB GGGGGGGG RRRRRRRR
- *	dddddddd dddddddd dddddddd dddddddd 
- *	gggggggg gggggggg gggggggg gggggggg
+ *	PPPPPPPP PPPPPPPP PPPPPPPP PPPPPPPP
+ *	QQQQQQQQ QQQQQQQQ QQQQQQQQ QQQQQQQQ
  *
- * t = Type
- * D = Disable?
- * u = Unknown
- * RGBA = color/mask?
+ * T = Depth queue type
+ * D = Disable (R, G, B, A are ignored)
+ * U = Unknown
+ * R, G, B, A = Color
+ * P = Depth queue density
  *
- * f = queue density
+ *	if T = 0, P = (1 / |depth queue end - depth queue start|), else it
+ *	is P = |depth queue density|
  *
- *	Computed as 1.0f (constant), 1.0f / zdelta, or 1.0f / sqrt (zdelta**2);
- *	where zdelta = zmax - zmin.
- *
- * g = queue bias
- *
- *	Computed as depth_near / depth_far.
+ * Q = near / depth queue start
  *
  * See PH:@0C0159C4, PH:@0C015A02, PH:@0C015A3E.
  */
