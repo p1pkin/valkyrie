@@ -2417,8 +2417,8 @@ D (0x088)
  *	HHHHHHHH HHHHHHHH HHHHHHHH LLLLLLLL
  *
  * I = Index
- * l = Alpha low threshold
- * h = Alpha high threshold
+ * L = Alpha low threshold
+ * H = Alpha high threshold
  *
  * See PH:@0C017798, PH:@0C0CF868. Used by instruction C81.
  */
@@ -2440,6 +2440,10 @@ D (0x154)
  *
  *	------NN ---MMMMM -------o oooooooo
  *	LLLLLLLL LLLLLLLL HHHHHHHH HHHHHHHH
+ *
+ * N, M = Indices
+ * L = Data, Lo
+ * H = Data, Hi
  *
  * NOTE: definitely related to lighting; possibly spotlight angles.
  *
