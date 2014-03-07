@@ -477,79 +477,9 @@ disable:
 	glDisable (GL_LIGHTING);
 }
 
-static void
-draw_current_mesh (hikaru_renderer_t *hr)
-{
-	hikaru_gpu_t *gpu = hr->gpu;
-	unsigned num_instances = MV.total + 1, i;
-	GLuint vbo;
-
-	if (hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] >= 0 &&
-	    hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] != POLY.type)
-		return;
-
-	LOG ("==== DRAWING MESH (#vertices=%u instances=%u) ====",
-	     hr->mesh.num_pushed, num_instances);
-
-	upload_current_viewport (hr);
-	upload_current_material_texhead (hr);
-
-	glGenBuffers (1, &vbo);
-	glBindBuffer (GL_ARRAY_BUFFER, vbo);
-	glBufferData (GL_ARRAY_BUFFER,
-	              sizeof (hikaru_gpu_vertex_t) * hr->mesh.num_tris * 3,
-	              hr->mesh.vbo, GL_DYNAMIC_DRAW);
-
-	glVertexPointer (3, GL_FLOAT, sizeof (hikaru_gpu_vertex_t),
-	                 (const GLvoid *) offsetof (hikaru_gpu_vertex_t, pos));
-	glNormalPointer (GL_FLOAT, sizeof (hikaru_gpu_vertex_t),
-	                 (const GLvoid *) offsetof (hikaru_gpu_vertex_t, nrm));
-	glColorPointer (4, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t),
-	                (const GLvoid *) offsetof (hikaru_gpu_vertex_t, col));
-	glTexCoordPointer (2, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t),
-	                   (const GLvoid *) offsetof (hikaru_gpu_vertex_t, txc));
-
-	glEnableClientState (GL_VERTEX_ARRAY);
-	glEnableClientState (GL_NORMAL_ARRAY);
-	glEnableClientState (GL_COLOR_ARRAY);
-	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-
-	switch (POLY.type) {
-	case HIKARU_POLYTYPE_OPAQUE:
-	default:
-		glDisable (GL_BLEND);
-		break;
-	case HIKARU_POLYTYPE_TRANSPARENT:
-	case HIKARU_POLYTYPE_TRANSLUCENT:
-		glEnable (GL_BLEND);
-		break;
-	}
-	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	glEnable (GL_CULL_FACE);
-	switch (hr->debug.flags[HR_DEBUG_SELECT_CULLFACE]) {
-	case -1:
-		glDisable (GL_CULL_FACE);
-		break;
-	case 0:
-		glCullFace (GL_BACK);
-		break;
-	case 1:
-		glCullFace (GL_FRONT);
-		break;
-	}
-
-	for (i = 0; i < num_instances; i++) {
-		upload_current_modelview (hr, i);
-		upload_current_lightset (hr);
-		glDrawArrays (GL_TRIANGLES, 0, hr->mesh.num_tris * 3);
-	}
-
-	glDeleteBuffers (1, &vbo);
-
-	MV.total = 0;
-	MV.depth = 0; /* XXX not really needed. */
-}
+/****************************************************************************
+ Meshes
+****************************************************************************/
 
 #define VK_COPY_VEC2F(dst_, src_) \
 	do { \
@@ -645,35 +575,32 @@ copy_texcoords (hikaru_renderer_t *hr,
 	}
 }
 
-#define VTX(n_)	hr->mesh.vtx[n_]
-
 static void
 add_triangle (hikaru_renderer_t *hr)
 {
-	if (hr->mesh.num_pushed >= 3) {
-		uint32_t index = hr->mesh.num_tris * 3;
-		hikaru_gpu_vertex_t *vbo = &hr->mesh.vbo[index];
+	if (hr->push.num_verts >= 3) {
+		uint32_t index = hr->push.num_tris * 3;
+		hikaru_gpu_vertex_t *dst = &hr->push.all[index];
 
-		VK_ASSERT ((hr->mesh.num_tris*3+2) < MAX_VERTICES_PER_MESH);
+		VK_ASSERT ((index + 2) < MAX_VERTICES_PER_MESH);
 
-		if (VTX (2).info.bit.winding) {
-			vbo[0] = VTX(0);
-			vbo[1] = VTX(2);
-			vbo[2] = VTX(1);
+		if (hr->push.tmp[2].info.bit.winding) {
+			dst[0] = hr->push.tmp[0];
+			dst[1] = hr->push.tmp[2];
+			dst[2] = hr->push.tmp[1];
 		} else {
-			vbo[0] = VTX(0);
-			vbo[1] = VTX(1);
-			vbo[2] = VTX(2);
+			dst[0] = hr->push.tmp[0];
+			dst[1] = hr->push.tmp[1];
+			dst[2] = hr->push.tmp[2];
 		}
-
-		hr->mesh.num_tris++;
+		hr->push.num_tris += 1;
 	}
 }
 
 void
 hikaru_renderer_push_vertices (vk_renderer_t *rend,
                                hikaru_gpu_vertex_t *v,
-                               uint32_t push,
+                               uint32_t flags,
                                unsigned num)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
@@ -700,47 +627,48 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 		/* If the incoming vertex includes the position, push it
 		 * in the temporary buffer, updating it according to the
 		 * p(osition)pivot bit. */
-		if (push & HR_PUSH_POS) {
+		if (flags & HR_PUSH_POS) {
 
 			/* Do not change the pivot if it is not required */
 			if (!v->info.bit.ppivot)
-				VTX(0) = VTX(1);
-			VTX(1) = VTX(2);
-
-			memset ((void *) &VTX(2), 0, sizeof (hikaru_gpu_vertex_t));
+				hr->push.tmp[0] = hr->push.tmp[1];
+			hr->push.tmp[1] = hr->push.tmp[2];
+			memset ((void *) &hr->push.tmp[2], 0, sizeof (hikaru_gpu_vertex_t));
 
 			/* Set the position, colors and alpha. */
-			VK_COPY_VEC3F (VTX(2).pos, v->pos);
-			copy_colors (hr, &VTX(2), v);
+			VK_COPY_VEC3F (hr->push.tmp[2].pos, v->pos);
+			copy_colors (hr, &hr->push.tmp[2], v);
 
 			/* Account for the added vertex. */
-			hr->mesh.num_pushed++;
-			VK_ASSERT (hr->mesh.num_pushed < MAX_VERTICES_PER_MESH);
+			hr->push.num_verts += 1;
+			VK_ASSERT (hr->push.num_verts < MAX_VERTICES_PER_MESH);
 		}
 
 		/* Set the normal. */
-		if (push & HR_PUSH_NRM) {
-			VK_COPY_VEC3F (VTX(2).nrm, v->nrm);
+		if (flags & HR_PUSH_NRM) {
+			VK_COPY_VEC3F (hr->push.tmp[2].nrm, v->nrm);
+
+			/* DEBUG: overwrite the color with the normals. */
 			if (hr->debug.flags[HR_DEBUG_DRAW_NORMALS]) {
-				VTX(2).col[0] = (v->nrm[0] * 0.5f) + 0.5f;
-				VTX(2).col[1] = (v->nrm[1] * 0.5f) + 0.5f;
-				VTX(2).col[2] = (v->nrm[2] * 0.5f) + 0.5f;
+				hr->push.tmp[2].col[0] = (v->nrm[0] * 0.5f) + 0.5f;
+				hr->push.tmp[2].col[1] = (v->nrm[1] * 0.5f) + 0.5f;
+				hr->push.tmp[2].col[2] = (v->nrm[2] * 0.5f) + 0.5f;
 			}
 		}
 
 		/* Set the texcoords. */
-		if (push & HR_PUSH_TXC)
-			copy_texcoords (hr, &VTX(2), v);
+		if (flags & HR_PUSH_TXC)
+			copy_texcoords (hr, &hr->push.tmp[2], v);
 		break;
 
 	case 3:
-		VK_ASSERT (push == HR_PUSH_TXC);
+		VK_ASSERT (flags == HR_PUSH_TXC);
 
-		if (hr->mesh.num_pushed < 3)
+		if (hr->push.num_verts < 3)
 			return;
 
 		for (i = 0; i < 3; i++)
-			copy_texcoords (hr, &VTX(2-i), &v[i]);
+			copy_texcoords (hr, &hr->push.tmp[2 - i], &v[i]);
 		break;
 
 	default:
@@ -750,48 +678,173 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 
 	/* Finish the previous triangle. */
 	if (v[0].info.bit.tricap == 7) {
-		VTX(2).info.full = v[0].info.full;
+		hr->push.tmp[2].info.full = v[0].info.full;
 		add_triangle (hr);
 	}
 }
 
 static void
-clear_mesh_data (hikaru_renderer_t *hr)
+hikaru_mesh_destroy (hikaru_mesh_t **mesh_)
 {
-	memset ((void *) &hr->mesh.vtx, 0, sizeof (hr->mesh.vtx));
-	hr->mesh.num_pushed = 0;
-	hr->mesh.num_tris = 0;
-	hr->mesh.addr[0] = ~0;
-	hr->mesh.addr[1] = ~0;
+	if (mesh_) {
+		hikaru_mesh_t *mesh = *mesh_;
+		if (mesh->vbo);
+			glDeleteBuffers (1, &mesh->vbo);
+		free (mesh);
+		*mesh_ = NULL;
+	}
 }
+
+static hikaru_mesh_t *
+hikaru_mesh_new (void)
+{
+	hikaru_mesh_t *mesh;
+
+	mesh = ALLOC (hikaru_mesh_t);
+	if (!mesh)
+		return NULL;
+
+	glGenBuffers (1, &mesh->vbo);
+	if (!mesh->vbo);
+		goto fail;
+
+	return mesh;
+
+fail:
+	hikaru_mesh_destroy (&mesh);
+	return NULL;
+}
+
+#define OFFSET(member_) \
+	((const GLvoid *) offsetof (hikaru_gpu_vertex_t, member_))
+
+static void
+hikaru_mesh_upload_pushed_data (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+{
+	VK_ASSERT (mesh);
+	VK_ASSERT (mesh->vbo);
+
+	glBindBuffer (GL_ARRAY_BUFFER, mesh->vbo);
+	glBufferData (GL_ARRAY_BUFFER, sizeof (hikaru_gpu_vertex_t) * mesh->num_tris * 3,
+	              (const GLvoid *) hr->push.all, GL_DYNAMIC_DRAW);
+
+	glVertexPointer (3, GL_FLOAT, sizeof (hikaru_gpu_vertex_t), OFFSET (pos));
+	glNormalPointer (GL_FLOAT, sizeof (hikaru_gpu_vertex_t), OFFSET (nrm));
+	glColorPointer (4, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t), OFFSET (col));
+	glTexCoordPointer (2, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t), OFFSET (txc));
+
+	glEnableClientState (GL_VERTEX_ARRAY);
+	glEnableClientState (GL_NORMAL_ARRAY);
+	glEnableClientState (GL_COLOR_ARRAY);
+	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
+}
+
+static void
+hikaru_mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+{
+	hikaru_gpu_t *gpu = hr->gpu;
+	unsigned num_instances = MV.total + 1, i;
+
+	VK_ASSERT (mesh);
+	VK_ASSERT (mesh->vbo);
+
+	LOG ("==== DRAWING MESH (#vertices=%u instances=%u) ====",
+	     mesh->num_tris * 3, num_instances);
+
+	if (hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] >= 0 &&
+	    hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] != POLY.type)
+		return;
+
+	/* Upload instance-invariant state. */
+	upload_current_viewport (hr);
+	upload_current_material_texhead (hr);
+
+	switch (POLY.type) {
+	case HIKARU_POLYTYPE_OPAQUE:
+	default:
+		glDisable (GL_BLEND);
+		break;
+	case HIKARU_POLYTYPE_TRANSPARENT:
+	case HIKARU_POLYTYPE_TRANSLUCENT:
+		glEnable (GL_BLEND);
+		break;
+	}
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glEnable (GL_CULL_FACE);
+	switch (hr->debug.flags[HR_DEBUG_SELECT_CULLFACE]) {
+	case -1:
+		glDisable (GL_CULL_FACE);
+		break;
+	case 0:
+		glCullFace (GL_BACK);
+		break;
+	case 1:
+		glCullFace (GL_FRONT);
+		break;
+	}
+
+	/* For each instance. */
+	for (i = 0; i < num_instances; i++) {
+		/* Upload per-instance state. */
+		upload_current_modelview (hr, i);
+		upload_current_lightset (hr); /* This is not really per-instance... */
+
+		/* Draw the mesh. */
+		glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
+	}
+
+	MV.total = 0;
+	MV.depth = 0; /* XXX not really needed. */
+}
+
 
 void
 hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
                             bool is_static)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
+	hikaru_mesh_t *mesh;
+
 	VK_ASSERT (hr);
+	VK_ASSERT (!hr->meshes.current);
 
 	if (hr->debug.flags[HR_DEBUG_NO_3D])
 		return;
 
-	clear_mesh_data (hr);
-	hr->mesh.addr[0] = addr;
+	/* Create a new mesh. */
+	mesh = hikaru_mesh_new ();
+	VK_ASSERT (mesh);
+	mesh->addr[0] = addr;
+
+	hr->meshes.current = mesh;
+
+	/* Clear the push buffer. */
+	hr->push.num_verts = 0;
+	hr->push.num_tris = 0;
 }
 
 void
 hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
+
 	VK_ASSERT (hr);
 
 	if (hr->debug.flags[HR_DEBUG_NO_3D])
 		return;
 
-	hr->mesh.addr[1] = addr;
-	draw_current_mesh (hr);
+	VK_ASSERT (hr->meshes.current);
 
-	clear_mesh_data (hr);
+	/* Upload the mesh. */
+	hr->meshes.current->addr[1] = addr;
+	hikaru_mesh_upload_pushed_data (hr, hr->meshes.current);
+
+	/* Draw the mesh. */
+	hikaru_mesh_draw (hr, hr->meshes.current);
+
+	/* Destroy the mesh. */
+	hikaru_mesh_destroy (&hr->meshes.current);
 }
 
 /****************************************************************************

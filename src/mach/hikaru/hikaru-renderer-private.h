@@ -43,17 +43,25 @@ enum {
 };
 
 typedef struct {
+	GLuint vbo;
+	uint32_t num_tris;
+	uint32_t addr[2];
+} hikaru_mesh_t;
+
+typedef struct {
 	vk_renderer_t base;
 
 	hikaru_gpu_t *gpu;
 
 	struct {
-		hikaru_gpu_vertex_t	vtx[4];
-		hikaru_gpu_vertex_t	vbo[MAX_VERTICES_PER_MESH];
-		uint32_t		num_pushed;
-		uint32_t		num_tris;
-		uint32_t		addr[2];
-	} mesh;
+		unsigned		num_verts, num_tris;
+		hikaru_gpu_vertex_t	tmp[4];
+		hikaru_gpu_vertex_t	all[MAX_VERTICES_PER_MESH];
+	} push;
+
+	struct {
+		hikaru_mesh_t		*current;
+	} meshes;
 
 	struct {
 		vk_surface_t *debug;
