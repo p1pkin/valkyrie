@@ -28,11 +28,21 @@ typedef struct {
 	uint8_t *data;
 } vk_vector_t;
 
-vk_vector_t	*vk_vector_new (unsigned base_size, unsigned element_size);
+vk_vector_t	*vk_vector_new (unsigned min_elements, unsigned element_size);
 void		 vk_vector_destroy (vk_vector_t **vector_);
 void		*vk_vector_append_entry (vk_vector_t *vector);
 void		 vk_vector_append (vk_vector_t *vector, void *key);
 void		 vk_vector_clear (vk_vector_t *vector);
 void		 vk_vector_clear_fast (vk_vector_t *vector);
+
+#define VK_VECTOR_APPEND(vector_, type_, element_) \
+	do { \
+		*((type_ *) vk_vector_append_entry (vector_)) = (element_); \
+	} while (0)
+
+#define VK_VECTOR_FOREACH(vector_, offset_) \
+	for ((offset_) = 0; \
+	     (offset_) < (vector_)->used; \
+	     (offset_) += (vector_)->element_size)
 
 #endif /* __VK_VECTOR_H__ */

@@ -39,13 +39,13 @@ get_size_flag_for_size (unsigned size)
 static vk_region_t *
 get_region (vk_mmap_t *mmap, uint32_t addr, uint32_t flags)
 {
-	uint32_t i;
+	uint32_t offs;
 
 	VK_ASSERT (mmap);
 	VK_ASSERT ((flags & ~VK_REGION_RW) == 0);
 
-	for (i = 0; i < mmap->regions->used; i += sizeof (vk_region_t)) {
-		vk_region_t *region = (vk_region_t *) &mmap->regions->data[i];
+	VK_VECTOR_FOREACH (mmap->regions, offs) {
+		vk_region_t *region = (vk_region_t *) &mmap->regions->data[offs];
 		if (addr >= region->lo && addr <= region->hi &&
 		    (region->flags & flags))
 			return region;

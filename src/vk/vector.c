@@ -19,23 +19,23 @@
 #include "vk/vector.h"
 
 vk_vector_t *
-vk_vector_new (unsigned base_size, unsigned element_size)
+vk_vector_new (unsigned min_elements, unsigned element_size)
 {
 	vk_vector_t *vector;
 
-	VK_ASSERT (base_size);
+	VK_ASSERT (min_elements);
 	VK_ASSERT (element_size);
 
 	vector = ALLOC (vk_vector_t);
 	if (!vector)
 		return NULL;
 
-	vector->data = (uint8_t *) calloc (base_size, element_size);
+	vector->data = (uint8_t *) calloc (min_elements, element_size);
 	if (!vector->data)
 		goto fail;
 
-	vector->size = base_size;
 	vector->element_size = element_size;
+	vector->size = min_elements * element_size;
 
 	return vector;
 
@@ -60,16 +60,12 @@ static void
 resize_if_required (vk_vector_t *vector)
 {
 	VK_ASSERT (vector);
-	VK_ASSERT (vector->used < (vector->size * vector->element_size));
+	VK_ASSERT (vector->used < vector->size);
 
-	if ((vector->used + vector->element_size) >= vector->size) {
-
-		VK_ASSERT (vector->size);
-
+	if (vector->used >= (vector->size - vector->element_size)) {
 		vector->size *= 2;
-		vector->data = (uint8_t *)
-			realloc ((void *) vector->data,
-			         vector->size * vector->element_size);
+		vector->data = (uint8_t *) realloc ((void *) vector->data,
+		                                    vector->size);
 		VK_ASSERT (vector->data);
 	}
 }
@@ -81,7 +77,6 @@ vk_vector_append_entry (vk_vector_t *vector)
 	resize_if_required (vector);
 	entry = (void *) &vector->data[vector->used];
 	vector->used += vector->element_size;
-	memset (entry, 0, vector->element_size);
 	return entry;
 }
 
@@ -97,7 +92,7 @@ vk_vector_clear (vk_vector_t *vector)
 {
 	VK_ASSERT (vector);
 
-	memset (vector->data, 0, vector->element_size * vector->size);
+	memset (vector->data, 0, vector->size);
 	vector->used = 0;
 }
 
