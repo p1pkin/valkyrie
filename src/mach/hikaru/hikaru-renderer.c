@@ -84,6 +84,36 @@ update_debug_flags (hikaru_renderer_t *hr)
 }
 
 /****************************************************************************
+ Rendering State
+****************************************************************************/
+
+static int
+build_rendstate_lists (hikaru_renderer_t *hr)
+{
+	int ret = 0;
+
+	memset ((void *) &hr->states, 0, sizeof (hr->states));
+
+	hr->states.viewports = vk_vector_new (8, sizeof (hikaru_gpu_viewport_t));
+	ret |= hr->states.viewports == NULL;
+
+	return ret;
+}
+
+static void
+destroy_rendstate_lists (hikaru_renderer_t *hr)
+{
+	if (hr->states.viewports)
+		vk_vector_destroy (&hr->states.viewports);
+}
+
+static void
+clear_rendstate_lists (hikaru_renderer_t *hr)
+{
+	vk_vector_clear_fast (hr->states.viewports);
+}
+
+/****************************************************************************
  3D Rendering
 ****************************************************************************/
 
@@ -858,6 +888,8 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
+	clear_rendstate_lists (hr);
+
 	/* Fill in the debug stuff. */
 	update_debug_flags (hr);
 
@@ -891,6 +923,7 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 	if (renderer_) {
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
 
+		destroy_rendstate_lists (hr);
 		vk_surface_destroy (&hr->textures.debug);
 		hikaru_renderer_invalidate_texcache (*renderer_, NULL);
 	}
@@ -931,6 +964,9 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 
 	ret = vk_renderer_init ((vk_renderer_t *) hr);
 	if (ret)
+		goto fail;
+
+	if (build_rendstate_lists (hr))
 		goto fail;
 
 	init_debug_flags (hr);
