@@ -149,7 +149,27 @@ typedef struct {
 		};
 		uint32_t full;
 	} _C81;
+	union {
+		struct {
+			uint32_t has_091	: 1;
+			uint32_t has_291	: 1;
+			uint32_t has_491	: 1;
+			uint32_t has_691	: 1;
+			uint32_t has_081	: 1;
+			uint32_t has_881	: 1;
+			uint32_t has_A81	: 1;
+			uint32_t has_C81	: 1;
+			uint32_t dirty		: 1;
+		};
+		uint32_t flags;
+	};
 } hikaru_gpu_material_t;
+
+static bool
+is_material_set (hikaru_gpu_material_t *mat)
+{
+	return (mat->flags & 0xFF) == 0xFF;
+}
 
 typedef struct {
 	union {

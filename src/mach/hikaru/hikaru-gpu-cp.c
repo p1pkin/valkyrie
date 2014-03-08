@@ -1147,32 +1147,37 @@ I (0x091)
 		mat->diffuse[1] = (inst[1] >> 8) & 0xFF;
 		mat->diffuse[2] = (inst[1] >> 16) & 0xFF;
 		mat->diffuse[3] = inst[1] >> 24;
+		mat->has_091 = 1;
 	case 2:
 		mat->ambient[0] = inst[1] & 0xFF;
 		mat->ambient[1] = (inst[1] >> 8) & 0xFF;
 		mat->ambient[2] = (inst[1] >> 16) & 0xFF;
+		mat->has_291 = 1;
 		break;
 	case 4:
 		mat->specular[0] = inst[1] & 0xFF;
 		mat->specular[1] = (inst[1] >> 8) & 0xFF;
 		mat->specular[2] = (inst[1] >> 16) & 0xFF;
 		mat->specular[3] = inst[1] >> 24;
+		mat->has_491 = 1;
 		break;
 	case 6:
 		mat->unknown[0] = inst[0] >> 16;
 		mat->unknown[1] = inst[1] & 0xFFFF;
 		mat->unknown[2] = inst[1] >> 16;
+		mat->has_691 = 1;
 		break;
 	case 0xA:
 	case 0xC:
 		hikaru_gpu_inst_0x081 (gpu, inst);
 		/* XXX HACK */
 		PC -= 4;
-		break;
+		return;
 	default:
 		VK_ASSERT (0);
 		break;
 	}
+	mat->dirty = 1;
 }
 
 D (0x091)
@@ -1280,17 +1285,22 @@ I (0x081)
 	switch ((inst[0] >> 8) & 0xF) {
 	case 0x0:
 		mat->_081.full = inst[0];
+		mat->has_081 = 1;
 		break;
 	case 0x8:
 		mat->_881.full = inst[0];
+		mat->has_881 = 1;
 		break;
 	case 0xA:
 		mat->_A81.full = inst[0];
+		mat->has_A81 = 1;
 		break;
 	case 0xC:
 		mat->_C81.full = inst[0];
+		mat->has_C81 = 1;
 		break;
 	}
+	mat->dirty = 1;
 }
 
 D (0x081)
@@ -1351,7 +1361,6 @@ I (0x084)
 	}
 
 	MAT.table[index] = MAT.scratch;
-	MAT.table[index].set = true;
 }
 
 D (0x084)
@@ -1387,6 +1396,7 @@ I (0x083)
 		}
 
 		MAT.scratch = MAT.table[index];
+		MAT.scratch.dirty = 1;
 	}
 }
 
