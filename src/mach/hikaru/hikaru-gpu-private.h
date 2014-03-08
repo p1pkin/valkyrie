@@ -207,8 +207,6 @@ typedef struct {
 		};
 		uint32_t _4C1;
 	};
-	uint32_t width;
-	uint32_t height;
 	union {
 		struct {
 			uint32_t has_0C1	: 1;
