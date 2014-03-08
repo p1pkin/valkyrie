@@ -180,12 +180,12 @@ typedef struct {
 			uint32_t unk2	: 8;
 			uint32_t 	: 4;
 		};
-		uint32_t full;
-	} _0C1;
+		uint32_t _0C1;
+	};
 	union {
 		struct {
 			uint32_t	: 14;
-			uint32_t unk1	: 2;
+			uint32_t unk3	: 2;
 			uint32_t logw	: 3;
 			uint32_t logh	: 3;
 			uint32_t wrapu	: 1;
@@ -193,10 +193,10 @@ typedef struct {
 			uint32_t repeatu: 1;
 			uint32_t repeatv: 1;
 			uint32_t format	: 3;
-			uint32_t unk2	: 3;
+			uint32_t unk4	: 3;
 		};
-		uint32_t full;
-	} _2C1;
+		uint32_t _2C1;
+	};
 	union {
 		struct {
 			uint32_t	: 12;
@@ -205,8 +205,8 @@ typedef struct {
 			uint32_t slotx	: 8;
 			uint32_t sloty	: 8;
 		};
-		uint32_t full;
-	} _4C1;
+		uint32_t _4C1;
+	};
 	uint32_t width;
 	uint32_t height;
 	union {

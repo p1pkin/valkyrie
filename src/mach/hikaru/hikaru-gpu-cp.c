@@ -1491,19 +1491,19 @@ I (0x0C1)
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
-		th->_0C1.full = inst[0];
+		th->_0C1 = inst[0];
 		th->has_0C1 = 1;
 		break;
 	case 2:
-		th->_2C1.full = inst[0];
+		th->_2C1	= inst[0];
 		th->width	= 16 << th->_2C1.logw;
 		th->height	= 16 << th->_2C1.logh;
-		if (th->_2C1.format == HIKARU_FORMAT_ABGR1111)
+		if (th->format == HIKARU_FORMAT_ABGR1111)
 			th->width *= 2; /* pixels per word */
 		th->has_2C1 = 1;
 		break;
 	case 4:
-		th->_4C1.full = inst[0];
+		th->_4C1 = inst[0];
 		th->has_4C1 = 1;
 		break;
 	default:
