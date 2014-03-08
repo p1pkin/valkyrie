@@ -64,11 +64,9 @@ typedef struct {
 		float b, t;
 		float f, n, f2;
 	} clip;
-
 	struct {
 		float x, y;
 	} offset;
-
 	struct {
 		float max, min;
 		float density, bias;
@@ -78,15 +76,29 @@ typedef struct {
 		uint32_t q_enabled	: 1;
 		uint32_t q_unknown	: 1;
 	} depth;
-
 	struct {
 		vec4b_t clear;
 		vec3s_t ambient;
 	} color;
-
-	uint32_t set	: 1;
-	uint32_t dirty	: 1;
+	union {
+		struct {
+			uint32_t has_021	: 1;
+			uint32_t has_221	: 1;
+			uint32_t has_421	: 1;
+			uint32_t has_621	: 1;
+			uint32_t has_011	: 1;
+			uint32_t has_191	: 1;
+			uint32_t set		: 1;
+		};
+		uint32_t flags;
+	};
 } hikaru_gpu_viewport_t;
+
+static bool
+is_viewport_set (hikaru_gpu_viewport_t *vp)
+{
+	return (vp->flags & 0x3F) == 0x3F;
+}
 
 typedef struct {
 	mtx4x4f_t mtx;
@@ -137,8 +149,6 @@ typedef struct {
 		};
 		uint32_t full;
 	} _C81;
-	uint32_t set	: 1;
-	uint32_t dirty	: 1;
 } hikaru_gpu_material_t;
 
 typedef struct {

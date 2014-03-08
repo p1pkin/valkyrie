@@ -655,6 +655,7 @@ I (0x021)
 		vp->clip.f = *(float *) &inst[1];
 		vp->clip.f2 = *(float *) &inst[2];
 		vp->clip.n = *(float *) &inst[3];
+		vp->has_021 = 1;
 		break;
 	case 2:
 		vp->offset.x = (float) (inst[1] & 0xFFFF);
@@ -663,11 +664,13 @@ I (0x021)
 		vp->clip.r = decode_clip_xy (inst[3]);
 		vp->clip.b = decode_clip_xy (inst[2] >> 16);
 		vp->clip.t = decode_clip_xy (inst[3] >> 16);
+		vp->has_221 = 1;
 		break;
 	case 4:
 		vp->depth.min = *(float *) &inst[1];
 		vp->depth.max = *(float *) &inst[2];
 		vp->depth.func = inst[3] >> 29;
+		vp->has_421 = 1;
 		break;
 	case 6:
 		vp->depth.q_type	= (inst[0] >> 18) & 3;
@@ -679,13 +682,13 @@ I (0x021)
 		vp->depth.mask[3]	= inst[1] >> 24;
 		vp->depth.density	= *(float *) &inst[2];
 		vp->depth.bias		= *(float *) &inst[3];
+		vp->has_621 = 1;
 		break;
 	default:
 		VK_ASSERT (0);
 		break;
 	}
-
-	vp->flags |= HIKARU_GPU_OBJ_DIRTY;
+	vp->dirty = 1;
 }
 
 D (0x021)
@@ -744,7 +747,8 @@ I (0x011)
 	vp->color.ambient[1] = inst[1] & 0xFFFF;
 	vp->color.ambient[2] = inst[1] >> 16;
 
-	vp->flags |= HIKARU_GPU_OBJ_DIRTY;
+	vp->has_011 = 1;
+	vp->dirty = 1;
 }
 
 D (0x011)
@@ -779,7 +783,8 @@ I (0x191)
 	vp->color.clear[2] = (inst[1] >> 16) & 0xFF;
 	vp->color.clear[3] = ((inst[1] >> 24) & 1) ? 0xFF : 0;
 
-	vp->flags |= HIKARU_GPU_OBJ_DIRTY;
+	vp->has_191 = 1;
+	vp->dirty = 1;
 }
 
 D (0x191)
@@ -805,8 +810,6 @@ I (0x004)
 	hikaru_gpu_viewport_t *vp = &VP.table[get_viewport_index (inst)];
 
 	*vp = VP.scratch;
-
-	vp->flags = HIKARU_GPU_OBJ_SET | HIKARU_GPU_OBJ_DIRTY;
 }
 
 D (0x004)
@@ -859,6 +862,7 @@ I (0x003)
 		VK_ASSERT (0);
 		break;
 	}
+	vp->dirty = 1;
 }
 
 D (0x003)
