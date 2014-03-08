@@ -209,10 +209,23 @@ typedef struct {
 	} _4C1;
 	uint32_t width;
 	uint32_t height;
-	uint32_t has_mipmap	: 1;
-	uint32_t set		: 1;
-	uint32_t dirty		: 1;
+	union {
+		struct {
+			uint32_t has_0C1	: 1;
+			uint32_t has_2C1	: 1;
+			uint32_t has_4C1	: 1;
+			uint32_t has_mipmap	: 1;
+			uint32_t dirty		: 1;
+		};
+		uint32_t flags;
+	};
 } hikaru_gpu_texhead_t;
+
+static bool
+is_texhead_set (hikaru_gpu_texhead_t *th)
+{
+	return (th->flags & 7) == 7;
+}
 
 typedef struct {
 	vec3f_t pos;
