@@ -58,12 +58,7 @@ enum {
 	HIKARU_POLYTYPE_TRANSLUCENT = 6
 };
 
-#define HIKARU_GPU_OBJ_SET	(1 << 0)
-#define HIKARU_GPU_OBJ_DIRTY	(1 << 1)
-
 typedef struct {
-	uint32_t flags;
-
 	struct {
 		float l, r;
 		float b, t;
@@ -88,11 +83,13 @@ typedef struct {
 		vec4b_t clear;
 		vec3s_t ambient;
 	} color;
+
+	uint32_t set	: 1;
+	uint32_t dirty	: 1;
 } hikaru_gpu_viewport_t;
 
 typedef struct {
 	mtx4x4f_t mtx;
-	uint32_t set		: 1;
 } hikaru_gpu_modelview_t;
 
 typedef struct {
@@ -140,7 +137,8 @@ typedef struct {
 		};
 		uint32_t full;
 	} _C81;
-	uint32_t set		: 1;
+	uint32_t set	: 1;
+	uint32_t dirty	: 1;
 } hikaru_gpu_material_t;
 
 typedef struct {
@@ -183,6 +181,7 @@ typedef struct {
 	uint32_t height;
 	uint32_t has_mipmap	: 1;
 	uint32_t set		: 1;
+	uint32_t dirty		: 1;
 } hikaru_gpu_texhead_t;
 
 typedef struct {
@@ -199,12 +198,14 @@ typedef struct {
 	uint32_t _051_bit	: 1;
 	uint32_t _451_enabled	: 1;
 	uint32_t set		: 1;
+	uint32_t dirty		: 1;
 } hikaru_gpu_light_t;
 
 typedef struct {
 	uint16_t index[4];
 	uint32_t disabled	: 4;
 	uint32_t set		: 1;
+	uint32_t dirty		: 1;
 } hikaru_gpu_lightset_t;
 
 typedef struct {
