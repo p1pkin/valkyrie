@@ -195,13 +195,18 @@ upload_current_modelview (hikaru_renderer_t *hr, unsigned i)
  Materials & Texheads
 ****************************************************************************/
 
-/* TODO track dirty state */
 static void
 upload_current_material_texhead (hikaru_renderer_t *hr)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_gpu_material_t *mat = &MAT.scratch;
 	hikaru_gpu_texhead_t *th   = &TEX.scratch;
+
+	if (!mat->dirty && !th->dirty)
+		return;
+
+	mat->dirty = 0;
+	th->dirty = 0;
 
 	LOG ("mat = %s", get_gpu_material_str (mat));
 	if (is_material_set (mat) && mat->has_texture)
