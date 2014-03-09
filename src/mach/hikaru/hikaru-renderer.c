@@ -120,7 +120,7 @@ clear_rendstate_lists (hikaru_renderer_t *hr)
 static bool
 is_viewport_valid (hikaru_gpu_viewport_t *vp)
 {
-	if (!(vp->flags & HIKARU_GPU_OBJ_SET))
+	if (!is_viewport_set (vp))
 		return false;
 
 	if (!ispositive (vp->clip.l) || !ispositive (vp->clip.r) ||
@@ -146,7 +146,7 @@ upload_current_viewport (hikaru_renderer_t *hr)
 	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_gpu_viewport_t *vp = &VP.scratch;
 
-	if (vp->flags & HIKARU_GPU_OBJ_DIRTY) {
+	if (vp->dirty) {
 
 		const float h = vp->clip.t - vp->clip.b;
 		const float w = vp->clip.r - vp->clip.l;
@@ -170,7 +170,7 @@ upload_current_viewport (hikaru_renderer_t *hr)
 		glEnable (GL_DEPTH_TEST);
 		//glDepthFunc (depth_func[vp->depth.func]);
 
-		vp->flags &= ~HIKARU_GPU_OBJ_DIRTY;
+		vp->dirty = 0;
 	}
 }
 
