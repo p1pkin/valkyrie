@@ -61,15 +61,11 @@
  */
 
 static void
-on_cp_begin (hikaru_gpu_t *gpu)
+on_frame_begin (hikaru_gpu_t *gpu)
 {
-	gpu->cp.is_running = true;
-
-	PC = REG15 (0x70);
-	SP(0) = REG15 (0x74);
-	SP(1) = REG15 (0x78);
-
 	gpu->state.in_mesh = 0;
+
+	VK_LOG (" ==== CLEARING CP DATA ==== ");
 
 	memset ((void *) &POLY, 0, sizeof (POLY));
 
@@ -96,6 +92,16 @@ on_cp_begin (hikaru_gpu_t *gpu)
 }
 
 static void
+on_cp_begin (hikaru_gpu_t *gpu)
+{
+	gpu->cp.is_running = true;
+
+	PC = REG15 (0x70);
+	SP(0) = REG15 (0x74);
+	SP(1) = REG15 (0x78);
+}
+
+static void
 on_cp_end (hikaru_gpu_t *gpu)
 {
 	/* Turn off the busy bits */
@@ -109,7 +115,7 @@ on_cp_end (hikaru_gpu_t *gpu)
 void
 hikaru_gpu_cp_vblank_in (hikaru_gpu_t *gpu)
 {
-	/* no-op */
+	on_frame_begin (gpu);
 }
 
 void
