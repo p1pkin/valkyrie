@@ -1881,6 +1881,7 @@ I (0x064)
 	ls->index[1] = (inst[1] >> 16) & (NUM_LIGHTS - 1);
 	ls->index[2] = inst[2] & (NUM_LIGHTS - 1);
 	ls->index[3] = (inst[2] >> 16) & (NUM_LIGHTS - 1);
+	ls->set = 1;
 }
 
 D (0x064)

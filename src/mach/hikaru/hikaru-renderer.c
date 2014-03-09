@@ -48,7 +48,7 @@ static const struct {
 	[HR_DEBUG_NO_AMBIENT]		= {  0, 1, SDLK_a, false, "NO AMBIENT" },
 	[HR_DEBUG_NO_DIFFUSE]		= {  0, 1, SDLK_d, false, "NO DIFFUSE" },
 	[HR_DEBUG_NO_SPECULAR]		= {  0, 1, SDLK_s, false, "NO SPECULAR" },
-	[HR_DEBUG_SELECT_ATT_TYPE]	= { -1, 3, SDLK_z,  true, "SELECT ATT TYPE" },
+	[HR_DEBUG_SELECT_ATT_TYPE]	= { -1, 4, SDLK_z,  true, "SELECT ATT TYPE" },
 };
 
 static void
@@ -204,11 +204,11 @@ upload_current_material_texhead (hikaru_renderer_t *hr)
 	hikaru_gpu_texhead_t *th   = &TEX.scratch;
 
 	LOG ("mat = %s", get_gpu_material_str (mat));
-	if (mat->set && mat->_881.has_texture)
+	if (is_material_set (mat) && mat->has_texture)
 		LOG ("th  = %s", get_gpu_texhead_str (th));
 
 	if (hr->debug.flags[HR_DEBUG_NO_TEXTURES] ||
-	    !mat->set || !th->set || !mat->_881.has_texture)
+	    !(is_material_set (mat) && mat->has_texture && !is_texhead_set (th)))
 		glDisable (GL_TEXTURE_2D);
 	else {
 		vk_surface_t *surface;
@@ -239,11 +239,11 @@ typedef enum {
 } hikaru_light_type_t;
 
 typedef enum {
-	HIKARU_LIGHT_ATT_INF = -1,
 	HIKARU_LIGHT_ATT_LINEAR = 0,
 	HIKARU_LIGHT_ATT_SQUARE = 1,
 	HIKARU_LIGHT_ATT_INVLINEAR = 2,
 	HIKARU_LIGHT_ATT_INVSQUARE = 3,
+	HIKARU_LIGHT_ATT_INF = 4,
 
 	HIKARU_NUM_LIGHT_ATTS
 } hikaru_light_att_t;
@@ -251,10 +251,10 @@ typedef enum {
 static hikaru_light_type_t
 get_light_type (hikaru_gpu_light_t *lit)
 {
-	VK_ASSERT (lit->has_dir || lit->has_pos);
-	if (lit->has_dir && lit->has_pos)
+	VK_ASSERT (lit->has_direction || lit->has_position);
+	if (lit->has_direction && lit->has_position)
 		return HIKARU_LIGHT_TYPE_SPOT;
-	else if (lit->has_pos)
+	else if (lit->has_position)
 		return HIKARU_LIGHT_TYPE_POSITIONAL;
 	return HIKARU_LIGHT_TYPE_DIRECTIONAL;
 }
@@ -262,9 +262,11 @@ get_light_type (hikaru_gpu_light_t *lit)
 static hikaru_light_att_t
 get_light_attenuation_type (hikaru_gpu_light_t *lit)
 {
-	if (lit->type == 0 && lit->att_base == 1.0f && lit->att_offs == 1.0f)
+	if (lit->att_type == 0 &&
+	    lit->attenuation[0] == 1.0f &&
+	    lit->attenuation[1] == 1.0f)
 		return HIKARU_LIGHT_ATT_INF;
-	return lit->type;
+	return lit->att_type;
 }
 
 static void
@@ -276,15 +278,11 @@ get_light_attenuation (hikaru_renderer_t *hr, hikaru_gpu_light_t *lit, float *ou
 	 * Hikaru light models... */
 
 	switch (get_light_attenuation_type (lit)) {
-	case HIKARU_LIGHT_ATT_INF:
-		out[0] = 1.0f;
-		out[1] = 0.0f;
-		out[2] = 0.0f;
-		break;
 	case HIKARU_LIGHT_ATT_LINEAR:
-		VK_ASSERT (lit->att_base < 0.0 && lit->att_offs < 0.0f);
-		min = -lit->att_offs;
-		max = min + 1.0f / lit->att_base;
+		VK_ASSERT (lit->attenuation[0] < 0.0f);
+		VK_ASSERT (lit->attenuation[1] < 0.0f);
+		min = -lit->attenuation[1];
+		max = min + 1.0f / lit->attenuation[0];
 		out[0] = 0.0f;
 		out[1] = 1.0f / min;
 		out[2] = 0.0f;
@@ -296,6 +294,11 @@ get_light_attenuation (hikaru_renderer_t *hr, hikaru_gpu_light_t *lit, float *ou
 	default:
 		out[0] = 0.0f;
 		out[1] = 0.2f;
+		out[2] = 0.0f;
+		break;
+	case HIKARU_LIGHT_ATT_INF:
+		out[0] = 1.0f;
+		out[1] = 0.0f;
 		out[2] = 0.0f;
 		break;
 	}
@@ -404,14 +407,14 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		goto disable;
 	}
 
-	if (ls->disabled == 0xF) {
+	if (ls->mask == 0xF) {
 		VK_ERROR ("attempting to use lightset with no light!");
 		goto disable;
 	}
 
 	/* If the material is unset, treat it as shading_mode is 1; that way
 	 * we can actually check lighting in the viewer. */
-	if (mat->set && mat->_881.shading_mode == 0)
+	if (is_material_set (mat) && mat->shading_mode == 0)
 		goto disable;
 
 	/* Lights are positioned according to the scene, irrespective of
@@ -430,12 +433,12 @@ upload_current_lightset (hikaru_renderer_t *hr)
 	for (i = 0; i < 4; i++) {
 		hikaru_gpu_light_t *lt;
 
-		if (ls->disabled & (1 << i))
+		if (ls->mask & (1 << i))
 			continue;
 
 		lt = &LIT.table[ls->index[i]];
 
-		if (!lt->set) {
+		if (!is_light_set (lt)) {
 			VK_ERROR ("attempting to use unset light %u!", ls->index[i]);
 			continue;
 		}
@@ -445,7 +448,7 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		n = GL_LIGHT0 + i;
 
 		if ((hr->debug.flags[HR_DEBUG_SELECT_ATT_TYPE] < 0) ||
-		    (hr->debug.flags[HR_DEBUG_SELECT_ATT_TYPE] == lt->type))
+		    (hr->debug.flags[HR_DEBUG_SELECT_ATT_TYPE] == get_light_attenuation_type (lt)))
 			glEnable (n);
 		else
 			glDisable (n);
@@ -457,16 +460,16 @@ upload_current_lightset (hikaru_renderer_t *hr)
 
 		switch (get_light_type (lt)) {
 		case HIKARU_LIGHT_TYPE_DIRECTIONAL:
-			tmp[0] = lt->dir[0];
-			tmp[1] = lt->dir[1];
-			tmp[2] = lt->dir[2];
+			tmp[0] = lt->direction[0];
+			tmp[1] = lt->direction[1];
+			tmp[2] = lt->direction[2];
 			tmp[3] = 0.0f;
 			glLightfv (n, GL_POSITION, tmp);
 			break;
 		case HIKARU_LIGHT_TYPE_POSITIONAL:
-			tmp[0] = lt->pos[0];
-			tmp[1] = lt->pos[1];
-			tmp[2] = lt->pos[2];
+			tmp[0] = lt->position[0];
+			tmp[1] = lt->position[1];
+			tmp[2] = lt->position[2];
 			tmp[3] = 1.0f;
 			glLightfv (n, GL_POSITION, tmp);
 			break;
@@ -474,18 +477,19 @@ upload_current_lightset (hikaru_renderer_t *hr)
 			glPushMatrix ();
 			glLoadIdentity ();
 
-			tmp[0] = lt->dir[0];
-			tmp[1] = lt->dir[1];
-			tmp[2] = lt->dir[2];
+			/* XXX this is very bogus. */
+
+			tmp[0] = lt->direction[0];
+			tmp[1] = lt->direction[1];
+			tmp[2] = lt->direction[2];
 			glTranslatef (tmp[0], tmp[1], tmp[2]);
 
-			tmp[0] = lt->dir[0];
-			tmp[1] = lt->dir[1];
-			tmp[2] = lt->dir[2];
+			tmp[0] = lt->direction[0];
+			tmp[1] = lt->direction[1];
+			tmp[2] = lt->direction[2];
 			tmp[3] = 1.0f;
 			glLightfv (n, GL_POSITION, tmp);
 
-			/* XXX let's make it very hard to miss spotlights! */
 			glLightf (n, GL_SPOT_EXPONENT, 128.0f);
 
 			glPopMatrix ();
@@ -555,7 +559,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 	/* XXX at the moment we use only color 1 (it's responsible for the
 	 * BOOTROM CRT test). */
 
-	if (mat->set) {
+	if (is_material_set (mat)) {
 		switch (hr->debug.flags[HR_DEBUG_SELECT_BASE_COLOR]) {
 		case 0:
 			dst->col[0] = mat->diffuse[0] * INV255;
@@ -603,14 +607,15 @@ copy_texcoords (hikaru_renderer_t *hr,
 {
 	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_gpu_texhead_t *th = &TEX.scratch;
-	float height = th->height;
+	float w = 16 << th->logw;
+	float h = 16 << th->logh;
 
-	if (th->_2C1.format == HIKARU_FORMAT_ABGR1111)
-		height *= 2;
+	if (th->format == HIKARU_FORMAT_ABGR1111)
+		h *= 2;
 
-	if (th->set) {
-		dst->txc[0] = src->txc[0] / th->width;
-		dst->txc[1] = src->txc[1] / height;
+	if (is_texhead_set (th)) {
+		dst->txc[0] = src->txc[0] / w;
+		dst->txc[1] = src->txc[1] / h;
 	} else {
 		dst->txc[0] = 0.0f;
 		dst->txc[1] = 0.0f;

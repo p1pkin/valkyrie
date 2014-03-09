@@ -117,8 +117,8 @@ typedef struct {
 			uint32_t unk2		: 4;
 			uint32_t		: 12;
 		};
-		uint32_t full;
-	} _081;
+		uint32_t _081;
+	};
 	union {
 		struct {
 			uint32_t		: 16;
@@ -127,28 +127,28 @@ typedef struct {
 			uint32_t has_texture	: 1;
 			uint32_t has_alpha	: 1;
 			uint32_t has_highlight	: 1;
-			uint32_t unk1		: 1;
-			uint32_t unk2		: 1;
-			uint32_t unk3		: 8;
+			uint32_t unk3		: 1;
+			uint32_t unk4		: 1;
+			uint32_t unk5		: 8;
 		};
-		uint32_t full;
-	} _881;
+		uint32_t _881;
+	};
 	union {
 		struct {
 			uint32_t		: 16;
 			uint32_t blending_mode	: 2;
 			uint32_t		: 14;
 		};
-		uint32_t full;
-	} _A81;
+		uint32_t _A81;
+	};
 	union {
 		struct {
 			uint32_t		: 16;
 			uint32_t alpha_index	: 6;
 			uint32_t		: 10;
 		};
-		uint32_t full;
-	} _C81;
+		uint32_t _C81;
+	};
 	union {
 		struct {
 			uint32_t has_091	: 1;
@@ -258,6 +258,7 @@ typedef struct {
 	uint16_t index[4];
 	union {
 		struct {
+			uint32_t set	: 1;
 			uint32_t mask	: 4;
 			uint32_t dirty	: 1;
 		};
