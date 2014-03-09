@@ -72,12 +72,27 @@ on_cp_begin (hikaru_gpu_t *gpu)
 	gpu->state.in_mesh = 0;
 
 	memset ((void *) &POLY, 0, sizeof (POLY));
+
 	VP.depth = 0;
+	VP.scratch.flags = 0;
+	VP.scratch.dirty = 1;
+
 	MV.depth = 0;
 	MV.total = 0;
+
 	MAT.base = 0;
+	MAT.scratch.flags = 0;
+	MAT.scratch.dirty = 1;
+
 	TEX.base = 0;
+	TEX.scratch.flags = 0;
+	TEX.scratch.dirty = 1;
+
 	LIT.base = 0;
+	LIT.scratch.flags = 0;
+	LIT.scratch.dirty = 1;
+	LIT.scratchset.flags = 0;
+	LIT.scratchset.dirty = 1;
 }
 
 static void
