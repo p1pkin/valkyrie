@@ -1288,19 +1288,19 @@ I (0x081)
 
 	switch ((inst[0] >> 8) & 0xF) {
 	case 0x0:
-		mat->_081.full = inst[0];
+		mat->_081 = inst[0];
 		mat->has_081 = 1;
 		break;
 	case 0x8:
-		mat->_881.full = inst[0];
+		mat->_881 = inst[0];
 		mat->has_881 = 1;
 		break;
 	case 0xA:
-		mat->_A81.full = inst[0];
+		mat->_A81 = inst[0];
 		mat->has_A81 = 1;
 		break;
 	case 0xC:
-		mat->_C81.full = inst[0];
+		mat->_C81 = inst[0];
 		mat->has_C81 = 1;
 		break;
 	}
@@ -1499,11 +1499,7 @@ I (0x0C1)
 		th->has_0C1 = 1;
 		break;
 	case 2:
-		th->_2C1	= inst[0];
-		th->width	= 16 << th->_2C1.logw;
-		th->height	= 16 << th->_2C1.logh;
-		if (th->format == HIKARU_FORMAT_ABGR1111)
-			th->width *= 2; /* pixels per word */
+		th->_2C1 = inst[0];
 		th->has_2C1 = 1;
 		break;
 	case 4:

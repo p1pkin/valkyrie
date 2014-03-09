@@ -19,20 +19,27 @@
 #include "mach/hikaru/hikaru-renderer-private.h"
 
 static void
+get_sizes (uint32_t *w, uint32_t *h, hikaru_gpu_texhead_t *th)
+{
+	*w = 16 << th->logw;
+	*h = 16 << th->logh;
+}
+
+static void
 get_wrap_modes (int *wrap_u, int *wrap_v, hikaru_gpu_texhead_t *th)
 {
 	*wrap_u = *wrap_v = -1;
 
-	if (th->_2C1.wrapu == 0)
+	if (th->wrapu == 0)
 		*wrap_u = GL_CLAMP;
-	else if (th->_2C1.repeatu == 0)
+	else if (th->repeatu == 0)
 		*wrap_u = GL_REPEAT;
 	else
 		*wrap_u = GL_MIRRORED_REPEAT;
 
-	if (th->_2C1.wrapv == 0)
+	if (th->wrapv == 0)
 		*wrap_v = GL_CLAMP;
-	else if (th->_2C1.repeatv == 0)
+	else if (th->repeatv == 0)
 		*wrap_v = GL_REPEAT;
 	else
 		*wrap_v = GL_MIRRORED_REPEAT;
@@ -87,21 +94,21 @@ a8_to_rgba8888 (uint32_t a)
 static vk_surface_t *
 decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
-	vk_buffer_t *texram = hr->gpu->texram[texhead->_4C1.bank];
-	uint32_t basex, basey, x, y;
+	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
+	uint32_t w, h, basex, basey, x, y;
 	int wrap_u, wrap_v;
 	vk_surface_t *surface;
 
+	get_sizes (&w, &h, texhead);
 	get_wrap_modes (&wrap_u, &wrap_v, texhead);
-	surface = vk_surface_new (texhead->width, texhead->height*2,
-	                          VK_SURFACE_FORMAT_RGBA4444, wrap_u, wrap_v);
+	get_texhead_coords (&basex, &basey, texhead); 
+
+	surface = vk_surface_new (w, h*2, VK_SURFACE_FORMAT_RGBA4444, wrap_u, wrap_v);
 	if (!surface)
 		return NULL;
 
-	get_texhead_coords (&basex, &basey, texhead); 
-
-	for (y = 0; y < texhead->height; y ++) {
-		for (x = 0; x < texhead->width; x += 4) {
+	for (y = 0; y < h; y ++) {
+		for (x = 0; x < w; x += 4) {
 			uint32_t offs = (basey + y) * 4096 + (basex + x);
 			uint32_t texels = vk_buffer_get (texram, 4, offs);
 			vk_surface_put16 (surface, x + 0, y*2 + 0,
@@ -128,22 +135,22 @@ decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 static vk_surface_t *
 decode_texhead_abgr1555 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
-	vk_buffer_t *texram = hr->gpu->texram[texhead->_4C1.bank];
-	uint32_t basex, basey, x, y;
+	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
+	uint32_t w, h, basex, basey, x, y;
 	int wrap_u, wrap_v;
 	vk_surface_t *surface;
 
+	get_sizes (&w, &h, texhead);
 	get_wrap_modes (&wrap_u, &wrap_v, texhead);
-	surface = vk_surface_new (texhead->width, texhead->height,
-	                          VK_SURFACE_FORMAT_RGBA5551, wrap_u, wrap_v);
+	get_texhead_coords (&basex, &basey, texhead); 
+
+	surface = vk_surface_new (w, h, VK_SURFACE_FORMAT_RGBA5551, wrap_u, wrap_v);
 	if (!surface)
 		return NULL;
 
-	get_texhead_coords (&basex, &basey, texhead); 
-
-	for (y = 0; y < texhead->height; y++) {
+	for (y = 0; y < h; y++) {
 		uint32_t base = (basey + y) * 4096 + basex * 2;
-		for (x = 0; x < texhead->width; x += 2) {
+		for (x = 0; x < w; x += 2) {
 			uint32_t offs  = base + x * 2;
 			uint32_t texels = vk_buffer_get (texram, 4, offs);
 			vk_surface_put16 (surface, x+0, y, abgr1555_to_rgba5551 (texels >> 16));
@@ -156,22 +163,22 @@ decode_texhead_abgr1555 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 static vk_surface_t *
 decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
-	vk_buffer_t *texram = hr->gpu->texram[texhead->_4C1.bank];
-	uint32_t basex, basey, x, y;
+	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
+	uint32_t w, h, basex, basey, x, y;
 	int wrap_u, wrap_v;
 	vk_surface_t *surface;
 
+	get_sizes (&w, &h, texhead);
 	get_wrap_modes (&wrap_u, &wrap_v, texhead);
-	surface = vk_surface_new (texhead->width, texhead->height,
-	                          VK_SURFACE_FORMAT_RGBA4444, wrap_u, wrap_v);
+	get_texhead_coords (&basex, &basey, texhead); 
+
+	surface = vk_surface_new (w, h, VK_SURFACE_FORMAT_RGBA4444, wrap_u, wrap_v);
 	if (!surface)
 		return NULL;
 
-	get_texhead_coords (&basex, &basey, texhead); 
-
-	for (y = 0; y < texhead->height; y++) {
+	for (y = 0; y < h; y++) {
 		uint32_t base = (basey + y) * 4096 + basex * 2;
-		for (x = 0; x < texhead->width; x += 2) {
+		for (x = 0; x < w; x += 2) {
 			uint32_t offs  = base + x * 2;
 			uint32_t texels = vk_buffer_get (texram, 4, offs);
 			vk_surface_put16 (surface, x+0, y, abgr4444_to_rgba4444 (texels >> 16));
@@ -184,20 +191,21 @@ decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 static vk_surface_t *
 decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 {
-	vk_buffer_t *texram = hr->gpu->texram[texhead->_4C1.bank];
-	uint32_t basex, basey, x, y, h, w;
+	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
+	uint32_t w, h, basex, basey, x, y;
 	int wrap_u, wrap_v;
 	vk_surface_t *surface;
 
-	h = texhead->height / 2;
-	w = texhead->width / 4;
-
+	get_sizes (&w, &h, texhead);
 	get_wrap_modes (&wrap_u, &wrap_v, texhead);
+	get_texhead_coords (&basex, &basey, texhead); 
+
+	w /= 4;
+	h /= 2;
+
 	surface = vk_surface_new (w * 4, h, VK_SURFACE_FORMAT_RGBA8888, wrap_u, wrap_v);
 	if (!surface)
 		return NULL;
-
-	get_texhead_coords (&basex, &basey, texhead); 
 
 	for (y = 0; y < h; y++) {
 		uint32_t base = (basey + y) * 4096 + basex * 2;
@@ -223,12 +231,12 @@ static bool
 is_texhead_eq (hikaru_renderer_t *hr,
                hikaru_gpu_texhead_t *a, hikaru_gpu_texhead_t *b)
 {
-	return (a->_2C1.format == b->_2C1.format) &&
-	       (a->_4C1.bank == b->_4C1.bank) &&
-	       (a->_4C1.slotx == b->_4C1.slotx) &&
-	       (a->_4C1.sloty == b->_4C1.sloty) &&
-	       (a->width == b->width) &&
-	       (a->height == b->height);
+	return (a->format == b->format) &&
+	       (a->logw == b->logw) &&
+	       (a->logh == b->logh) &&
+	       (a->bank == b->bank) &&
+	       (a->slotx == b->slotx) &&
+	       (a->sloty == b->sloty);
 }
 
 static void
@@ -244,9 +252,9 @@ dump_texhead (hikaru_renderer_t *hr,
 
 	sprintf (path, "texheads/%s-texhead%u-%02X-%02X-%ux%u-%u.bin",
 	         mach->game->name, num,
-	         texhead->_4C1.slotx, texhead->_4C1.sloty,
-	         texhead->width, texhead->height,
-	         texhead->_2C1.format);
+	         texhead->slotx, texhead->sloty,
+	         16 << texhead->logw, 16 << texhead->logh,
+	         texhead->format);
 	fp = fopen (path, "wb");
 	if (!fp)
 		return;
@@ -268,9 +276,9 @@ hikaru_renderer_decode_texture (vk_renderer_t *rend,
 
 	VK_ASSERT (hr);
 
-	bank  = texhead->_4C1.bank;
-	slotx = texhead->_4C1.slotx;
-	sloty = texhead->_4C1.sloty;
+	bank  = texhead->bank;
+	slotx = texhead->slotx;
+	sloty = texhead->sloty;
 
 	/* Handle invalid slots here. */
 	if (slotx < 0x80 || sloty < 0xC0)
@@ -288,7 +296,7 @@ hikaru_renderer_decode_texture (vk_renderer_t *rend,
 	}
 
 	/* Texhead not cached, decode it. */
-	switch (texhead->_2C1.format) {
+	switch (texhead->format) {
 	case HIKARU_FORMAT_ABGR1555:
 		surface = decode_texhead_abgr1555 (hr, texhead);
 		break;
@@ -353,6 +361,6 @@ hikaru_renderer_invalidate_texcache (vk_renderer_t *rend,
 		clear_texture_cache_bank (hr, 1);
 	} else {
 		/* Simplest approach possible, clear the whole bank. */
-		clear_texture_cache_bank (hr, th->_4C1.bank);
+		clear_texture_cache_bank (hr, th->bank);
 	}
 }

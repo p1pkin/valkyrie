@@ -23,7 +23,7 @@
 void
 get_texhead_coords (uint32_t *x, uint32_t *y, hikaru_gpu_texhead_t *tex)
 {
-	if (tex->_4C1.slotx < 0x80 || tex->_4C1.sloty < 0xC0) {
+	if (tex->slotx < 0x80 || tex->sloty < 0xC0) {
 		/*
 		 * This case is triggered by the following CP code, used by
 		 * the BOOTROM:
@@ -36,12 +36,12 @@ get_texhead_coords (uint32_t *x, uint32_t *y, hikaru_gpu_texhead_t *tex)
 		 *
 		 * Note how the params to 2C1 and 4C1 are swapped.
 		 */
-		VK_ERROR ("GPU: invalid slot %X,%X", tex->_4C1.slotx, tex->_4C1.sloty);
+		VK_ERROR ("GPU: invalid slot %X,%X", tex->slotx, tex->sloty);
 		*x = 0;
 		*y = 0;
 	} else {
-		*x = (tex->_4C1.slotx - 0x80) * 16;
-		*y = (tex->_4C1.sloty - 0xC0) * 16;
+		*x = (tex->slotx - 0x80) * 16;
+		*y = (tex->sloty - 0xC0) * 16;
 	}
 }
 
@@ -92,8 +92,8 @@ get_gpu_material_str (hikaru_gpu_material_t *material)
 	         material->ambient[0], material->ambient[1], material->ambient[2],
 	         material->specular[0], material->specular[1], material->specular[2], material->specular[3],
 	         material->unknown[0], material->unknown[1], material->unknown[2],
-	         material->_081.full, material->_881.full,
-	         material->_A81.full, material->_C81.full);
+	         material->_081, material->_881,
+	         material->_A81, material->_C81);
 
 	return (const char *) out;
 }
@@ -117,10 +117,10 @@ get_gpu_texhead_str (hikaru_gpu_texhead_t *texhead)
 	get_texhead_coords (&basex, &basey, texhead);
 
 	sprintf (out, "[bank=%X slot=(%X,%X) pos=(%X,%X) -> offs=%08X] [size=%ux%u format=%s] 0C1=%08X 2C1=%08X",
-	         texhead->_4C1.bank, texhead->_4C1.slotx, texhead->_4C1.sloty,
+	         texhead->bank, texhead->slotx, texhead->sloty,
 	         basex, basey, basey*4096 + basex*2,
-	         texhead->width, texhead->height, name[texhead->_2C1.format],
-	         texhead->_0C1.full, texhead->_2C1.full);
+	         16 << texhead->logw, 16 << texhead->logh,
+	         name[texhead->format], texhead->_0C1, texhead->_2C1);
 
 	return (const char *) out;
 }
@@ -131,9 +131,9 @@ get_gpu_light_str (hikaru_gpu_light_t *lit)
 	static char out[512];
 
 	sprintf (out, "%u (%+10.3f %+10.3f) dir=%u (%+10.3f %+10.3f %+10.3f) pos=%u (%+10.3f %+10.3f %+10.3f) [%u %03X %03X %03X] [%u %02X %02X %02X]",
-	         lit->type, lit->att_base, lit->att_offs,
-	         lit->has_dir, lit->dir[0], lit->dir[1], lit->dir[2],
-	         lit->has_pos, lit->pos[0], lit->pos[1], lit->pos[2],
+	         lit->att_type, lit->attenuation[0], lit->attenuation[1],
+	         lit->has_direction, lit->direction[0], lit->direction[1], lit->direction[2],
+	         lit->has_position, lit->position[0], lit->position[1], lit->position[2],
 	         lit->_051_index, lit->diffuse[0], lit->diffuse[0], lit->diffuse[0],
 	         lit->_451_enabled, lit->specular[0], lit->specular[0], lit->specular[0]);
 
