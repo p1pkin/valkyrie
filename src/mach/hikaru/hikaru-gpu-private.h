@@ -226,27 +226,43 @@ is_texhead_set (hikaru_gpu_texhead_t *th)
 }
 
 typedef struct {
-	vec3f_t pos;
-	vec3f_t dir;
+	vec3f_t position;
+	vec3f_t direction;
+	vec2f_t attenuation;
 	vec3s_t diffuse;
 	vec3b_t specular;
-	float att_base;
-	float att_offs;
-	uint32_t type		: 2;
-	uint32_t has_pos	: 1;
-	uint32_t has_dir	: 1;
-	uint32_t _051_index	: 4;
-	uint32_t _051_bit	: 1;
-	uint32_t _451_enabled	: 1;
-	uint32_t set		: 1;
-	uint32_t dirty		: 1;
+	union {
+		struct {
+			uint32_t has_061	: 1;
+			uint32_t has_051	: 1;
+			uint32_t has_451	: 1;
+			uint32_t has_position	: 1;
+			uint32_t has_direction	: 1;
+			uint32_t att_type	: 2;
+			uint32_t _051_index	: 4;
+			uint32_t _051_bit	: 1;
+			uint32_t _451_enabled	: 1;
+			uint32_t dirty		: 1;
+		};
+		uint32_t flags;
+	};
 } hikaru_gpu_light_t;
+
+static bool
+is_light_set (hikaru_gpu_light_t *lit)
+{
+	return (lit->flags & 0x1F) == 0x1F;
+}
 
 typedef struct {
 	uint16_t index[4];
-	uint32_t disabled	: 4;
-	uint32_t set		: 1;
-	uint32_t dirty		: 1;
+	union {
+		struct {
+			uint32_t mask	: 4;
+			uint32_t dirty	: 1;
+		};
+		uint32_t flags;
+	};
 } hikaru_gpu_lightset_t;
 
 typedef struct {

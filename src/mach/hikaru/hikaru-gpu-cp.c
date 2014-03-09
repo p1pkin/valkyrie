@@ -1017,26 +1017,30 @@ I (0x161)
 	case 0xB:
 		switch (inst[0] & 0x000FF000) {
 		case 0x00008000: /* Direction */
-			lit->has_dir = 1;
-			lit->dir[0] = *(float *) &inst[1];
-			lit->dir[1] = *(float *) &inst[2];
-			lit->dir[2] = *(float *) &inst[3];
+			lit->direction[0] = *(float *) &inst[1];
+			lit->direction[1] = *(float *) &inst[2];
+			lit->direction[2] = *(float *) &inst[3];
+			lit->has_direction = 1;
 			break;
 		case 0x00010000: /* Position */
-			lit->has_pos = 1;
-			lit->pos[0] = *(float *) &inst[1];
-			lit->pos[1] = *(float *) &inst[2];
-			lit->pos[2] = *(float *) &inst[3];
+			lit->position[0] = *(float *) &inst[1];
+			lit->position[1] = *(float *) &inst[2];
+			lit->position[2] = *(float *) &inst[3];
+			lit->has_position = 1;
 			break;
 		case 0x00016000: /* Use old position */
-			lit->has_pos = 1;
 			/* XXX TODO */
+			lit->position[0] = 0.0f;
+			lit->position[1] = 0.0f;
+			lit->position[2] = 0.0f;
+			lit->has_position = 1;
 			break;
 		default:
 			VK_ERROR ("CP @%08X: unhandled light 161 param: %08X",
 			          PC, inst[0]);
 			break;
 		}
+		lit->dirty = 1;
 		break;
 	default:
 		VK_ASSERT (0);
@@ -1707,12 +1711,12 @@ I (0x061)
 {
 	hikaru_gpu_light_t *lit = &LIT.scratch;
 
-	lit->type	= (inst[0] >> 16) & 3;
-	lit->att_base	= *(float *) &inst[1];
-	lit->att_offs	= *(float *) &inst[2];
+	lit->att_type       = (inst[0] >> 16) & 3;
+	lit->attenuation[0] = *(float *) &inst[1];
+	lit->attenuation[1] = *(float *) &inst[2];
 
-	lit->has_pos	= 0;
-	lit->has_dir	= 0;
+	lit->has_061 = 1;
+	lit->dirty = 1;
 }
 
 D (0x061)
@@ -1755,17 +1759,20 @@ I (0x051)
 		lit->diffuse[0] = inst[1] & 0x3FF;
 		lit->diffuse[1] = (inst[1] >> 10) & 0x3FF;
 		lit->diffuse[2] = (inst[1] >> 20) & 0x3FF;
+		lit->has_051 = 1;
 		break;
 	case 4:
 		lit->_451_enabled  = ((inst[0] >> 24) & 1) ^ 1;
 		lit->specular[0] = inst[1] & 0xFF;
 		lit->specular[1] = (inst[1] >> 8) & 0xFF;
 		lit->specular[2] = (inst[1] >> 16) & 0xFF;
+		lit->has_451 = 1;
 		break;
 	default:
 		VK_ASSERT (0);
 		break;
 	}
+	lit->dirty = 1;
 }
 
 D (0x051)
@@ -1834,7 +1841,6 @@ I (0x104)
 	uint32_t index = get_light_index (inst);
 
 	LIT.table[index] = LIT.scratch;
-	LIT.table[index].set = true;
 }
 
 D (0x104)
@@ -1875,7 +1881,6 @@ I (0x064)
 	ls->index[1] = (inst[1] >> 16) & (NUM_LIGHTS - 1);
 	ls->index[2] = inst[2] & (NUM_LIGHTS - 1);
 	ls->index[3] = (inst[2] >> 16) & (NUM_LIGHTS - 1);
-	ls->set = true;
 }
 
 D (0x064)
@@ -1915,7 +1920,8 @@ I (0x043)
 		}
 
 		LIT.scratchset = LIT.sets[index];
-		LIT.scratchset.disabled = (inst[0] >> 24) & 0xF;
+		LIT.scratchset.mask = (inst[0] >> 24) & 0xF;
+		LIT.scratchset.dirty = 1;
 	}
 }
 
