@@ -208,7 +208,7 @@ upload_current_material_texhead (hikaru_renderer_t *hr)
 		LOG ("th  = %s", get_gpu_texhead_str (th));
 
 	if (hr->debug.flags[HR_DEBUG_NO_TEXTURES] ||
-	    !(is_material_set (mat) && mat->has_texture && !is_texhead_set (th)))
+	    !(is_material_set (mat) && mat->has_texture && is_texhead_set (th)))
 		glDisable (GL_TEXTURE_2D);
 	else {
 		vk_surface_t *surface;

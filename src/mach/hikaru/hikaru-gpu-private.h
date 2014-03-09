@@ -168,7 +168,7 @@ typedef struct {
 static bool
 is_material_set (hikaru_gpu_material_t *mat)
 {
-	return (mat->flags & 0xFF) == 0xFF;
+	return (mat->flags & 0xEF) == 0xEF;
 }
 
 typedef struct {
