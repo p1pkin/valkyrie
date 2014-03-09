@@ -142,7 +142,19 @@ clear_rendstate_lists (hikaru_renderer_t *hr)
 	vk_vector_clear_fast (hr->states.lightsets);
 }
 
+static void
+print_rendstate_statistics (hikaru_renderer_t *hr)
+{
+	LOG (" ==== RENDSTATE STATISTICS ==== ");
+	LOG ("  vp  : %u\n", hr->states.viewports->used / sizeof (hikaru_gpu_viewport_t));
+	LOG ("  mv  : %u\n", hr->states.modelviews->used / sizeof (hikaru_gpu_modelview_t));
+	LOG ("  mat : %u\n", hr->states.materials->used / sizeof (hikaru_gpu_material_t));
+	LOG ("  tex : %u\n", hr->states.texheads->used / sizeof (hikaru_gpu_texhead_t));
+	LOG ("  ls  : %u\n", hr->states.lightsets->used / sizeof (hikaru_gpu_lightset_t));
+}
+
 /* TODO check if more fine-grained dirty tracking can help. */
+/* TODO check boundary conditions when nothing is uploaded in a frame. */
 static void
 update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
@@ -159,6 +171,7 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	if (MV.total) {
 		MV.total = 0;
+		MV.depth = 0;
 		/* TODO append all modelviews. */
 		VK_VECTOR_APPEND (hr->states.modelviews, hikaru_gpu_modelview_t, MV.table[0]);
 	}
@@ -218,37 +231,31 @@ is_viewport_valid (hikaru_gpu_viewport_t *vp)
 }
 
 static void
-upload_current_viewport (hikaru_renderer_t *hr)
+upload_current_viewport (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 {
-	hikaru_gpu_t *gpu = hr->gpu;
-	hikaru_gpu_viewport_t *vp = &VP.scratch;
+	hikaru_gpu_viewport_t *vp = rs->vp;
 
-	if (vp->dirty) {
+	const float h = vp->clip.t - vp->clip.b;
+	const float w = vp->clip.r - vp->clip.l;
+	const float hh_at_n = (h / 2.0f) * (vp->clip.n / vp->clip.f);
+	const float hw_at_n = hh_at_n * (w / h);
+	const float dcx = vp->offset.x - (w / 2.0f);
+	const float dcy = vp->offset.y - (h / 2.0f);
 
-		const float h = vp->clip.t - vp->clip.b;
-		const float w = vp->clip.r - vp->clip.l;
-		const float hh_at_n = (h / 2.0f) * (vp->clip.n / vp->clip.f);
-		const float hw_at_n = hh_at_n * (w / h);
-		const float dcx = vp->offset.x - (w / 2.0f);
-		const float dcy = vp->offset.y - (h / 2.0f);
+	LOG ("vp  = %s : [w=%f h=%f dcx=%f dcy=%f]",
+	     get_gpu_viewport_str (vp), w, h, dcx, dcy);
 
-		LOG ("vp  = %s : [w=%f h=%f dcx=%f dcy=%f]",
-		     get_gpu_viewport_str (vp), w, h, dcx, dcy);
+	if (!is_viewport_valid (vp))
+		VK_ERROR ("invalid viewport [%s]", get_gpu_viewport_str (vp));
 
-		if (!is_viewport_valid (vp))
-			VK_ERROR ("invalid viewport [%s]", get_gpu_viewport_str (vp));
+	glMatrixMode (GL_PROJECTION);
+	glLoadIdentity ();
+	glFrustum (-hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, 1e5);
+	/* XXX scissor */
+	glTranslatef (dcx, -dcy, 0.0f);
 
-		glMatrixMode (GL_PROJECTION);
-		glLoadIdentity ();
-		glFrustum (-hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, 1e5);
-		/* XXX scissor */
-		glTranslatef (dcx, -dcy, 0.0f);
-
-		glEnable (GL_DEPTH_TEST);
-		//glDepthFunc (depth_func[vp->depth.func]);
-
-		vp->dirty = 0;
-	}
+	glEnable (GL_DEPTH_TEST);
+	//glDepthFunc (depth_func[vp->depth.func]);
 }
 
 /****************************************************************************
@@ -257,10 +264,9 @@ upload_current_viewport (hikaru_renderer_t *hr)
 
 /* TODO track dirty state */
 static void
-upload_current_modelview (hikaru_renderer_t *hr, unsigned i)
+upload_current_modelview (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 {
-	hikaru_gpu_t *gpu = hr->gpu;
-	hikaru_gpu_modelview_t *mv = &MV.table[i];
+	hikaru_gpu_modelview_t *mv = rs->mv;
 
 	LOG ("mv  = %s", get_gpu_modelview_str (mv));
 
@@ -273,17 +279,10 @@ upload_current_modelview (hikaru_renderer_t *hr, unsigned i)
 ****************************************************************************/
 
 static void
-upload_current_material_texhead (hikaru_renderer_t *hr)
+upload_current_material_texhead (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 {
-	hikaru_gpu_t *gpu = hr->gpu;
-	hikaru_gpu_material_t *mat = &MAT.scratch;
-	hikaru_gpu_texhead_t *th   = &TEX.scratch;
-
-	if (!mat->dirty && !th->dirty)
-		return;
-
-	mat->dirty = 0;
-	th->dirty = 0;
+	hikaru_gpu_material_t *mat = rs->mat;
+	hikaru_gpu_texhead_t *th = rs->tex;
 
 	LOG ("mat = %s", get_gpu_material_str (mat));
 	if (is_material_set (mat) && mat->has_texture)
@@ -473,11 +472,10 @@ get_material_specular (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float 
 
 /* TODO track dirty state */
 static void
-upload_current_lightset (hikaru_renderer_t *hr)
+upload_current_lightset (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 {
-	hikaru_gpu_t *gpu = hr->gpu;
-	hikaru_gpu_material_t *mat = &MAT.scratch;
-	hikaru_gpu_lightset_t *ls = &LIT.scratchset;
+	hikaru_gpu_material_t *mat = rs->mat;
+	hikaru_gpu_lightset_t *ls = rs->ls;
 	GLfloat tmp[4];
 	unsigned i, n;
 
@@ -873,21 +871,20 @@ static void
 hikaru_mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
-	unsigned num_instances = MV.total + 1, i;
 
 	VK_ASSERT (mesh);
 	VK_ASSERT (mesh->vbo);
 
-	LOG ("==== DRAWING MESH (#vertices=%u instances=%u) ====",
-	     mesh->num_tris * 3, num_instances);
+	LOG ("==== DRAWING MESH (#vertices=%u) ====",
+	     mesh->num_tris * 3);
 
 	if (hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] >= 0 &&
 	    hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] != POLY.type)
 		return;
 
 	/* Upload instance-invariant state. */
-	upload_current_viewport (hr);
-	upload_current_material_texhead (hr);
+	upload_current_viewport (hr, &mesh->rs);
+	upload_current_material_texhead (hr, &mesh->rs);
 
 	switch (POLY.type) {
 	case HIKARU_POLYTYPE_OPAQUE:
@@ -914,18 +911,12 @@ hikaru_mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		break;
 	}
 
-	/* For each instance. */
-	for (i = 0; i < num_instances; i++) {
-		/* Upload per-instance state. */
-		upload_current_modelview (hr, i);
-		upload_current_lightset (hr); /* This is not really per-instance... */
+	/* Upload per-instance state. */
+	upload_current_modelview (hr, &mesh->rs);
+	upload_current_lightset (hr, &mesh->rs); /* This is not really per-instance... */
 
-		/* Draw the mesh. */
-		glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
-	}
-
-	MV.total = 0;
-	MV.depth = 0; /* XXX not really needed. */
+	/* Draw the mesh. */
+	glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
 }
 
 
@@ -948,7 +939,7 @@ hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
 	mesh->addr[0] = addr;
 
 	hr->meshes.current = mesh;
-	//update_and_set_rendstate (hr, mesh);
+	update_and_set_rendstate (hr, mesh);
 
 	/* Clear the push buffer. */
 	hr->push.num_verts = 0;
@@ -1010,6 +1001,8 @@ hikaru_renderer_end_frame (vk_renderer_t *renderer)
 
 	/* Draw the foreground layers. */
 	hikaru_renderer_draw_layers (hr, false);
+
+	print_rendstate_statistics (hr);
 }
 
 static void

@@ -1018,9 +1018,9 @@ I (0x161)
 
 		/* Last element during upload. */
 		if (elem == 0) {
+			MV.total++;
 			if (push) {
 				MV.depth++;
-				MV.total++;
 				VK_ASSERT (MV.depth < NUM_MODELVIEWS);
 			} else
 				MV.depth = 0;
