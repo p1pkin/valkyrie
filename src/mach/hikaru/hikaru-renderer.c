@@ -87,44 +87,107 @@ update_debug_flags (hikaru_renderer_t *hr)
  Rendering State
 ****************************************************************************/
 
-static int
-build_rendstate_lists (hikaru_renderer_t *hr)
-{
-	int ret = 0;
-
-	memset ((void *) &hr->states, 0, sizeof (hr->states));
-
-	hr->states.viewports = vk_vector_new (8, sizeof (hikaru_gpu_viewport_t));
-	ret |= hr->states.viewports == NULL;
-
-	return ret;
-}
-
 static void
 destroy_rendstate_lists (hikaru_renderer_t *hr)
 {
 	if (hr->states.viewports)
 		vk_vector_destroy (&hr->states.viewports);
+	if (hr->states.modelviews)
+		vk_vector_destroy (&hr->states.modelviews);
+	if (hr->states.materials)
+		vk_vector_destroy (&hr->states.materials);
+	if (hr->states.texheads)
+		vk_vector_destroy (&hr->states.texheads);
+	if (hr->states.lightsets)
+		vk_vector_destroy (&hr->states.lightsets);
+}
+
+static int
+build_rendstate_lists (hikaru_renderer_t *hr)
+{
+	hr->states.viewports = vk_vector_new (8, sizeof (hikaru_gpu_viewport_t));
+	if (!hr->states.viewports)
+		goto fail;
+
+	hr->states.modelviews = vk_vector_new (8, sizeof (hikaru_gpu_modelview_t));
+	if (!hr->states.modelviews)
+		goto fail;
+
+	hr->states.materials = vk_vector_new (8, sizeof (hikaru_gpu_material_t));
+	if (!hr->states.materials)
+		goto fail;
+
+	hr->states.texheads = vk_vector_new (8, sizeof (hikaru_gpu_texhead_t));
+	if (!hr->states.texheads)
+		goto fail;
+
+	hr->states.lightsets = vk_vector_new (8, sizeof (hikaru_gpu_lightset_t));
+	if (!hr->states.lightsets)
+		goto fail;
+
+	return 0;
+
+fail:
+	destroy_rendstate_lists (hr);
+	return -1;
 }
 
 static void
 clear_rendstate_lists (hikaru_renderer_t *hr)
 {
 	vk_vector_clear_fast (hr->states.viewports);
+	vk_vector_clear_fast (hr->states.modelviews);
+	vk_vector_clear_fast (hr->states.materials);
+	vk_vector_clear_fast (hr->states.texheads);
+	vk_vector_clear_fast (hr->states.lightsets);
 }
 
 /* TODO check if more fine-grained dirty tracking can help. */
 static void
-update_current_rendstate (hikaru_renderer_t *hr)
+update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_gpu_viewport_t *vp = &VP.scratch;
+	hikaru_gpu_material_t *mat = &MAT.scratch;
+	hikaru_gpu_texhead_t *tex = &TEX.scratch;
+	hikaru_gpu_lightset_t *ls = &LIT.scratchset;
 
 	if (vp->dirty) {
 		vp->dirty = 0;
 		VK_VECTOR_APPEND (hr->states.viewports, hikaru_gpu_viewport_t, *vp);
-		hr->states.rs.vp = (hikaru_gpu_viewport_t *) VK_VECTOR_LAST (hr->states.viewports);
 	}
+
+	if (MV.total) {
+		MV.total = 0;
+		/* TODO append all modelviews. */
+		VK_VECTOR_APPEND (hr->states.modelviews, hikaru_gpu_modelview_t, MV.table[0]);
+	}
+
+	if (mat->dirty) {
+		mat->dirty = 0;
+		VK_VECTOR_APPEND (hr->states.materials, hikaru_gpu_material_t, *mat);
+	}
+
+	if (tex->dirty) {
+		tex->dirty = 0;
+		VK_VECTOR_APPEND (hr->states.texheads, hikaru_gpu_texhead_t, *tex);
+	}
+
+	if (ls->dirty) {
+		ls->dirty = 0;
+		VK_VECTOR_APPEND (hr->states.lightsets, hikaru_gpu_lightset_t, *ls);
+	}
+
+	mesh->rs.vp =
+		(hikaru_gpu_viewport_t *) VK_VECTOR_LAST (hr->states.viewports);
+	mesh->rs.mv =
+		(hikaru_gpu_modelview_t *) VK_VECTOR_LAST (hr->states.modelviews);
+	mesh->rs.mat =
+		(hikaru_gpu_material_t *) VK_VECTOR_LAST (hr->states.viewports);
+	mesh->rs.tex =
+		(hikaru_gpu_texhead_t *) VK_VECTOR_LAST (hr->states.texheads);
+	mesh->rs.ls =
+		(hikaru_gpu_lightset_t *) VK_VECTOR_LAST (hr->states.lightsets);
 }
 
 /****************************************************************************
@@ -455,10 +518,9 @@ upload_current_lightset (hikaru_renderer_t *hr)
 		if (ls->mask & (1 << i))
 			continue;
 
-		lt = &LIT.table[ls->index[i]];
-
+		lt = &ls->lights[i];
 		if (!is_light_set (lt)) {
-			VK_ERROR ("attempting to use unset light %u!", ls->index[i]);
+			VK_ERROR ("attempting to use unset light!");
 			continue;
 		}
 
@@ -880,15 +942,13 @@ hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
 	if (hr->debug.flags[HR_DEBUG_NO_3D])
 		return;
 
-	/* Update the current rendering state. */
-	update_current_rendstate (hr);
-
 	/* Create a new mesh. */
 	mesh = hikaru_mesh_new ();
 	VK_ASSERT (mesh);
 	mesh->addr[0] = addr;
 
 	hr->meshes.current = mesh;
+	//update_and_set_rendstate (hr, mesh);
 
 	/* Clear the push buffer. */
 	hr->push.num_verts = 0;

@@ -1888,10 +1888,10 @@ I (0x064)
 
 	ls = &LIT.sets[index];
 
-	ls->index[0] = inst[1] & (NUM_LIGHTS - 1);
-	ls->index[1] = (inst[1] >> 16) & (NUM_LIGHTS - 1);
-	ls->index[2] = inst[2] & (NUM_LIGHTS - 1);
-	ls->index[3] = (inst[2] >> 16) & (NUM_LIGHTS - 1);
+	ls->lights[0] = LIT.table[inst[1] & (NUM_LIGHTS - 1)];
+	ls->lights[1] = LIT.table[(inst[1] >> 16) & (NUM_LIGHTS - 1)];
+	ls->lights[2] = LIT.table[inst[2] & (NUM_LIGHTS - 1)];
+	ls->lights[3] = LIT.table[(inst[2] >> 16) & (NUM_LIGHTS - 1)];
 	ls->set = 1;
 }
 

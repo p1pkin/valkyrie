@@ -47,6 +47,7 @@ typedef struct {
 	hikaru_gpu_modelview_t	*mv;
 	hikaru_gpu_material_t	*mat;
 	hikaru_gpu_texhead_t	*tex;
+	hikaru_gpu_lightset_t	*ls;
 	float			 alpha_thresh[2];
 } hikaru_rendstate_t;
 
@@ -63,8 +64,11 @@ typedef struct {
 	hikaru_gpu_t *gpu;
 
 	struct {
-		hikaru_rendstate_t	 rs;
 		vk_vector_t		*viewports;
+		vk_vector_t		*modelviews;
+		vk_vector_t		*materials;
+		vk_vector_t		*texheads;
+		vk_vector_t		*lightsets;
 	} states;
 
 	struct {

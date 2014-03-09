@@ -243,7 +243,7 @@ typedef struct {
 	(((lit_)->flags & 0x1F) == 0x1F)
 
 typedef struct {
-	uint16_t index[4];
+	hikaru_gpu_light_t lights[4];
 	union {
 		struct {
 			uint32_t set	: 1;
