@@ -918,14 +918,16 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	glLoadIdentity ();
 
 	/* Draw the background layers. */
-	hikaru_renderer_draw_layers (renderer, true);
+	hikaru_renderer_draw_layers (hr, true);
 }
 
 static void
 hikaru_renderer_end_frame (vk_renderer_t *renderer)
 {
+	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
 	/* Draw the foreground layers. */
-	hikaru_renderer_draw_layers (renderer, false);
+	hikaru_renderer_draw_layers (hr, false);
 }
 
 static void
