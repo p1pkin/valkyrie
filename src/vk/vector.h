@@ -35,6 +35,9 @@ void		 vk_vector_append (vk_vector_t *vector, void *key);
 void		 vk_vector_clear (vk_vector_t *vector);
 void		 vk_vector_clear_fast (vk_vector_t *vector);
 
+#define VK_VECTOR_LAST(vector_) \
+	&(vector_)->data[(vector_)->used - (vector_)->element_size]
+
 #define VK_VECTOR_APPEND(vector_, type_, element_) \
 	do { \
 		*((type_ *) vk_vector_append_entry (vector_)) = (element_); \

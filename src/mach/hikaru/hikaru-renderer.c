@@ -113,6 +113,20 @@ clear_rendstate_lists (hikaru_renderer_t *hr)
 	vk_vector_clear_fast (hr->states.viewports);
 }
 
+/* TODO check if more fine-grained dirty tracking can help. */
+static void
+update_current_rendstate (hikaru_renderer_t *hr)
+{
+	hikaru_gpu_t *gpu = hr->gpu;
+	hikaru_gpu_viewport_t *vp = &VP.scratch;
+
+	if (vp->dirty) {
+		vp->dirty = 0;
+		VK_VECTOR_APPEND (hr->states.viewports, hikaru_gpu_viewport_t, *vp);
+		hr->states.rs.vp = (hikaru_gpu_viewport_t *) VK_VECTOR_LAST (hr->states.viewports);
+	}
+}
+
 /****************************************************************************
  Viewports
 ****************************************************************************/
@@ -865,6 +879,9 @@ hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
 
 	if (hr->debug.flags[HR_DEBUG_NO_3D])
 		return;
+
+	/* Update the current rendering state. */
+	update_current_rendstate (hr);
 
 	/* Create a new mesh. */
 	mesh = hikaru_mesh_new ();

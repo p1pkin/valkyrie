@@ -51,9 +51,10 @@ typedef struct {
 } hikaru_rendstate_t;
 
 typedef struct {
-	GLuint vbo;
-	uint32_t num_tris;
-	uint32_t addr[2];
+	GLuint			vbo;
+	uint32_t		num_tris;
+	uint32_t		addr[2];
+	hikaru_rendstate_t	rs;
 } hikaru_mesh_t;
 
 typedef struct {
@@ -62,7 +63,8 @@ typedef struct {
 	hikaru_gpu_t *gpu;
 
 	struct {
-		vk_vector_t	*viewports;
+		hikaru_rendstate_t	 rs;
+		vk_vector_t		*viewports;
 	} states;
 
 	struct {
