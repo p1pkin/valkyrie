@@ -88,7 +88,7 @@ typedef struct {
 			uint32_t has_621	: 1;
 			uint32_t has_011	: 1;
 			uint32_t has_191	: 1;
-			uint32_t set		: 1;
+			uint32_t dirty		: 1;
 		};
 		uint32_t flags;
 	};
