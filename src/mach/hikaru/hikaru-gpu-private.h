@@ -94,11 +94,8 @@ typedef struct {
 	};
 } hikaru_gpu_viewport_t;
 
-static bool
-is_viewport_set (hikaru_gpu_viewport_t *vp)
-{
-	return (vp->flags & 0x3F) == 0x3F;
-}
+#define is_viewport_set(vp_) \
+	(((vp_)->flags & 0x3F) == 0x3F)
 
 typedef struct {
 	mtx4x4f_t mtx;
@@ -165,11 +162,8 @@ typedef struct {
 	};
 } hikaru_gpu_material_t;
 
-static bool
-is_material_set (hikaru_gpu_material_t *mat)
-{
-	return (mat->flags & 0xEF) == 0xEF;
-}
+#define is_material_set(mat_) \
+	(((mat_)->flags & 0xEF) == 0xEF)
 
 typedef struct {
 	union {
@@ -219,11 +213,8 @@ typedef struct {
 	};
 } hikaru_gpu_texhead_t;
 
-static bool
-is_texhead_set (hikaru_gpu_texhead_t *th)
-{
-	return (th->flags & 7) == 7;
-}
+#define is_texhead_set(th_) \
+	(((th_)->flags & 7) == 7)
 
 typedef struct {
 	vec3f_t position;
@@ -248,11 +239,8 @@ typedef struct {
 	};
 } hikaru_gpu_light_t;
 
-static bool
-is_light_set (hikaru_gpu_light_t *lit)
-{
-	return (lit->flags & 0x1F) == 0x1F;
-}
+#define is_light_set(lit_) \
+	(((lit_)->flags & 0x1F) == 0x1F)
 
 typedef struct {
 	uint16_t index[4];
