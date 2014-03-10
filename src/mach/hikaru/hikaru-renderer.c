@@ -84,76 +84,6 @@ update_debug_flags (hikaru_renderer_t *hr)
 }
 
 /****************************************************************************
- Rendering State
-****************************************************************************/
-
-/* TODO check if more fine-grained uploaded tracking can help. */
-/* TODO check boundary conditions when nothing is uploaded in a frame. */
-static void
-update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
-{
-	hikaru_gpu_t *gpu = hr->gpu;
-	hikaru_gpu_viewport_t *vp = &VP.scratch;
-	hikaru_gpu_modelview_t *mv = NULL;
-	hikaru_gpu_material_t *mat = &MAT.scratch;
-	hikaru_gpu_texhead_t *tex = &TEX.scratch;
-	hikaru_gpu_lightset_t *ls = &LIT.scratchset;
-
-	LOG ("updating rendstate...");
-
-	if (vp->uploaded) {
-		vp->uploaded = 0;
-		vp->dirty = 1;
-		VK_VECTOR_APPEND (hr->states.viewports, hikaru_gpu_viewport_t, *vp);
-		LOG ("updated vp");
-	}
-
-	if (MV.total) {
-		MV.total = 0;
-		MV.depth = 0;
-		/* TODO append all modelviews. */
-		VK_VECTOR_APPEND (hr->states.modelviews, hikaru_gpu_modelview_t, MV.table[0]);
-		mv = (hikaru_gpu_modelview_t *) VK_VECTOR_LAST (hr->states.modelviews);
-		LOG ("updated mv");
-	} else
-		mv = NULL;
-
-	if (mat->uploaded) {
-		mat->uploaded = 0;
-		mat->dirty = 1;
-		VK_VECTOR_APPEND (hr->states.materials, hikaru_gpu_material_t, *mat);
-		LOG ("updated mat");
-	}
-
-	if (tex->uploaded) {
-		tex->uploaded = 0;
-		tex->dirty = 1;
-		VK_VECTOR_APPEND (hr->states.texheads, hikaru_gpu_texhead_t, *tex);
-		LOG ("updated tex");
-	}
-
-	if (ls->uploaded) {
-		ls->uploaded = 0;
-		ls->dirty = 1;
-		VK_VECTOR_APPEND (hr->states.lightsets, hikaru_gpu_lightset_t, *ls);
-		LOG ("updated ls");
-	}
-
-	mesh->vp =
-		(hikaru_gpu_viewport_t *) VK_VECTOR_LAST (hr->states.viewports);
-	mesh->mv = mv;
-	mesh->mat =
-		(hikaru_gpu_material_t *) VK_VECTOR_LAST (hr->states.materials);
-	mesh->tex =
-		(hikaru_gpu_texhead_t *) VK_VECTOR_LAST (hr->states.texheads);
-	mesh->ls =
-		(hikaru_gpu_lightset_t *) VK_VECTOR_LAST (hr->states.lightsets);
-
-	LOG ("rendstate = { vp=%p mv=%p mat=%p tex=%p ls=%p }",
-	     mesh->vp, mesh->mv, mesh->mat, mesh->tex, mesh->ls);
-}
-
-/****************************************************************************
  Viewports
 ****************************************************************************/
 
@@ -883,6 +813,71 @@ hikaru_mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
 }
 
+/* TODO check if more fine-grained uploaded tracking can help. */
+/* TODO check boundary conditions when nothing is uploaded in a frame. */
+static void
+update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+{
+	hikaru_gpu_t *gpu = hr->gpu;
+	hikaru_gpu_viewport_t *vp = &VP.scratch;
+	hikaru_gpu_modelview_t *mv = NULL;
+	hikaru_gpu_material_t *mat = &MAT.scratch;
+	hikaru_gpu_texhead_t *tex = &TEX.scratch;
+	hikaru_gpu_lightset_t *ls = &LIT.scratchset;
+
+	LOG ("updating rendstate...");
+
+	if (vp->uploaded) {
+		vp->uploaded = 0;
+		vp->dirty = 1;
+		VK_VECTOR_APPEND (hr->states.viewports, hikaru_gpu_viewport_t, *vp);
+		LOG ("updated vp");
+	}
+
+	if (MV.total) {
+		MV.total = 0;
+		MV.depth = 0;
+		/* TODO append all modelviews. */
+		VK_VECTOR_APPEND (hr->states.modelviews, hikaru_gpu_modelview_t, MV.table[0]);
+		mv = (hikaru_gpu_modelview_t *) VK_VECTOR_LAST (hr->states.modelviews);
+		LOG ("updated mv");
+	} else
+		mv = NULL;
+
+	if (mat->uploaded) {
+		mat->uploaded = 0;
+		mat->dirty = 1;
+		VK_VECTOR_APPEND (hr->states.materials, hikaru_gpu_material_t, *mat);
+		LOG ("updated mat");
+	}
+
+	if (tex->uploaded) {
+		tex->uploaded = 0;
+		tex->dirty = 1;
+		VK_VECTOR_APPEND (hr->states.texheads, hikaru_gpu_texhead_t, *tex);
+		LOG ("updated tex");
+	}
+
+	if (ls->uploaded) {
+		ls->uploaded = 0;
+		ls->dirty = 1;
+		VK_VECTOR_APPEND (hr->states.lightsets, hikaru_gpu_lightset_t, *ls);
+		LOG ("updated ls");
+	}
+
+	mesh->vp =
+		(hikaru_gpu_viewport_t *) VK_VECTOR_LAST (hr->states.viewports);
+	mesh->mv = mv;
+	mesh->mat =
+		(hikaru_gpu_material_t *) VK_VECTOR_LAST (hr->states.materials);
+	mesh->tex =
+		(hikaru_gpu_texhead_t *) VK_VECTOR_LAST (hr->states.texheads);
+	mesh->ls =
+		(hikaru_gpu_lightset_t *) VK_VECTOR_LAST (hr->states.lightsets);
+
+	LOG ("rendstate = { vp=%p mv=%p mat=%p tex=%p ls=%p }",
+	     mesh->vp, mesh->mv, mesh->mat, mesh->tex, mesh->ls);
+}
 
 void
 hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
