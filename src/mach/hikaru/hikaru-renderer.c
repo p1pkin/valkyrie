@@ -102,36 +102,6 @@ destroy_rendstate_lists (hikaru_renderer_t *hr)
 		vk_vector_destroy (&hr->states.lightsets);
 }
 
-static int
-build_rendstate_lists (hikaru_renderer_t *hr)
-{
-	hr->states.viewports = vk_vector_new (8, sizeof (hikaru_gpu_viewport_t));
-	if (!hr->states.viewports)
-		goto fail;
-
-	hr->states.modelviews = vk_vector_new (8, sizeof (hikaru_gpu_modelview_t));
-	if (!hr->states.modelviews)
-		goto fail;
-
-	hr->states.materials = vk_vector_new (8, sizeof (hikaru_gpu_material_t));
-	if (!hr->states.materials)
-		goto fail;
-
-	hr->states.texheads = vk_vector_new (8, sizeof (hikaru_gpu_texhead_t));
-	if (!hr->states.texheads)
-		goto fail;
-
-	hr->states.lightsets = vk_vector_new (8, sizeof (hikaru_gpu_lightset_t));
-	if (!hr->states.lightsets)
-		goto fail;
-
-	return 0;
-
-fail:
-	destroy_rendstate_lists (hr);
-	return -1;
-}
-
 static void
 print_rendstate_statistics (hikaru_renderer_t *hr)
 {
@@ -1084,7 +1054,24 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 	if (ret)
 		goto fail;
 
-	if (build_rendstate_lists (hr))
+	hr->states.viewports = vk_vector_new (8, sizeof (hikaru_gpu_viewport_t));
+	if (!hr->states.viewports)
+		goto fail;
+
+	hr->states.modelviews = vk_vector_new (8, sizeof (hikaru_gpu_modelview_t));
+	if (!hr->states.modelviews)
+		goto fail;
+
+	hr->states.materials = vk_vector_new (8, sizeof (hikaru_gpu_material_t));
+	if (!hr->states.materials)
+		goto fail;
+
+	hr->states.texheads = vk_vector_new (8, sizeof (hikaru_gpu_texhead_t));
+	if (!hr->states.texheads)
+		goto fail;
+
+	hr->states.lightsets = vk_vector_new (8, sizeof (hikaru_gpu_lightset_t));
+	if (!hr->states.lightsets)
 		goto fail;
 
 	init_debug_flags (hr);
