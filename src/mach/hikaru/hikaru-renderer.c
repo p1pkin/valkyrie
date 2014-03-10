@@ -87,17 +87,6 @@ update_debug_flags (hikaru_renderer_t *hr)
  Rendering State
 ****************************************************************************/
 
-static void
-print_rendstate_statistics (hikaru_renderer_t *hr)
-{
-	LOG (" ==== RENDSTATE STATISTICS ==== ");
-	LOG ("  vp  : %u", hr->states.viewports->used / sizeof (hikaru_gpu_viewport_t));
-	LOG ("  mv  : %u", hr->states.modelviews->used / sizeof (hikaru_gpu_modelview_t));
-	LOG ("  mat : %u", hr->states.materials->used / sizeof (hikaru_gpu_material_t));
-	LOG ("  tex : %u", hr->states.texheads->used / sizeof (hikaru_gpu_texhead_t));
-	LOG ("  ls  : %u", hr->states.lightsets->used / sizeof (hikaru_gpu_lightset_t));
-}
-
 /* TODO check if more fine-grained uploaded tracking can help. */
 /* TODO check boundary conditions when nothing is uploaded in a frame. */
 static void
@@ -981,7 +970,12 @@ hikaru_renderer_end_frame (vk_renderer_t *renderer)
 	/* Draw the foreground layers. */
 	hikaru_renderer_draw_layers (hr, false);
 
-	print_rendstate_statistics (hr);
+	LOG (" ==== RENDSTATE STATISTICS ==== ");
+	LOG ("  vp  : %u", hr->states.viewports->used / sizeof (hikaru_gpu_viewport_t));
+	LOG ("  mv  : %u", hr->states.modelviews->used / sizeof (hikaru_gpu_modelview_t));
+	LOG ("  mat : %u", hr->states.materials->used / sizeof (hikaru_gpu_material_t));
+	LOG ("  tex : %u", hr->states.texheads->used / sizeof (hikaru_gpu_texhead_t));
+	LOG ("  ls  : %u", hr->states.lightsets->used / sizeof (hikaru_gpu_lightset_t));
 }
 
 static void
