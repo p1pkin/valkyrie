@@ -73,6 +73,7 @@ on_frame_begin (hikaru_gpu_t *gpu)
 	VP.depth = 0;
 	VP.scratch.flags = 0;
 	VP.scratch.uploaded = 1;
+	VP.scratch.dirty = 1;
 
 	MV.depth = 0;
 	MV.total = 0;
@@ -80,16 +81,19 @@ on_frame_begin (hikaru_gpu_t *gpu)
 	MAT.base = 0;
 	MAT.scratch.flags = 0;
 	MAT.scratch.uploaded = 1;
+	MAT.scratch.dirty = 1;
 
 	TEX.base = 0;
 	TEX.scratch.flags = 0;
 	TEX.scratch.uploaded = 1;
+	TEX.scratch.dirty = 1;
 
 	LIT.base = 0;
 	LIT.scratch.flags = 0;
 	LIT.scratch.uploaded = 1;
 	LIT.scratchset.flags = 0;
 	LIT.scratchset.uploaded = 1;
+	LIT.scratchset.dirty = 1;
 }
 
 static void

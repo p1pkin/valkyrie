@@ -169,6 +169,7 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	if (vp->uploaded) {
 		vp->uploaded = 0;
+		vp->dirty = 1;
 		VK_VECTOR_APPEND (hr->states.viewports, hikaru_gpu_viewport_t, *vp);
 		LOG ("updated vp");
 	}
@@ -185,18 +186,21 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	if (mat->uploaded) {
 		mat->uploaded = 0;
+		mat->dirty = 1;
 		VK_VECTOR_APPEND (hr->states.materials, hikaru_gpu_material_t, *mat);
 		LOG ("updated mat");
 	}
 
 	if (tex->uploaded) {
 		tex->uploaded = 0;
+		tex->dirty = 1;
 		VK_VECTOR_APPEND (hr->states.texheads, hikaru_gpu_texhead_t, *tex);
 		LOG ("updated tex");
 	}
 
 	if (ls->uploaded) {
 		ls->uploaded = 0;
+		ls->dirty = 1;
 		VK_VECTOR_APPEND (hr->states.lightsets, hikaru_gpu_lightset_t, *ls);
 		LOG ("updated ls");
 	}
@@ -254,6 +258,11 @@ upload_current_viewport (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 	const float dcx = vp->offset.x - (w / 2.0f);
 	const float dcy = vp->offset.y - (h / 2.0f);
 
+	if (!vp->dirty)
+		return;
+
+	vp->dirty = 0;
+
 	LOG ("vp  = %s : [w=%f h=%f dcx=%f dcy=%f]",
 	     get_gpu_viewport_str (vp), w, h, dcx, dcy);
 
@@ -294,6 +303,12 @@ upload_current_material_texhead (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 {
 	hikaru_gpu_material_t *mat = rs->mat;
 	hikaru_gpu_texhead_t *th = rs->tex;
+
+	if (!mat->dirty && !th->dirty)
+		return;
+
+	mat->dirty = 0;
+	th->dirty = 0;
 
 	LOG ("mat = %s", get_gpu_material_str (mat));
 	if (is_material_set (mat) && mat->has_texture)
@@ -491,6 +506,11 @@ upload_current_lightset (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 
 	if (hr->debug.flags[HR_DEBUG_NO_LIGHTING])
 		goto disable;
+
+	if (!ls->dirty)
+		return;
+
+	ls->dirty = 0;
 
 	if (!ls->set) {
 		VK_ERROR ("attempting to use unset lightset!");
