@@ -146,11 +146,11 @@ static void
 print_rendstate_statistics (hikaru_renderer_t *hr)
 {
 	LOG (" ==== RENDSTATE STATISTICS ==== ");
-	LOG ("  vp  : %u\n", hr->states.viewports->used / sizeof (hikaru_gpu_viewport_t));
-	LOG ("  mv  : %u\n", hr->states.modelviews->used / sizeof (hikaru_gpu_modelview_t));
-	LOG ("  mat : %u\n", hr->states.materials->used / sizeof (hikaru_gpu_material_t));
-	LOG ("  tex : %u\n", hr->states.texheads->used / sizeof (hikaru_gpu_texhead_t));
-	LOG ("  ls  : %u\n", hr->states.lightsets->used / sizeof (hikaru_gpu_lightset_t));
+	LOG ("  vp  : %u", hr->states.viewports->used / sizeof (hikaru_gpu_viewport_t));
+	LOG ("  mv  : %u", hr->states.modelviews->used / sizeof (hikaru_gpu_modelview_t));
+	LOG ("  mat : %u", hr->states.materials->used / sizeof (hikaru_gpu_material_t));
+	LOG ("  tex : %u", hr->states.texheads->used / sizeof (hikaru_gpu_texhead_t));
+	LOG ("  ls  : %u", hr->states.lightsets->used / sizeof (hikaru_gpu_lightset_t));
 }
 
 /* TODO check if more fine-grained dirty tracking can help. */
@@ -160,13 +160,17 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_gpu_viewport_t *vp = &VP.scratch;
+	hikaru_gpu_modelview_t *mv = NULL;
 	hikaru_gpu_material_t *mat = &MAT.scratch;
 	hikaru_gpu_texhead_t *tex = &TEX.scratch;
 	hikaru_gpu_lightset_t *ls = &LIT.scratchset;
 
+	LOG ("updating rendstate...");
+
 	if (vp->dirty) {
 		vp->dirty = 0;
 		VK_VECTOR_APPEND (hr->states.viewports, hikaru_gpu_viewport_t, *vp);
+		LOG ("updated vp");
 	}
 
 	if (MV.total) {
@@ -174,33 +178,41 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		MV.depth = 0;
 		/* TODO append all modelviews. */
 		VK_VECTOR_APPEND (hr->states.modelviews, hikaru_gpu_modelview_t, MV.table[0]);
-	}
+		mv = (hikaru_gpu_modelview_t *) VK_VECTOR_LAST (hr->states.modelviews);
+		LOG ("updated mv");
+	} else
+		mv = NULL;
 
 	if (mat->dirty) {
 		mat->dirty = 0;
 		VK_VECTOR_APPEND (hr->states.materials, hikaru_gpu_material_t, *mat);
+		LOG ("updated mat");
 	}
 
 	if (tex->dirty) {
 		tex->dirty = 0;
 		VK_VECTOR_APPEND (hr->states.texheads, hikaru_gpu_texhead_t, *tex);
+		LOG ("updated tex");
 	}
 
 	if (ls->dirty) {
 		ls->dirty = 0;
 		VK_VECTOR_APPEND (hr->states.lightsets, hikaru_gpu_lightset_t, *ls);
+		LOG ("updated ls");
 	}
 
 	mesh->rs.vp =
 		(hikaru_gpu_viewport_t *) VK_VECTOR_LAST (hr->states.viewports);
-	mesh->rs.mv =
-		(hikaru_gpu_modelview_t *) VK_VECTOR_LAST (hr->states.modelviews);
+	mesh->rs.mv = mv;
 	mesh->rs.mat =
-		(hikaru_gpu_material_t *) VK_VECTOR_LAST (hr->states.viewports);
+		(hikaru_gpu_material_t *) VK_VECTOR_LAST (hr->states.materials);
 	mesh->rs.tex =
 		(hikaru_gpu_texhead_t *) VK_VECTOR_LAST (hr->states.texheads);
 	mesh->rs.ls =
 		(hikaru_gpu_lightset_t *) VK_VECTOR_LAST (hr->states.lightsets);
+
+	LOG ("rendstate = { vp=%p mv=%p mat=%p tex=%p ls=%p }",
+	     mesh->rs.vp, mesh->rs.mv, mesh->rs.mat, mesh->rs.tex, mesh->rs.ls);
 }
 
 /****************************************************************************
@@ -266,12 +278,12 @@ upload_current_viewport (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 static void
 upload_current_modelview (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 {
-	hikaru_gpu_modelview_t *mv = rs->mv;
+	LOG ("mv  = %s", get_gpu_modelview_str (rs->mv));
 
-	LOG ("mv  = %s", get_gpu_modelview_str (mv));
-
-	glMatrixMode (GL_MODELVIEW);
-	glLoadMatrixf ((GLfloat *) &mv->mtx[0][0]);
+	if (rs->mv) {
+		glMatrixMode (GL_MODELVIEW);
+		glLoadMatrixf ((GLfloat *) &rs->mv->mtx[0][0]);
+	}
 }
 
 /****************************************************************************
