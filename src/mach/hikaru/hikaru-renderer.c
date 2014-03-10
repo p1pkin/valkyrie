@@ -133,16 +133,6 @@ fail:
 }
 
 static void
-clear_rendstate_lists (hikaru_renderer_t *hr)
-{
-	vk_vector_clear_fast (hr->states.viewports);
-	vk_vector_clear_fast (hr->states.modelviews);
-	vk_vector_clear_fast (hr->states.materials);
-	vk_vector_clear_fast (hr->states.texheads);
-	vk_vector_clear_fast (hr->states.lightsets);
-}
-
-static void
 print_rendstate_statistics (hikaru_renderer_t *hr)
 {
 	LOG (" ==== RENDSTATE STATISTICS ==== ");
@@ -1008,7 +998,11 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	clear_rendstate_lists (hr);
+	vk_vector_clear_fast (hr->states.viewports);
+	vk_vector_clear_fast (hr->states.modelviews);
+	vk_vector_clear_fast (hr->states.materials);
+	vk_vector_clear_fast (hr->states.texheads);
+	vk_vector_clear_fast (hr->states.lightsets);
 
 	/* Fill in the debug stuff. */
 	update_debug_flags (hr);
