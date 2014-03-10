@@ -274,7 +274,6 @@ upload_current_viewport (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
  Modelviews
 ****************************************************************************/
 
-/* TODO track dirty state */
 static void
 upload_current_modelview (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 {
@@ -482,7 +481,6 @@ get_material_specular (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float 
 	}
 }
 
-/* TODO track dirty state */
 static void
 upload_current_lightset (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 {
