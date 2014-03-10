@@ -394,16 +394,16 @@ typedef union {
 		uint32_t winding	: 1; /* 0x00000001 */
 		uint32_t ppivot		: 1; /* 0x00000002 */
 		uint32_t tpivot		: 1; /* 0x00000004 */
-		uint32_t padding1	: 6;
+		uint32_t		: 6;
 		uint32_t tricap		: 3; /* 0x00000E00 */
 		uint32_t unknown1	: 1; /* 0x00001000 */
 		uint32_t unknown2	: 3; /* 0x0000E000 */
-		uint32_t padding2	: 3;
+		uint32_t		: 3;
 		uint32_t unknown3	: 1; /* 0x00080000 */
-		uint32_t padding3	: 3;
+		uint32_t		: 3;
 		uint32_t unknown4	: 1; /* 0x00800000 */
 		uint32_t alpha		: 8; /* 0xFF000000 */
-	} bit;
+	};
 	uint32_t full;
 } hikaru_gpu_vertex_info_t;
 

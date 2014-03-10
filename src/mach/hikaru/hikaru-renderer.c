@@ -527,7 +527,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 	hikaru_material_t *mat = &MAT.scratch;
 	float base_alpha = POLY.alpha;
 	float mat_alpha = mat->diffuse[3] * INV255;
-	float vertex_alpha = src->info.bit.alpha;
+	float vertex_alpha = src->info.alpha;
 
 	/* XXX at the moment we use only color 1 (it's responsible for the
 	 * BOOTROM CRT test). */
@@ -604,7 +604,7 @@ add_triangle (hikaru_renderer_t *hr)
 
 		VK_ASSERT ((index + 2) < MAX_VERTICES_PER_MESH);
 
-		if (hr->push.tmp[2].info.bit.winding) {
+		if (hr->push.tmp[2].info.winding) {
 			dst[0] = hr->push.tmp[0];
 			dst[1] = hr->push.tmp[2];
 			dst[2] = hr->push.tmp[1];
@@ -629,7 +629,7 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 	VK_ASSERT (hr);
 	VK_ASSERT (v);
 	VK_ASSERT (num == 1 || num == 3);
-	VK_ASSERT (v->info.bit.tricap == 0 || v->info.bit.tricap == 7);
+	VK_ASSERT (v->info.tricap == 0 || v->info.tricap == 7);
 
 	if (hr->debug.flags[HR_DEBUG_NO_3D])
 		return;
@@ -650,7 +650,7 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 		if (flags & HR_PUSH_POS) {
 
 			/* Do not change the pivot if it is not required */
-			if (!v->info.bit.ppivot)
+			if (!v->info.ppivot)
 				hr->push.tmp[0] = hr->push.tmp[1];
 			hr->push.tmp[1] = hr->push.tmp[2];
 			memset ((void *) &hr->push.tmp[2], 0, sizeof (hikaru_vertex_t));
@@ -697,7 +697,7 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 	}
 
 	/* Finish the previous triangle. */
-	if (v[0].info.bit.tricap == 7) {
+	if (v[0].info.tricap == 7) {
 		hr->push.tmp[2].info.full = v[0].info.full;
 		add_triangle (hr);
 	}

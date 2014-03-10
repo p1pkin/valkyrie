@@ -148,8 +148,8 @@ get_vertex_str (hikaru_vertex_t *v)
 	char *tmp = &out[0];
 
 	tmp += sprintf (tmp, "[T=%X t=%u p=%u w=%u] ",
-	                v->info.bit.tricap, v->info.bit.tpivot,
-	                v->info.bit.ppivot, v->info.bit.winding);
+	                v->info.tricap, v->info.tpivot,
+	                v->info.ppivot, v->info.winding);
 
 	tmp += sprintf (tmp, "(X: %5.3f %5.3f %5.3f) ",
 	                v->pos[0], v->pos[1], v->pos[2]);
