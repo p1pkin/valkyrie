@@ -88,21 +88,6 @@ update_debug_flags (hikaru_renderer_t *hr)
 ****************************************************************************/
 
 static void
-destroy_rendstate_lists (hikaru_renderer_t *hr)
-{
-	if (hr->states.viewports)
-		vk_vector_destroy (&hr->states.viewports);
-	if (hr->states.modelviews)
-		vk_vector_destroy (&hr->states.modelviews);
-	if (hr->states.materials)
-		vk_vector_destroy (&hr->states.materials);
-	if (hr->states.texheads)
-		vk_vector_destroy (&hr->states.texheads);
-	if (hr->states.lightsets)
-		vk_vector_destroy (&hr->states.lightsets);
-}
-
-static void
 print_rendstate_statistics (hikaru_renderer_t *hr)
 {
 	LOG (" ==== RENDSTATE STATISTICS ==== ");
@@ -1011,7 +996,16 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 	if (renderer_) {
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
 
-		destroy_rendstate_lists (hr);
+		if (hr->states.viewports)
+			vk_vector_destroy (&hr->states.viewports);
+		if (hr->states.modelviews)
+			vk_vector_destroy (&hr->states.modelviews);
+		if (hr->states.materials)
+			vk_vector_destroy (&hr->states.materials);
+		if (hr->states.texheads)
+			vk_vector_destroy (&hr->states.texheads);
+		if (hr->states.lightsets)
+			vk_vector_destroy (&hr->states.lightsets);
 		vk_surface_destroy (&hr->textures.debug);
 		hikaru_renderer_invalidate_texcache (*renderer_, NULL);
 	}
