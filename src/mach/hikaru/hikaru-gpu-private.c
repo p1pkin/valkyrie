@@ -56,13 +56,14 @@ get_gpu_viewport_str (hikaru_gpu_viewport_t *vp)
 {
 	static char out[512];
 
-	sprintf (out, "clip=(%6.3f %6.3f %6.3f %6.3f %6.3f %6.3f) offs=(%6.3f %6.3f) depth=(%s %6.3f %6.3f)",
+	sprintf (out, "clip=(%6.3f %6.3f %6.3f %6.3f %6.3f %6.3f) offs=(%6.3f %6.3f) depth=(%s %6.3f %6.3f) [%X]",
 	         vp->clip.l, vp->clip.r,
 	         vp->clip.b, vp->clip.t,
 	         vp->clip.f, vp->clip.n,
 	         vp->offset.x, vp->offset.y,
 	         depth_func_name [vp->depth.func],
-	         vp->depth.min, vp->depth.max);
+	         vp->depth.min, vp->depth.max,
+	         vp->flags);
 
 	return (const char *) out;
 }

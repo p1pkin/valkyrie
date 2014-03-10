@@ -96,7 +96,7 @@ typedef struct {
 } hikaru_gpu_viewport_t;
 
 #define is_viewport_set(vp_) \
-	(((vp_)->flags & 0x3F) == 0x3F)
+	(((vp_)->flags & 0x27) == 0x27)
 
 typedef struct {
 	mtx4x4f_t mtx;
