@@ -95,9 +95,6 @@ typedef struct {
 	};
 } hikaru_viewport_t;
 
-#define is_viewport_set(vp_) \
-	(((vp_)->flags & 0x27) == 0x27)
-
 typedef struct {
 	mtx4x4f_t mtx;
 } hikaru_modelview_t;
@@ -164,9 +161,6 @@ typedef struct {
 	};
 } hikaru_material_t;
 
-#define is_material_set(mat_) \
-	(((mat_)->flags & 0xEF) == 0xEF)
-
 typedef struct {
 	union {
 		struct {
@@ -216,8 +210,23 @@ typedef struct {
 	};
 } hikaru_texhead_t;
 
-#define is_texhead_set(th_) \
-	(((th_)->flags & 7) == 7)
+typedef enum {
+	HIKARU_LIGHT_TYPE_DIRECTIONAL,
+	HIKARU_LIGHT_TYPE_POSITIONAL,
+	HIKARU_LIGHT_TYPE_SPOT,
+
+	HIKARU_NUM_LIGHT_TYPES
+} hikaru_light_type_t;
+
+typedef enum {
+	HIKARU_LIGHT_ATT_LINEAR = 0,
+	HIKARU_LIGHT_ATT_SQUARE = 1,
+	HIKARU_LIGHT_ATT_INVLINEAR = 2,
+	HIKARU_LIGHT_ATT_INVSQUARE = 3,
+	HIKARU_LIGHT_ATT_INF = 4,
+
+	HIKARU_NUM_LIGHT_ATTS
+} hikaru_light_att_t;
 
 typedef struct {
 	vec3f_t position;
@@ -241,9 +250,6 @@ typedef struct {
 		uint32_t flags;
 	};
 } hikaru_light_t;
-
-#define is_light_set(lit_) \
-	(((lit_)->flags & 0x1F) == 0x1F)
 
 typedef struct {
 	hikaru_light_t lights[4];

@@ -23,9 +23,7 @@
 #include "mach/hikaru/hikaru-renderer.h"
 #include "mach/hikaru/hikaru-renderer-private.h"
 
-/****************************************************************************
- Debug
-****************************************************************************/
+#define INV255	(1.0f / 255.0f)
 
 static const struct {
 	int32_t min, max;
@@ -84,8 +82,14 @@ update_debug_flags (hikaru_renderer_t *hr)
 }
 
 /****************************************************************************
- Viewports
+ State
 ****************************************************************************/
+
+static bool
+is_viewport_set (hikaru_viewport_t *vp)
+{
+	return vp && (vp->flags & 0x27) == 0x27;
+}
 
 static bool
 is_viewport_valid (hikaru_viewport_t *vp)
@@ -143,24 +147,29 @@ upload_current_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	//glDepthFunc (depth_func[vp->depth.func]);
 }
 
-/****************************************************************************
- Modelviews
-****************************************************************************/
-
 static void
 upload_current_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	LOG ("mv  = %s", get_modelview_str (mesh->mv));
 
-	if (mesh->mv) {
-		glMatrixMode (GL_MODELVIEW);
-		glLoadMatrixf ((GLfloat *) &mesh->mv->mtx[0][0]);
-	}
+	if (!mesh->mv)
+		return;
+
+	glMatrixMode (GL_MODELVIEW);
+	glLoadMatrixf ((GLfloat *) &mesh->mv->mtx[0][0]);
 }
 
-/****************************************************************************
- Materials & Texheads
-****************************************************************************/
+static bool
+is_material_set (hikaru_material_t *mat)
+{
+	return mat && (mat->flags & 0xEF) == 0xEF;
+}
+
+static bool
+is_texhead_set (hikaru_texhead_t *th)
+{
+	return th && (th->flags & 7) == 7;
+}
 
 static void
 upload_current_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
@@ -195,29 +204,11 @@ upload_current_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	}
 }
 
-/****************************************************************************
- Lights
-****************************************************************************/
-
-#define INV255	(1.0f / 255.0f)
-
-typedef enum {
-	HIKARU_LIGHT_TYPE_DIRECTIONAL,
-	HIKARU_LIGHT_TYPE_POSITIONAL,
-	HIKARU_LIGHT_TYPE_SPOT,
-
-	HIKARU_NUM_LIGHT_TYPES
-} hikaru_light_type_t;
-
-typedef enum {
-	HIKARU_LIGHT_ATT_LINEAR = 0,
-	HIKARU_LIGHT_ATT_SQUARE = 1,
-	HIKARU_LIGHT_ATT_INVLINEAR = 2,
-	HIKARU_LIGHT_ATT_INVSQUARE = 3,
-	HIKARU_LIGHT_ATT_INF = 4,
-
-	HIKARU_NUM_LIGHT_ATTS
-} hikaru_light_att_t;
+static bool
+is_light_set (hikaru_light_t *lit)
+{
+	return lit && (lit->flags & 0x1F) == 0x1F;
+}
 
 static hikaru_light_type_t
 get_light_type (hikaru_light_t *lit)
