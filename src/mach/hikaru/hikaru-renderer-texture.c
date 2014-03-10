@@ -46,7 +46,7 @@ get_wrap_modes (int *wrap_u, int *wrap_v, hikaru_gpu_texhead_t *th)
 }
 
 uint32_t
-rgba1111_to_rgba4444 (uint8_t pixel)
+abgr1111_to_rgba4444 (uint8_t pixel)
 {
 	static const uint32_t table[16] = {
 		0x0000, 0xF000, 0x0F00, 0xFF00,
@@ -112,21 +112,21 @@ decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 			uint32_t offs = (basey + y) * 4096 + (basex + x);
 			uint32_t texels = vk_buffer_get (texram, 4, offs);
 			vk_surface_put16 (surface, x + 0, y*2 + 0,
-			                  rgba1111_to_rgba4444 (texels >> 28));
+			                  abgr1111_to_rgba4444 (texels >> 28));
 			vk_surface_put16 (surface, x + 1, y*2 + 0,
-			                  rgba1111_to_rgba4444 (texels >> 24));
+			                  abgr1111_to_rgba4444 (texels >> 24));
 			vk_surface_put16 (surface, x + 0, y*2 + 1,
-			                  rgba1111_to_rgba4444 (texels >> 20));
+			                  abgr1111_to_rgba4444 (texels >> 20));
 			vk_surface_put16 (surface, x + 1, y*2 + 1,
-			                  rgba1111_to_rgba4444 (texels >> 16));
+			                  abgr1111_to_rgba4444 (texels >> 16));
 			vk_surface_put16 (surface, x + 2, y*2 + 0,
-			                  rgba1111_to_rgba4444 (texels >> 12));
+			                  abgr1111_to_rgba4444 (texels >> 12));
 			vk_surface_put16 (surface, x + 3, y*2 + 0,
-			                  rgba1111_to_rgba4444 (texels >>  8));
+			                  abgr1111_to_rgba4444 (texels >>  8));
 			vk_surface_put16 (surface, x + 2, y*2 + 1,
-			                  rgba1111_to_rgba4444 (texels >>  4));
+			                  abgr1111_to_rgba4444 (texels >>  4));
 			vk_surface_put16 (surface, x + 3, y*2 + 1,
-			                  rgba1111_to_rgba4444 (texels >>  0));
+			                  abgr1111_to_rgba4444 (texels >>  0));
 		}
 	}
 	return surface;
