@@ -205,18 +205,18 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		LOG ("updated ls");
 	}
 
-	mesh->rs.vp =
+	mesh->vp =
 		(hikaru_gpu_viewport_t *) VK_VECTOR_LAST (hr->states.viewports);
-	mesh->rs.mv = mv;
-	mesh->rs.mat =
+	mesh->mv = mv;
+	mesh->mat =
 		(hikaru_gpu_material_t *) VK_VECTOR_LAST (hr->states.materials);
-	mesh->rs.tex =
+	mesh->tex =
 		(hikaru_gpu_texhead_t *) VK_VECTOR_LAST (hr->states.texheads);
-	mesh->rs.ls =
+	mesh->ls =
 		(hikaru_gpu_lightset_t *) VK_VECTOR_LAST (hr->states.lightsets);
 
 	LOG ("rendstate = { vp=%p mv=%p mat=%p tex=%p ls=%p }",
-	     mesh->rs.vp, mesh->rs.mv, mesh->rs.mat, mesh->rs.tex, mesh->rs.ls);
+	     mesh->vp, mesh->mv, mesh->mat, mesh->tex, mesh->ls);
 }
 
 /****************************************************************************
@@ -247,9 +247,9 @@ is_viewport_valid (hikaru_gpu_viewport_t *vp)
 }
 
 static void
-upload_current_viewport (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
+upload_current_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_gpu_viewport_t *vp = rs->vp;
+	hikaru_gpu_viewport_t *vp = mesh->vp;
 
 	const float h = vp->clip.t - vp->clip.b;
 	const float w = vp->clip.r - vp->clip.l;
@@ -284,13 +284,13 @@ upload_current_viewport (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 ****************************************************************************/
 
 static void
-upload_current_modelview (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
+upload_current_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	LOG ("mv  = %s", get_gpu_modelview_str (rs->mv));
+	LOG ("mv  = %s", get_gpu_modelview_str (mesh->mv));
 
-	if (rs->mv) {
+	if (mesh->mv) {
 		glMatrixMode (GL_MODELVIEW);
-		glLoadMatrixf ((GLfloat *) &rs->mv->mtx[0][0]);
+		glLoadMatrixf ((GLfloat *) &mesh->mv->mtx[0][0]);
 	}
 }
 
@@ -299,10 +299,10 @@ upload_current_modelview (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
 ****************************************************************************/
 
 static void
-upload_current_material_texhead (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
+upload_current_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_gpu_material_t *mat = rs->mat;
-	hikaru_gpu_texhead_t *th = rs->tex;
+	hikaru_gpu_material_t *mat = mesh->mat;
+	hikaru_gpu_texhead_t *th = mesh->tex;
 
 	if (!mat->dirty && !th->dirty)
 		return;
@@ -497,10 +497,10 @@ get_material_specular (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float 
 }
 
 static void
-upload_current_lightset (hikaru_renderer_t *hr, hikaru_rendstate_t *rs)
+upload_current_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_gpu_material_t *mat = rs->mat;
-	hikaru_gpu_lightset_t *ls = rs->ls;
+	hikaru_gpu_material_t *mat = mesh->mat;
+	hikaru_gpu_lightset_t *ls = mesh->ls;
 	GLfloat tmp[4];
 	unsigned i, n;
 
@@ -913,8 +913,8 @@ hikaru_mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		return;
 
 	/* Upload instance-invariant state. */
-	upload_current_viewport (hr, &mesh->rs);
-	upload_current_material_texhead (hr, &mesh->rs);
+	upload_current_viewport (hr, mesh);
+	upload_current_material_texhead (hr, mesh);
 
 	switch (POLY.type) {
 	case HIKARU_POLYTYPE_OPAQUE:
@@ -942,8 +942,8 @@ hikaru_mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	}
 
 	/* Upload per-instance state. */
-	upload_current_modelview (hr, &mesh->rs);
-	upload_current_lightset (hr, &mesh->rs); /* This is not really per-instance... */
+	upload_current_modelview (hr, mesh);
+	upload_current_lightset (hr, mesh); /* This is not really per-instance... */
 
 	/* Draw the mesh. */
 	glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);

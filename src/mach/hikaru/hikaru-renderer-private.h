@@ -43,19 +43,15 @@ enum {
 };
 
 typedef struct {
+	GLuint			vbo;
+	uint32_t		num_tris;
+	uint32_t		addr[2];
 	hikaru_gpu_viewport_t	*vp;
 	hikaru_gpu_modelview_t	*mv;
 	hikaru_gpu_material_t	*mat;
 	hikaru_gpu_texhead_t	*tex;
 	hikaru_gpu_lightset_t	*ls;
 	float			 alpha_thresh[2];
-} hikaru_rendstate_t;
-
-typedef struct {
-	GLuint			vbo;
-	uint32_t		num_tris;
-	uint32_t		addr[2];
-	hikaru_rendstate_t	rs;
 } hikaru_mesh_t;
 
 typedef struct {
