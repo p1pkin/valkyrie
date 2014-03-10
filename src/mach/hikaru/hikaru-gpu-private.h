@@ -389,6 +389,9 @@ typedef struct {
 #define HR_PUSH_NRM	(1 << 1)
 #define HR_PUSH_TXC	(1 << 2)
 
+#pragma pack(push)
+#pragma pack(1)
+
 typedef union {
 	struct {
 		uint32_t winding	: 1; /* 0x00000001 */
@@ -407,9 +410,7 @@ typedef union {
 	uint32_t full;
 } hikaru_gpu_vertex_info_t;
 
-typedef struct hikaru_vertex_t hikaru_vertex_t;
-
-struct hikaru_vertex_t {
+typedef struct {
 	hikaru_gpu_vertex_info_t info;
 	vec3f_t	pos;
 	uint32_t padding0;
@@ -418,7 +419,9 @@ struct hikaru_vertex_t {
 	vec4f_t col;
 	vec2f_t	txc;
 	vec2f_t padding2;
-} __attribute__ ((packed));
+} hikaru_vertex_t;
+
+#pragma pack(pop)
 
 /****************************************************************************
  Definitions
