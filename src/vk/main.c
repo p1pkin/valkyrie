@@ -195,16 +195,17 @@ load_game_list (void)
 {
 	vk_game_list_t *list = NULL;
 	char *paths[3], *home;
-	unsigned i;
+	unsigned i, ret[3] = { 0, 0, 0 };
 
 	home = get_home_dir ();
 
 	paths[0] = strdup ("./vk-games.json");
-	asprintf (&paths[1], "%s/vk-games.json", home);
-	asprintf (&paths[2], "%s/.local/share/valkyrie/vk-games.json", home);
+	ret[1] = asprintf (&paths[1], "%s/vk-games.json", home);
+	ret[2] = asprintf (&paths[2], "%s/.local/share/valkyrie/vk-games.json", home);
 
 	for (i = 0; i < 3 && !list; i++)
-		list = vk_game_list_new (paths[i]);
+		if (!ret[i])
+			list = vk_game_list_new (paths[i]);
 
 	if (list)
 		printf ("loading game list from '%s'", paths[i]);
