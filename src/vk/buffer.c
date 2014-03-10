@@ -122,6 +122,8 @@ vk_buffer_be32_put (vk_buffer_t *buf, unsigned size, uint32_t offs, uint64_t val
 vk_buffer_t *
 vk_buffer_new (unsigned size, unsigned alignment)
 {
+	int ret = 0;
+
 	vk_buffer_t *buf = ALLOC (vk_buffer_t);
 	if (!buf)
 		goto fail;
@@ -129,11 +131,11 @@ vk_buffer_new (unsigned size, unsigned alignment)
 	VK_ASSERT (is_pow2 (alignment));
 
 	if (alignment)
-		posix_memalign ((void *) &buf->ptr, alignment, size);
+		ret = posix_memalign ((void *) &buf->ptr, alignment, size);
 	else
 		buf->ptr = malloc (size);
 
-	if (!buf->ptr)
+	if (!buf->ptr || ret)
 		goto fail;
 
 	buf->get = vk_buffer_native_get;
