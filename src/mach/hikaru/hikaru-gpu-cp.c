@@ -372,7 +372,7 @@ get_jump_address (hikaru_gpu_t *gpu, uint32_t *inst)
 static float
 get_distance_to_current_mesh (hikaru_gpu_t *gpu)
 {
-	hikaru_gpu_modelview_t *mv = &MV.table[MV.depth];
+	hikaru_modelview_t *mv = &MV.table[MV.depth];
 	float xx, yy, zz;
 
 	/* Compute the distance between the camera (0,0,0) and the
@@ -680,7 +680,7 @@ decode_clip_xy (uint32_t c)
 
 I (0x021)
 {
-	hikaru_gpu_viewport_t *vp = &VP.scratch;
+	hikaru_viewport_t *vp = &VP.scratch;
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
@@ -773,7 +773,7 @@ D (0x021)
 
 I (0x011)
 {
-	hikaru_gpu_viewport_t *vp = &VP.scratch;
+	hikaru_viewport_t *vp = &VP.scratch;
 
 	vp->color.ambient[0] = inst[0] >> 16;
 	vp->color.ambient[1] = inst[1] & 0xFFFF;
@@ -808,7 +808,7 @@ D (0x011)
 
 I (0x191)
 {
-	hikaru_gpu_viewport_t *vp = &VP.scratch;
+	hikaru_viewport_t *vp = &VP.scratch;
 
 	vp->color.clear[0] = inst[1] & 0xFF;
 	vp->color.clear[1] = (inst[1] >> 8) & 0xFF;
@@ -839,7 +839,7 @@ D (0x191)
 
 I (0x004)
 {
-	hikaru_gpu_viewport_t *vp = &VP.table[get_viewport_index (inst)];
+	hikaru_viewport_t *vp = &VP.table[get_viewport_index (inst)];
 
 	*vp = VP.scratch;
 }
@@ -872,7 +872,7 @@ D (0x004)
 
 I (0x003)
 {
-	hikaru_gpu_viewport_t *vp = &VP.scratch;
+	hikaru_viewport_t *vp = &VP.scratch;
 
 	switch ((inst[0] >> 12) & 0xF) {
 	case 0:
@@ -1002,8 +1002,8 @@ D (0x003)
 
 I (0x161)
 {
-	hikaru_gpu_modelview_t *mv = &MV.table[MV.depth];
-	hikaru_gpu_light_t *lit = &LIT.scratch;
+	hikaru_modelview_t *mv = &MV.table[MV.depth];
+	hikaru_light_t *lit = &LIT.scratch;
 	uint32_t push, elem;
 
 	switch ((inst[0] >> 8) & 0xF) {
@@ -1175,7 +1175,7 @@ static void hikaru_gpu_disasm_0x081 (hikaru_gpu_t *, uint32_t *);
 
 I (0x091)
 {
-	hikaru_gpu_material_t *mat = &MAT.scratch;
+	hikaru_material_t *mat = &MAT.scratch;
 
 	switch ((inst[0] >> 8) & 15) {
 	case 0:
@@ -1316,7 +1316,7 @@ D (0x091)
 
 I (0x081)
 {
-	hikaru_gpu_material_t *mat = &MAT.scratch;
+	hikaru_material_t *mat = &MAT.scratch;
 
 	switch ((inst[0] >> 8) & 0xF) {
 	case 0x0:
@@ -1523,7 +1523,7 @@ get_texhead_index (uint32_t *inst)
 
 I (0x0C1)
 {
-	hikaru_gpu_texhead_t *th = &TEX.scratch;
+	hikaru_texhead_t *th = &TEX.scratch;
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
@@ -1737,7 +1737,7 @@ get_lightset_index (uint32_t *inst)
 
 I (0x061)
 {
-	hikaru_gpu_light_t *lit = &LIT.scratch;
+	hikaru_light_t *lit = &LIT.scratch;
 
 	lit->att_type       = (inst[0] >> 16) & 3;
 	lit->attenuation[0] = *(float *) &inst[1];
@@ -1778,7 +1778,7 @@ D (0x061)
 
 I (0x051)
 {
-	hikaru_gpu_light_t *lit = &LIT.scratch;
+	hikaru_light_t *lit = &LIT.scratch;
 
 	switch ((inst[0] >> 8) & 7) {
 	case 0:
@@ -1894,7 +1894,7 @@ D (0x104)
 
 I (0x064)
 {
-	hikaru_gpu_lightset_t *ls;
+	hikaru_lightset_t *ls;
 	uint32_t index = LIT.base + get_lightset_index (inst);
 
 	if (index >= NUM_LIGHTSETS) {
@@ -2225,7 +2225,7 @@ D (0x103)
 
 I (0x12C)
 {
-	hikaru_gpu_vertex_t v;
+	hikaru_vertex_t v;
 
 	v.info.full = inst[0];
 
@@ -2251,7 +2251,7 @@ D (0x12C)
 
 I (0x1AC)
 {
-	hikaru_gpu_vertex_t v;
+	hikaru_vertex_t v;
 
 	v.info.full = inst[0];
 
@@ -2271,7 +2271,7 @@ D (0x1AC)
 
 I (0x1B8)
 {
-	hikaru_gpu_vertex_t v;
+	hikaru_vertex_t v;
 
 	v.info.full = inst[0];
 
@@ -2311,7 +2311,7 @@ D (0x1B8)
 
 I (0x0E8)
 {
-	hikaru_gpu_vertex_t vs[3];
+	hikaru_vertex_t vs[3];
 	unsigned i;
 
 	for (i = 0; i < 3; i++) {
@@ -2342,7 +2342,7 @@ D (0x0E8)
 
 I (0x158)
 {
-	hikaru_gpu_vertex_t v;
+	hikaru_vertex_t v;
 
 	v.info.full = inst[0];
 

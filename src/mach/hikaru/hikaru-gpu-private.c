@@ -21,7 +21,7 @@
 #include "mach/hikaru/hikaru-renderer.h"
 
 void
-get_texhead_coords (uint32_t *x, uint32_t *y, hikaru_gpu_texhead_t *tex)
+get_texhead_coords (uint32_t *x, uint32_t *y, hikaru_texhead_t *tex)
 {
 	if (tex->slotx < 0x80 || tex->sloty < 0xC0) {
 		/*
@@ -52,7 +52,7 @@ static const char depth_func_name[8][3] = {
 };
 
 const char *
-get_gpu_viewport_str (hikaru_gpu_viewport_t *vp)
+get_viewport_str (hikaru_viewport_t *vp)
 {
 	static char out[512];
 
@@ -69,7 +69,7 @@ get_gpu_viewport_str (hikaru_gpu_viewport_t *vp)
 }
 
 const char *
-get_gpu_modelview_str (hikaru_gpu_modelview_t *modelview)
+get_modelview_str (hikaru_modelview_t *modelview)
 {
 	static char out[512];
 
@@ -84,7 +84,7 @@ get_gpu_modelview_str (hikaru_gpu_modelview_t *modelview)
 }
 
 const char *
-get_gpu_material_str (hikaru_gpu_material_t *material)
+get_material_str (hikaru_material_t *material)
 {
 	static char out[512];
 
@@ -100,7 +100,7 @@ get_gpu_material_str (hikaru_gpu_material_t *material)
 }
 
 const char *
-get_gpu_texhead_str (hikaru_gpu_texhead_t *texhead)
+get_texhead_str (hikaru_texhead_t *texhead)
 {
 	static const char *name[8] = {
 		"RGBA5551",
@@ -127,7 +127,7 @@ get_gpu_texhead_str (hikaru_gpu_texhead_t *texhead)
 }
 
 const char *
-get_gpu_light_str (hikaru_gpu_light_t *lit)
+get_light_str (hikaru_light_t *lit)
 {
 	static char out[512];
 
@@ -142,7 +142,7 @@ get_gpu_light_str (hikaru_gpu_light_t *lit)
 };
 
 const char *
-get_gpu_vertex_str (hikaru_gpu_vertex_t *v)
+get_vertex_str (hikaru_vertex_t *v)
 {
 	static char out[512];
 	char *tmp = &out[0];
@@ -164,7 +164,7 @@ get_gpu_vertex_str (hikaru_gpu_vertex_t *v)
 }
 
 const char *
-get_gpu_layer_str (hikaru_gpu_layer_t *layer)
+get_layer_str (hikaru_layer_t *layer)
 {
 	static char out[256];
 	sprintf (out, "ena=%u (%u,%u) (%u,%u) fmt=%u", layer->enabled,

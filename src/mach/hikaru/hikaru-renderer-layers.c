@@ -31,7 +31,7 @@ coords_to_offs_32 (uint32_t x, uint32_t y)
 }
 
 static vk_surface_t *
-decode_layer_argb1555 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
+decode_layer_argb1555 (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 {
 	vk_buffer_t *fb = hr->gpu->fb;
 	vk_surface_t *surface;
@@ -54,7 +54,7 @@ decode_layer_argb1555 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 }
 
 static vk_surface_t *
-decode_layer_argb8888 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
+decode_layer_argb8888 (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 {
 	vk_buffer_t *fb = hr->gpu->fb;
 	vk_surface_t *surface;
@@ -75,7 +75,7 @@ decode_layer_argb8888 (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 }
 
 static void
-draw_layer (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
+draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 {
 	vk_surface_t *surface;
 
@@ -97,7 +97,7 @@ draw_layer (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 		return;
 	}
 
-	LOG ("drawing LAYER %s", get_gpu_layer_str (layer));
+	LOG ("drawing LAYER %s", get_layer_str (layer));
 
 	vk_surface_commit (surface);
 	glBegin (GL_TRIANGLE_STRIP);
@@ -117,7 +117,7 @@ void
 hikaru_renderer_draw_layers (hikaru_renderer_t *hr, bool background)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
-	hikaru_gpu_layer_t *layer;
+	hikaru_layer_t *layer;
 
 	if (!LAYERS.enabled)
 		return;

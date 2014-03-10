@@ -19,14 +19,14 @@
 #include "mach/hikaru/hikaru-renderer-private.h"
 
 static void
-get_sizes (uint32_t *w, uint32_t *h, hikaru_gpu_texhead_t *th)
+get_sizes (uint32_t *w, uint32_t *h, hikaru_texhead_t *th)
 {
 	*w = 16 << th->logw;
 	*h = 16 << th->logh;
 }
 
 static void
-get_wrap_modes (int *wrap_u, int *wrap_v, hikaru_gpu_texhead_t *th)
+get_wrap_modes (int *wrap_u, int *wrap_v, hikaru_texhead_t *th)
 {
 	*wrap_u = *wrap_v = -1;
 
@@ -92,7 +92,7 @@ a8_to_rgba8888 (uint32_t a)
 }
 
 static vk_surface_t *
-decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
+decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
 {
 	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
 	uint32_t w, h, basex, basey, x, y;
@@ -133,7 +133,7 @@ decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 }
 
 static vk_surface_t *
-decode_texhead_abgr1555 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
+decode_texhead_abgr1555 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
 {
 	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
 	uint32_t w, h, basex, basey, x, y;
@@ -161,7 +161,7 @@ decode_texhead_abgr1555 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 }
 
 static vk_surface_t *
-decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
+decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
 {
 	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
 	uint32_t w, h, basex, basey, x, y;
@@ -189,7 +189,7 @@ decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 }
 
 static vk_surface_t *
-decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
+decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
 {
 	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
 	uint32_t w, h, basex, basey, x, y;
@@ -222,14 +222,14 @@ decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_gpu_texhead_t *texhead)
 }
 
 static struct {
-	hikaru_gpu_texhead_t	texhead;
+	hikaru_texhead_t	texhead;
 	vk_surface_t		*surface;
 } texcache[2][0x40][0x80];
 static bool is_texcache_clear[2] = { false, false };
 
 static bool
 is_texhead_eq (hikaru_renderer_t *hr,
-               hikaru_gpu_texhead_t *a, hikaru_gpu_texhead_t *b)
+               hikaru_texhead_t *a, hikaru_texhead_t *b)
 {
 	return (a->format == b->format) &&
 	       (a->logw == b->logw) &&
@@ -241,7 +241,7 @@ is_texhead_eq (hikaru_renderer_t *hr,
 
 static void
 dump_texhead (hikaru_renderer_t *hr,
-              hikaru_gpu_texhead_t *texhead,
+              hikaru_texhead_t *texhead,
               vk_surface_t *surface)
 {
 	static unsigned num = 0;
@@ -267,10 +267,10 @@ dump_texhead (hikaru_renderer_t *hr,
 
 vk_surface_t *
 hikaru_renderer_decode_texture (vk_renderer_t *rend,
-                                hikaru_gpu_texhead_t *texhead)
+                                hikaru_texhead_t *texhead)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
-	hikaru_gpu_texhead_t *cached;
+	hikaru_texhead_t *cached;
 	vk_surface_t *surface = NULL;
 	uint32_t bank, slotx, sloty, realx, realy;
 
@@ -349,7 +349,7 @@ clear_texture_cache_bank (hikaru_renderer_t *hr, unsigned bank)
 
 void
 hikaru_renderer_invalidate_texcache (vk_renderer_t *rend,
-                                     hikaru_gpu_texhead_t *th)
+                                     hikaru_texhead_t *th)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 

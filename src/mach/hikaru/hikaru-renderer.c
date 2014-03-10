@@ -88,7 +88,7 @@ update_debug_flags (hikaru_renderer_t *hr)
 ****************************************************************************/
 
 static bool
-is_viewport_valid (hikaru_gpu_viewport_t *vp)
+is_viewport_valid (hikaru_viewport_t *vp)
 {
 	if (!is_viewport_set (vp))
 		return false;
@@ -113,7 +113,7 @@ is_viewport_valid (hikaru_gpu_viewport_t *vp)
 static void
 upload_current_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_gpu_viewport_t *vp = mesh->vp;
+	hikaru_viewport_t *vp = mesh->vp;
 
 	const float h = vp->clip.t - vp->clip.b;
 	const float w = vp->clip.r - vp->clip.l;
@@ -128,10 +128,10 @@ upload_current_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	vp->dirty = 0;
 
 	LOG ("vp  = %s : [w=%f h=%f dcx=%f dcy=%f]",
-	     get_gpu_viewport_str (vp), w, h, dcx, dcy);
+	     get_viewport_str (vp), w, h, dcx, dcy);
 
 	if (!is_viewport_valid (vp))
-		VK_ERROR ("invalid viewport [%s]", get_gpu_viewport_str (vp));
+		VK_ERROR ("invalid viewport [%s]", get_viewport_str (vp));
 
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
@@ -150,7 +150,7 @@ upload_current_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 static void
 upload_current_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	LOG ("mv  = %s", get_gpu_modelview_str (mesh->mv));
+	LOG ("mv  = %s", get_modelview_str (mesh->mv));
 
 	if (mesh->mv) {
 		glMatrixMode (GL_MODELVIEW);
@@ -165,8 +165,8 @@ upload_current_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 static void
 upload_current_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_gpu_material_t *mat = mesh->mat;
-	hikaru_gpu_texhead_t *th = mesh->tex;
+	hikaru_material_t *mat = mesh->mat;
+	hikaru_texhead_t *th = mesh->tex;
 
 	if (!mat->dirty && !th->dirty)
 		return;
@@ -174,9 +174,9 @@ upload_current_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	mat->dirty = 0;
 	th->dirty = 0;
 
-	LOG ("mat = %s", get_gpu_material_str (mat));
+	LOG ("mat = %s", get_material_str (mat));
 	if (is_material_set (mat) && mat->has_texture)
-		LOG ("th  = %s", get_gpu_texhead_str (th));
+		LOG ("th  = %s", get_texhead_str (th));
 
 	if (hr->debug.flags[HR_DEBUG_NO_TEXTURES] ||
 	    !(is_material_set (mat) && mat->has_texture && is_texhead_set (th)))
@@ -220,7 +220,7 @@ typedef enum {
 } hikaru_light_att_t;
 
 static hikaru_light_type_t
-get_light_type (hikaru_gpu_light_t *lit)
+get_light_type (hikaru_light_t *lit)
 {
 	VK_ASSERT (lit->has_direction || lit->has_position);
 	if (lit->has_direction && lit->has_position)
@@ -231,7 +231,7 @@ get_light_type (hikaru_gpu_light_t *lit)
 }
 
 static hikaru_light_att_t
-get_light_attenuation_type (hikaru_gpu_light_t *lit)
+get_light_attenuation_type (hikaru_light_t *lit)
 {
 	if (lit->att_type == 0 &&
 	    lit->attenuation[0] == 1.0f &&
@@ -241,7 +241,7 @@ get_light_attenuation_type (hikaru_gpu_light_t *lit)
 }
 
 static void
-get_light_attenuation (hikaru_renderer_t *hr, hikaru_gpu_light_t *lit, float *out)
+get_light_attenuation (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 {
 	float min, max;
 
@@ -291,7 +291,7 @@ get_light_ambient (hikaru_renderer_t *hr, float *out)
 }
 
 static void
-get_light_diffuse (hikaru_renderer_t *hr, hikaru_gpu_light_t *lit, float *out)
+get_light_diffuse (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 {
 	/* NOTE: the index uploaded with the diffuse color may be related
 	 * to the table uploaded by instruction 194 (which may contain alpha
@@ -308,7 +308,7 @@ get_light_diffuse (hikaru_renderer_t *hr, hikaru_gpu_light_t *lit, float *out)
 }
 
 static void
-get_light_specular (hikaru_renderer_t *hr, hikaru_gpu_light_t *lit, float *out)
+get_light_specular (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 {
 	if (hr->debug.flags[HR_DEBUG_NO_SPECULAR])
 		out[0] = out[1] = out[2] = 1.0f;
@@ -321,7 +321,7 @@ get_light_specular (hikaru_renderer_t *hr, hikaru_gpu_light_t *lit, float *out)
 }
 
 static void
-get_material_diffuse (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float *out)
+get_material_diffuse (hikaru_renderer_t *hr, hikaru_material_t *mat, float *out)
 {
 	if (hr->debug.flags[HR_DEBUG_NO_DIFFUSE]) {
 		out[0] = out[1] = out[2] = 0.0f;
@@ -335,7 +335,7 @@ get_material_diffuse (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float *
 }
 
 static void
-get_material_ambient (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float *out)
+get_material_ambient (hikaru_renderer_t *hr, hikaru_material_t *mat, float *out)
 {
 	if (hr->debug.flags[HR_DEBUG_NO_AMBIENT]) {
 		out[0] = out[1] = out[2] = 0.0f;
@@ -348,7 +348,7 @@ get_material_ambient (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float *
 }
 
 static void
-get_material_specular (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float *out)
+get_material_specular (hikaru_renderer_t *hr, hikaru_material_t *mat, float *out)
 {
 	if (hr->debug.flags[HR_DEBUG_NO_SPECULAR]) {
 		out[0] = out[1] = out[2] = out[3] = 0.0f;
@@ -363,8 +363,8 @@ get_material_specular (hikaru_renderer_t *hr, hikaru_gpu_material_t *mat, float 
 static void
 upload_current_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_gpu_material_t *mat = mesh->mat;
-	hikaru_gpu_lightset_t *ls = mesh->ls;
+	hikaru_material_t *mat = mesh->mat;
+	hikaru_lightset_t *ls = mesh->ls;
 	GLfloat tmp[4];
 	unsigned i, n;
 
@@ -405,7 +405,7 @@ upload_current_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	/* For each of the four lights in the current lightset */
 	for (i = 0; i < 4; i++) {
-		hikaru_gpu_light_t *lt;
+		hikaru_light_t *lt;
 
 		if (ls->mask & (1 << i))
 			continue;
@@ -416,7 +416,7 @@ upload_current_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 			continue;
 		}
 
-		LOG ("light%u = enabled, %s", i, get_gpu_light_str (lt));
+		LOG ("light%u = enabled, %s", i, get_light_str (lt));
 
 		n = GL_LIGHT0 + i;
 
@@ -521,10 +521,10 @@ clampf (float x, float min_, float max_)
 }
 
 static void
-copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_t *src)
+copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
-	hikaru_gpu_material_t *mat = &MAT.scratch;
+	hikaru_material_t *mat = &MAT.scratch;
 	float base_alpha = POLY.alpha;
 	float mat_alpha = mat->diffuse[3] * INV255;
 	float vertex_alpha = src->info.bit.alpha;
@@ -576,10 +576,10 @@ copy_colors (hikaru_renderer_t *hr, hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_
 
 static void
 copy_texcoords (hikaru_renderer_t *hr,
-                hikaru_gpu_vertex_t *dst, hikaru_gpu_vertex_t *src)
+                hikaru_vertex_t *dst, hikaru_vertex_t *src)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
-	hikaru_gpu_texhead_t *th = &TEX.scratch;
+	hikaru_texhead_t *th = &TEX.scratch;
 	float w = 16 << th->logw;
 	float h = 16 << th->logh;
 
@@ -600,7 +600,7 @@ add_triangle (hikaru_renderer_t *hr)
 {
 	if (hr->push.num_verts >= 3) {
 		uint32_t index = hr->push.num_tris * 3;
-		hikaru_gpu_vertex_t *dst = &hr->push.all[index];
+		hikaru_vertex_t *dst = &hr->push.all[index];
 
 		VK_ASSERT ((index + 2) < MAX_VERTICES_PER_MESH);
 
@@ -619,7 +619,7 @@ add_triangle (hikaru_renderer_t *hr)
 
 void
 hikaru_renderer_push_vertices (vk_renderer_t *rend,
-                               hikaru_gpu_vertex_t *v,
+                               hikaru_vertex_t *v,
                                uint32_t flags,
                                unsigned num)
 {
@@ -653,7 +653,7 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 			if (!v->info.bit.ppivot)
 				hr->push.tmp[0] = hr->push.tmp[1];
 			hr->push.tmp[1] = hr->push.tmp[2];
-			memset ((void *) &hr->push.tmp[2], 0, sizeof (hikaru_gpu_vertex_t));
+			memset ((void *) &hr->push.tmp[2], 0, sizeof (hikaru_vertex_t));
 
 			/* Set the position, colors and alpha. */
 			VK_COPY_VEC3F (hr->push.tmp[2].pos, v->pos);
@@ -736,7 +736,7 @@ fail:
 }
 
 #define OFFSET(member_) \
-	((const GLvoid *) offsetof (hikaru_gpu_vertex_t, member_))
+	((const GLvoid *) offsetof (hikaru_vertex_t, member_))
 
 static void
 hikaru_mesh_upload_pushed_data (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
@@ -747,13 +747,13 @@ hikaru_mesh_upload_pushed_data (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	mesh->num_tris = hr->push.num_tris;
 
 	glBindBuffer (GL_ARRAY_BUFFER, mesh->vbo);
-	glBufferData (GL_ARRAY_BUFFER, sizeof (hikaru_gpu_vertex_t) * mesh->num_tris * 3,
+	glBufferData (GL_ARRAY_BUFFER, sizeof (hikaru_vertex_t) * mesh->num_tris * 3,
 	              (const GLvoid *) hr->push.all, GL_DYNAMIC_DRAW);
 
-	glVertexPointer (3, GL_FLOAT, sizeof (hikaru_gpu_vertex_t), OFFSET (pos));
-	glNormalPointer (GL_FLOAT, sizeof (hikaru_gpu_vertex_t), OFFSET (nrm));
-	glColorPointer (4, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t), OFFSET (col));
-	glTexCoordPointer (2, GL_FLOAT,  sizeof (hikaru_gpu_vertex_t), OFFSET (txc));
+	glVertexPointer (3, GL_FLOAT, sizeof (hikaru_vertex_t), OFFSET (pos));
+	glNormalPointer (GL_FLOAT, sizeof (hikaru_vertex_t), OFFSET (nrm));
+	glColorPointer (4, GL_FLOAT,  sizeof (hikaru_vertex_t), OFFSET (col));
+	glTexCoordPointer (2, GL_FLOAT,  sizeof (hikaru_vertex_t), OFFSET (txc));
 
 	glEnableClientState (GL_VERTEX_ARRAY);
 	glEnableClientState (GL_NORMAL_ARRAY);
@@ -819,18 +819,18 @@ static void
 update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
-	hikaru_gpu_viewport_t *vp = &VP.scratch;
-	hikaru_gpu_modelview_t *mv = NULL;
-	hikaru_gpu_material_t *mat = &MAT.scratch;
-	hikaru_gpu_texhead_t *tex = &TEX.scratch;
-	hikaru_gpu_lightset_t *ls = &LIT.scratchset;
+	hikaru_viewport_t *vp = &VP.scratch;
+	hikaru_modelview_t *mv = NULL;
+	hikaru_material_t *mat = &MAT.scratch;
+	hikaru_texhead_t *tex = &TEX.scratch;
+	hikaru_lightset_t *ls = &LIT.scratchset;
 
 	LOG ("updating rendstate...");
 
 	if (vp->uploaded) {
 		vp->uploaded = 0;
 		vp->dirty = 1;
-		VK_VECTOR_APPEND (hr->states.viewports, hikaru_gpu_viewport_t, *vp);
+		VK_VECTOR_APPEND (hr->states.viewports, hikaru_viewport_t, *vp);
 		LOG ("updated vp");
 	}
 
@@ -838,8 +838,8 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		MV.total = 0;
 		MV.depth = 0;
 		/* TODO append all modelviews. */
-		VK_VECTOR_APPEND (hr->states.modelviews, hikaru_gpu_modelview_t, MV.table[0]);
-		mv = (hikaru_gpu_modelview_t *) VK_VECTOR_LAST (hr->states.modelviews);
+		VK_VECTOR_APPEND (hr->states.modelviews, hikaru_modelview_t, MV.table[0]);
+		mv = (hikaru_modelview_t *) VK_VECTOR_LAST (hr->states.modelviews);
 		LOG ("updated mv");
 	} else
 		mv = NULL;
@@ -847,33 +847,33 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	if (mat->uploaded) {
 		mat->uploaded = 0;
 		mat->dirty = 1;
-		VK_VECTOR_APPEND (hr->states.materials, hikaru_gpu_material_t, *mat);
+		VK_VECTOR_APPEND (hr->states.materials, hikaru_material_t, *mat);
 		LOG ("updated mat");
 	}
 
 	if (tex->uploaded) {
 		tex->uploaded = 0;
 		tex->dirty = 1;
-		VK_VECTOR_APPEND (hr->states.texheads, hikaru_gpu_texhead_t, *tex);
+		VK_VECTOR_APPEND (hr->states.texheads, hikaru_texhead_t, *tex);
 		LOG ("updated tex");
 	}
 
 	if (ls->uploaded) {
 		ls->uploaded = 0;
 		ls->dirty = 1;
-		VK_VECTOR_APPEND (hr->states.lightsets, hikaru_gpu_lightset_t, *ls);
+		VK_VECTOR_APPEND (hr->states.lightsets, hikaru_lightset_t, *ls);
 		LOG ("updated ls");
 	}
 
 	mesh->vp =
-		(hikaru_gpu_viewport_t *) VK_VECTOR_LAST (hr->states.viewports);
+		(hikaru_viewport_t *) VK_VECTOR_LAST (hr->states.viewports);
 	mesh->mv = mv;
 	mesh->mat =
-		(hikaru_gpu_material_t *) VK_VECTOR_LAST (hr->states.materials);
+		(hikaru_material_t *) VK_VECTOR_LAST (hr->states.materials);
 	mesh->tex =
-		(hikaru_gpu_texhead_t *) VK_VECTOR_LAST (hr->states.texheads);
+		(hikaru_texhead_t *) VK_VECTOR_LAST (hr->states.texheads);
 	mesh->ls =
-		(hikaru_gpu_lightset_t *) VK_VECTOR_LAST (hr->states.lightsets);
+		(hikaru_lightset_t *) VK_VECTOR_LAST (hr->states.lightsets);
 
 	LOG ("rendstate = { vp=%p mv=%p mat=%p tex=%p ls=%p }",
 	     mesh->vp, mesh->mv, mesh->mat, mesh->tex, mesh->ls);
@@ -966,11 +966,11 @@ hikaru_renderer_end_frame (vk_renderer_t *renderer)
 	hikaru_renderer_draw_layers (hr, false);
 
 	LOG (" ==== RENDSTATE STATISTICS ==== ");
-	LOG ("  vp  : %u", hr->states.viewports->used / sizeof (hikaru_gpu_viewport_t));
-	LOG ("  mv  : %u", hr->states.modelviews->used / sizeof (hikaru_gpu_modelview_t));
-	LOG ("  mat : %u", hr->states.materials->used / sizeof (hikaru_gpu_material_t));
-	LOG ("  tex : %u", hr->states.texheads->used / sizeof (hikaru_gpu_texhead_t));
-	LOG ("  ls  : %u", hr->states.lightsets->used / sizeof (hikaru_gpu_lightset_t));
+	LOG ("  vp  : %u", hr->states.viewports->used / sizeof (hikaru_viewport_t));
+	LOG ("  mv  : %u", hr->states.modelviews->used / sizeof (hikaru_modelview_t));
+	LOG ("  mat : %u", hr->states.materials->used / sizeof (hikaru_material_t));
+	LOG ("  tex : %u", hr->states.texheads->used / sizeof (hikaru_texhead_t));
+	LOG ("  ls  : %u", hr->states.lightsets->used / sizeof (hikaru_lightset_t));
 }
 
 static void
@@ -1037,23 +1037,23 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 	if (ret)
 		goto fail;
 
-	hr->states.viewports = vk_vector_new (8, sizeof (hikaru_gpu_viewport_t));
+	hr->states.viewports = vk_vector_new (8, sizeof (hikaru_viewport_t));
 	if (!hr->states.viewports)
 		goto fail;
 
-	hr->states.modelviews = vk_vector_new (8, sizeof (hikaru_gpu_modelview_t));
+	hr->states.modelviews = vk_vector_new (8, sizeof (hikaru_modelview_t));
 	if (!hr->states.modelviews)
 		goto fail;
 
-	hr->states.materials = vk_vector_new (8, sizeof (hikaru_gpu_material_t));
+	hr->states.materials = vk_vector_new (8, sizeof (hikaru_material_t));
 	if (!hr->states.materials)
 		goto fail;
 
-	hr->states.texheads = vk_vector_new (8, sizeof (hikaru_gpu_texhead_t));
+	hr->states.texheads = vk_vector_new (8, sizeof (hikaru_texhead_t));
 	if (!hr->states.texheads)
 		goto fail;
 
-	hr->states.lightsets = vk_vector_new (8, sizeof (hikaru_gpu_lightset_t));
+	hr->states.lightsets = vk_vector_new (8, sizeof (hikaru_lightset_t));
 	if (!hr->states.lightsets)
 		goto fail;
 

@@ -93,14 +93,14 @@ typedef struct {
 		};
 		uint32_t flags;
 	};
-} hikaru_gpu_viewport_t;
+} hikaru_viewport_t;
 
 #define is_viewport_set(vp_) \
 	(((vp_)->flags & 0x27) == 0x27)
 
 typedef struct {
 	mtx4x4f_t mtx;
-} hikaru_gpu_modelview_t;
+} hikaru_modelview_t;
 
 typedef struct {
 	vec4b_t diffuse;
@@ -162,7 +162,7 @@ typedef struct {
 		};
 		uint32_t flags;
 	};
-} hikaru_gpu_material_t;
+} hikaru_material_t;
 
 #define is_material_set(mat_) \
 	(((mat_)->flags & 0xEF) == 0xEF)
@@ -214,7 +214,7 @@ typedef struct {
 		};
 		uint32_t flags;
 	};
-} hikaru_gpu_texhead_t;
+} hikaru_texhead_t;
 
 #define is_texhead_set(th_) \
 	(((th_)->flags & 7) == 7)
@@ -240,13 +240,13 @@ typedef struct {
 		};
 		uint32_t flags;
 	};
-} hikaru_gpu_light_t;
+} hikaru_light_t;
 
 #define is_light_set(lit_) \
 	(((lit_)->flags & 0x1F) == 0x1F)
 
 typedef struct {
-	hikaru_gpu_light_t lights[4];
+	hikaru_light_t lights[4];
 	union {
 		struct {
 			uint32_t set		: 1;
@@ -256,13 +256,13 @@ typedef struct {
 		};
 		uint32_t flags;
 	};
-} hikaru_gpu_lightset_t;
+} hikaru_lightset_t;
 
 typedef struct {
 	uint32_t x0, y0, x1, y1;
 	uint32_t format		: 4;
 	uint32_t enabled	: 1;
-} hikaru_gpu_layer_t;
+} hikaru_layer_t;
 
 typedef struct {
 	vk_device_t base;
@@ -299,34 +299,34 @@ typedef struct {
 		} poly;
 
 		struct {
-			hikaru_gpu_viewport_t table[NUM_VIEWPORTS];
-			hikaru_gpu_viewport_t scratch;
-			hikaru_gpu_viewport_t stack[32];
+			hikaru_viewport_t table[NUM_VIEWPORTS];
+			hikaru_viewport_t scratch;
+			hikaru_viewport_t stack[32];
 			int32_t depth;
 		} viewports;
 	
 		struct {
-			hikaru_gpu_modelview_t table[NUM_MODELVIEWS];
+			hikaru_modelview_t table[NUM_MODELVIEWS];
 			uint32_t depth, total;
 		} modelviews;
 	
 		struct {
-			hikaru_gpu_material_t table[NUM_MATERIALS];
-			hikaru_gpu_material_t scratch;
+			hikaru_material_t table[NUM_MATERIALS];
+			hikaru_material_t scratch;
 			uint32_t base;
 		} materials;
 	
 		struct {
-			hikaru_gpu_texhead_t table[NUM_TEXHEADS];
-			hikaru_gpu_texhead_t scratch;
+			hikaru_texhead_t table[NUM_TEXHEADS];
+			hikaru_texhead_t scratch;
 			uint32_t base;
 		} texheads;
 	
 		struct {
-			hikaru_gpu_lightset_t sets[NUM_LIGHTSETS];
-			hikaru_gpu_lightset_t scratchset;
-			hikaru_gpu_light_t table[NUM_LIGHTS];
-			hikaru_gpu_light_t scratch;
+			hikaru_lightset_t sets[NUM_LIGHTSETS];
+			hikaru_lightset_t scratchset;
+			hikaru_light_t table[NUM_LIGHTS];
+			hikaru_light_t scratch;
 			uint32_t base;
 		} lights;
 
@@ -347,7 +347,7 @@ typedef struct {
 		} light_table[4][0x20];
 
 		struct {
-			hikaru_gpu_layer_t layer[2][2];
+			hikaru_layer_t layer[2][2];
 			bool enabled;
 		} layers;
 
@@ -407,9 +407,9 @@ typedef union {
 	uint32_t full;
 } hikaru_gpu_vertex_info_t;
 
-typedef struct hikaru_gpu_vertex_t hikaru_gpu_vertex_t;
+typedef struct hikaru_vertex_t hikaru_vertex_t;
 
-struct hikaru_gpu_vertex_t {
+struct hikaru_vertex_t {
 	hikaru_gpu_vertex_info_t info;
 	vec3f_t	pos;
 	uint32_t padding0;
@@ -446,14 +446,14 @@ typedef enum {
 	(isfinite(x_) && (x_) >= 0.0)
 
 /* hikaru-gpu-private.c */
-void get_texhead_coords (uint32_t *, uint32_t *, hikaru_gpu_texhead_t *);
-const char *get_gpu_viewport_str (hikaru_gpu_viewport_t *);
-const char *get_gpu_modelview_str (hikaru_gpu_modelview_t *);
-const char *get_gpu_material_str (hikaru_gpu_material_t *);
-const char *get_gpu_texhead_str (hikaru_gpu_texhead_t *);
-const char *get_gpu_light_str (hikaru_gpu_light_t *);
-const char *get_gpu_vertex_str (hikaru_gpu_vertex_t *);
-const char *get_gpu_layer_str (hikaru_gpu_layer_t *);
+void get_texhead_coords (uint32_t *, uint32_t *, hikaru_texhead_t *);
+const char *get_viewport_str (hikaru_viewport_t *);
+const char *get_modelview_str (hikaru_modelview_t *);
+const char *get_material_str (hikaru_material_t *);
+const char *get_texhead_str (hikaru_texhead_t *);
+const char *get_light_str (hikaru_light_t *);
+const char *get_vertex_str (hikaru_vertex_t *);
+const char *get_layer_str (hikaru_layer_t *);
 
 /* hikaru-gpu.c */
 void hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A);
@@ -470,13 +470,13 @@ void hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
                                  bool is_static);
 void hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr);
 void hikaru_renderer_push_vertices (vk_renderer_t *rend,
-                                    hikaru_gpu_vertex_t *v,
+                                    hikaru_vertex_t *v,
                                     uint32_t push,
                                     unsigned num);
 
 void		 hikaru_renderer_invalidate_texcache (vk_renderer_t *rend,
-		                                      hikaru_gpu_texhead_t *th);
+		                                      hikaru_texhead_t *th);
 vk_surface_t	*hikaru_renderer_decode_texture (vk_renderer_t *rend,
-		                                 hikaru_gpu_texhead_t *th);
+		                                 hikaru_texhead_t *th);
 
 #endif /* __HIKARU_GPU_PRIVATE_H__ */

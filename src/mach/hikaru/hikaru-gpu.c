@@ -581,7 +581,7 @@ hikaru_gpu_fill_layer_info (hikaru_gpu_t *gpu)
 
 		for (bank = 2; bank < 4; bank++) {
 			uint32_t bank_offs = bank * 8, lo, hi, format, shift;
-			hikaru_gpu_layer_t *layer =
+			hikaru_layer_t *layer =
 				&LAYERS.layer[unit][bank-2];
 	
 			/* Is the layer enabled? */
@@ -608,7 +608,7 @@ hikaru_gpu_fill_layer_info (hikaru_gpu_t *gpu)
 
 			if (layer->enabled)
 				VK_LOG ("\tLAYER %u:%u : %s",
-				        unit, bank, get_gpu_layer_str (layer));
+				        unit, bank, get_layer_str (layer));
 		}
 	}
 }
@@ -703,7 +703,7 @@ hikaru_gpu_fill_layer_info (hikaru_gpu_t *gpu)
  */
 
 static uint32_t
-calc_full_texture_size (hikaru_gpu_texhead_t *texhead)
+calc_full_texture_size (hikaru_texhead_t *texhead)
 {
 	uint32_t w = 16 << texhead->logw;
 	uint32_t h = 16 << texhead->logh;
@@ -721,7 +721,7 @@ calc_full_texture_size (hikaru_gpu_texhead_t *texhead)
  * also include color tables! */
 
 static void
-copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_gpu_texhead_t *texhead)
+copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_texhead_t *texhead)
 {
 	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
 	uint32_t basex, basey, endx, endy;
@@ -752,7 +752,7 @@ copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_gpu_texhead_t *texhea
 
 	if ((endx > 2048) || (endy > 1024)) {
 		VK_ERROR ("GPU IDMA: out-of-bounds transfer: %s",
-		          get_gpu_texhead_str (texhead));
+		          get_texhead_str (texhead));
 		return;
 	}
 
@@ -772,7 +772,7 @@ copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_gpu_texhead_t *texhea
 static void
 process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 {
-	hikaru_gpu_texhead_t texhead;
+	hikaru_texhead_t texhead;
 	uint32_t exp_size[2], bus_addr, size;
 
 	memset (&texhead, 0, sizeof (texhead));
@@ -799,7 +799,7 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	if (gpu->debug.log_idma) {
 		VK_LOG ("GPU IDMA %08X %08X %08X %08X : %s",
 		        entry[0], entry[1], entry[2], entry[3],
-		        get_gpu_texhead_str (&texhead));
+		        get_texhead_str (&texhead));
 	}
 
 	if ((entry[2] & 0xE3C00000) ||
@@ -811,7 +811,7 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 
 	if (size != exp_size[0] && size != exp_size[1]) {
 		VK_ERROR ("GPU IDMA: unexpected texhead size: %s",
-		          get_gpu_texhead_str (&texhead));
+		          get_texhead_str (&texhead));
 		/* continue anyway */
 	}
 
@@ -820,20 +820,20 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	    texhead.format != HIKARU_FORMAT_ABGR1111 &&
 	    texhead.format != HIKARU_FORMAT_ALPHA8) {
 		VK_ERROR ("GPU IDMA: unknown texhead format: %s",
-		          get_gpu_texhead_str (&texhead));
+		          get_texhead_str (&texhead));
 		/* continue anyway */
 	}
 
 	if (texhead.slotx < 0x80 || texhead.sloty < 0xC0) {
 		VK_ERROR ("GPU IDMA: unknown texhead slot, skipping: %s",
-		          get_gpu_texhead_str (&texhead));
+		          get_texhead_str (&texhead));
 		return;
 	}
 
 	if ((bus_addr & 0xFE000000) != 0x40000000 &&
 	    (bus_addr & 0xFF000000) != 0x48000000) {
 		VK_ERROR ("GPU IDMA: unknown texhead address, skipping: %s",
-		          get_gpu_texhead_str (&texhead));
+		          get_texhead_str (&texhead));
 		return;
 	}
 
