@@ -153,7 +153,7 @@ print_rendstate_statistics (hikaru_renderer_t *hr)
 	LOG ("  ls  : %u", hr->states.lightsets->used / sizeof (hikaru_gpu_lightset_t));
 }
 
-/* TODO check if more fine-grained dirty tracking can help. */
+/* TODO check if more fine-grained uploaded tracking can help. */
 /* TODO check boundary conditions when nothing is uploaded in a frame. */
 static void
 update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
@@ -167,8 +167,8 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	LOG ("updating rendstate...");
 
-	if (vp->dirty) {
-		vp->dirty = 0;
+	if (vp->uploaded) {
+		vp->uploaded = 0;
 		VK_VECTOR_APPEND (hr->states.viewports, hikaru_gpu_viewport_t, *vp);
 		LOG ("updated vp");
 	}
@@ -183,20 +183,20 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	} else
 		mv = NULL;
 
-	if (mat->dirty) {
-		mat->dirty = 0;
+	if (mat->uploaded) {
+		mat->uploaded = 0;
 		VK_VECTOR_APPEND (hr->states.materials, hikaru_gpu_material_t, *mat);
 		LOG ("updated mat");
 	}
 
-	if (tex->dirty) {
-		tex->dirty = 0;
+	if (tex->uploaded) {
+		tex->uploaded = 0;
 		VK_VECTOR_APPEND (hr->states.texheads, hikaru_gpu_texhead_t, *tex);
 		LOG ("updated tex");
 	}
 
-	if (ls->dirty) {
-		ls->dirty = 0;
+	if (ls->uploaded) {
+		ls->uploaded = 0;
 		VK_VECTOR_APPEND (hr->states.lightsets, hikaru_gpu_lightset_t, *ls);
 		LOG ("updated ls");
 	}

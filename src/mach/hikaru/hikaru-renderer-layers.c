@@ -82,7 +82,7 @@ draw_layer (hikaru_renderer_t *hr, hikaru_gpu_layer_t *layer)
 	VK_ASSERT (hr);
 	VK_ASSERT (layer);
 
-	/* XXX cache the layers and use dirty rectangles to upload only the
+	/* XXX cache the layers and use uploaded rectangles to upload only the
 	 * quads that changed. */
 	/* XXX change the renderer so that the ortho projection can be
 	 * set up correctly depending on the actual window size. */
