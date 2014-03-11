@@ -1035,12 +1035,14 @@ I (0x161)
 
 		/* Last element during upload. */
 		if (elem == 0) {
-			MV.total++;
 			if (push) {
+				MV.total++;
 				MV.depth++;
 				VK_ASSERT (MV.depth < NUM_MODELVIEWS);
-			} else
+			} else {
+				MV.total = 1;
 				MV.depth = 0;
+			}
 		}
 		break;
 	case 0x5:
