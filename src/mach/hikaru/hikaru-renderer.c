@@ -386,10 +386,6 @@ upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	/* Lights are positioned according to the scene, irrespective of
 	 * the modelview matrix. */
-	glMatrixMode (GL_MODELVIEW);
-	glPushMatrix ();
-	glLoadIdentity ();
-
 	glEnable (GL_LIGHTING);
 
 	get_light_ambient (hr, tmp);
@@ -481,8 +477,6 @@ upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	get_material_specular (hr, mat, tmp);
 	glMaterialfv (GL_FRONT_AND_BACK, GL_SPECULAR, tmp);
 	glMaterialf (GL_FRONT_AND_BACK, GL_SHININESS, tmp[3]);
-
-	glPopMatrix ();
 	return;
 
 disable:
