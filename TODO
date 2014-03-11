@@ -7,11 +7,6 @@ There are loads of TODO/XXX items in the source, grep them!
 GENERAL
 -------
 
-Register devices, CPUs and buffers into the vk_machine_t. Makes managing them
-a lot easier.
-
-Save state support. Partially implemented in a branch.
-
 Add support for "required" field in the JSON file.
 
 For later, write an event-driven scheduler.
@@ -39,29 +34,38 @@ SH-4
 Import the LLVM jit core into valkyrie. Still a bit rough on the edges, but
 already faster than the interpreter.
 
+Fix the TMU frequency, may help with flashing graphics in PHARRIER.
 
-RENDERING
----------
+
+GPU / RENDERING
+---------------
 
 The projection clipping planes are probably scaled by some value, because
 using the ones provided by the games as they are leads to a far too close
 far clipping plane. Use 'p' to toggle a standard 90 degree FOV projection and
 see things (affects all games).
 
+Implement viewport clear, there's too much pink.
+
+Implement depth masking.
+
+Implement proper depth testing.
+
+Implement swizzled textures (heavily used in BRAVEFF).
+
+Implement fogging (see instruction 691).
+
+Implement alpha testing (used in BRAVEFF, see instruction 154).
+
 Implement proper model caching using VBOs.
 
-Implement deferred rendering based on polygon types (a la PVR/dreamcast).
+Implement motion blur (see instructions 781, 181, and modelview instancing).
 
-Once models are drawn in the correct order, fix any remaining issues with the
-alpha.
+Figure out the effect of mesh LOD on texturing (instructions 005 et alia, used
+in SGNASCAR).
 
-Figure out how the fade-in effect is done in PH intro screen (GPU instructions
-781, 181).
-
-Figure out the parameters controlling the alpha in instanced rendering (used
-heavily in BRAVEFF).
-
-Figure out fogging (most likely determined by instruction 691).
+Implement mipmap transfers in IDMA (where the heck are the miptrees supposed
+to get stored?)
 
 
 AIRTRIX
