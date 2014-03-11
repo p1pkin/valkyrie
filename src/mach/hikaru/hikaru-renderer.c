@@ -742,19 +742,6 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		break;
 	}
 
-	glEnable (GL_CULL_FACE);
-	switch (hr->debug.flags[HR_DEBUG_SELECT_CULLFACE]) {
-	case -1:
-		glDisable (GL_CULL_FACE);
-		break;
-	case 0:
-		glCullFace (GL_BACK);
-		break;
-	case 1:
-		glCullFace (GL_FRONT);
-		break;
-	}
-
 	/* Upload per-instance state. */
 	upload_modelview (hr, mesh);
 	upload_lightset (hr, mesh); /* This is not really per-instance... */
@@ -877,6 +864,20 @@ draw_scene (hikaru_renderer_t *hr)
 	unsigned i;
 
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	switch (hr->debug.flags[HR_DEBUG_SELECT_CULLFACE]) {
+	case -1:
+		glDisable (GL_CULL_FACE);
+		break;
+	case 0:
+		glEnable (GL_CULL_FACE);
+		glCullFace (GL_BACK);
+		break;
+	case 1:
+		glEnable (GL_CULL_FACE);
+		glCullFace (GL_FRONT);
+		break;
+	}
 
 	for (i = 0; i < hr->num_meshes; i++) {
 		hikaru_mesh_t *mesh = &hr->mesh_list[i];
