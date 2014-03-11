@@ -732,13 +732,12 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	upload_material_texhead (hr, mesh);
 
 	switch (POLY.type) {
-	case HIKARU_POLYTYPE_OPAQUE:
-	default:
-		glDisable (GL_BLEND);
-		break;
 	case HIKARU_POLYTYPE_TRANSPARENT:
 	case HIKARU_POLYTYPE_TRANSLUCENT:
 		glEnable (GL_BLEND);
+		break;
+	default:
+		glDisable (GL_BLEND);
 		break;
 	}
 
