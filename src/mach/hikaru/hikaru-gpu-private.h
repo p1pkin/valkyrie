@@ -414,10 +414,10 @@ typedef union {
 		uint32_t alpha		: 8; /* 0xFF000000 */
 	};
 	uint32_t full;
-} hikaru_gpu_vertex_info_t;
+} hikaru_vertex_info_t;
 
 typedef struct {
-	hikaru_gpu_vertex_info_t info;
+	hikaru_vertex_info_t info;
 	vec3f_t	pos;
 	uint32_t padding0;
 	vec3f_t	nrm;
