@@ -741,7 +741,6 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		glEnable (GL_BLEND);
 		break;
 	}
-	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glEnable (GL_CULL_FACE);
 	switch (hr->debug.flags[HR_DEBUG_SELECT_CULLFACE]) {
@@ -876,6 +875,9 @@ static void
 draw_scene (hikaru_renderer_t *hr)
 {
 	unsigned i;
+
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
 	for (i = 0; i < hr->num_meshes; i++) {
 		hikaru_mesh_t *mesh = &hr->mesh_list[i];
 		if (hr->debug.flags[HR_DEBUG_DEFERRED])
