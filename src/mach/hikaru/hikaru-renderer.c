@@ -28,6 +28,7 @@
 #define MAX_MATERIALS	4096
 #define MAX_TEXHEADS	4096
 #define MAX_LIGHTSETS	256
+#define MAX_MESHES	16384
 
 #define INV255	(1.0f / 255.0f)
 
@@ -38,6 +39,7 @@ static const struct {
 	char name[32];
 } debug_controls[] = {
 	[HR_DEBUG_LOG]			= {  0, 1,     ~0, false, "LOG" },
+	[HR_DEBUG_DEFERRED]		= {  0, 1,     ~0, false, "DEFERRED" },
 	[HR_DEBUG_NO_LAYER1]		= {  0, 1, SDLK_1, false, "NO LAYER1" },
 	[HR_DEBUG_NO_LAYER2]		= {  0, 1, SDLK_2, false, "NO LAYER2" },
 	[HR_DEBUG_NO_3D]		= {  0, 1, SDLK_3, false, "NO 3D" },
@@ -65,6 +67,8 @@ init_debug_flags (hikaru_renderer_t *hr)
 
 	hr->debug.flags[HR_DEBUG_LOG] =
 		vk_util_get_bool_option ("HR_LOG", false) ? 1 : 0;
+	hr->debug.flags[HR_DEBUG_DEFERRED] =
+		vk_util_get_bool_option ("HR_DEFERRED", false) ? 1 : 0;
 	hr->debug.flags[HR_DEBUG_DUMP_TEXTURES] =
 		vk_util_get_bool_option ("HR_DUMP_TEXTURES", false) ? 1 : 0;
 }
@@ -692,38 +696,6 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 	}
 }
 
-static void
-hikaru_mesh_destroy (hikaru_mesh_t **mesh_)
-{
-	if (mesh_) {
-		hikaru_mesh_t *mesh = *mesh_;
-		if (mesh->vbo);
-			glDeleteBuffers (1, &mesh->vbo);
-		free (mesh);
-		*mesh_ = NULL;
-	}
-}
-
-static hikaru_mesh_t *
-hikaru_mesh_new (void)
-{
-	hikaru_mesh_t *mesh;
-
-	mesh = ALLOC (hikaru_mesh_t);
-	if (!mesh)
-		return NULL;
-
-	glGenBuffers (1, &mesh->vbo);
-	if (!mesh->vbo)
-		goto fail;
-
-	return mesh;
-
-fail:
-	hikaru_mesh_destroy (&mesh);
-	return NULL;
-}
-
 #define OFFSET(member_) \
 	((const GLvoid *) offsetof (hikaru_vertex_t, member_))
 
@@ -738,20 +710,10 @@ hikaru_mesh_upload_pushed_data (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	glBindBuffer (GL_ARRAY_BUFFER, mesh->vbo);
 	glBufferData (GL_ARRAY_BUFFER, sizeof (hikaru_vertex_t) * mesh->num_tris * 3,
 	              (const GLvoid *) hr->push.all, GL_DYNAMIC_DRAW);
-
-	glVertexPointer (3, GL_FLOAT, sizeof (hikaru_vertex_t), OFFSET (pos));
-	glNormalPointer (GL_FLOAT, sizeof (hikaru_vertex_t), OFFSET (nrm));
-	glColorPointer (4, GL_FLOAT,  sizeof (hikaru_vertex_t), OFFSET (col));
-	glTexCoordPointer (2, GL_FLOAT,  sizeof (hikaru_vertex_t), OFFSET (txc));
-
-	glEnableClientState (GL_VERTEX_ARRAY);
-	glEnableClientState (GL_NORMAL_ARRAY);
-	glEnableClientState (GL_COLOR_ARRAY);
-	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 }
 
 static void
-hikaru_mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
 
@@ -799,6 +761,18 @@ hikaru_mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	upload_lightset (hr, mesh); /* This is not really per-instance... */
 
 	/* Draw the mesh. */
+	glBindBuffer (GL_ARRAY_BUFFER, mesh->vbo);
+
+	glVertexPointer (3, GL_FLOAT, sizeof (hikaru_vertex_t), OFFSET (pos));
+	glNormalPointer (GL_FLOAT, sizeof (hikaru_vertex_t), OFFSET (nrm));
+	glColorPointer (4, GL_FLOAT,  sizeof (hikaru_vertex_t), OFFSET (col));
+	glTexCoordPointer (2, GL_FLOAT,  sizeof (hikaru_vertex_t), OFFSET (txc));
+
+	glEnableClientState (GL_VERTEX_ARRAY);
+	glEnableClientState (GL_NORMAL_ARRAY);
+	glEnableClientState (GL_COLOR_ARRAY);
+	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
+
 	glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
 }
 
@@ -862,8 +836,12 @@ hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
 		return;
 
 	/* Create a new mesh. */
-	mesh = hikaru_mesh_new ();
-	VK_ASSERT (mesh);
+	mesh = &hr->mesh_list[hr->num_meshes++];
+	VK_ASSERT (hr->num_meshes < MAX_MESHES);
+
+	glGenBuffers (1, &mesh->vbo);
+	VK_ASSERT (mesh->vbo);
+
 	mesh->addr[0] = addr;
 
 	hr->meshes.current = mesh;
@@ -886,15 +864,25 @@ hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr)
 
 	VK_ASSERT (hr->meshes.current);
 
-	/* Upload the mesh. */
 	hr->meshes.current->addr[1] = addr;
 	hikaru_mesh_upload_pushed_data (hr, hr->meshes.current);
 
-	/* Draw the mesh. */
-	hikaru_mesh_draw (hr, hr->meshes.current);
+	if (!hr->debug.flags[HR_DEBUG_DEFERRED])
+		draw_mesh (hr, hr->meshes.current);
+	hr->meshes.current = NULL;
+}
 
-	/* Destroy the mesh. */
-	hikaru_mesh_destroy (&hr->meshes.current);
+static void
+draw_scene (hikaru_renderer_t *hr)
+{
+	unsigned i;
+	for (i = 0; i < hr->num_meshes; i++) {
+		hikaru_mesh_t *mesh = &hr->mesh_list[i];
+		if (hr->debug.flags[HR_DEBUG_DEFERRED])
+			draw_mesh (hr, mesh);
+		if (mesh->vbo)
+			glDeleteBuffers (1, &mesh->vbo);
+	}
 }
 
 /****************************************************************************
@@ -911,6 +899,8 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	hr->num_mats = 0;
 	hr->num_texs = 0;
 	hr->num_lss = 0;
+
+	hr->num_meshes = 0;
 
 	/* Fill in the debug stuff. */
 	update_debug_flags (hr);
@@ -930,6 +920,8 @@ static void
 hikaru_renderer_end_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+
+	draw_scene (hr);
 
 	/* Draw the foreground layers. */
 	hikaru_renderer_draw_layers (hr, false);
@@ -959,6 +951,8 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 		free (hr->mat_list);
 		free (hr->tex_list);
 		free (hr->ls_list);
+
+		free (hr->mesh_list);
 
 		vk_surface_destroy (&hr->textures.debug);
 		hikaru_renderer_invalidate_texcache (*renderer_, NULL);
@@ -1009,6 +1003,10 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 	hr->ls_list  = (hikaru_lightset_t *) malloc (sizeof (hikaru_lightset_t) * MAX_LIGHTSETS);
 	if (!hr->vp_list || !hr->mv_list ||
 	    !hr->mat_list || !hr->tex_list || !hr->ls_list)
+		goto fail;
+
+	hr->mesh_list = (hikaru_mesh_t *) malloc (sizeof (hikaru_mesh_t) * MAX_MESHES);
+	if (!hr->mesh_list)
 		goto fail;
 
 	init_debug_flags (hr);

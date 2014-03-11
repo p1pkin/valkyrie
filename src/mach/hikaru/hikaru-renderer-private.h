@@ -23,6 +23,7 @@
 
 enum {
 	HR_DEBUG_LOG,
+	HR_DEBUG_DEFERRED,
 	HR_DEBUG_NO_LAYER1,
 	HR_DEBUG_NO_LAYER2,
 	HR_DEBUG_NO_3D,
@@ -73,6 +74,9 @@ typedef struct {
 
 	hikaru_lightset_t	*ls_list;
 	uint32_t		 num_lss;
+
+	hikaru_mesh_t		*mesh_list;
+	uint32_t		 num_meshes;
 
 	struct {
 		unsigned		num_verts, num_tris;
