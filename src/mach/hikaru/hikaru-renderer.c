@@ -121,7 +121,7 @@ is_viewport_valid (hikaru_viewport_t *vp)
 }
 
 static void
-upload_current_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_viewport_t *vp =
 		(mesh->vp_index == ~0) ? NULL : &hr->vp_list[mesh->vp_index];
@@ -150,7 +150,7 @@ upload_current_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 }
 
 static void
-upload_current_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+upload_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_modelview_t *mv =
 		(mesh->mv_index == ~0) ? NULL : &hr->mv_list[mesh->mv_index];
@@ -177,7 +177,7 @@ is_texhead_set (hikaru_texhead_t *th)
 }
 
 static void
-upload_current_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+upload_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_material_t *mat =
 		(mesh->mat_index == ~0) ? NULL : &hr->mat_list[mesh->mat_index];
@@ -353,7 +353,7 @@ get_material_specular (hikaru_renderer_t *hr, hikaru_material_t *mat, float *out
 }
 
 static void
-upload_current_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_material_t *mat =
 		(mesh->mat_index == ~0) ? NULL : &hr->mat_list[mesh->mat_index];
@@ -766,8 +766,8 @@ hikaru_mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		return;
 
 	/* Upload instance-invariant state. */
-	upload_current_viewport (hr, mesh);
-	upload_current_material_texhead (hr, mesh);
+	upload_viewport (hr, mesh);
+	upload_material_texhead (hr, mesh);
 
 	switch (POLY.type) {
 	case HIKARU_POLYTYPE_OPAQUE:
@@ -795,8 +795,8 @@ hikaru_mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	}
 
 	/* Upload per-instance state. */
-	upload_current_modelview (hr, mesh);
-	upload_current_lightset (hr, mesh); /* This is not really per-instance... */
+	upload_modelview (hr, mesh);
+	upload_lightset (hr, mesh); /* This is not really per-instance... */
 
 	/* Draw the mesh. */
 	glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
