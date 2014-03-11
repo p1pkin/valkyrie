@@ -866,25 +866,29 @@ draw_scene (hikaru_renderer_t *hr)
 	for (i = 0; i < NUMELEM (sorted_polytypes); i++) {
 		int polytype = sorted_polytypes[i], j;
 
-		if (hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] >= 0 &&
-		    hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] != polytype)
-			return;
+		if (hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] < 0 ||
+		    hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] == polytype) {
 
-		switch (polytype) {
-		case HIKARU_POLYTYPE_TRANSPARENT:
-		case HIKARU_POLYTYPE_TRANSLUCENT:
-			glEnable (GL_BLEND);
-			break;
-		default:
-			glDisable (GL_BLEND);
-			break;
+			switch (polytype) {
+			case HIKARU_POLYTYPE_TRANSPARENT:
+			case HIKARU_POLYTYPE_TRANSLUCENT:
+				glEnable (GL_BLEND);
+				break;
+			default:
+				glDisable (GL_BLEND);
+				break;
+			}
+	
+			if (hr->debug.flags[HR_DEBUG_DEFERRED]) {
+				for (j = 0; j < hr->num_meshes[polytype]; j++) {
+					hikaru_mesh_t *mesh = &hr->mesh_list[polytype][j];
+						draw_mesh (hr, mesh);
+				}
+			}
 		}
 
 		for (j = 0; j < hr->num_meshes[polytype]; j++) {
 			hikaru_mesh_t *mesh = &hr->mesh_list[polytype][j];
-
-			if (hr->debug.flags[HR_DEBUG_DEFERRED])
-				draw_mesh (hr, mesh);
 
 			if (mesh->vbo)
 				glDeleteBuffers (1, &mesh->vbo);
