@@ -23,6 +23,12 @@
 #include "mach/hikaru/hikaru-renderer.h"
 #include "mach/hikaru/hikaru-renderer-private.h"
 
+#define MAX_VIEWPORTS	32
+#define MAX_MODELVIEWS	4096
+#define MAX_MATERIALS	4096
+#define MAX_TEXHEADS	4096
+#define MAX_LIGHTSETS	256
+
 #define INV255	(1.0f / 255.0f)
 
 static const struct {
@@ -117,7 +123,8 @@ is_viewport_valid (hikaru_viewport_t *vp)
 static void
 upload_current_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_viewport_t *vp = mesh->vp;
+	hikaru_viewport_t *vp =
+		(mesh->vp_index == ~0) ? NULL : &hr->vp_list[mesh->vp_index];
 
 	const float h = vp->clip.t - vp->clip.b;
 	const float w = vp->clip.r - vp->clip.l;
@@ -125,11 +132,6 @@ upload_current_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	const float hw_at_n = hh_at_n * (w / h);
 	const float dcx = vp->offset.x - (w / 2.0f);
 	const float dcy = vp->offset.y - (h / 2.0f);
-
-	if (!vp->dirty)
-		return;
-
-	vp->dirty = 0;
 
 	LOG ("vp  = %s : [w=%f h=%f dcx=%f dcy=%f]",
 	     get_viewport_str (vp), w, h, dcx, dcy);
@@ -150,13 +152,16 @@ upload_current_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 static void
 upload_current_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	LOG ("mv  = %s", get_modelview_str (mesh->mv));
+	hikaru_modelview_t *mv =
+		(mesh->mv_index == ~0) ? NULL : &hr->mv_list[mesh->mv_index];
 
-	if (!mesh->mv)
+	if (!mv)
 		return;
 
+	LOG ("mv  = %s", get_modelview_str (mv));
+
 	glMatrixMode (GL_MODELVIEW);
-	glLoadMatrixf ((GLfloat *) &mesh->mv->mtx[0][0]);
+	glLoadMatrixf ((GLfloat *) &mv->mtx[0][0]);
 }
 
 static bool
@@ -174,14 +179,10 @@ is_texhead_set (hikaru_texhead_t *th)
 static void
 upload_current_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_material_t *mat = mesh->mat;
-	hikaru_texhead_t *th = mesh->tex;
-
-	if (!mat->dirty && !th->dirty)
-		return;
-
-	mat->dirty = 0;
-	th->dirty = 0;
+	hikaru_material_t *mat =
+		(mesh->mat_index == ~0) ? NULL : &hr->mat_list[mesh->mat_index];
+	hikaru_texhead_t *th =
+		(mesh->tex_index == ~0) ? NULL : &hr->tex_list[mesh->tex_index];
 
 	LOG ("mat = %s", get_material_str (mat));
 	if (is_material_set (mat) && mat->has_texture)
@@ -354,18 +355,15 @@ get_material_specular (hikaru_renderer_t *hr, hikaru_material_t *mat, float *out
 static void
 upload_current_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_material_t *mat = mesh->mat;
-	hikaru_lightset_t *ls = mesh->ls;
+	hikaru_material_t *mat =
+		(mesh->mat_index == ~0) ? NULL : &hr->mat_list[mesh->mat_index];
+	hikaru_lightset_t *ls =
+		(mesh->ls_index == ~0) ? NULL : &hr->ls_list[mesh->ls_index];
 	GLfloat tmp[4];
 	unsigned i, n;
 
 	if (hr->debug.flags[HR_DEBUG_NO_LIGHTING])
 		goto disable;
-
-	if (!ls->dirty)
-		return;
-
-	ls->dirty = 0;
 
 	if (!ls->set) {
 		VK_ERROR ("attempting to use unset lightset!");
@@ -804,70 +802,50 @@ hikaru_mesh_draw (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
 }
 
+#define VP0	VP.scratch
+#define MAT0	MAT.scratch
+#define TEX0	TEX.scratch
+#define LS0	LIT.scratchset
+
 /* TODO check if more fine-grained uploaded tracking can help. */
 /* TODO check boundary conditions when nothing is uploaded in a frame. */
+/* TODO alpha threshold */
 static void
 update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
-	hikaru_viewport_t *vp = &VP.scratch;
-	hikaru_modelview_t *mv = NULL;
-	hikaru_material_t *mat = &MAT.scratch;
-	hikaru_texhead_t *tex = &TEX.scratch;
-	hikaru_lightset_t *ls = &LIT.scratchset;
 
-	LOG ("updating rendstate...");
-
-	if (vp->uploaded) {
-		vp->uploaded = 0;
-		vp->dirty = 1;
-		VK_VECTOR_APPEND (hr->states.viewports, hikaru_viewport_t, *vp);
-		LOG ("updated vp");
+	if (VP0.uploaded) {
+		hr->vp_list[hr->num_vps++] = VP0;
+		VK_ASSERT (hr->num_vps < MAX_VIEWPORTS);
+		VP0.uploaded = 0;
 	}
-
 	if (MV.total) {
+		hr->mv_list[hr->num_mvs++] = MV.table[0];
+		VK_ASSERT (hr->num_mvs < MAX_MODELVIEWS);
 		MV.total = 0;
-		MV.depth = 0;
-		/* TODO append all modelviews. */
-		VK_VECTOR_APPEND (hr->states.modelviews, hikaru_modelview_t, MV.table[0]);
-		mv = (hikaru_modelview_t *) VK_VECTOR_LAST (hr->states.modelviews);
-		LOG ("updated mv");
-	} else
-		mv = NULL;
-
-	if (mat->uploaded) {
-		mat->uploaded = 0;
-		mat->dirty = 1;
-		VK_VECTOR_APPEND (hr->states.materials, hikaru_material_t, *mat);
-		LOG ("updated mat");
+	}
+	if (MAT0.uploaded) {
+		hr->mat_list[hr->num_mats++] = MAT0;
+		VK_ASSERT (hr->num_mats < MAX_MATERIALS);
+		MAT0.uploaded = 0;
+	}
+	if (TEX0.uploaded) {
+		hr->tex_list[hr->num_texs++] = TEX0;
+		VK_ASSERT (hr->num_texs < MAX_TEXHEADS);
+		TEX0.uploaded = 0;
+	}
+	if (LS0.uploaded) {
+		hr->ls_list[hr->num_lss++] = LS0;
+		VK_ASSERT (hr->num_lss < MAX_LIGHTSETS);
+		LS0.uploaded = 0;
 	}
 
-	if (tex->uploaded) {
-		tex->uploaded = 0;
-		tex->dirty = 1;
-		VK_VECTOR_APPEND (hr->states.texheads, hikaru_texhead_t, *tex);
-		LOG ("updated tex");
-	}
-
-	if (ls->uploaded) {
-		ls->uploaded = 0;
-		ls->dirty = 1;
-		VK_VECTOR_APPEND (hr->states.lightsets, hikaru_lightset_t, *ls);
-		LOG ("updated ls");
-	}
-
-	mesh->vp =
-		(hikaru_viewport_t *) VK_VECTOR_LAST (hr->states.viewports);
-	mesh->mv = mv;
-	mesh->mat =
-		(hikaru_material_t *) VK_VECTOR_LAST (hr->states.materials);
-	mesh->tex =
-		(hikaru_texhead_t *) VK_VECTOR_LAST (hr->states.texheads);
-	mesh->ls =
-		(hikaru_lightset_t *) VK_VECTOR_LAST (hr->states.lightsets);
-
-	LOG ("rendstate = { vp=%p mv=%p mat=%p tex=%p ls=%p }",
-	     mesh->vp, mesh->mv, mesh->mat, mesh->tex, mesh->ls);
+	mesh->vp_index = hr->num_vps - 1;
+	mesh->mv_index = hr->num_mvs - 1;
+	mesh->mat_index = hr->num_mats - 1;
+	mesh->tex_index = hr->num_texs - 1;
+	mesh->ls_index = hr->num_lss - 1;
 }
 
 void
@@ -928,11 +906,11 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
-	vk_vector_clear_fast (hr->states.viewports);
-	vk_vector_clear_fast (hr->states.modelviews);
-	vk_vector_clear_fast (hr->states.materials);
-	vk_vector_clear_fast (hr->states.texheads);
-	vk_vector_clear_fast (hr->states.lightsets);
+	hr->num_vps = 0;
+	hr->num_mvs = 0;
+	hr->num_mats = 0;
+	hr->num_texs = 0;
+	hr->num_lss = 0;
 
 	/* Fill in the debug stuff. */
 	update_debug_flags (hr);
@@ -957,11 +935,11 @@ hikaru_renderer_end_frame (vk_renderer_t *renderer)
 	hikaru_renderer_draw_layers (hr, false);
 
 	LOG (" ==== RENDSTATE STATISTICS ==== ");
-	LOG ("  vp  : %u", hr->states.viewports->used / sizeof (hikaru_viewport_t));
-	LOG ("  mv  : %u", hr->states.modelviews->used / sizeof (hikaru_modelview_t));
-	LOG ("  mat : %u", hr->states.materials->used / sizeof (hikaru_material_t));
-	LOG ("  tex : %u", hr->states.texheads->used / sizeof (hikaru_texhead_t));
-	LOG ("  ls  : %u", hr->states.lightsets->used / sizeof (hikaru_lightset_t));
+	LOG ("  vp  : %u", hr->num_vps);
+	LOG ("  mv  : %u", hr->num_mvs);
+	LOG ("  mat : %u", hr->num_mats);
+	LOG ("  tex : %u", hr->num_texs);
+	LOG ("  ls  : %u", hr->num_lss);
 }
 
 static void
@@ -976,16 +954,12 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 	if (renderer_) {
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
 
-		if (hr->states.viewports)
-			vk_vector_destroy (&hr->states.viewports);
-		if (hr->states.modelviews)
-			vk_vector_destroy (&hr->states.modelviews);
-		if (hr->states.materials)
-			vk_vector_destroy (&hr->states.materials);
-		if (hr->states.texheads)
-			vk_vector_destroy (&hr->states.texheads);
-		if (hr->states.lightsets)
-			vk_vector_destroy (&hr->states.lightsets);
+		free (hr->vp_list);
+		free (hr->mv_list);
+		free (hr->mat_list);
+		free (hr->tex_list);
+		free (hr->ls_list);
+
 		vk_surface_destroy (&hr->textures.debug);
 		hikaru_renderer_invalidate_texcache (*renderer_, NULL);
 	}
@@ -1028,24 +1002,13 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 	if (ret)
 		goto fail;
 
-	hr->states.viewports = vk_vector_new (8, sizeof (hikaru_viewport_t));
-	if (!hr->states.viewports)
-		goto fail;
-
-	hr->states.modelviews = vk_vector_new (8, sizeof (hikaru_modelview_t));
-	if (!hr->states.modelviews)
-		goto fail;
-
-	hr->states.materials = vk_vector_new (8, sizeof (hikaru_material_t));
-	if (!hr->states.materials)
-		goto fail;
-
-	hr->states.texheads = vk_vector_new (8, sizeof (hikaru_texhead_t));
-	if (!hr->states.texheads)
-		goto fail;
-
-	hr->states.lightsets = vk_vector_new (8, sizeof (hikaru_lightset_t));
-	if (!hr->states.lightsets)
+	hr->vp_list  = (hikaru_viewport_t *) malloc (sizeof (hikaru_viewport_t) * MAX_VIEWPORTS);
+	hr->mv_list  = (hikaru_modelview_t *) malloc (sizeof (hikaru_modelview_t) * MAX_MODELVIEWS);
+	hr->mat_list = (hikaru_material_t *) malloc (sizeof (hikaru_material_t) * MAX_MATERIALS);
+	hr->tex_list = (hikaru_texhead_t *) malloc (sizeof (hikaru_texhead_t) * MAX_TEXHEADS);
+	hr->ls_list  = (hikaru_lightset_t *) malloc (sizeof (hikaru_lightset_t) * MAX_LIGHTSETS);
+	if (!hr->vp_list || !hr->mv_list ||
+	    !hr->mat_list || !hr->tex_list || !hr->ls_list)
 		goto fail;
 
 	init_debug_flags (hr);

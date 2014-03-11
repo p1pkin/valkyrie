@@ -46,12 +46,12 @@ typedef struct {
 	GLuint			vbo;
 	uint32_t		num_tris;
 	uint32_t		addr[2];
-	hikaru_viewport_t	*vp;
-	hikaru_modelview_t	*mv;
-	hikaru_material_t	*mat;
-	hikaru_texhead_t	*tex;
-	hikaru_lightset_t	*ls;
-	float			 alpha_thresh[2];
+	uint32_t		vp_index;
+	uint32_t		mv_index;
+	uint32_t		mat_index;
+	uint32_t		tex_index;
+	uint32_t		ls_index;
+	float			alpha_thresh[2];
 } hikaru_mesh_t;
 
 typedef struct {
@@ -59,13 +59,20 @@ typedef struct {
 
 	hikaru_gpu_t *gpu;
 
-	struct {
-		vk_vector_t		*viewports;
-		vk_vector_t		*modelviews;
-		vk_vector_t		*materials;
-		vk_vector_t		*texheads;
-		vk_vector_t		*lightsets;
-	} states;
+	hikaru_viewport_t	*vp_list;
+	uint32_t		 num_vps;
+
+	hikaru_modelview_t	*mv_list;
+	uint32_t		 num_mvs;
+
+	hikaru_material_t	*mat_list;
+	uint32_t		 num_mats;
+
+	hikaru_texhead_t	*tex_list;
+	uint32_t		 num_texs;
+
+	hikaru_lightset_t	*ls_list;
+	uint32_t		 num_lss;
 
 	struct {
 		unsigned		num_verts, num_tris;
