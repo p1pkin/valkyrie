@@ -709,33 +709,14 @@ hikaru_mesh_upload_pushed_data (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 static void
 draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_gpu_t *gpu = hr->gpu;
-
 	VK_ASSERT (mesh);
 	VK_ASSERT (mesh->vbo);
 
 	LOG ("==== DRAWING MESH (#vertices=%u) ====",
 	     mesh->num_tris * 3);
 
-	if (hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] >= 0 &&
-	    hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] != POLY.type)
-		return;
-
-	/* Upload instance-invariant state. */
 	upload_viewport (hr, mesh);
 	upload_material_texhead (hr, mesh);
-
-	switch (POLY.type) {
-	case HIKARU_POLYTYPE_TRANSPARENT:
-	case HIKARU_POLYTYPE_TRANSLUCENT:
-		glEnable (GL_BLEND);
-		break;
-	default:
-		glDisable (GL_BLEND);
-		break;
-	}
-
-	/* Upload per-instance state. */
 	upload_modelview (hr, mesh);
 	upload_lightset (hr, mesh); /* This is not really per-instance... */
 
@@ -806,6 +787,8 @@ hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
                             bool is_static)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
+	hikaru_gpu_t *gpu = hr->gpu;
+	unsigned polytype = POLY.type;
 	hikaru_mesh_t *mesh;
 
 	VK_ASSERT (hr);
@@ -815,8 +798,8 @@ hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
 		return;
 
 	/* Create a new mesh. */
-	mesh = &hr->mesh_list[hr->num_meshes++];
-	VK_ASSERT (hr->num_meshes < MAX_MESHES);
+	mesh = &hr->mesh_list[polytype][hr->num_meshes[polytype]++];
+	VK_ASSERT (hr->num_meshes[polytype] < MAX_MESHES);
 
 	glGenBuffers (1, &mesh->vbo);
 	VK_ASSERT (mesh->vbo);
@@ -854,6 +837,14 @@ hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr)
 static void
 draw_scene (hikaru_renderer_t *hr)
 {
+	static const int sorted_polytypes[] = {
+		HIKARU_POLYTYPE_BACKGROUND,
+		HIKARU_POLYTYPE_SHADOW_A,
+		HIKARU_POLYTYPE_SHADOW_B,
+		HIKARU_POLYTYPE_OPAQUE,
+		HIKARU_POLYTYPE_TRANSPARENT,
+		HIKARU_POLYTYPE_TRANSLUCENT,
+	};
 	unsigned i;
 
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -872,12 +863,32 @@ draw_scene (hikaru_renderer_t *hr)
 		break;
 	}
 
-	for (i = 0; i < hr->num_meshes; i++) {
-		hikaru_mesh_t *mesh = &hr->mesh_list[i];
-		if (hr->debug.flags[HR_DEBUG_DEFERRED])
-			draw_mesh (hr, mesh);
-		if (mesh->vbo)
-			glDeleteBuffers (1, &mesh->vbo);
+	for (i = 0; i < NUMELEM (sorted_polytypes); i++) {
+		int polytype = sorted_polytypes[i], j;
+
+		if (hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] >= 0 &&
+		    hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] != polytype)
+			return;
+
+		switch (polytype) {
+		case HIKARU_POLYTYPE_TRANSPARENT:
+		case HIKARU_POLYTYPE_TRANSLUCENT:
+			glEnable (GL_BLEND);
+			break;
+		default:
+			glDisable (GL_BLEND);
+			break;
+		}
+
+		for (j = 0; j < hr->num_meshes[polytype]; j++) {
+			hikaru_mesh_t *mesh = &hr->mesh_list[polytype][j];
+
+			if (hr->debug.flags[HR_DEBUG_DEFERRED])
+				draw_mesh (hr, mesh);
+
+			if (mesh->vbo)
+				glDeleteBuffers (1, &mesh->vbo);
+		}
 	}
 }
 
@@ -889,6 +900,7 @@ static void
 hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
+	unsigned i;
 
 	hr->num_vps = 0;
 	hr->num_mvs = 0;
@@ -896,7 +908,8 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	hr->num_texs = 0;
 	hr->num_lss = 0;
 
-	hr->num_meshes = 0;
+	for (i = 0; i < 8; i++)
+		hr->num_meshes[i] = 0;
 
 	/* Fill in the debug stuff. */
 	update_debug_flags (hr);
@@ -941,6 +954,7 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 {
 	if (renderer_) {
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
+		unsigned i;
 
 		free (hr->vp_list);
 		free (hr->mv_list);
@@ -948,7 +962,8 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 		free (hr->tex_list);
 		free (hr->ls_list);
 
-		free (hr->mesh_list);
+		for (i = 0; i < 8; i++)
+			free (hr->mesh_list[i]);
 
 		vk_surface_destroy (&hr->textures.debug);
 		hikaru_renderer_invalidate_texcache (*renderer_, NULL);
@@ -974,7 +989,7 @@ vk_renderer_t *
 hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 {
 	hikaru_renderer_t *hr;
-	int ret;
+	int i, ret;
 
 	hr = ALLOC (hikaru_renderer_t);
 	if (!hr)
@@ -1001,9 +1016,11 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 	    !hr->mat_list || !hr->tex_list || !hr->ls_list)
 		goto fail;
 
-	hr->mesh_list = (hikaru_mesh_t *) malloc (sizeof (hikaru_mesh_t) * MAX_MESHES);
-	if (!hr->mesh_list)
-		goto fail;
+	for (i = 0; i < 8; i++) {
+		hr->mesh_list[i] = (hikaru_mesh_t *) malloc (sizeof (hikaru_mesh_t) * MAX_MESHES);
+		if (!hr->mesh_list[i])
+			goto fail;
+	}
 
 	init_debug_flags (hr);
 

@@ -75,8 +75,8 @@ typedef struct {
 	hikaru_lightset_t	*ls_list;
 	uint32_t		 num_lss;
 
-	hikaru_mesh_t		*mesh_list;
-	uint32_t		 num_meshes;
+	hikaru_mesh_t		*mesh_list[8];
+	uint32_t		 num_meshes[8];
 
 	struct {
 		unsigned		num_verts, num_tris;
