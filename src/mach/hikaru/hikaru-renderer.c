@@ -39,7 +39,6 @@ static const struct {
 	char name[32];
 } debug_controls[] = {
 	[HR_DEBUG_LOG]			= {  0, 1,     ~0, false, "LOG" },
-	[HR_DEBUG_DEFERRED]		= {  0, 1,     ~0, false, "DEFERRED" },
 	[HR_DEBUG_NO_LAYER1]		= {  0, 1, SDLK_1, false, "NO LAYER1" },
 	[HR_DEBUG_NO_LAYER2]		= {  0, 1, SDLK_2, false, "NO LAYER2" },
 	[HR_DEBUG_NO_3D]		= {  0, 1, SDLK_3, false, "NO 3D" },
@@ -67,8 +66,6 @@ init_debug_flags (hikaru_renderer_t *hr)
 
 	hr->debug.flags[HR_DEBUG_LOG] =
 		vk_util_get_bool_option ("HR_LOG", false) ? 1 : 0;
-	hr->debug.flags[HR_DEBUG_DEFERRED] =
-		vk_util_get_bool_option ("HR_DEFERRED", false) ? 1 : 0;
 	hr->debug.flags[HR_DEBUG_DUMP_TEXTURES] =
 		vk_util_get_bool_option ("HR_DUMP_TEXTURES", false) ? 1 : 0;
 }
@@ -829,8 +826,6 @@ hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr)
 	hr->meshes.current->addr[1] = addr;
 	hikaru_mesh_upload_pushed_data (hr, hr->meshes.current);
 
-	if (!hr->debug.flags[HR_DEBUG_DEFERRED])
-		draw_mesh (hr, hr->meshes.current);
 	hr->meshes.current = NULL;
 }
 
@@ -879,11 +874,9 @@ draw_scene (hikaru_renderer_t *hr)
 				break;
 			}
 	
-			if (hr->debug.flags[HR_DEBUG_DEFERRED]) {
-				for (j = 0; j < hr->num_meshes[polytype]; j++) {
-					hikaru_mesh_t *mesh = &hr->mesh_list[polytype][j];
-						draw_mesh (hr, mesh);
-				}
+			for (j = 0; j < hr->num_meshes[polytype]; j++) {
+				hikaru_mesh_t *mesh = &hr->mesh_list[polytype][j];
+					draw_mesh (hr, mesh);
 			}
 		}
 
