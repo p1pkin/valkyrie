@@ -750,19 +750,19 @@ static void
 print_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, char *prefix)
 {
 	if (mesh->vp_index < MAX_VIEWPORTS)
-		LOG ("RENDSTATE %s vp:  %s", prefix,
+		LOG ("RENDSTATE %s %u vp:  %s", prefix, mesh->num,
 		     get_viewport_str (&hr->vp_list[mesh->vp_index]));
 	if (mesh->mv_index < MAX_MODELVIEWS)
-		LOG ("RENDSTATE %s mv:  %s", prefix,
+		LOG ("RENDSTATE %s %u mv:  %s", prefix, mesh->num,
 		     get_modelview_str (&hr->mv_list[mesh->mv_index]));
 	if (mesh->mat_index < MAX_MATERIALS)
-		LOG ("RENDSTATE %s mat: %s", prefix,
+		LOG ("RENDSTATE %s %u mat: %s", prefix, mesh->num,
 		     get_material_str (&hr->mat_list[mesh->mat_index]));
 	if (mesh->tex_index < MAX_TEXHEADS)
-		LOG ("RENDSTATE %s tex: %s", prefix,
+		LOG ("RENDSTATE %s %u tex: %s", prefix, mesh->num,
 		     get_texhead_str (&hr->tex_list[mesh->tex_index]));
 	if (mesh->ls_index < MAX_LIGHTSETS)
-		LOG ("RENDSTATE %s ls:  %s", prefix,
+		LOG ("RENDSTATE %s %u ls:  %s", prefix, mesh->num,
 		     get_lightset_str (&hr->ls_list[mesh->ls_index]));
 }
 
@@ -806,6 +806,7 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	mesh->tex_index = hr->num_texs - 1;
 	mesh->ls_index = hr->num_lss - 1;
 
+	mesh->num = hr->total_meshes++;
 	print_rendstate (hr, mesh, "U");
 }
 
@@ -938,6 +939,7 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 
 	for (i = 0; i < 8; i++)
 		hr->num_meshes[i] = 0;
+	hr->total_meshes = 0;
 
 	/* Fill in the debug stuff. */
 	update_debug_flags (hr);

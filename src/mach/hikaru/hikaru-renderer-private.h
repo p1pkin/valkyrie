@@ -52,6 +52,7 @@ typedef struct {
 	uint32_t		tex_index;
 	uint32_t		ls_index;
 	float			alpha_thresh[2];
+	uint32_t		num;
 } hikaru_mesh_t;
 
 typedef struct {
@@ -76,6 +77,7 @@ typedef struct {
 
 	hikaru_mesh_t		*mesh_list[8];
 	uint32_t		 num_meshes[8];
+	uint32_t		 total_meshes;
 
 	struct {
 		unsigned		num_verts, num_tris;
