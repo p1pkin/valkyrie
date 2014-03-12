@@ -56,14 +56,13 @@ get_viewport_str (hikaru_viewport_t *vp)
 {
 	static char out[512];
 
-	sprintf (out, "clip=(%6.3f %6.3f %6.3f %6.3f %6.3f %6.3f) offs=(%6.3f %6.3f) depth=(%s %6.3f %6.3f) [%X]",
+	sprintf (out, "clip=(%6.3f %6.3f %6.3f %6.3f %6.3f %6.3f) offs=(%6.3f %6.3f) depth=(%s %6.3f %6.3f)",
 	         vp->clip.l, vp->clip.r,
 	         vp->clip.b, vp->clip.t,
 	         vp->clip.f, vp->clip.n,
 	         vp->offset.x, vp->offset.y,
 	         depth_func_name [vp->depth.func],
-	         vp->depth.min, vp->depth.max,
-	         vp->flags);
+	         vp->depth.min, vp->depth.max);
 
 	return (const char *) out;
 }
@@ -88,13 +87,12 @@ get_material_str (hikaru_material_t *material)
 {
 	static char out[512];
 
-	sprintf (out, "#%02X%02X%02X,%02X #%02X%02X%02X #%02X%02X%02X,%02X #%04X,%04X,%04X 081=%08X 881=%08X A81=%08X C81=%08X [%X]",
+	sprintf (out, "#%02X%02X%02X,%02X #%02X%02X%02X #%02X%02X%02X,%02X #%04X,%04X,%04X 081=%08X 881=%08X A81=%08X C81=%08X",
 	         material->diffuse[0], material->diffuse[1], material->diffuse[2], material->diffuse[3],
 	         material->ambient[0], material->ambient[1], material->ambient[2],
 	         material->specular[0], material->specular[1], material->specular[2], material->specular[3],
 	         material->unknown[0], material->unknown[1], material->unknown[2],
-	         material->_081, material->_881, material->_A81, material->_C81,
-	         material->flags);
+	         material->_081, material->_881, material->_A81, material->_C81);
 
 	return (const char *) out;
 }
