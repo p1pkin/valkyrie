@@ -747,19 +747,23 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 #define LS0	LIT.scratchset
 
 static void
-print_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+print_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, char *prefix)
 {
-	LOG ("RENDSTATE");
 	if (mesh->vp_index < MAX_VIEWPORTS)
-		LOG ("RENDSTATE vp:  %s", get_viewport_str (&hr->vp_list[mesh->vp_index]));
+		LOG ("RENDSTATE %s vp:  %s", prefix,
+		     get_viewport_str (&hr->vp_list[mesh->vp_index]));
 	if (mesh->mv_index < MAX_MODELVIEWS)
-		LOG ("RENDSTATE mv:  %s", get_modelview_str (&hr->mv_list[mesh->mv_index]));
+		LOG ("RENDSTATE %s mv:  %s", prefix,
+		     get_modelview_str (&hr->mv_list[mesh->mv_index]));
 	if (mesh->mat_index < MAX_MATERIALS)
-		LOG ("RENDSTATE mat: %s", get_material_str (&hr->mat_list[mesh->mat_index]));
+		LOG ("RENDSTATE %s mat: %s", prefix,
+		     get_material_str (&hr->mat_list[mesh->mat_index]));
 	if (mesh->tex_index < MAX_TEXHEADS)
-		LOG ("RENDSTATE tex: %s", get_texhead_str (&hr->tex_list[mesh->tex_index]));
+		LOG ("RENDSTATE %s tex: %s", prefix,
+		     get_texhead_str (&hr->tex_list[mesh->tex_index]));
 	if (mesh->ls_index < MAX_LIGHTSETS)
-		LOG ("RENDSTATE ls:  %s", get_lightset_str (&hr->ls_list[mesh->ls_index]));
+		LOG ("RENDSTATE %s ls:  %s", prefix,
+		     get_lightset_str (&hr->ls_list[mesh->ls_index]));
 }
 
 /* TODO check if more fine-grained uploaded tracking can help. */
@@ -802,7 +806,7 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	mesh->tex_index = hr->num_texs - 1;
 	mesh->ls_index = hr->num_lss - 1;
 
-	print_rendstate (hr, mesh);
+	print_rendstate (hr, mesh, "U");
 }
 
 void
@@ -902,7 +906,7 @@ draw_scene (hikaru_renderer_t *hr)
 	
 			for (j = 0; j < hr->num_meshes[polytype]; j++) {
 				hikaru_mesh_t *mesh = &hr->mesh_list[polytype][j];
-				print_rendstate (hr, mesh);
+				print_rendstate (hr, mesh, "D");
 				draw_mesh (hr, mesh);
 			}
 		}
