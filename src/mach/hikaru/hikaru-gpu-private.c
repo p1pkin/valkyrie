@@ -51,10 +51,15 @@ static const char depth_func_name[8][3] = {
 	"GT", "NE", "GE", "AW"
 };
 
+static const char *none = "NONE";
+
 const char *
 get_viewport_str (hikaru_viewport_t *vp)
 {
 	static char out[512];
+
+	if (!vp)
+		return none;
 
 	sprintf (out, "clip=(%6.3f %6.3f %6.3f %6.3f %6.3f %6.3f) offs=(%6.3f %6.3f) depth=(%s %6.3f %6.3f)",
 	         vp->clip.l, vp->clip.r,
@@ -72,6 +77,9 @@ get_modelview_str (hikaru_modelview_t *modelview)
 {
 	static char out[512];
 
+	if (!modelview)
+		return none;
+
 	sprintf (out,
 	         "|%f %f %f %f| |%f %f %f %f| |%f %f %f %f| |%f %f %f %f|",
 	         modelview->mtx[0][0], modelview->mtx[0][1], modelview->mtx[0][2], modelview->mtx[0][3],
@@ -86,6 +94,9 @@ const char *
 get_material_str (hikaru_material_t *material)
 {
 	static char out[512];
+
+	if (!material)
+		return none;
 
 	sprintf (out, "#%02X%02X%02X,%02X #%02X%02X%02X #%02X%02X%02X,%02X #%04X,%04X,%04X 081=%08X 881=%08X A81=%08X C81=%08X",
 	         material->diffuse[0], material->diffuse[1], material->diffuse[2], material->diffuse[3],
@@ -113,6 +124,9 @@ get_texhead_str (hikaru_texhead_t *texhead)
 	static char out[512];
 	uint32_t basex, basey;
 
+	if (!texhead)
+		return none;
+
 	get_texhead_coords (&basex, &basey, texhead);
 
 	sprintf (out, "[bank=%X slot=(%X,%X) pos=(%X,%X) -> offs=%08X] [size=%ux%u format=%s] 0C1=%08X 2C1=%08X",
@@ -128,6 +142,9 @@ const char *
 get_light_str (hikaru_light_t *lit)
 {
 	static char out[512];
+
+	if (!lit)
+		return none;
 
 	sprintf (out, "%u (%+10.3f %+10.3f) dir=%u (%+10.3f %+10.3f %+10.3f) pos=%u (%+10.3f %+10.3f %+10.3f) [%u %03X %03X %03X] [%u %02X %02X %02X]",
 	         lit->att_type, lit->attenuation[0], lit->attenuation[1],
