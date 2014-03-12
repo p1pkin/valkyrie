@@ -356,15 +356,23 @@ get_material_specular (hikaru_renderer_t *hr, hikaru_material_t *mat, float *out
 static void
 upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_material_t *mat =
-		(mesh->mat_index == ~0) ? NULL : &hr->mat_list[mesh->mat_index];
-	hikaru_lightset_t *ls =
-		(mesh->ls_index == ~0) ? NULL : &hr->ls_list[mesh->ls_index];
+	hikaru_material_t *mat = &hr->mat_list[mesh->mat_index];
+	hikaru_lightset_t *ls = &hr->ls_list[mesh->ls_index];
 	GLfloat tmp[4];
 	unsigned i, n;
 
 	if (hr->debug.flags[HR_DEBUG_NO_LIGHTING])
 		goto disable;
+
+	if (mesh->ls_index >= MAX_LIGHTSETS) {
+		VK_ERROR ("attempting to upload NULL lightset!");
+		goto disable;
+	}
+
+	if (mesh->mat_index >= MAX_MATERIALS) {
+		VK_ERROR ("attempting to upload lightset with NULL material!");
+		goto disable;
+	}
 
 	if (!ls->set) {
 		VK_ERROR ("attempting to use unset lightset!");
