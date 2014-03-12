@@ -23,7 +23,7 @@
 #include "mach/hikaru/hikaru-renderer.h"
 #include "mach/hikaru/hikaru-renderer-private.h"
 
-#define MAX_VIEWPORTS	32
+#define MAX_VIEWPORTS	4096
 #define MAX_MODELVIEWS	4096
 #define MAX_MATERIALS	4096
 #define MAX_TEXHEADS	4096
@@ -775,26 +775,31 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	hikaru_gpu_t *gpu = hr->gpu;
 
 	if (VP0.uploaded) {
+		LOG ("RENDSTATE updating vp %u/%u", hr->num_vps, MAX_VIEWPORTS);
 		hr->vp_list[hr->num_vps++] = VP0;
 		VK_ASSERT (hr->num_vps < MAX_VIEWPORTS);
 		VP0.uploaded = 0;
 	}
 	if (MV.total) {
+		LOG ("RENDSTATE updating mv %u/%u", hr->num_mvs, MAX_MODELVIEWS);
 		hr->mv_list[hr->num_mvs++] = MV.table[0];
 		VK_ASSERT (hr->num_mvs < MAX_MODELVIEWS);
 		MV.total = 0;
 	}
 	if (MAT0.uploaded) {
+		LOG ("RENDSTATE updating mat %u/%u", hr->num_mats, MAX_MATERIALS);
 		hr->mat_list[hr->num_mats++] = MAT0;
 		VK_ASSERT (hr->num_mats < MAX_MATERIALS);
 		MAT0.uploaded = 0;
 	}
 	if (TEX0.uploaded) {
+		LOG ("RENDSTATE updating tex %u/%u", hr->num_texs, MAX_TEXHEADS);
 		hr->tex_list[hr->num_texs++] = TEX0;
 		VK_ASSERT (hr->num_texs < MAX_TEXHEADS);
 		TEX0.uploaded = 0;
 	}
 	if (LS0.uploaded) {
+		LOG ("RENDSTATE updating ls %u/%u", hr->num_lss, MAX_LIGHTSETS);
 		hr->ls_list[hr->num_lss++] = LS0;
 		VK_ASSERT (hr->num_lss < MAX_LIGHTSETS);
 		LS0.uploaded = 0;
