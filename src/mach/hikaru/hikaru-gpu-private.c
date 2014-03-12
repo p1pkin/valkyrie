@@ -73,43 +73,43 @@ get_viewport_str (hikaru_viewport_t *vp)
 }
 
 const char *
-get_modelview_str (hikaru_modelview_t *modelview)
+get_modelview_str (hikaru_modelview_t *mv)
 {
 	static char out[512];
 
-	if (!modelview)
+	if (!mv)
 		return none;
 
 	sprintf (out,
 	         "|%f %f %f %f| |%f %f %f %f| |%f %f %f %f| |%f %f %f %f|",
-	         modelview->mtx[0][0], modelview->mtx[0][1], modelview->mtx[0][2], modelview->mtx[0][3],
-	         modelview->mtx[1][0], modelview->mtx[1][1], modelview->mtx[1][2], modelview->mtx[1][3],
-	         modelview->mtx[2][0], modelview->mtx[2][1], modelview->mtx[2][2], modelview->mtx[2][3],
-	         modelview->mtx[3][0], modelview->mtx[3][1], modelview->mtx[3][2], modelview->mtx[3][3]);
+	         mv->mtx[0][0], mv->mtx[0][1], mv->mtx[0][2], mv->mtx[0][3],
+	         mv->mtx[1][0], mv->mtx[1][1], mv->mtx[1][2], mv->mtx[1][3],
+	         mv->mtx[2][0], mv->mtx[2][1], mv->mtx[2][2], mv->mtx[2][3],
+	         mv->mtx[3][0], mv->mtx[3][1], mv->mtx[3][2], mv->mtx[3][3]);
 
 	return (const char *) out;
 }
 
 const char *
-get_material_str (hikaru_material_t *material)
+get_material_str (hikaru_material_t *mat)
 {
 	static char out[512];
 
-	if (!material)
+	if (!mat)
 		return none;
 
 	sprintf (out, "#%02X%02X%02X,%02X #%02X%02X%02X #%02X%02X%02X,%02X #%04X,%04X,%04X 081=%08X 881=%08X A81=%08X C81=%08X",
-	         material->diffuse[0], material->diffuse[1], material->diffuse[2], material->diffuse[3],
-	         material->ambient[0], material->ambient[1], material->ambient[2],
-	         material->specular[0], material->specular[1], material->specular[2], material->specular[3],
-	         material->unknown[0], material->unknown[1], material->unknown[2],
-	         material->_081, material->_881, material->_A81, material->_C81);
+	         mat->diffuse[0], mat->diffuse[1], mat->diffuse[2], mat->diffuse[3],
+	         mat->ambient[0], mat->ambient[1], mat->ambient[2],
+	         mat->specular[0], mat->specular[1], mat->specular[2], mat->specular[3],
+	         mat->unknown[0], mat->unknown[1], mat->unknown[2],
+	         mat->_081, mat->_881, mat->_A81, mat->_C81);
 
 	return (const char *) out;
 }
 
 const char *
-get_texhead_str (hikaru_texhead_t *texhead)
+get_texhead_str (hikaru_texhead_t *th)
 {
 	static const char *name[8] = {
 		"RGBA5551",
@@ -124,16 +124,16 @@ get_texhead_str (hikaru_texhead_t *texhead)
 	static char out[512];
 	uint32_t basex, basey;
 
-	if (!texhead)
+	if (!th)
 		return none;
 
-	get_texhead_coords (&basex, &basey, texhead);
+	get_texhead_coords (&basex, &basey, th);
 
 	sprintf (out, "[bank=%X slot=(%X,%X) pos=(%X,%X) -> offs=%08X] [size=%ux%u format=%s] 0C1=%08X 2C1=%08X",
-	         texhead->bank, texhead->slotx, texhead->sloty,
+	         th->bank, th->slotx, th->sloty,
 	         basex, basey, basey*4096 + basex*2,
-	         16 << texhead->logw, 16 << texhead->logh,
-	         name[texhead->format], texhead->_0C1, texhead->_2C1);
+	         16 << th->logw, 16 << th->logh,
+	         name[th->format], th->_0C1, th->_2C1);
 
 	return (const char *) out;
 }
