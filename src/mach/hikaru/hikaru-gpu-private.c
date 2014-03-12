@@ -142,6 +142,22 @@ get_light_str (hikaru_light_t *lit)
 };
 
 const char *
+get_lightset_str (hikaru_lightset_t *ls)
+{
+	static char out[512];
+	char *tmp = &out[0];
+	unsigned i;
+
+	for (i = 0; i < 4; i++) {
+		if (ls->mask & (1 << i))
+			continue;
+		tmp += sprintf (tmp, "%s\n", get_light_str (&ls->lights[i]));
+	}
+
+	return (const char *) out;
+}
+
+const char *
 get_vertex_str (hikaru_vertex_t *v)
 {
 	static char out[512];

@@ -461,6 +461,7 @@ const char *get_modelview_str (hikaru_modelview_t *);
 const char *get_material_str (hikaru_material_t *);
 const char *get_texhead_str (hikaru_texhead_t *);
 const char *get_light_str (hikaru_light_t *);
+const char *get_lightset_str (hikaru_lightset_t *);
 const char *get_vertex_str (hikaru_vertex_t *);
 const char *get_layer_str (hikaru_layer_t *);
 
