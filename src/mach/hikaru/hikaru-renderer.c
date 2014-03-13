@@ -531,7 +531,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 	hikaru_viewport_t *vp = &VP.scratch;
 	float base_alpha = POLY.alpha;
 	float mat_alpha = mat->diffuse[3] * INV255;
-	float vertex_alpha = src->info.alpha;
+	float vertex_alpha = src->info.alpha * INV255;
 	float alpha;
 
 	switch (POLY.type) {
@@ -541,7 +541,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 		alpha = 1.0f;
 		break;
 	case HIKARU_POLYTYPE_TRANSLUCENT:
-		alpha = base_alpha + mat_alpha + vertex_alpha;
+		alpha = base_alpha * vertex_alpha;
 		alpha = clampf (alpha, 0, 1);
 		break;
 	}
