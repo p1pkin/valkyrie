@@ -97,7 +97,7 @@ update_debug_flags (hikaru_renderer_t *hr)
 static bool
 is_viewport_set (hikaru_viewport_t *vp)
 {
-	return vp && (vp->flags & 0x27) == 0x27;
+	return true; // vp && (vp->flags & 0x27) == 0x27;
 }
 
 static bool
@@ -170,13 +170,13 @@ upload_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 static bool
 is_material_set (hikaru_material_t *mat)
 {
-	return mat && (mat->flags & 0xEF) == 0xEF;
+	return true; // mat && (mat->flags & 0xEF) == 0xEF;
 }
 
 static bool
 is_texhead_set (hikaru_texhead_t *th)
 {
-	return th && (th->flags & 7) == 7;
+	return true; // th && (th->flags & 7) == 7;
 }
 
 static void
@@ -218,7 +218,7 @@ upload_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 static bool
 is_light_set (hikaru_light_t *lit)
 {
-	return lit && (lit->flags & 0x1F) == 0x1F;
+	return true; // lit && (lit->flags & 0x1F) == 0x1F;
 }
 
 static hikaru_light_type_t
