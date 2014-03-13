@@ -34,6 +34,7 @@
 static struct {
 	char rom_path[256];
 	char rom_name[256];
+	int num_frames;
 	int start_state;
 } options;
 
@@ -102,19 +103,23 @@ process_events (void)
 }
 
 static void
-main_loop (vk_machine_t *mach)
+main_loop (vk_machine_t *mach, int num_frames)
 {
+	int frame = 0;
 	while (!process_events ()) {
+		if (num_frames > 0 && frame++ >= num_frames)
+			return;
 		vk_renderer_begin_frame (mach->renderer);
 		vk_machine_run_frame (mach);
 		vk_renderer_end_frame (mach->renderer);
 	}
 }
 
-static const char global_opts[] = "R:r:l:h?";
+static const char global_opts[] = "R:r:n:l:h?";
 static const char global_help[] = "Usage: %s [options]\n"
 "	-R <path>	Path to the ROM directory\n"
 "	-r <string>	Name of the game to run\n"
+"	-n <num>	Only run for num frames\n"
 "	-l <num>	Load state num at startup\n"
 "	-h              Show this help\n";
 
@@ -143,6 +148,9 @@ parse_global_opts (int argc, char **argv)
 			break;
 		case 'r':
 			strncpy (options.rom_name, optarg, 32);
+			break;
+		case 'n':
+			options.num_frames = atoi (optarg);
 			break;
 		case 'l':
 			options.start_state = atoi (optarg);
@@ -257,7 +265,7 @@ main (const int argc, char **argv)
 		load_or_save_state (mach, true);
 
 	printf ("Running");
-	main_loop (mach);
+	main_loop (mach, options.num_frames);
 
 fail:
 	return 0;
