@@ -508,10 +508,10 @@ hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A)
  *
  * The device is configured through the following MMIOs:
  *
- * 1A000180,4		Unit 0, Bank 0 Coords
- * 1A000188,C		Unit 0, Bank 1 Coords
- * 1A000190,4		Unit 0, Bank 2 Coords
- * 1A000198,C		Unit 0, Bank 3 Coords
+ * 1A000180,4		Unit 0, Front Buffer Coords
+ * 1A000188,C		Unit 0, Back Buffer Coords
+ * 1A000190,4		Unit 0, Layer 1 Coords
+ * 1A000198,C		Unit 0, Layer 2 Coords
  *
  *			-------- -----yyy yyyyyyyx xxxxxxxx
  *			-------- -----YYY YYYYYYYX XXXXXXXX

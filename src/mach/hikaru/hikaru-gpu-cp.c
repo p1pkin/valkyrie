@@ -2457,38 +2457,44 @@ D (0x158)
  Unknown
 ****************************************************************************/
 
-/* 181	Viewport: Set FB Property 1
+/* 181	FB: Set Blending
  *
  *	-------E AAAAAAAA -------o oooooooo
  *
- * E = Enable
- * A = Amount
- *
- * Some kind of color offset?
+ * E = Enable blending
+ * A = Blending factor
  *
  *
- * 781	Viewport: Set FB Property 2
+ * 781	FB: Set Combiner
  *
- *	-----AAA -----BBB -------o oooooooo
+ *	-----ENN -----enn -------o oooooooo
  *
- * A, B = Unknown
+ * E = Buffer A, Enable (?)
+ * N = Buffer A, Select first buffer
  *
- *	Blending modes between 3D and framebuffer?
+ * e = Buffer B, Enable (?)
+ * n = Buffer B, Select second buffer
  *
- * The values of A and B are determined by the values of ports 1A00001C and
- * 1A000020 prior to the command upload. Its parameter is stored in (56, GBR).
- * See @0C0065D6, PH:@0C016336, PH:@0C038952, PH:@0C015B50.
+ * Determines how to linearly combine the framebuffers to obtain the 3D scene.
+ * The equation is given by:
  *
- * CaH4e3 suggests the two are related to screen transitions. He's probably
- * right. :-) (Do they also clear the framebuffer?)
+ *    result = factor * A + (1 - factor) * B
+ *
+ * Here A and B can be either the front/back buffer or a 2D layer. The numering
+ * should be the same as that of registers 1A000180-1A00019C.
+ *
+ * The values uploaded here depend on the state of 1A00001C bits 23:24 and
+ * 1A000020 bit 0. See @0C0065D6, PH:@0C016336, PH:@0C038952, PH:@0C015B50.
  */
 
 I (0x181)
 {
 	switch ((inst[0] >> 8) & 7) {
 	case 1:
+		gpu->fb_config._181 = inst[0];
 		break;
 	case 7:
+		gpu->fb_config._781 = inst[0];
 		break;
 	default:
 		VK_ASSERT (0);
@@ -2502,13 +2508,13 @@ D (0x181)
 	case 1:
 		UNHANDLED |= !!(inst[0] & 0xFE00F800);
 
-		DISASM ("vp: set fb flag 1 (%u %X)",
+		DISASM ("fb: set blending (%u %X)",
 		        (inst[0] >> 24) & 1, (inst[0] >> 16) & 0xFF);
 		break;
 	case 7:
 		UNHANDLED |= !!(inst[0] & 0xF8F8F800);
 
-		DISASM ("vp: set fb flag 7 (%u %u)",
+		DISASM ("fb: set combiner (%X %X)",
 		        (inst[0] >> 24) & 7, (inst[0] >> 16) & 7);
 		break;
 	default:

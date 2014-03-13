@@ -296,6 +296,30 @@ typedef struct {
 	} cp;
 
 	struct {
+		union {
+			struct {
+				uint32_t	: 16;
+				uint32_t alpha	: 8;
+				uint32_t blend	: 1;
+				uint32_t	: 7;
+			};
+			uint32_t _181;
+		};
+		union {
+			struct {
+				uint32_t		: 16;
+				uint32_t num_1		: 2;
+				uint32_t enabled_1	: 1;
+				uint32_t		: 5;
+				uint32_t num_2		: 2;
+				uint32_t enabled_2	: 1;
+				uint32_t		: 5;
+			};
+			uint32_t _781;
+		};
+	} fb_config;
+
+	struct {
 		uint32_t in_mesh	: 1;
 
 		struct {
