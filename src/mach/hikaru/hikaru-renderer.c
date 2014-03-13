@@ -42,7 +42,7 @@ static const struct {
 	[HR_DEBUG_NO_LAYER1]		= {  0, 1, SDLK_1, false, "NO LAYER1" },
 	[HR_DEBUG_NO_LAYER2]		= {  0, 1, SDLK_2, false, "NO LAYER2" },
 	[HR_DEBUG_NO_3D]		= {  0, 1, SDLK_3, false, "NO 3D" },
-	[HR_DEBUG_SELECT_BASE_COLOR]	= {  0, 5, SDLK_c,  true, "SELECT BASE COLOR" },
+	[HR_DEBUG_SELECT_BASE_COLOR]	= {  0, 9, SDLK_c,  true, "SELECT BASE COLOR" },
 	[HR_DEBUG_SELECT_CULLFACE]	= { -1, 1, SDLK_f,  true, "SELECT CULLFACE" },
 	[HR_DEBUG_NO_TEXTURES]		= {  0, 1, SDLK_t, false, "NO TEXTURES" },
 	[HR_DEBUG_USE_DEBUG_TEXTURE]	= {  0, 1, SDLK_y, false, "USE DEBUG TEXTURE" },
@@ -328,13 +328,12 @@ get_material_diffuse (hikaru_renderer_t *hr, hikaru_material_t *mat, float *out)
 {
 	if (hr->debug.flags[HR_DEBUG_NO_DIFFUSE]) {
 		out[0] = out[1] = out[2] = 0.0f;
-		out[3] = 1.0f;
 	} else {
 		out[0] = mat->diffuse[0] * INV255;
 		out[1] = mat->diffuse[1] * INV255;
 		out[2] = mat->diffuse[2] * INV255;
-		out[3] = mat->diffuse[3] * INV255;
 	}
+	out[3] = 1.0f;
 }
 
 static void
@@ -530,9 +529,20 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 	float base_alpha = POLY.alpha;
 	float mat_alpha = mat->diffuse[3] * INV255;
 	float vertex_alpha = src->info.alpha;
+	float alpha;
 
-	/* XXX at the moment we use only color 1 (it's responsible for the
-	 * BOOTROM CRT test). */
+	switch (POLY.type) {
+	case HIKARU_POLYTYPE_OPAQUE:
+	case HIKARU_POLYTYPE_TRANSPARENT:
+	default:
+		alpha = 1.0f;
+		break;
+	case HIKARU_POLYTYPE_TRANSLUCENT:
+		alpha = base_alpha + mat_alpha + vertex_alpha;
+		alpha = clampf (alpha, 0, 1);
+		break;
+	}
+	dst->col[3] = alpha;
 
 	if (is_material_set (mat)) {
 		switch (hr->debug.flags[HR_DEBUG_SELECT_BASE_COLOR]) {
@@ -557,32 +567,46 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 			dst->col[2] = mat->unknown[2] * INV255;
 			break;
 		case 4:
+			dst->col[0] = base_alpha;
+			dst->col[1] = base_alpha;
+			dst->col[2] = base_alpha;
+			dst->col[3] = 1.0f;
+			break;
+		case 5:
+			dst->col[0] = mat_alpha;
+			dst->col[1] = mat_alpha;
+			dst->col[2] = mat_alpha;
+			dst->col[3] = 1.0f;
+			break;
+		case 6:
+			dst->col[0] = vertex_alpha;
+			dst->col[1] = vertex_alpha;
+			dst->col[2] = vertex_alpha;
+			dst->col[3] = 1.0f;
+			break;
+		case 7:
+			dst->col[0] = alpha;
+			dst->col[1] = alpha;
+			dst->col[2] = alpha;
+			dst->col[3] = 1.0f;
+			break;
+		case 8:
 			dst->col[0] = vp->color.ambient[0] * INV255;
 			dst->col[1] = vp->color.ambient[1] * INV255;
 			dst->col[2] = vp->color.ambient[2] * INV255;
+			dst->col[3] = 1.0f;
 			break;
-		case 5:
+		case 9:
 			dst->col[0] = vp->color.clear[0] * INV255;
 			dst->col[1] = vp->color.clear[1] * INV255;
 			dst->col[2] = vp->color.clear[2] * INV255;
+			dst->col[3] = 1.0f;
 			break;
 		}
 	} else {
 		dst->col[0] = 1.0f;
 		dst->col[1] = 1.0f;
 		dst->col[2] = 1.0f;
-	}
-
-	switch (POLY.type) {
-	case HIKARU_POLYTYPE_OPAQUE:
-	case HIKARU_POLYTYPE_TRANSPARENT:
-	default:
-		dst->col[3] = 1.0f;
-		break;
-	case HIKARU_POLYTYPE_TRANSLUCENT:
-		/* XXX mmm, this equation doesn't look great in PHARRIER... */
-		dst->col[3] = clampf (base_alpha + mat_alpha + vertex_alpha, 0.0f, 1.0f);
-		break;
 	}
 }
 
