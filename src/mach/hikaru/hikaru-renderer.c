@@ -951,9 +951,11 @@ draw_scene (hikaru_renderer_t *hr)
 			case HIKARU_POLYTYPE_TRANSPARENT:
 			case HIKARU_POLYTYPE_TRANSLUCENT:
 				glEnable (GL_BLEND);
+				glDepthMask (GL_FALSE);
 				break;
 			default:
 				glDisable (GL_BLEND);
+				glDepthMask (GL_TRUE);
 				break;
 			}
 	
@@ -971,6 +973,7 @@ draw_scene (hikaru_renderer_t *hr)
 				glDeleteBuffers (1, &mesh->vbo);
 		}
 	}
+	glDepthMask (GL_TRUE);
 }
 
 /****************************************************************************
