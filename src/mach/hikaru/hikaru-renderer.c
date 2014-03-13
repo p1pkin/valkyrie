@@ -184,15 +184,21 @@ upload_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		(mesh->mat_index == ~0) ? NULL : &hr->mat_list[mesh->mat_index];
 	hikaru_texhead_t *th =
 		(mesh->tex_index == ~0) ? NULL : &hr->tex_list[mesh->tex_index];
+	bool has_texture = mat->has_texture && !hr->debug.flags[HR_DEBUG_NO_TEXTURES];
 
-	LOG ("mat = %s", get_material_str (mat));
-	if (is_material_set (mat) && mat->has_texture)
-		LOG ("th  = %s", get_texhead_str (th));
+	if (!is_material_set (mat)) {
+		VK_ERROR ("attempting to upload unset material");
+		has_texture = false;
+	} else
+		LOG ("mat = %s", get_material_str (mat));
 
-	if (hr->debug.flags[HR_DEBUG_NO_TEXTURES] ||
-	    !(is_material_set (mat) && mat->has_texture && is_texhead_set (th)))
-		glDisable (GL_TEXTURE_2D);
-	else {
+	if (!is_texhead_set (th)) {
+		VK_ERROR ("attempting to upload unset texhead");
+		has_texture = false;
+	} else
+		LOG ("tex = %s", get_texhead_str (th));
+
+	if (has_texture) {
 		vk_surface_t *surface;
 
 		surface = hr->debug.flags[HR_DEBUG_USE_DEBUG_TEXTURE] ?
@@ -203,7 +209,8 @@ upload_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 		vk_surface_bind (surface);
 		glEnable (GL_TEXTURE_2D);
-	}
+	} else
+		glDisable (GL_TEXTURE_2D);
 }
 
 static bool
