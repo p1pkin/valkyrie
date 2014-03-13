@@ -135,6 +135,7 @@ parse_global_opts (int argc, char **argv)
 	int opt;
 
 	memset (&options, 0, sizeof (options));
+	options.start_state = -1;
 
 	if (argc < 2) {
 		show_help (argc, argv);
