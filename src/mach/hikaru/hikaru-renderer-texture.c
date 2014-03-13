@@ -200,8 +200,7 @@ decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
 	get_wrap_modes (&wrap_u, &wrap_v, texhead);
 	get_texhead_coords (&basex, &basey, texhead); 
 
-	w /= 4;
-	h /= 2;
+	w /= 2;
 
 	surface = vk_surface_new (w * 4, h, VK_SURFACE_FORMAT_RGBA8888, wrap_u, wrap_v);
 	if (!surface)
