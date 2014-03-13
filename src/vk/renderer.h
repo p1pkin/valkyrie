@@ -28,6 +28,7 @@ typedef struct vk_renderer_t vk_renderer_t;
 struct vk_renderer_t {
 	unsigned width;
 	unsigned height;
+	char message[256];
 
 	void	(* destroy)(vk_renderer_t **renderer_);
 	void	(* reset)(vk_renderer_t *renderer);

@@ -29,6 +29,7 @@ vk_renderer_clear_gl_errors (void)
 void
 vk_renderer_begin_frame (vk_renderer_t *renderer)
 {
+	renderer->message[0] = '\0';
 	if (renderer->begin_frame)
 		renderer->begin_frame (renderer);
 }
@@ -54,7 +55,7 @@ vk_renderer_end_frame (vk_renderer_t *renderer)
 	if (delta)
 		fps = 1000.0f / delta;
 
-	sprintf (title, "Valkyrie (%4.1f FPS)", fps);
+	sprintf (title, "Valkyrie (%4.1f FPS) [%s]", fps, renderer->message);
 	SDL_WM_SetCaption (title, "Valkyrie");
 }
 

@@ -73,6 +73,7 @@ init_debug_flags (hikaru_renderer_t *hr)
 static void
 update_debug_flags (hikaru_renderer_t *hr)
 {
+	char *msg = &hr->base.message;
 	unsigned i;
 
 	for (i = 0; i < NUMELEM (debug_controls); i++) {
@@ -85,6 +86,7 @@ update_debug_flags (hikaru_renderer_t *hr)
 				VK_LOG ("HR DEBUG: '%s' = %d\n",
 				        debug_controls[i].name, hr->debug.flags[i]);
 		}
+		msg += sprintf (msg, "%d|", hr->debug.flags[i]);
 	}
 }
 
