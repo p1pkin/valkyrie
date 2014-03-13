@@ -58,6 +58,43 @@ abgr1111_to_rgba4444 (uint8_t pixel)
 	return table[pixel & 15];
 }
 
+static const struct {                                                           
+        uint32_t bit_in, bit_out;                                               
+} d_to_t[] = {                                                                  
+	{ 0x000001, 0x000001 },
+	{ 0x000800, 0x000002 },
+	{ 0x000002, 0x000004 },
+	{ 0x001000, 0x000008 },
+	{ 0x000004, 0x000010 },
+	{ 0x002000, 0x000020 },
+	{ 0x000008, 0x000040 },
+	{ 0x004000, 0x000080 },
+	{ 0x000010, 0x000100 },
+	{ 0x008000, 0x000200 },
+	{ 0x000020, 0x000400 },
+	{ 0x010000, 0x000800 },
+	{ 0x000040, 0x001000 },
+	{ 0x020000, 0x002000 },
+	{ 0x000080, 0x004000 },
+	{ 0x040000, 0x008000 },
+	{ 0x000100, 0x010000 },
+	{ 0x080000, 0x020000 },
+	{ 0x000200, 0x040000 },
+	{ 0x100000, 0x080000 },
+	{ 0x000400, 0x100000 },
+};
+
+static uint32_t
+twiddle_offs (uint32_t offs)
+{
+	uint32_t toffs = 0, i;
+	for (i = 0; i < 21; i++) {
+		if (offs & d_to_t[i].bit_in)
+			toffs |= d_to_t[i].bit_out;
+	}
+	return toffs;
+}
+
 uint16_t
 abgr1555_to_rgba5551 (uint16_t c)
 {
@@ -149,12 +186,14 @@ decode_texhead_abgr1555 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
 		return NULL;
 
 	for (y = 0; y < h; y++) {
-		uint32_t base = (basey + y) * 4096 + basex * 2;
-		for (x = 0; x < w; x += 2) {
-			uint32_t offs  = base + x * 2;
-			uint32_t texels = vk_buffer_get (texram, 4, offs);
-			vk_surface_put16 (surface, x+0, y, abgr1555_to_rgba5551 (texels >> 16));
-			vk_surface_put16 (surface, x+1, y, abgr1555_to_rgba5551 (texels));
+		for (x = 0; x < w; x++) {
+			uint32_t offs  = (basey + y) * 2048 + (basex + x);
+			uint16_t texel;
+			if (hr->debug.flags[HR_DEBUG_DETWIDDLE_TEXTURES])
+				texel = bswap16 (vk_buffer_get (texram, 2, twiddle_offs (offs) * 2));
+			else
+				texel = vk_buffer_get (texram, 2, offs * 2);
+			vk_surface_put16 (surface, x, y, abgr1555_to_rgba5551 (texel));
 		}
 	}
 	return surface;
@@ -177,12 +216,14 @@ decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
 		return NULL;
 
 	for (y = 0; y < h; y++) {
-		uint32_t base = (basey + y) * 4096 + basex * 2;
-		for (x = 0; x < w; x += 2) {
-			uint32_t offs  = base + x * 2;
-			uint32_t texels = vk_buffer_get (texram, 4, offs);
-			vk_surface_put16 (surface, x+0, y, abgr4444_to_rgba4444 (texels >> 16));
-			vk_surface_put16 (surface, x+1, y, abgr4444_to_rgba4444 (texels));
+		for (x = 0; x < w; x++) {
+			uint32_t offs  = (basey + y) * 2048 + (basex + x);
+			uint16_t texel;
+			if (hr->debug.flags[HR_DEBUG_DETWIDDLE_TEXTURES])
+				texel = bswap16 (vk_buffer_get (texram, 2, twiddle_offs (offs) * 2));
+			else
+				texel = vk_buffer_get (texram, 2, offs * 2);
+			vk_surface_put16 (surface, x, y, abgr4444_to_rgba4444 (texel));
 		}
 	}
 	return surface;

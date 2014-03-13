@@ -47,6 +47,7 @@ static const struct {
 	[HR_DEBUG_NO_TEXTURES]		= {  0, 1, SDLK_t, false, "NO TEXTURES" },
 	[HR_DEBUG_USE_DEBUG_TEXTURE]	= {  0, 1, SDLK_y, false, "USE DEBUG TEXTURE" },
 	[HR_DEBUG_DUMP_TEXTURES]	= {  0, 1,     ~0, false, "DUMP TEXTURES" },
+	[HR_DEBUG_DETWIDDLE_TEXTURES]	= {  0, 1, SDLK_u, false, "DETWIDDLE TEXTURES" },
 	[HR_DEBUG_SELECT_POLYTYPE]	= { -1, 7, SDLK_p,  true, "SELECT POLYTYPE" },
 	[HR_DEBUG_DRAW_NORMALS]		= {  0, 1, SDLK_n, false, "DRAW NORMALS" },
 	[HR_DEBUG_NO_LIGHTING]		= {  0, 1, SDLK_l, false, "NO LIGHTING" },
@@ -80,6 +81,8 @@ update_debug_flags (hikaru_renderer_t *hr)
 		uint32_t key = debug_controls[i].key;
 		if (key != ~0 && vk_input_get_key (key)) {
 			hr->debug.flags[i] += 1;
+			if (i == HR_DEBUG_DETWIDDLE_TEXTURES)
+				hikaru_renderer_invalidate_texcache (&hr->base, NULL);
 			if (hr->debug.flags[i] > debug_controls[i].max)
 				hr->debug.flags[i] = debug_controls[i].min;
 			if (debug_controls[i].print)
