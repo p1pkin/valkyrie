@@ -158,13 +158,35 @@
  *			 01 = IDMA done; see @0C006C04
  *			All bits are AND'ed on write
  *
- * Unknown
- * -------
+ * Memory Config
+ * -------------
  *
- * 1500008C   W		Unknown; = 02020202
- * 15000090   W		Unknown; = 0
- * 15000094   W		Unknown; = 0
- * 15000098   W		Unknown; = 02020202
+ * 1500008C   W		TEXRAM Access Mode
+ *
+ *			01010101 = Auto-twiddling disabled
+ *			02020202 = Auto-twiddling enabled
+ *
+ *			When auto-twiddling is enabled, data written to TEXRAM
+ *			(via the external BUS) is automatically twiddled prior
+ *			to being stored. This is used by most games so far.
+ *
+ *			When it is disabled, data is written in TEXRAM as-is.
+ *			BRAVEFF disables auto-twiddling and transfers texture
+ *			data from MASKROM to TEXRAM (banks 0 and 1) via
+ *			MEMCTL DMA.
+ *
+ *			Since we do *not* emulate auto-twiddling, when mode is
+ *			02020202 the emulated TEXRAM gets filled with
+ *			ready-to-use, untwiddled texture data; alas, when the
+ *			mode is 01010101 (as for BRAVEFF), data is written
+ *			directly in twiddled format, so we need to untwiddle
+ *			it manually.
+ *
+ *			See BF:@0C0D5520.
+ *
+ * 15000090   W		0
+ * 15000094   W		0
+ * 15000098   W		02020202
  *			See @0C001A82
  *
  * Unknown
