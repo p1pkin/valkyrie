@@ -34,7 +34,6 @@
 static struct {
 	char rom_path[256];
 	char rom_name[256];
-	bool strict;
 } options;
 
 static vk_game_list_t *game_list;
@@ -115,7 +114,6 @@ static const char global_opts[] = "R:r:h?";
 static const char global_help[] = "Usage: %s [options]\n"
 "	-R <path>	Path to the ROM directory\n"
 "	-r <string>	Name of the game to run\n"
-"	-s		Strict; exit on warning\n"
 "	-h              Show this help\n";
 
 static void
@@ -143,9 +141,6 @@ parse_global_opts (int argc, char **argv)
 			break;
 		case 'r':
 			strncpy (options.rom_name, optarg, 32);
-			break;
-		case 's':
-			options.strict = true;
 			break;
 		default:
 			VK_ERROR ("unrecognized option '%c'", opt);
