@@ -1083,7 +1083,7 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 	if (!hr->textures.debug)
 		goto fail;
 
-	glClearColor (1.0f, 0.0f, 1.0f, 1.0f);
+	glClearColor (0.0f, 0.0f, 0.0f, 1.0f);
 	glShadeModel (GL_SMOOTH);
 
 	return (vk_renderer_t *) hr;
