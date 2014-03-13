@@ -42,7 +42,7 @@ static const struct {
 	[HR_DEBUG_NO_LAYER1]		= {  0, 1, SDLK_1, false, "NO LAYER1" },
 	[HR_DEBUG_NO_LAYER2]		= {  0, 1, SDLK_2, false, "NO LAYER2" },
 	[HR_DEBUG_NO_3D]		= {  0, 1, SDLK_3, false, "NO 3D" },
-	[HR_DEBUG_SELECT_BASE_COLOR]	= {  0, 3, SDLK_c,  true, "SELECT BASE COLOR" },
+	[HR_DEBUG_SELECT_BASE_COLOR]	= {  0, 5, SDLK_c,  true, "SELECT BASE COLOR" },
 	[HR_DEBUG_SELECT_CULLFACE]	= { -1, 1, SDLK_f,  true, "SELECT CULLFACE" },
 	[HR_DEBUG_NO_TEXTURES]		= {  0, 1, SDLK_t, false, "NO TEXTURES" },
 	[HR_DEBUG_USE_DEBUG_TEXTURE]	= {  0, 1, SDLK_y, false, "USE DEBUG TEXTURE" },
@@ -526,6 +526,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_material_t *mat = &MAT.scratch;
+	hikaru_viewport_t *vp = &VP.scratch;
 	float base_alpha = POLY.alpha;
 	float mat_alpha = mat->diffuse[3] * INV255;
 	float vertex_alpha = src->info.alpha;
@@ -550,10 +551,20 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 			dst->col[1] = mat->specular[1] * INV255;
 			dst->col[2] = mat->specular[2] * INV255;
 			break;
-		default:
+		case 3:
 			dst->col[0] = mat->unknown[0] * INV255;
 			dst->col[1] = mat->unknown[1] * INV255;
 			dst->col[2] = mat->unknown[2] * INV255;
+			break;
+		case 4:
+			dst->col[0] = vp->color.ambient[0] * INV255;
+			dst->col[1] = vp->color.ambient[1] * INV255;
+			dst->col[2] = vp->color.ambient[2] * INV255;
+			break;
+		case 5:
+			dst->col[0] = vp->color.clear[0] * INV255;
+			dst->col[1] = vp->color.clear[1] * INV255;
+			dst->col[2] = vp->color.clear[2] * INV255;
 			break;
 		}
 	} else {
