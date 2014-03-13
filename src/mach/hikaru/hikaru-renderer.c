@@ -278,16 +278,17 @@ get_light_attenuation (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 }
 
 static void
-get_light_ambient (hikaru_renderer_t *hr, float *out)
+get_light_ambient (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, float *out)
 {
-	hikaru_gpu_t *gpu = hr->gpu;
+	hikaru_viewport_t *vp =
+		(mesh->vp_index == ~0) ? NULL : &hr->vp_list[mesh->vp_index];
 
-	if (hr->debug.flags[HR_DEBUG_NO_AMBIENT])
+	if (hr->debug.flags[HR_DEBUG_NO_AMBIENT] || !vp)
 		out[0] = out[1] = out[2] = 0.0f;
 	else {
-		out[0] = VP.scratch.color.ambient[0] * INV255;
-		out[1] = VP.scratch.color.ambient[1] * INV255;
-		out[2] = VP.scratch.color.ambient[2] * INV255;
+		out[0] = vp->color.ambient[0] * INV255;
+		out[1] = vp->color.ambient[1] * INV255;
+		out[2] = vp->color.ambient[2] * INV255;
 	}
 	out[3] = 1.0f;
 }
@@ -402,8 +403,7 @@ upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	 * the modelview matrix. */
 	glEnable (GL_LIGHTING);
 
-	get_light_ambient (hr, tmp);
-	glLightModelf (GL_LIGHT_MODEL_TWO_SIDE, 1.0f);
+	get_light_ambient (hr, mesh, tmp);
 	glLightModelfv (GL_LIGHT_MODEL_AMBIENT, tmp);
 
 	/* For each of the four lights in the current lightset */
