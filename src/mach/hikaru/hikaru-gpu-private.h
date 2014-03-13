@@ -299,6 +299,12 @@ typedef struct {
 		uint32_t in_mesh	: 1;
 
 		struct {
+			float value;
+			bool cond;
+			uint16_t branch_id;
+		} lod;
+
+		struct {
 			uint32_t type	: 3;
 			float alpha;
 			float static_mesh_precision;
@@ -377,6 +383,7 @@ typedef struct {
 #define SP(i_)		gpu->cp.sp[i_]
 #define UNHANDLED	gpu->cp.is_unhandled
 
+#define LOD		gpu->state.lod
 #define POLY		gpu->state.poly
 #define VP		gpu->state.viewports
 #define MV		gpu->state.modelviews

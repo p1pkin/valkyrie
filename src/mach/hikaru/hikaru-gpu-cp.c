@@ -70,6 +70,10 @@ on_frame_begin (hikaru_gpu_t *gpu)
 
 	memset ((void *) &POLY, 0, sizeof (POLY));
 
+	LOD.value = 0.0f;
+	LOD.cond = false;
+	LOD.branch_id = ~0;
+
 	VP.depth = 0;
 	VP.scratch.flags = 0;
 	VP.scratch.uploaded = 1;
@@ -369,23 +373,6 @@ get_jump_address (hikaru_gpu_t *gpu, uint32_t *inst)
 	return addr;
 }
 
-static float
-get_distance_to_current_mesh (hikaru_gpu_t *gpu)
-{
-	hikaru_modelview_t *mv = &MV.table[MV.depth];
-	float xx, yy, zz;
-
-	/* Compute the distance between the camera (0,0,0) and the
-	 * to-be-drawn object origin, i.e. the origin transformed
-	 * by the current modelview matrix. */
-
-	xx = mv->mtx[3][0] * mv->mtx[3][0];
-	yy = mv->mtx[3][1] * mv->mtx[3][1];
-	zz = mv->mtx[3][2] * mv->mtx[3][2];
-
-	return sqrtf (xx + yy + zz);
-}
-
 /* 000	Nop
  *
  *	-------- -------- -------o oooooooo
@@ -404,14 +391,11 @@ D (0x000)
 
 /* 012	Jump
  *
- *	IIIIIIII IIIIIIII UUUUR--o oooooooo
+ *	IIIIIIII IIIIIIII CCCCR--o oooooooo
  *	AAAAAAAA AAAAAAAA AAAAAAAA AAAAAAAA
  *
  * I = Branch identifier?
- * U = Unknown
- *
- *	See instruction 095.
- *
+ * C = Condition
  * R = Relative
  * A = Address or Offset in 32-bit words.
  */
@@ -419,9 +403,42 @@ D (0x000)
 I (0x012)
 {
 	uint32_t addr = get_jump_address (gpu, inst);
+	uint32_t branch_id = inst[0] >> 16;
+	bool jump;
+
+	switch ((inst[0] >> 12) & 0xF) {
+	case 0x0:
+		jump = true;
+		break;
+	case 0x1:
+		jump = LOD.branch_id != branch_id;
+		break;
+	case 0x5:
+		/* XXX draws high-poly player character in PHARRIER; has
+		 * branch_id != 0. */
+		jump = LOD.cond == true;
+		break;
+	case 0x6:
+		jump = LOD.cond == false;
+		break;
+	case 0x7:
+		jump = LOD.cond == true;
+		break;
+	case 0x9:
+		/* XXX draws low-poly player character in PHARRIER; has
+		 * branch_id != 0. */
+		jump = LOD.cond == false;
+		break;
+	case 0xD:
+		jump = LOD.branch_id == branch_id;
+		break;
+	default:
+		jump = false;
+		break;
+	}
 
 	check_self_loop (gpu, addr);
-	if (!(inst[0] & 0xF000))
+	if (jump)
 		PC = addr;
 	else
 		PC += 8;
@@ -429,62 +446,100 @@ I (0x012)
 
 D (0x012)
 {
+	static const char *cond[16] = {
+		"",		"NEQ BID",	"?2?",		"?3?",
+		"?4",		"COND",		"!COND",	"COND",
+		"?8?",		"!COND",	"?A?",		"?B?",
+		"?C?",		"EQ BID",	"?E?",		"?F?"
+	};
 	uint32_t addr = get_jump_address (gpu, inst);
 
 	UNHANDLED |= !!(inst[0] & 0x00000600);
 
-	if (!(inst[0] & 0xF000))
-		DISASM ("jump @%08X", addr);
-	else
-		DISASM ("cond jump @%08X [%X %04X]",
-		        addr, (inst[0] >> 12) & 0xF, inst[0] >> 16);
+	DISASM ("jump %s @%08X [BID=%04X]",
+	        cond[(inst[0] >> 12) & 0xF], addr, inst[0] >> 16);
 }
 
 /* 052	Call
  *
- *	-------- -------- x---R--o oooooooo
+ *	-------- -------- CCCCR--o oooooooo
  *	AAAAAAAA AAAAAAAA AAAAAAAA AAAAAAAA
  *
- * C = Conditional. Maybe if-true?
+ * C = Condition
  * R = Relative
  * A = Address or Offset in 32-bit words.
- *
- * Used in conjunction with command 005. See SGNASCAR.
  */
 
 I (0x052)
 {
 	uint32_t addr = get_jump_address (gpu, inst);
+	bool jump;
+
+	switch ((inst[0] >> 12) & 0xF) {
+	case 0x0:
+		jump = true;
+		break;
+	case 0x4:
+		jump = LOD.cond == false;
+		break;
+	case 0x8:
+		jump = LOD.cond == true;
+		break;
+	default:
+		jump = false;
+		break;
+	}
 
 	check_self_loop (gpu, addr);
-	push_pc (gpu);
-	PC = addr;
+	if (jump) {
+		push_pc (gpu);
+		PC = addr;
+	} else
+		PC += 8;
 }
 
 D (0x052)
 {
+	static const char *cond[16] = {
+		"",		"?1?",		"?2?",		"?3?",
+		"!COND",	"?5?",		"?6?",		"?7?",
+		"COND",		"?9?",		"?A?",		"?B?",
+		"?C?",		"?D?",		"?E?",		"?F?",
+	};
 	uint32_t addr = get_jump_address (gpu, inst);
 
-	UNHANDLED |= !!(inst[0] & 0xFFFF7600);
+	UNHANDLED |= !!(inst[0] & 0xFFFF3600);
 
-	if (!(inst[0] & 0xC000))
-		DISASM ("call @%08X", addr);
-	else
-		DISASM ("cond call @%08X", addr);
+	DISASM ("call %s @%08X", cond[(inst[0] >> 12) & 0xF], addr);
 }
 
 /* 082	Return
  *
- *	-------- -------- -C-----o oooooooo
+ *	-------- -------- CCCC---o oooooooo
  *
- * C = Conditional. Maybe if-false?
- *
- * Used in conjunction with command 005. See SGNASCAR.
+ * C = Condition
  */
 
 I (0x082)
 {
-	if (!(inst[0] & 0xC000))
+	bool jump;
+
+	switch ((inst[0] >> 12) & 0xF) {
+	case 0x0:
+		jump = true;
+		break;
+	case 0x4:
+		jump = LOD.cond == false;
+		break;
+	case 0x8:
+		jump = LOD.cond == true;
+		break;
+	default:
+		jump = false;
+		break;
+	}
+
+	if (jump)
 		pop_pc (gpu);
 	else
 		PC += 4;
@@ -492,12 +547,15 @@ I (0x082)
 
 D (0x082)
 {
-	UNHANDLED |= !!(inst[0] & 0xFFFFBE00);
+	static const char *cond[16] = {
+		"",		"?1?",		"?2?",		"?3?",
+		"!COND",	"?5?",		"?6?",		"?7?",
+		"COND",		"?9?",		"?A?",		"?B?",
+		"?C?",		"?D?",		"?E?",		"?F?",
+	};
+	UNHANDLED |= !!(inst[0] & 0xFFFF3E00);
 
-	if (!(inst[0] & 0xC000))
-		DISASM ("ret");
-	else
-		DISASM ("cond ret");
+	DISASM ("ret %s", cond[(inst[0] >> 12) & 0xF]);
 }
 
 /* 1C2	Kill
@@ -517,7 +575,7 @@ D (0x1C2)
 	DISASM ("kill");
 }
 
-/* 005	Set Condition Threshold Lower-Bound
+/* 005	LOD: Set Threshold Lower-Bound
  *
  *	TTTTTTTT TTTTTTTT TTTT---o oooooooo
  *
@@ -531,67 +589,79 @@ D (0x1C2)
 
 I (0x005)
 {
+	alias32uf_t thresh;
+
+	thresh.u = inst[0] & 0xFFFFF000;
+
+	LOD.cond = LOD.value < (thresh.f * 8.0f);
 }
 
 D (0x005)
 {
-	uint32_t x = inst[0] & 0xFFFFF000;
-	float f = *(float *) &x;
+	alias32uf_t thresh;
 
-	UNHANDLED |= !!(inst[0] & 0x00000C00);
+	thresh.u = inst[0] & 0xFFFFF000;
 
-	DISASM ("set cond threshold lower bound [%f, current=%f]",
-	        f, get_distance_to_current_mesh (gpu));
+	UNHANDLED |= !!(inst[0] & 0x00000E00);
+
+	DISASM ("lod: set threshold lb [%f]", thresh.f);
 }
 
-/* 055	Unk: Set Condition Threshold
+/* 055	LOD: Set Threshold
  *
  *	-------- -------- -------o oooooooo
  *	TTTTTTTT TTTTTTTT TTTTTTTT TTTTTTTT
  *
  * T = Floating-point threshold
- *
- * Used in conjunction with conditional control-flow. See SGNASCAR.
  */
 
 I (0x055)
 {
+	float thresh = *(float *) &inst[1];
+
+	LOD.cond = LOD.value < (thresh * 4.0f);
 }
 
 D (0x055)
 {
 	UNHANDLED |= !!(inst[0] & 0xFFFFFE00);
 
-	DISASM ("set cond threshold [%f, current=%f]",
-	        *(float *) &inst[1], get_distance_to_current_mesh (gpu));
+	DISASM ("lod: set threshold [%f]", *(float *) &inst[1]);
 }
 
-/* 095	Unk: Set Branch IDs
+/* 095	LOD: Set Branch IDs
  *
- *	-------- -------- tf-----o oooooooo
- *	FFFFFFFF FFFFFFFF TTTTTTTT TTTTTTTT
+ *	-------- -------- CCCC---o oooooooo
+ *	HHHHHHHH HHHHHHHH LLLLLLLL LLLLLLLL
  *
- * F = ID of if-false branch?
- * T = ID of if-true branch?
- *
- *	Identify the jump (012) to take if the condition is true/false?
- *
- * Used in conjunction with conditional control-flow.  See SGNASCAR.
- *
- * Also note that T < F, always (or the other way around).
+ * C = Condition
+ * H, L = Branch IDs
  */
 
 I (0x095)
 {
+	uint16_t hi = inst[1] >> 16;
+	uint16_t lo = inst[1] & 0xFFFF;
+
+	switch ((inst[0] >> 12) & 0xF) {
+	case 0x4:
+		LOD.branch_id = LOD.cond ? lo : hi;
+		break;
+	case 0x8:
+		LOD.branch_id = LOD.cond ? hi : lo;
+		break;
+	default:
+		LOD.branch_id = ~0;
+		break;
+	}
 }
 
 D (0x095)
 {
 	UNHANDLED |= !!(inst[0] & 0xFFFF3E00);
 
-	DISASM ("set branch ids [%X:%x %X:%x]",
-	        inst[1] & 0xFFFF, (inst[0] & 0x4000) ? 1 : 0,
-	        inst[1] >> 16, (inst[0] & 0x8000) ? 1 : 0);
+	DISASM ("lod: set branch ids [%04X %04X]",
+	        inst[1] >> 16, inst[1] & 0xFFFF);
 }
 
 /*
@@ -934,6 +1004,20 @@ D (0x003)
  * position and direction) but are not well understood.
  */
 
+static void
+mult_mtx4x4f_vec4f (vec4f_t res, mtx4x4f_t m, vec4f_t v)
+{
+	unsigned i;
+	for (i = 0; i < 4; i++)
+		res[i] = m[0][i] * v[0] + m[1][i] * v[1] + m[2][i] * v[2] + m[3][i] * v[3];
+}
+
+static float
+norm_vec4 (vec4f_t v)
+{
+	return sqrtf (v[0]*v[0] + v[1]*v[1] + v[2]*v[2] + v[3]*v[3]);
+}
+
 /* 161	Set Matrix Vector
  *
  *	-------- ----UPnn ----000o oooooooo
@@ -962,15 +1046,12 @@ D (0x003)
  * See @0C008080.
  *
  *
- * 561	Set Vector
+ * 561	LOD: Set Vector
  *
  *	-------- ------nn ----010o oooooooo
  *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
  *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
  *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
- *
- * Used together with instructions 005, 055, 095 and conditional control-flow
- * in SGNASCAR.
  *
  *
  * 961	Set Light Vector 2
@@ -1046,6 +1127,17 @@ I (0x161)
 		}
 		break;
 	case 0x5:
+		{
+			vec4f_t v, w;
+
+			v[0] = *(float *) &inst[1];
+			v[1] = *(float *) &inst[2];
+			v[2] = *(float *) &inst[3];
+			v[3] = 1.0f;
+
+			mult_mtx4x4f_vec4f (w, MV.table[MV.depth].mtx, v);
+			LOD.value = norm_vec4 (w);
+		}
 		break;
 	case 0x9:
 	case 0xB:
@@ -1101,7 +1193,7 @@ D (0x161)
 	case 5:
 		UNHANDLED |= !!(inst[0] & 0xFFFC0000);
 
-		DISASM ("lit: set vector 5 [%f %f %f]",
+		DISASM ("lod: set vector [%f %f %f]",
 		        *(float *) &inst[1], *(float *) &inst[2], *(float *) &inst[3]);
 		break;
 	case 9:
