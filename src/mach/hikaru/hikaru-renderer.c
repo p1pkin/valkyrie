@@ -74,7 +74,7 @@ init_debug_flags (hikaru_renderer_t *hr)
 static void
 update_debug_flags (hikaru_renderer_t *hr)
 {
-	char *msg = &hr->base.message;
+	char *msg = hr->base.message;
 	unsigned i;
 
 	for (i = 0; i < NUMELEM (debug_controls); i++) {
@@ -462,9 +462,9 @@ upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 			tmp[2] = lt->direction[2];
 			glTranslatef (tmp[0], tmp[1], tmp[2]);
 
-			tmp[0] = lt->direction[0];
-			tmp[1] = lt->direction[1];
-			tmp[2] = lt->direction[2];
+			tmp[0] = lt->position[0];
+			tmp[1] = lt->position[1];
+			tmp[2] = lt->position[2];
 			tmp[3] = 1.0f;
 			glLightfv (n, GL_POSITION, tmp);
 
