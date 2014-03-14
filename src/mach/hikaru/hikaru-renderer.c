@@ -769,8 +769,8 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	upload_viewport (hr, mesh);
 	upload_material_texhead (hr, mesh);
+	upload_lightset (hr, mesh);
 	upload_modelview (hr, mesh);
-	upload_lightset (hr, mesh); /* This is not really per-instance... */
 
 	/* Draw the mesh. */
 	glBindBuffer (GL_ARRAY_BUFFER, mesh->vbo);
