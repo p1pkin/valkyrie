@@ -1884,7 +1884,7 @@ I (0x051)
 		lit->has_051 = 1;
 		break;
 	case 4:
-		lit->_451_enabled  = ((inst[0] >> 24) & 1) ^ 1;
+		lit->has_specular  = ((inst[0] >> 24) & 1) ^ 1;
 		lit->specular[0] = inst[1] & 0xFF;
 		lit->specular[1] = (inst[1] >> 8) & 0xFF;
 		lit->specular[2] = (inst[1] >> 16) & 0xFF;

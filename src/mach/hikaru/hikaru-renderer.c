@@ -316,7 +316,7 @@ get_light_diffuse (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 static void
 get_light_specular (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 {
-	if (hr->debug.flags[HR_DEBUG_NO_SPECULAR])
+	if (!lit->has_specular || hr->debug.flags[HR_DEBUG_NO_SPECULAR])
 		out[0] = out[1] = out[2] = 0.0f;
 	else {
 		out[0] = lit->specular[0] * INV255;

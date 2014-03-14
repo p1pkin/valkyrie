@@ -244,7 +244,7 @@ typedef struct {
 			uint32_t att_type	: 2;
 			uint32_t _051_index	: 4;
 			uint32_t _051_bit	: 1;
-			uint32_t _451_enabled	: 1;
+			uint32_t has_specular	: 1;
 			uint32_t uploaded	: 1;
 		};
 		uint32_t flags;
