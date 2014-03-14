@@ -65,6 +65,8 @@ fail:
 	return ret;
 }
 
+static bool paused = false;
+
 static bool
 process_events (void)
 {
@@ -80,6 +82,9 @@ process_events (void)
 			switch (event.key.keysym.sym) {
 			case SDLK_ESCAPE:
 				quit = true;
+				break;
+			case SDLK_SPACE:
+				paused ^= 1;
 				break;
 			case SDLK_F1:
 				load_or_save_state (mach, true);
@@ -109,9 +114,11 @@ main_loop (vk_machine_t *mach, int num_frames)
 	while (!process_events ()) {
 		if (num_frames > 0 && frame++ >= num_frames)
 			return;
-		vk_renderer_begin_frame (mach->renderer);
-		vk_machine_run_frame (mach);
-		vk_renderer_end_frame (mach->renderer);
+		if (!paused) {
+			vk_renderer_begin_frame (mach->renderer);
+			vk_machine_run_frame (mach);
+			vk_renderer_end_frame (mach->renderer);
+		}
 	}
 }
 
