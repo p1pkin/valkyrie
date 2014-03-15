@@ -995,6 +995,8 @@ hikaru_gpu_vblank_in (vk_device_t *dev)
 {
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
 
+	REG1A(0x1C) ^= 0x01800000;
+
 	hikaru_gpu_cp_vblank_in (gpu);
 }
 
