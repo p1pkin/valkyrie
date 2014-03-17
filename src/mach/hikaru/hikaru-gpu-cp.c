@@ -1083,7 +1083,7 @@ I (0x161)
 
 	case 0x1:
 		/* Ignore conditional version. */
-		if (inst[0] & 0x000CF000) {
+		if (inst[0] & 0x0008F000) {
 			VK_ERROR ("@%08X: conditional modelview", PC);
 			return;
 		}
