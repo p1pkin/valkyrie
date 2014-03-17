@@ -1020,65 +1020,57 @@ norm_vec4 (vec4f_t v)
 
 /* 161	Set Matrix Vector
  *
- *	-------- ----UPnn ----000o oooooooo
- *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
- *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
- *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
+ *	-------- ----UPNN -WW----o oooooooo
+ *	XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX
+ *	YYYYYYYY YYYYYYYY YYYYYYYY YYYYYYYY
+ *	ZZZZZZZZ ZZZZZZZZ ZZZZZZZZ ZZZZZZZZ
  *
- * U = Unknown (Multiply? Mutually exclusive with P)
+ * U = Unknown
  *
  * P = Push
  *
- *	The current modelview matrix is used for instancing. Matrices with
- *	P set are stored in a stack/table/list. The first mesh rendered
- *	afterwards is rendered n times, one for each matrix in the list.
+ *	Pushes the uploaded modelview matrix in the modelview stack. Used
+ *	for instanced drawing.
  *
- *	Used in AIRTRIX attract mode.
+ * W = Unknown
  *
- * n = Element index
- * x,y,z = Elements
- *
- * This command sets a column vector of the current modelview matrix. Typically
- * four of these commands follow and set the whole 4x3 modelview matrix.
- *
- * Clearly the fourth row is fixed to (0, 0, 0, 1).
- *
- * See @0C008080.
+ * N = Column index
  *
  *
  * 561	LOD: Set Vector
  *
- *	-------- ------nn ----010o oooooooo
- *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
- *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
- *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
+ *	-------- ------NN -WW----o oooooooo
+ *	XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX
+ *	YYYYYYYY YYYYYYYY YYYYYYYY YYYYYYYY
+ *	ZZZZZZZZ ZZZZZZZZ ZZZZZZZZ ZZZZZZZZ
+ *
+ * N = Always 11b
+ *
+ * W = Always 11b
+ *
+ * Uploads a vector used for LOD computations.
  *
  *
- * 961	Set Light Vector 2
+ * 961	Light: Set Vector 9
  *
- *	-------- -------e nnnn100o oooooooo
- *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
- *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
- *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
+ *	-------- -------T TWW----o oooooooo
+ *	XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX
+ *	YYYYYYYY YYYYYYYY YYYYYYYY YYYYYYYY
+ *	ZZZZZZZZ ZZZZZZZZ ZZZZZZZZ ZZZZZZZZ
  *
- * e = Unknown
- * n = Unknown
- * x,y,z = position (XXX not necessarily)
- *
- * Variants include 16961, 10961, 8961. Apparently the 8961 variant makes use
- * of the 194 ramp data.
+ * T = Direction/Position/etc.
+ * W = Unknown
  *
  *
- * B61	Set Light Vector 3
+ * B61	Light: Set Vector B
  *
- *	-------- -------- Unnn110o oooooooo
- *	xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
- *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
- *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
+ *	-------- -------- TWW----o oooooooo
+ *	XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX
+ *	YYYYYYYY YYYYYYYY YYYYYYYY YYYYYYYY
+ *	ZZZZZZZZ ZZZZZZZZ ZZZZZZZZ ZZZZZZZZ
  *
- * U = Unknown
- * n = Unknown
- * x,y,z = direction (XXX not quite)
+ * T = Direction/Position/etc.
+ * W = Unknown
  */
 
 I (0x161)
@@ -1091,8 +1083,10 @@ I (0x161)
 
 	case 0x1:
 		/* Ignore conditional version. */
-		if (inst[0] & 0x000CF000)
+		if (inst[0] & 0x000CF000) {
+			VK_ERROR ("@%08X: conditional modelview", PC);
 			return;
+		}
 
 		push = (inst[0] >> 18) & 1;
 		elem = (inst[0] >> 16) & 3;
@@ -1776,7 +1770,7 @@ get_lightset_index (uint32_t *inst)
 	return (inst[0] >> 16) & (NUM_LIGHTSETS - 1);
 }
 
-/* 061	Set Light Type/Unknown
+/* 061	Light: Set Attenuation
  *
  *	-------- ------tt ----oooo oooooooo
  *	pppppppp pppppppp pppppppp pppppppp
@@ -1845,7 +1839,7 @@ D (0x061)
 {
 	UNHANDLED |= !!(inst[0] & 0xFFFCF000);
 
-	DISASM ("lit: set unknown [%u p=%f q=%f]",
+	DISASM ("lit: set attenuation [%u p=%f q=%f]",
 	        (inst[0] >> 16) & 3, *(float *) &inst[1], *(float *) &inst[2]);
 }
 
