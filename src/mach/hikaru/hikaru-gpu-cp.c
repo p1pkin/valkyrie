@@ -1115,7 +1115,7 @@ I (0x161)
 				MV.depth++;
 				VK_ASSERT (MV.depth < NUM_MODELVIEWS);
 			} else {
-				MV.total = 1;
+				MV.total = MV.depth + 1;
 				MV.depth = 0;
 			}
 		}

@@ -49,6 +49,7 @@ static const struct {
 	[HR_DEBUG_DUMP_TEXTURES]	= {  0, 1,     ~0, false, "DUMP TEXTURES" },
 	[HR_DEBUG_DETWIDDLE_TEXTURES]	= {  0, 1, SDLK_u, false, "DETWIDDLE TEXTURES" },
 	[HR_DEBUG_SELECT_POLYTYPE]	= { -1, 7, SDLK_p,  true, "SELECT POLYTYPE" },
+	[HR_DEBUG_NO_INSTANCING]	= {  0, 1, SDLK_i, false, "NO INSTANCING" },
 	[HR_DEBUG_DRAW_NORMALS]		= {  0, 1, SDLK_n, false, "DRAW NORMALS" },
 	[HR_DEBUG_NO_LIGHTING]		= {  0, 1, SDLK_l, false, "NO LIGHTING" },
 	[HR_DEBUG_NO_AMBIENT]		= {  0, 1, SDLK_a, false, "NO AMBIENT" },
@@ -153,10 +154,10 @@ upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 }
 
 static void
-upload_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+upload_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, unsigned i)
 {
 	hikaru_modelview_t *mv =
-		(mesh->mv_index == ~0) ? NULL : &hr->mv_list[mesh->mv_index];
+		(mesh->mv_index == ~0) ? NULL : &hr->mv_list[mesh->mv_index + i];
 
 	if (!mv)
 		return;
@@ -758,6 +759,8 @@ hikaru_mesh_upload_pushed_data (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 static void
 draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
+	unsigned i;
+
 	VK_ASSERT (mesh);
 	VK_ASSERT (mesh->vbo);
 
@@ -767,9 +770,7 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	upload_viewport (hr, mesh);
 	upload_material_texhead (hr, mesh);
 	upload_lightset (hr, mesh);
-	upload_modelview (hr, mesh);
 
-	/* Draw the mesh. */
 	glBindBuffer (GL_ARRAY_BUFFER, mesh->vbo);
 
 	glVertexPointer (3, GL_FLOAT, sizeof (hikaru_vertex_t), OFFSET (pos));
@@ -782,7 +783,15 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	glEnableClientState (GL_COLOR_ARRAY);
 	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 
-	glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
+	if (hr->debug.flags[HR_DEBUG_NO_INSTANCING]) {
+		upload_modelview (hr, mesh, 0);
+		glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
+	} else {
+		for (i = 0; i < mesh->num_instances; i++) {
+			upload_modelview (hr, mesh, i);
+			glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
+		}
+	}
 }
 
 #define VP0	VP.scratch
@@ -817,18 +826,13 @@ static void
 update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
+	unsigned num_instances = MV.total;
 
 	if (VP0.uploaded) {
 		LOG ("RENDSTATE updating vp %u/%u", hr->num_vps, MAX_VIEWPORTS);
 		hr->vp_list[hr->num_vps++] = VP0;
 		VK_ASSERT (hr->num_vps < MAX_VIEWPORTS);
 		VP0.uploaded = 0;
-	}
-	if (MV.total) {
-		LOG ("RENDSTATE updating mv %u/%u", hr->num_mvs, MAX_MODELVIEWS);
-		hr->mv_list[hr->num_mvs++] = MV.table[0];
-		VK_ASSERT (hr->num_mvs < MAX_MODELVIEWS);
-		MV.total = 0;
 	}
 	if (MAT0.uploaded) {
 		LOG ("RENDSTATE updating mat %u/%u", hr->num_mats, MAX_MATERIALS);
@@ -847,6 +851,17 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		hr->ls_list[hr->num_lss++] = LS0;
 		VK_ASSERT (hr->num_lss < MAX_LIGHTSETS);
 		LS0.uploaded = 0;
+	}
+
+	/* Copy the per-instance modelviews from last to first. */
+	/* TODO optimize by setting MV.total to 0 (and fix the fallback). */
+	mesh->num_instances = num_instances;
+	while (num_instances > 0) {
+		LOG ("RENDSTATE adding mv %u/%u [#instances=%u]",
+		     hr->num_mvs, MAX_MODELVIEWS, num_instances);
+		hr->mv_list[hr->num_mvs++] = MV.table[num_instances - 1];
+		VK_ASSERT (hr->num_mvs < MAX_MODELVIEWS);
+		num_instances -= 1;
 	}
 
 	mesh->vp_index = hr->num_vps - 1;
