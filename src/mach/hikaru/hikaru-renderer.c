@@ -150,9 +150,6 @@ upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	glFrustum (-hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, 1e5);
 	/* XXX scissor */
 	glTranslatef (dcx, -dcy, 0.0f);
-
-	glEnable (GL_DEPTH_TEST);
-	//glDepthFunc (depth_func[vp->depth.func]);
 }
 
 static void
@@ -913,6 +910,45 @@ hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr)
 }
 
 static void
+draw_meshes_for_polytype (hikaru_renderer_t *hr, int polytype)
+{
+	hikaru_mesh_t *meshes = hr->mesh_list[polytype];
+	unsigned num = hr->num_meshes[polytype];
+	int j;
+
+	if (hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] >= 0 &&
+	    hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] != polytype)
+		goto destroy_meshes;
+
+	LOG (" ==== DRAWING POLYTYPE %d ====", polytype);
+
+	switch (polytype) {
+	case HIKARU_POLYTYPE_TRANSPARENT:
+	case HIKARU_POLYTYPE_TRANSLUCENT:
+		glEnable (GL_BLEND);
+		glDepthMask (GL_FALSE);
+		break;
+	default:
+		glDisable (GL_BLEND);
+		glDepthMask (GL_TRUE);
+		break;
+	}
+	
+	for (j = 0; j < num; j++) {
+		hikaru_mesh_t *mesh = &meshes[j];
+		print_rendstate (hr, mesh, "D");
+		draw_mesh (hr, mesh);
+	}
+
+destroy_meshes:
+	for (j = 0; j < num; j++) {
+		hikaru_mesh_t *mesh = &meshes[j];
+		if (mesh->vbo)
+			glDeleteBuffers (1, &mesh->vbo);
+	}
+}
+
+static void
 draw_scene (hikaru_renderer_t *hr)
 {
 	static const int sorted_polytypes[] = {
@@ -924,6 +960,9 @@ draw_scene (hikaru_renderer_t *hr)
 		HIKARU_POLYTYPE_TRANSLUCENT,
 	};
 	unsigned i;
+
+	glEnable (GL_DEPTH_TEST);
+	glDepthFunc (GL_LESS);
 
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -941,38 +980,9 @@ draw_scene (hikaru_renderer_t *hr)
 		break;
 	}
 
-	for (i = 0; i < NUMELEM (sorted_polytypes); i++) {
-		int polytype = sorted_polytypes[i], j;
+	for (i = 0; i < NUMELEM (sorted_polytypes); i++)
+		draw_meshes_for_polytype (hr, sorted_polytypes[i]);
 
-		if (hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] < 0 ||
-		    hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] == polytype) {
-
-			switch (polytype) {
-			case HIKARU_POLYTYPE_TRANSPARENT:
-			case HIKARU_POLYTYPE_TRANSLUCENT:
-				glEnable (GL_BLEND);
-				glDepthMask (GL_FALSE);
-				break;
-			default:
-				glDisable (GL_BLEND);
-				glDepthMask (GL_TRUE);
-				break;
-			}
-	
-			for (j = 0; j < hr->num_meshes[polytype]; j++) {
-				hikaru_mesh_t *mesh = &hr->mesh_list[polytype][j];
-				print_rendstate (hr, mesh, "D");
-				draw_mesh (hr, mesh);
-			}
-		}
-
-		for (j = 0; j < hr->num_meshes[polytype]; j++) {
-			hikaru_mesh_t *mesh = &hr->mesh_list[polytype][j];
-
-			if (mesh->vbo)
-				glDeleteBuffers (1, &mesh->vbo);
-		}
-	}
 	glDepthMask (GL_TRUE);
 }
 
