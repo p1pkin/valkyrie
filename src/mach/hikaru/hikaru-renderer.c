@@ -889,14 +889,27 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	/* Copy the per-instance modelviews from last to first. */
 	/* TODO optimize by setting MV.total to 0 (and fix the fallback). */
-	mesh->mv_index = hr->num_mvs;
-	mesh->num_instances = MV.total;
-	for (i = 0; i < MV.total; i++, hr->num_mvs++) {
-		LOG ("RENDSTATE adding mv %u/%u [#instances=%u]",
-		     hr->num_mvs, MAX_MODELVIEWS, MV.total);
+	if (MV.total == 0) {
+		LOG ("RENDSTATE adding no mvs %u/%u [#instances=%u]",
+		     hr->num_mvs, MAX_MODELVIEWS, hr->num_instances);
 
-		VK_ASSERT (hr->num_mvs < MAX_MODELVIEWS);
-		hr->mv_list[hr->num_mvs] = MV.table[i];
+		mesh->mv_index = hr->num_mvs - hr->num_instances;
+		mesh->num_instances = hr->num_instances;
+	} else {
+		mesh->mv_index = hr->num_mvs;
+		mesh->num_instances = MV.total;
+		hr->num_instances = MV.total;
+
+		for (i = 0; i < MV.total; i++, hr->num_mvs++) {
+			LOG ("RENDSTATE adding mv %u/%u [#instances=%u]",
+			     hr->num_mvs, MAX_MODELVIEWS, MV.total);
+	
+			VK_ASSERT (hr->num_mvs < MAX_MODELVIEWS);
+			hr->mv_list[hr->num_mvs] = MV.table[i];
+		}
+
+		MV.total = 0;
+		MV.depth = 0;
 	}
 
 	mesh->vp_index = hr->num_vps - 1;
@@ -1046,6 +1059,7 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 
 	hr->num_vps = 0;
 	hr->num_mvs = 0;
+	hr->num_instances = 0;
 	hr->num_mats = 0;
 	hr->num_texs = 0;
 	hr->num_lss = 0;

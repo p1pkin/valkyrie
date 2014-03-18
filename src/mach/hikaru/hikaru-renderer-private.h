@@ -68,6 +68,7 @@ typedef struct {
 
 	hikaru_modelview_t	*mv_list;
 	uint32_t		 num_mvs;
+	uint32_t		 num_instances;
 
 	hikaru_material_t	*mat_list;
 	uint32_t		 num_mats;
