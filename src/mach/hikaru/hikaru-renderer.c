@@ -156,8 +156,11 @@ upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 static void
 upload_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, unsigned i)
 {
+	unsigned index = mesh->mv_index + i;
 	hikaru_modelview_t *mv =
-		(mesh->mv_index == ~0) ? NULL : &hr->mv_list[mesh->mv_index + i];
+		(mesh->mv_index == ~0) ? NULL : &hr->mv_list[index];
+
+	LOG ("uploading mv at index [%u] %u\n", mesh->mv_index, index);
 
 	if (!mv)
 		return;
@@ -781,6 +784,9 @@ hikaru_mesh_upload_pushed_data (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 }
 
 static void
+print_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, char *prefix);
+
+static void
 draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	unsigned i;
@@ -788,8 +794,10 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	VK_ASSERT (mesh);
 	VK_ASSERT (mesh->vbo);
 
-	LOG ("==== DRAWING MESH (#vertices=%u #instances=%u) ====",
-	     mesh->num_tris * 3, mesh->num_instances);
+	LOG ("==== DRAWING MESH @%p (#vertices=%u #instances=%u) ====",
+	     mesh, mesh->num_tris * 3, mesh->num_instances);
+
+	print_rendstate (hr, mesh, "D");
 
 	upload_viewport (hr, mesh);
 	upload_material_texhead (hr, mesh);
@@ -812,6 +820,7 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
 	} else {
 		for (i = 0; i < mesh->num_instances; i++) {
+			VK_LOG ("drawing instance %u/%u", i, mesh->num_instances);
 			upload_modelview (hr, mesh, i);
 			glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
 		}
@@ -826,6 +835,7 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 static void
 print_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, char *prefix)
 {
+	LOG ("RENDSTATE %s @%p #instances = %u", prefix, mesh, mesh->num_instances);
 	if (mesh->vp_index < MAX_VIEWPORTS)
 		LOG ("RENDSTATE %s %u vp:  %s", prefix, mesh->num,
 		     get_viewport_str (&hr->vp_list[mesh->vp_index]));
@@ -879,6 +889,7 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	/* Copy the per-instance modelviews from last to first. */
 	/* TODO optimize by setting MV.total to 0 (and fix the fallback). */
+	mesh->mv_index = hr->num_mvs;
 	mesh->num_instances = MV.total;
 	for (i = 0; i < MV.total; i++, hr->num_mvs++) {
 		LOG ("RENDSTATE adding mv %u/%u [#instances=%u]",
@@ -889,7 +900,6 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	}
 
 	mesh->vp_index = hr->num_vps - 1;
-	mesh->mv_index = hr->num_mvs - 1;
 	mesh->mat_index = hr->num_mats - 1;
 	mesh->tex_index = hr->num_texs - 1;
 	mesh->ls_index = hr->num_lss - 1;
@@ -975,7 +985,6 @@ draw_meshes_for_polytype (hikaru_renderer_t *hr, int polytype)
 	
 	for (j = 0; j < num; j++) {
 		hikaru_mesh_t *mesh = &meshes[j];
-		print_rendstate (hr, mesh, "D");
 		draw_mesh (hr, mesh);
 	}
 
