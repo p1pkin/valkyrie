@@ -788,8 +788,8 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	VK_ASSERT (mesh);
 	VK_ASSERT (mesh->vbo);
 
-	LOG ("==== DRAWING MESH (#vertices=%u) ====",
-	     mesh->num_tris * 3);
+	LOG ("==== DRAWING MESH (#vertices=%u #instances=%u) ====",
+	     mesh->num_tris * 3, mesh->num_instances);
 
 	upload_viewport (hr, mesh);
 	upload_material_texhead (hr, mesh);
@@ -850,7 +850,7 @@ static void
 update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
-	unsigned num_instances = MV.total;
+	unsigned i;
 
 	if (VP0.uploaded) {
 		LOG ("RENDSTATE updating vp %u/%u", hr->num_vps, MAX_VIEWPORTS);
@@ -879,13 +879,13 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	/* Copy the per-instance modelviews from last to first. */
 	/* TODO optimize by setting MV.total to 0 (and fix the fallback). */
-	mesh->num_instances = num_instances;
-	while (num_instances > 0) {
+	mesh->num_instances = MV.total;
+	for (i = 0; i < MV.total; i++, hr->num_mvs++) {
 		LOG ("RENDSTATE adding mv %u/%u [#instances=%u]",
-		     hr->num_mvs, MAX_MODELVIEWS, num_instances);
-		hr->mv_list[hr->num_mvs++] = MV.table[num_instances - 1];
+		     hr->num_mvs, MAX_MODELVIEWS, MV.total);
+
 		VK_ASSERT (hr->num_mvs < MAX_MODELVIEWS);
-		num_instances -= 1;
+		hr->mv_list[hr->num_mvs] = MV.table[i];
 	}
 
 	mesh->vp_index = hr->num_vps - 1;

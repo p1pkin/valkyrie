@@ -1118,6 +1118,7 @@ I (0x161)
 				MV.total = MV.depth + 1;
 				MV.depth = 0;
 			}
+			VK_LOG ("DEBUG MTX depth=%u total=%u", MV.depth, MV.total);
 		}
 		break;
 	case 0x5:
