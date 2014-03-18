@@ -189,11 +189,13 @@ decode_texhead_abgr1555 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
 		for (x = 0; x < w; x++) {
 			uint32_t offs  = (basey + y) * 2048 + (basex + x);
 			uint16_t texel;
-			if (hr->debug.flags[HR_DEBUG_DETWIDDLE_TEXTURES])
+			if (hr->debug.flags[HR_DEBUG_DETWIDDLE_TEXTURES]) {
 				texel = bswap16 (vk_buffer_get (texram, 2, twiddle_offs (offs) * 2));
-			else
+				vk_surface_put16 (surface, x, y, abgr1555_to_rgba5551 (texel));
+			} else {
 				texel = vk_buffer_get (texram, 2, offs * 2);
-			vk_surface_put16 (surface, x, y, abgr1555_to_rgba5551 (texel));
+				vk_surface_put16 (surface, x ^ 1, y, abgr1555_to_rgba5551 (texel));
+			}
 		}
 	}
 	return surface;
@@ -219,11 +221,13 @@ decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
 		for (x = 0; x < w; x++) {
 			uint32_t offs  = (basey + y) * 2048 + (basex + x);
 			uint16_t texel;
-			if (hr->debug.flags[HR_DEBUG_DETWIDDLE_TEXTURES])
+			if (hr->debug.flags[HR_DEBUG_DETWIDDLE_TEXTURES]) {
 				texel = bswap16 (vk_buffer_get (texram, 2, twiddle_offs (offs) * 2));
-			else
+				vk_surface_put16 (surface, x, y, abgr4444_to_rgba4444 (texel));
+			} else {
 				texel = vk_buffer_get (texram, 2, offs * 2);
-			vk_surface_put16 (surface, x, y, abgr4444_to_rgba4444 (texel));
+				vk_surface_put16 (surface, x ^ 1, y, abgr4444_to_rgba4444 (texel));
+			}
 		}
 	}
 	return surface;
