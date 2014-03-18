@@ -454,25 +454,21 @@ upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 			glLightfv (n, GL_POSITION, tmp);
 			break;
 		case HIKARU_LIGHT_TYPE_SPOT:
-			glPushMatrix ();
-			glLoadIdentity ();
-
-			/* XXX this is very bogus. */
-
-			tmp[0] = lt->direction[0];
-			tmp[1] = lt->direction[1];
-			tmp[2] = lt->direction[2];
-			glTranslatef (tmp[0], tmp[1], tmp[2]);
-
 			tmp[0] = lt->position[0];
 			tmp[1] = lt->position[1];
 			tmp[2] = lt->position[2];
 			tmp[3] = 1.0f;
 			glLightfv (n, GL_POSITION, tmp);
 
-			glLightf (n, GL_SPOT_EXPONENT, 128.0f);
+			tmp[0] = lt->direction[0];
+			tmp[1] = lt->direction[1];
+			tmp[2] = lt->direction[2];
+			tmp[3] = 1.0f;
+			glLightfv (n, GL_SPOT_DIRECTION, tmp);
 
-			glPopMatrix ();
+			/* TODO figure out how these are specified. */
+			glLightf (n, GL_SPOT_CUTOFF, 45.0f);
+			glLightf (n, GL_SPOT_EXPONENT, 32.0f);
 			break;
 		default:
 			VK_ASSERT (!"unreachable");
