@@ -53,6 +53,19 @@ decode_layer_argb1555 (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 	return surface;
 }
 
+static uint32_t
+abgr2101010_to_abgr8888 (uint32_t c)
+{
+	uint32_t r, g, b, a;
+
+	r = (c >> 0) & 0xFF;
+	g = (c >> 10) & 0xFF;
+	b = (c >> 20) & 0xFF;
+	a = (c >> 30) << 6;
+
+	return (r << 24) | (g << 16) | (b << 8) | a;
+}
+
 static vk_surface_t *
 decode_layer_argb8888 (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 {
@@ -68,7 +81,7 @@ decode_layer_argb8888 (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 		for (x = 0; x < 640; x++) {
 			uint32_t offs = coords_to_offs_32 (layer->x0 + x, layer->y0 + y);
 			uint32_t texel = vk_buffer_get (fb, 4, offs);
-			vk_surface_put32 (surface, x, y, bswap32 (texel));
+			vk_surface_put32 (surface, x, y, abgr2101010_to_abgr8888 (texel));
 		}
 	}
 	return surface;
