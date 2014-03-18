@@ -1832,6 +1832,8 @@ I (0x061)
 	lit->attenuation[1] = *(float *) &inst[2];
 
 	lit->has_061 = 1;
+	lit->has_position = 0;
+	lit->has_direction = 0;
 	lit->uploaded = 1;
 }
 
