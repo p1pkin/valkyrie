@@ -222,17 +222,6 @@ is_light_set (hikaru_light_t *lit)
 	return true; // lit && (lit->flags & 0x1F) == 0x1F;
 }
 
-static hikaru_light_type_t
-get_light_type (hikaru_light_t *lit)
-{
-	VK_ASSERT (lit->has_direction || lit->has_position);
-	if (lit->has_direction && lit->has_position)
-		return HIKARU_LIGHT_TYPE_SPOT;
-	else if (lit->has_position)
-		return HIKARU_LIGHT_TYPE_POSITIONAL;
-	return HIKARU_LIGHT_TYPE_DIRECTIONAL;
-}
-
 static hikaru_light_att_t
 get_light_attenuation_type (hikaru_light_t *lit)
 {
@@ -241,6 +230,19 @@ get_light_attenuation_type (hikaru_light_t *lit)
 	    lit->attenuation[1] == 1.0f)
 		return HIKARU_LIGHT_ATT_INF;
 	return lit->att_type;
+}
+
+static hikaru_light_type_t
+get_light_type (hikaru_light_t *lit)
+{
+	VK_ASSERT (lit->has_direction || lit->has_position);
+	if (get_light_attenuation_type (lit) == HIKARU_LIGHT_ATT_INF)
+		return HIKARU_LIGHT_TYPE_DIRECTIONAL;
+	else if (lit->has_direction && lit->has_position)
+		return HIKARU_LIGHT_TYPE_SPOT;
+	else if (lit->has_position)
+		return HIKARU_LIGHT_TYPE_POSITIONAL;
+	return HIKARU_LIGHT_TYPE_DIRECTIONAL;
 }
 
 static void
