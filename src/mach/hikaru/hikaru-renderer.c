@@ -50,6 +50,7 @@ static const struct {
 	[HR_DEBUG_DETWIDDLE_TEXTURES]	= {  0, 1, SDLK_u, false, "DETWIDDLE TEXTURES" },
 	[HR_DEBUG_SELECT_POLYTYPE]	= { -1, 7, SDLK_p,  true, "SELECT POLYTYPE" },
 	[HR_DEBUG_NO_INSTANCING]	= {  0, 1, SDLK_i, false, "NO INSTANCING" },
+	[HR_DEBUG_SELECT_INSTANCE]	= {  0, 3, SDLK_j, false, "" },
 	[HR_DEBUG_DRAW_NORMALS]		= {  0, 1, SDLK_n, false, "DRAW NORMALS" },
 	[HR_DEBUG_NO_LIGHTING]		= {  0, 1, SDLK_l, false, "NO LIGHTING" },
 	[HR_DEBUG_NO_AMBIENT]		= {  0, 1, SDLK_a, false, "NO AMBIENT" },
@@ -816,7 +817,9 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
 
 	if (hr->debug.flags[HR_DEBUG_NO_INSTANCING]) {
-		upload_modelview (hr, mesh, 0);
+		unsigned i = MIN2 (hr->debug.flags[HR_DEBUG_SELECT_INSTANCE],
+		                   mesh->num_instances - 1);
+		upload_modelview (hr, mesh, i);
 		glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
 	} else {
 		for (i = 0; i < mesh->num_instances; i++) {
@@ -893,7 +896,7 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		LOG ("RENDSTATE adding no mvs %u/%u [#instances=%u]",
 		     hr->num_mvs, MAX_MODELVIEWS, hr->num_instances);
 
-		mesh->mv_index = hr->num_mvs - hr->num_instances;
+		mesh->mv_index = hr->num_mvs - 1;
 		mesh->num_instances = hr->num_instances;
 	} else {
 		mesh->mv_index = hr->num_mvs;
