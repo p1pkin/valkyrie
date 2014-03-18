@@ -253,12 +253,19 @@ get_light_attenuation (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 
 	switch (get_light_attenuation_type (lit)) {
 	case HIKARU_LIGHT_ATT_LINEAR:
+		/*
+		 * [0] = 1 / (min - max)
+		 * [1] = -max
+		 */
 		VK_ASSERT (lit->attenuation[0] < 0.0f);
 		VK_ASSERT (lit->attenuation[1] < 0.0f);
-		min = -lit->attenuation[1];
-		max = min + 1.0f / lit->attenuation[0];
+
+		max = -lit->attenuation[1];
+		min = 1.0f / lit->attenuation[0] + max;
+		VK_ASSERT (min <= max);
+
 		out[0] = 0.0f;
-		out[1] = 1.0f / min;
+		out[1] = 1.0f / (0.1 * max);
 		out[2] = 0.0f;
 		break;
 	case HIKARU_LIGHT_ATT_SQUARE:

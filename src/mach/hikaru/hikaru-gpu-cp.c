@@ -1772,55 +1772,39 @@ get_lightset_index (uint32_t *inst)
 
 /* 061	Light: Set Attenuation
  *
- *	-------- ------tt ----oooo oooooooo
- *	pppppppp pppppppp pppppppp pppppppp
- *	qqqqqqqq qqqqqqqq qqqqqqqq qqqqqqqq
+ *	-------- ------TT -------o oooooooo
+ *	PPPPPPPP PPPPPPPP PPPPPPPP PPPPPPPP
+ *	QQQQQQQQ QQQQQQQQ QQQQQQQQ QQQQQQQQ
  *	-------- -------- -------- --------
  *
- * t = Light type
+ * T = Attenuation type
  *
- *	0 = Directional
- *	1 = Omnidirectional/Point
- *	2 = ?
- *	3 = Spot (likely)
+ *	0 = Linear (or infinite if P = Q = 1)
+ *	1 = Square
+ *	2 = Inverse linear
+ *	3 = Inverse square
  *
- * p = Attenuation base
- * q = Attenuation offset
+ * P, Q = Attenuation parameters
  *
- * Type 0:
+ * For attenuation type 0, P and Q are:
  *
- *  p = 1.0f or 1.0f / (FR4 - FR5)
- *  q = 1.0f or -FR5
+ *  P = 1.0f / (FR4 - FR5)
+ *  Q = -FR5
  *
- * NOTE:
- *  - The first variant sets (16,GBR) to +INF and (17,GBR) to +INF, see
- *    PH:@0C0178FC.
- *  - The second variant sets (16,GBR) to FR5 and (17,GBR) to FR5**2, see
- *    PH:@0C017934.
+ * For attenuation type 1, P and Q are:
  *
- * Type 1:
+ *  P = 1.0f / (FR4**2 - FR5**2)
+ *  Q = -FR5**2
  *
- *  p = 1.0f / (FR4**2 - FR5**2)
- *  q = -FR5**2
+ * For attenuation type 2, P and Q are:
  *
- * NOTE: it sets (16,GBR) to FR5 and (17,GBR) to FR5*FR5.
+ *  P = (FR4 * FR5) / (FR4 - FR5)
+ *  Q = 1.0f / |FR5|
  *
- * Type 2:
+ * For attenuation type 3, P and Q are:
  *
- *  p = (FR4 * FR5) / (FR4 - FR5)
- *  q = 1.0f / |FR5|
- *
- * NOTE: it sets (16,GBR) to X and (17,GBR) to Y.
- *
- * Type 3:
- *
- *  p = (FR4**2 * FR5**2) / (FR5**2 - FR4**2)
- *  q = 1.0 / |FR5**2|
- *
- * NOTE: it sets (16,GBR) to X and (17,GBR) to Y.
- *
- * NOTE: light types according to the PHARRIER text are: constant, infinite,
- * square, reciprocal, reciprocal2, linear.
+ *  P = (FR4**2 * FR5**2) / (FR5**2 - FR4**2)
+ *  Q = 1.0 / |FR5**2|
  */
 
 I (0x061)
