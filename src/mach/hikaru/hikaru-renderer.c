@@ -434,6 +434,10 @@ upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		get_light_specular (hr, lt, tmp);
 		glLightfv (n, GL_SPECULAR, tmp);
 
+		glMatrixMode (GL_MODELVIEW);
+		glPushMatrix ();
+		glLoadIdentity ();
+
 		switch (get_light_type (lt)) {
 		case HIKARU_LIGHT_TYPE_DIRECTIONAL:
 			tmp[0] = lt->direction[0];
@@ -473,6 +477,8 @@ upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		default:
 			VK_ASSERT (!"unreachable");
 		}
+
+		glPopMatrix ();
 
 		get_light_attenuation (hr, lt, tmp);
 		glLightf (n, GL_CONSTANT_ATTENUATION, tmp[0]);
