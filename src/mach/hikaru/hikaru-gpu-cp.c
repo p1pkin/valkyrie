@@ -2232,7 +2232,7 @@ D (0x103)
  *     The only observed values so far are 0 and 7.
  *
  *     If 0, the vertex is pushed to the GPU vertex buffer. If 7, the vertex is
- *     pushed and defines a triangle along with the three previously pushed
+ *     pushed and defines a triangle along with the two previously pushed
  *     vertices.
  *
  * t = Texcoord pivot?
@@ -2256,13 +2256,12 @@ D (0x103)
  * For 12x, the rest of the instruction looks like:
  *
  *	-------- -------- -------- --------
- *	xxxxxxxx xxxxxxxx ???????? ????????
- *	yyyyyyyy yyyyyyyy ???????? ????????
- *	zzzzzzzz zzzzzzzz ???????? ????????
+ *	xxxxxxxx xxxxxxxx ??????uu uuuuuuuu
+ *	yyyyyyyy yyyyyyyy ??????vv vvvvvvvv
+ *	zzzzzzzz zzzzzzzz ??????ww wwwwwwww
  *
- * x,y,z = Vertex position.
- * ? = Normal in fixed-point? The sum of the three fields over distinct
- *     vectors in a mesh isn't constant tho.
+ * x,y,z = Position
+ * u,v,w = Normal
  *
  * For 1BX, the rest of the instruction looks like:
  *
@@ -2271,7 +2270,7 @@ D (0x103)
  *	yyyyyyyy yyyyyyyy yyyyyyyy yyyyyyyy
  *	zzzzzzzz zzzzzzzz zzzzzzzz zzzzzzzz
  *
- * x,y,z = Vertex position
+ * x,y,z = Position
  *
  * For 1BX, the rest of the instruction looks like:
  *
