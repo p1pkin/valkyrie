@@ -45,35 +45,33 @@ using the ones provided by the games as they are leads to a far too close
 far clipping plane. Use 'p' to toggle a standard 90 degree FOV projection and
 see things (affects all games).
 
-Implement viewport clear, there's too much pink.
+Implement viewports, urgently.
 
-Implement depth masking.
+Implement swizzled textures at TEXRAM-write time (BRAVEFF).
 
-Implement proper depth testing.
+Fix instanced rendering; there is no linking system, just odd matrices.
 
-Implement swizzled textures (heavily used in BRAVEFF).
+Implement proper light attenuation, requires GLSL.
+
+Figure out where the spotlight angles are (194 is the best candidate).
+
+Implement framebuffer blending (instructions 781, 181; PHARRIER).
+
+Implement mipmap transfers in IDMA (using the L-layout seen in BRAVEFF).
+
+Figure out the effect of mesh LOD on texturing (SGNASCAR).
 
 Implement fogging (see instruction 691).
 
-Implement alpha testing (used in BRAVEFF, see instruction 154).
+Implement alpha testing (used in BRAVEFF, instruction 154).
 
 Implement proper model caching using VBOs.
-
-Implement motion blur (see instructions 781, 181, and modelview instancing).
-
-Figure out the effect of mesh LOD on texturing (instructions 005 et alia, used
-in SGNASCAR).
-
-Implement mipmap transfers in IDMA (where the heck are the miptrees supposed
-to get stored?)
 
 
 AIRTRIX
 -------
 
 Attract mode works.
-
-No controls, no sound, serious graphical glitches.
 
 Emulation wise, the biggest issue is with the player character: it is not
 animated. Talking with the Demul guys, we figured out the following: the game
@@ -89,16 +87,7 @@ applied to the skater body parts, but I don't know yet how.
 BRAVEFF
 -------
 
-The title screen and intro work. Freezes after that.
-
-No controls, no sound, serious graphical glitches.
-
-The game supplies textures in twiddled format (thanks to the Demul authors for
-the info), which valkyrie does not yet support.
-
-Characters are not drawn (either the data is not there, or the modelview
-matrices I'm using are the wrong ones; if the former, it may be a master-slave
-synchronization error).
+Attract mode works.
 
 References:
  http://www.youtube.com/watch?v=rwzzj7dzxE8
@@ -115,15 +104,10 @@ PHARRIER
 
 Attract mode works.
 
-No controls, no sound, serious graphical glitches.
-
 3D hiccups, don't know yet why (strategy: monitor writes to CMDRAM, TMU, IRQs,
 and reads from GPU ports -- the reason lies there).
 
-The 2D is in ABGR8888 format, but it doesn't always work. It also plays bad
-with blending, and I do not know which GPU port controls that.
-
-Makes use of A8 textures, which are implemented wrong.
+The 2D is in ABGR8888 format, but it doesn't always work.
 
 References:
  http://www.youtube.com/watch?v=_kED3wt6p90
@@ -140,9 +124,6 @@ SGNASCAR
 --------
 
 Attract mode works.
-
-Makes use of conditional control-flow in the GPU program (most likely for
-model LOD selection), which isn't reversed yet, 
 
 The BOOTROM (all version) reads from invalid memory regions when loading the
 game data from ROM to RAM; that is likely a game bug.
