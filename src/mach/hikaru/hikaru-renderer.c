@@ -265,26 +265,39 @@ get_light_attenuation (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 		max = -lit->attenuation[1];
 		min = 1.0f / lit->attenuation[0] + max;
 		VK_ASSERT (min <= max);
-
-		out[0] = 0.0f;
-		out[1] = 1.0f / (0.1 * max);
-		out[2] = 0.0f;
 		break;
 	case HIKARU_LIGHT_ATT_SQUARE:
-		/* Used in BRAVEFF */
+		/*
+		 * [0] = 1 / (min**2 - max**2)
+		 * [1] = -max**2
+		 */
+		VK_ASSERT (lit->attenuation[0] < 0.0f);
+		VK_ASSERT (lit->attenuation[1] < 0.0f);
+
+		max = -lit->attenuation[1];
+		min = 1.0f / lit->attenuation[0] + max;
+		max = sqrtf (max);
+		min = sqrtf (min);
+		VK_ASSERT (min <= max);
+		break;
 	case HIKARU_LIGHT_ATT_INVLINEAR:
 	case HIKARU_LIGHT_ATT_INVSQUARE:
 	default:
-		out[0] = 0.0f;
-		out[1] = 0.2f;
-		out[2] = 0.0f;
+		min = 0.0f;
+		max = 1.0f;
 		break;
 	case HIKARU_LIGHT_ATT_INF:
 		out[0] = 1.0f;
 		out[1] = 0.0f;
 		out[2] = 0.0f;
-		break;
+		return;
 	}
+
+	/* This drastically reduces the light within the max-radius, but
+	 * guarantees that the attenuation is exactly 0.1 at max. */
+	out[0] = 0.0f;
+	out[1] = 1.0f / (0.1 * max);
+	out[2] = 0.0f;
 }
 
 static void
