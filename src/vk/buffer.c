@@ -83,8 +83,7 @@ vk_buffer_be32_get (vk_buffer_t *buf, unsigned size, uint32_t offs)
 	case 4:
 		return cpu_to_be32 (*(uint32_t *) &buf->ptr[offs]);
 	default:
-		VK_ASSERT (0);
-		break;
+		return cpu_to_be64 (*(uint64_t *) &buf->ptr[offs]);
 	}
 }
 
@@ -105,7 +104,7 @@ vk_buffer_be32_put (vk_buffer_t *buf, unsigned size, uint32_t offs, uint64_t val
 		*(uint32_t *) &(buf->ptr[offs]) = cpu_to_be32 ((uint32_t) val);
 		break;
 	default:
-		VK_ASSERT (0);
+		*(uint64_t *) &(buf->ptr[offs]) = cpu_to_be64 ((uint32_t) val);
 		break;
 	}
 }
