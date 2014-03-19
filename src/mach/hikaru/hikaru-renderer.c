@@ -1120,7 +1120,7 @@ draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 }
 
 static void
-draw_layers (hikaru_renderer_t *hr, bool background)
+draw_layers (hikaru_renderer_t *hr)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_layer_t *layer;
@@ -1128,7 +1128,6 @@ draw_layers (hikaru_renderer_t *hr, bool background)
 	if (!LAYERS.enabled)
 		return;
 
-	/* Setup 2D state. */
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
 	glOrtho (0.0f, 1.0f, 1.0f, 0.0f, -1.0f, 1.0f);
@@ -1189,9 +1188,7 @@ hikaru_renderer_end_frame (vk_renderer_t *renderer)
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
 	draw_scene (hr);
-
-	/* Draw the foreground layers. */
-	draw_layers (hr, false);
+	draw_layers (hr);
 
 	LOG (" ==== RENDSTATE STATISTICS ==== ");
 	LOG ("  vp  : %u", hr->num_vps);
