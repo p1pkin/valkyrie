@@ -99,6 +99,11 @@ vk_renderer_init (vk_renderer_t *renderer)
 		return -1;
 	}
 
+	VK_LOG ("renderer: GL vendor    = %s", glGetString (GL_VENDOR));
+	VK_LOG ("renderer: GL renderer  = %s", glGetString (GL_RENDERER));
+	VK_LOG ("renderer: GL version   = %s", glGetString (GL_VERSION));
+	VK_LOG ("renderer: GLSL version = %s", glGetString (GL_SHADING_LANGUAGE_VERSION));
+
 	/* Set the GL viewport (and scissor) size */
 	glViewport (0, 0, renderer->width, renderer->height);
 
