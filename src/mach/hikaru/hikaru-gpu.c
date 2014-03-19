@@ -500,7 +500,7 @@ hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A)
  * directly by the CPU or indirectly through the GPU DMA device. It is used
  * for 2D only.
  *
- * Framebuffer data can hold both ABGR1555? and ABGR8888 data.
+ * Framebuffer data can hold both ABGR1555? and A2BGR10 data.
  *
  * The two texture RAM (TEXRAM) areas are located at 04000000-043FFFFF
  * (bank 0) and 06000000-063FFFFF (bank 1) of the external address space,
@@ -554,7 +554,7 @@ hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A)
  *			1 = layer 1 format
  *			2 = layer 2 format
  *
- *			If the format is 0, then the layer is ABGR8888;
+ *			If the format is 0, then the layer is A2BGR10;
  *			otherwise it is ABGR1555?
  *
  *			See PH:@0C01A1EA.
@@ -615,7 +615,7 @@ hikaru_gpu_fill_layer_info (hikaru_gpu_t *gpu)
 				layer->format = HIKARU_FORMAT_ABGR1555;
 				shift = 1;
 			} else {
-				layer->format = HIKARU_FORMAT_ABGR8888;
+				layer->format = HIKARU_FORMAT_A2BGR10;
 				shift = 2;
 			}
 	

@@ -18,101 +18,55 @@
 
 #include "mach/hikaru/hikaru-renderer-private.h"
 
-static inline uint32_t
-coords_to_offs_16 (uint32_t x, uint32_t y)
-{
-	return y * 4096 + x * 2;
-}
-
-static inline uint32_t
-coords_to_offs_32 (uint32_t x, uint32_t y)
-{
-	return y * 4096 + x * 4;
-}
-
-static vk_surface_t *
-decode_layer_argb1555 (hikaru_renderer_t *hr, hikaru_layer_t *layer)
-{
-	vk_buffer_t *fb = hr->gpu->fb;
-	vk_surface_t *surface;
-	uint32_t x, y;
-
-	surface = vk_surface_new (640, 480, VK_SURFACE_FORMAT_RGBA5551, -1, -1);
-	if (!surface)
-		return NULL;
-
-	for (y = 0; y < 480; y++) {
-		uint32_t yoffs = (layer->y0 + y) * 4096;
-		for (x = 0; x < 640; x += 2) {
-			uint32_t offs = yoffs + layer->x0 * 4 + x * 2;
-			uint32_t texels = vk_buffer_get (fb, 4, offs);
-			vk_surface_put16 (surface, x+0, y, abgr1555_to_rgba5551 (texels >> 16));
-			vk_surface_put16 (surface, x+1, y, abgr1555_to_rgba5551 (texels));
-		}
-	}
-	return surface;
-}
-
-static uint32_t
-abgr2101010_to_abgr8888 (uint32_t c)
-{
-	uint32_t r, g, b, a;
-
-	r = (c >> 0) & 0xFF;
-	g = (c >> 10) & 0xFF;
-	b = (c >> 20) & 0xFF;
-	a = (c >> 30) << 6;
-
-	return (r << 24) | (g << 16) | (b << 8) | a;
-}
-
-static vk_surface_t *
-decode_layer_argb8888 (hikaru_renderer_t *hr, hikaru_layer_t *layer)
-{
-	vk_buffer_t *fb = hr->gpu->fb;
-	vk_surface_t *surface;
-	uint32_t x, y;
-
-	surface = vk_surface_new (640, 480, VK_SURFACE_FORMAT_RGBA8888, -1, -1);
-	if (!surface)
-		return NULL;
-
-	for (y = 0; y < 480; y++) {
-		for (x = 0; x < 640; x++) {
-			uint32_t offs = coords_to_offs_32 (layer->x0 + x, layer->y0 + y);
-			uint32_t texel = vk_buffer_get (fb, 4, offs);
-			vk_surface_put32 (surface, x, y, abgr2101010_to_abgr8888 (texel));
-		}
-	}
-	return surface;
-}
+/* TODO implement dirty rectangles. */
 
 static void
 draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 {
-	vk_surface_t *surface;
+	vk_buffer_t *fb = hr->gpu->fb;
+	void *data = vk_buffer_get_ptr (fb, layer->y0 * 4096 + layer->x0 * 4);
+	GLuint id;
 
-	VK_ASSERT (hr);
-	VK_ASSERT (layer);
+	glGenTextures (1, &id);
+	VK_ASSERT (id);
 
-	/* XXX cache the layers and use uploaded rectangles to upload only the
-	 * quads that changed. */
-	/* XXX change the renderer so that the ortho projection can be
-	 * set up correctly depending on the actual window size. */
+	glBindTexture (GL_TEXTURE_2D, id);
 
-	if (layer->format == HIKARU_FORMAT_ABGR8888)
-		surface = decode_layer_argb8888 (hr, layer);
-	else
-		surface = decode_layer_argb1555 (hr, layer);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
 
-	if (!surface) {
-		VK_ERROR ("HR LAYER: can't decode layer, skipping");
-		return;
+	glPixelStorei (GL_UNPACK_ALIGNMENT, 1);
+	switch (layer->format) {
+	case HIKARU_FORMAT_ABGR1555:
+		glPixelStorei (GL_UNPACK_ROW_LENGTH, 2048);
+
+		glTexImage2D (GL_TEXTURE_2D, 0,
+		              GL_RGB5_A1,
+		              640, 480, 0,
+		              GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV,
+		              data);
+		break;
+	case HIKARU_FORMAT_A2BGR10:
+		glPixelStorei (GL_UNPACK_ROW_LENGTH, 1024);
+
+		glTexImage2D (GL_TEXTURE_2D, 0,
+		              GL_RGBA8,
+		              640, 480, 0,
+		              GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV,
+		              data);
+		break;
+	default:
+		VK_ASSERT (0);
 	}
+	glPixelStorei (GL_UNPACK_ROW_LENGTH, 0);
+	glPixelStorei (GL_UNPACK_SKIP_ROWS, 0);
+	glPixelStorei (GL_UNPACK_SKIP_PIXELS, 0);
 
 	LOG ("drawing LAYER %s", get_layer_str (layer));
 
-	vk_surface_commit (surface);
 	glBegin (GL_TRIANGLE_STRIP);
 		glTexCoord2f (0.0f, 0.0f);
 		glVertex3f (0.0f, 0.0f, 0.0f);
@@ -123,7 +77,6 @@ draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 		glTexCoord2f (1.0f, 1.0f);
 		glVertex3f (1.0f, 1.0f, 0.0f);
 	glEnd ();
-	vk_surface_destroy (&surface);
 }
 
 void
