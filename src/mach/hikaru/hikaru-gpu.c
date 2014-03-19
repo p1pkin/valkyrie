@@ -724,78 +724,80 @@ hikaru_gpu_fill_layer_info (hikaru_gpu_t *gpu)
  * PH:@0C01290A.
  */
 
-static uint32_t
-calc_full_texture_size (hikaru_texhead_t *texhead)
-{
-	uint32_t w = 16 << texhead->logw;
-	uint32_t h = 16 << texhead->logh;
-	uint32_t size = 0;
-
-	while (w > 0 && h > 0) {
-		size += w * h;
-		w = w / 2;
-		h = h / 2;
-	}
-	return size * 2;
-}
-
-/* XXX are we actually copying the mipmap data here? additional stuff may
- * also include color tables! */
-
 static void
-copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, hikaru_texhead_t *texhead)
+copy_level (vk_buffer_t *srcbuf, vk_buffer_t *dstbuf, uint32_t bus_addr,
+            unsigned x0, unsigned y0, unsigned w, unsigned h)
 {
-	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
-	uint32_t basex, basey, endx, endy;
-	uint32_t mask, w, h, x, y, offs, bank;
-	vk_buffer_t *srcbuf;
+	uint32_t offs;
+	unsigned x, y;
 
-	if ((bus_addr >> 24) == 0x48) {
-		srcbuf = hikaru->cmdram;
-		mask = 8*MB-1;
-	} else {
-		srcbuf = hikaru->ram_s;
-		mask = 32*MB-1;
-	}
-
-	w = 16 << texhead->logw;
-	h = 16 << texhead->logh;
-	get_texhead_coords (&basex, &basey, texhead);
-
-	endx = basex + w;
-	endy = basey + h;
-
-	if (gpu->debug.log_idma) {
-		VK_LOG ("GPU IDMA: %ux%u to (%X,%X), area in TEXRAM is ([%u,%u],[%u,%u]); dst addr = %08X",
-		        w, h, texhead->slotx, texhead->sloty,
-		        basex, basey, endx, endy,
-		        basey * 4096 + basex * 2);
-	}
-
-	if ((endx > 2048) || (endy > 1024)) {
-		VK_ERROR ("GPU IDMA: out-of-bounds transfer: %s",
-		          get_texhead_str (texhead));
-		return;
-	}
-
-	offs = bus_addr & mask;
-	bank = texhead->bank;
+	offs = bus_addr & (vk_buffer_get_size (srcbuf) - 1);
 	for (y = 0; y < h; y++) {
 		for (x = 0; x < w; x++, offs += 2) {
-			uint32_t temp = (basey + y) * 4096 + (basex + x) * 2;
+			uint32_t temp = (y0 + y) * 4096 + (x0 + x) * 2;
 			uint32_t texel = vk_buffer_get (srcbuf, 2, offs);
-			vk_buffer_put (gpu->texram[bank], 2, temp, texel);
+			vk_buffer_put (dstbuf, 2, temp, texel);
 		}
 	}
+}
 
-	hikaru_renderer_invalidate_texcache (gpu->renderer, texhead);
+static unsigned
+copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, unsigned size,
+              hikaru_texhead_t *texhead)
+{
+	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
+	unsigned level, level_w, level_h, size_copied;
+	uint32_t dstx, dsty;
+	vk_buffer_t *srcbuf;
+
+	if ((bus_addr >> 24) == 0x48)
+		srcbuf = hikaru->cmdram;
+	else
+		srcbuf = hikaru->ram_s;
+
+	level = 0;
+	level_w = 16 << texhead->logw;
+	level_h = 16 << texhead->logh;
+
+	get_texhead_coords (&dstx, &dsty, texhead);
+
+	size_copied = 0;
+	while (size_copied < size && level_w > 0 && level_h > 0) {
+		uint32_t bus_offs =  bus_addr + size_copied;
+
+		VK_LOG ("IDMA copying level %u : @%08X -> (%u,%u), %ux%u [copied=%X]",
+		        level, bus_offs, dstx, dsty, level_w, level_h, size_copied);
+
+		if ((dstx + level_w > 2048) || (dsty + level_h > 1024)) {
+			VK_ERROR ("GPU IDMA: out-of-bounds transfer: %s",
+			          get_texhead_str (texhead));
+			break;
+		}
+
+		copy_level (srcbuf, gpu->texram[texhead->bank], bus_offs,
+		            dstx, dsty, level_w, level_h);
+
+		/* Update the number of transferred bytes. */
+		size_copied += level_w * level_h * 2;
+
+		/* Update the destination coords for the next level. */
+		dstx += (2048 - dstx) / 2;
+		dsty += (1024 - dsty) / 2;
+
+		/* Update the level depth and sizes. */
+		level_w >>= 1;
+		level_h >>= 1;
+		level += 1;
+	}
+
+	return size_copied;
 }
 
 static void
 process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 {
 	hikaru_texhead_t texhead;
-	uint32_t exp_size[2], bus_addr, size;
+	uint32_t bus_addr, size, size_copied;
 
 	memset (&texhead, 0, sizeof (texhead));
 
@@ -809,15 +811,6 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	texhead.logh	= (entry[2] >> 19) & 7;
 	texhead.format	= (entry[2] >> 26) & 7;
 
-	/* Compute the expected size in bytes */
-	exp_size[0] = (16 << texhead.logw) * (16 << texhead.logh) * 2;
-	exp_size[1] = calc_full_texture_size (&texhead);
-
-	/* XXX this check isn't clever enough to figure out that AIRTRIX
-	 * texture blobs _do_ have a mipmap. However even if we miss a
-	 * mipmap or two, it shouldn't be that big of a problem. */
-	texhead.has_mipmap = (size == exp_size[1]) ? 1 : 0;
-
 	if (gpu->debug.log_idma) {
 		VK_LOG ("GPU IDMA %08X %08X %08X %08X : %s",
 		        entry[0], entry[1], entry[2], entry[3],
@@ -828,12 +821,6 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	    (entry[3] & 0xFFFFFFFE)) {
 		VK_ERROR ("GPU IDMA: unhandled bits in texture entry: %08X %08X %08X %08X",
 		          entry[0], entry[1], entry[2], entry[3]);
-		/* continue anyway */
-	}
-
-	if (size != exp_size[0] && size != exp_size[1]) {
-		VK_ERROR ("GPU IDMA: unexpected texhead size: %s",
-		          get_texhead_str (&texhead));
 		/* continue anyway */
 	}
 
@@ -852,6 +839,11 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 		return;
 	}
 
+	if (texhead.slotx > 0xC0 && texhead.sloty > 0xE0) {
+		VK_ERROR ("GPU IDMA: mipmap texhead slot: %s",
+		          get_texhead_str (&texhead));
+	}
+
 	if ((bus_addr & 0xFE000000) != 0x40000000 &&
 	    (bus_addr & 0xFF000000) != 0x48000000) {
 		VK_ERROR ("GPU IDMA: unknown texhead address, skipping: %s",
@@ -859,7 +851,14 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 		return;
 	}
 
-	copy_texture (gpu, bus_addr, &texhead);
+	size_copied = copy_texture (gpu, bus_addr, size, &texhead);
+	if (size_copied != size) {
+		VK_ERROR ("GPU IDMA: requested vs. copied sizes mismatch: %u vs %u",
+		          size, size_copied);
+		/* continue anyway */
+	}
+
+	hikaru_renderer_invalidate_texcache (gpu->renderer, &texhead);
 }
 
 static void
