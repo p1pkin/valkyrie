@@ -1059,8 +1059,7 @@ draw_scene (hikaru_renderer_t *hr)
 static void
 draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 {
-	vk_buffer_t *fb = hr->gpu->fb;
-	void *data = vk_buffer_get_ptr (fb, layer->y0 * 4096 + layer->x0 * 4);
+	void *data; 
 	GLuint id;
 
 	glGenTextures (1, &id);
@@ -1073,6 +1072,9 @@ draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+
+	data = vk_buffer_get_ptr (hr->gpu->fb,
+	                          layer->y0 * 4096 + layer->x0 * 4);
 
 	glPixelStorei (GL_UNPACK_ALIGNMENT, 1);
 	switch (layer->format) {
