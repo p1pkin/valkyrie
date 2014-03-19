@@ -1091,7 +1091,7 @@ draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 		glPixelStorei (GL_UNPACK_ROW_LENGTH, 1024);
 
 		glTexImage2D (GL_TEXTURE_2D, 0,
-		              GL_RGBA8,
+		              GL_RGB10_A2,
 		              640, 480, 0,
 		              GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV,
 		              data);
@@ -1115,6 +1115,8 @@ draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 		glTexCoord2f (1.0f, 1.0f);
 		glVertex3f (1.0f, 1.0f, 0.0f);
 	glEnd ();
+
+	glDeleteTextures (1, &id);
 }
 
 static void
