@@ -1128,9 +1128,6 @@ draw_layers (hikaru_renderer_t *hr, bool background)
 	if (!LAYERS.enabled)
 		return;
 
-	if (background)
-		return;
-
 	/* Setup 2D state. */
 	glMatrixMode (GL_PROJECTION);
 	glLoadIdentity ();
@@ -1180,18 +1177,10 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 		hr->num_meshes[i] = 0;
 	hr->total_meshes = 0;
 
-	/* Fill in the debug stuff. */
 	update_debug_flags (hr);
 
-	/* clear the frame buffer to a bright pink color */
+	glDepthMask (GL_TRUE);
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	/* Reset the modelview matrix */
-	glMatrixMode (GL_MODELVIEW);
-	glLoadIdentity ();
-
-	/* Draw the background layers. */
-	draw_layers (hr, true);
 }
 
 static void
