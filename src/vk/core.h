@@ -37,7 +37,7 @@
 #include <pwd.h>
 
 #include <GL/glew.h>
-#include <SDL/SDL.h>
+#include <SDL.h>
 
 #include <jansson.h>
 
