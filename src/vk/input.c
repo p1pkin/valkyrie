@@ -18,7 +18,7 @@
 
 #include "vk/input.h"
 
-static bool keystate[SDLK_LAST]; /* XXX should really be moved to input.c */
+static bool keystate[SDLK_LAST];
 
 bool
 vk_input_get_key (unsigned key)
