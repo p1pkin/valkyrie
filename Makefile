@@ -8,8 +8,8 @@ PKG_LDFLAGS := `pkg-config --libs gl glew sdl2 jansson`
 
 COMMON_FLAGS = $(DEFS) -I src -I /usr/include/json -Wall -Wno-strict-aliasing -Wno-format -Wno-unused-local-typedefs
 
-CFLAGS  := $(COMMON_FLAGS) $(PKG_CFLAGS) -O3 -fomit-frame-pointer -flto -march=native
-#CFLAGS  := $(COMMON_FLAGS) $(PKG_CFLAGS) -O0 -g
+#CFLAGS  := $(COMMON_FLAGS) $(PKG_CFLAGS) -O3 -fomit-frame-pointer -flto -march=native
+CFLAGS  := $(COMMON_FLAGS) $(PKG_CFLAGS) -O0 -g
 LDFLAGS := -lm $(PKG_LDFLAGS)
 
 .PHONY: all install clean

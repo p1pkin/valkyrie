@@ -96,6 +96,58 @@ update_debug_flags (hikaru_renderer_t *hr)
 }
 
 /****************************************************************************
+ Utils
+****************************************************************************/
+
+static void
+ortho (mtx4x4f_t proj, float l, float r, float b, float t, float n, float f)
+{
+	proj[0][0] = 2.0f / (r - l);
+	proj[1][0] = 0.0f;
+	proj[2][0] = 0.0f;
+	proj[3][0] = - (r + l) / (r - l);
+
+	proj[0][1] = 0.0f;
+	proj[1][1] = 2.0f / (t - b);
+	proj[2][1] = 0.0f;
+	proj[3][1] = - (t + b) / (t - b);
+
+	proj[0][2] = 0.0f;
+	proj[1][2] = 0.0f;
+	proj[2][2] = -2.0f / (f - n);
+	proj[3][2] = - (f + n) / (f - n);
+
+	proj[0][3] = 0.0f;
+	proj[1][3] = 0.0f;
+	proj[2][3] = 0.0f;
+	proj[3][3] = 1.0f;
+}
+
+static void
+frustum (mtx4x4f_t proj, float l, float r, float b, float t, float n, float f)
+{
+	proj[0][0] = (2.0f * n) / (r - l);
+	proj[1][0] = 0.0f;
+	proj[2][0] = (r + l) / (r - l);
+	proj[3][0] = 0.0f;
+
+	proj[0][1] = 0.0f;
+	proj[1][1] = (2.0f * n) / (t - b);
+	proj[2][1] = (t + b) / (t - b);
+	proj[3][1] = 0.0f;
+
+	proj[0][2] = 0.0f;
+	proj[1][2] = 0.0f;
+	proj[2][2] = - (f + n) / (f - n);
+	proj[3][2] = - (2.0f * f * n) / (f - n);
+
+	proj[0][3] = 0.0f;
+	proj[1][3] = 0.0f;
+	proj[2][3] = -1.0f;
+	proj[3][3] = 0.0f;
+}
+
+/****************************************************************************
  State
 ****************************************************************************/
 
@@ -1074,22 +1126,200 @@ draw_scene (hikaru_renderer_t *hr)
 
 /* TODO implement dirty rectangles. */
 
+static const char *layer_vs_source =
+"#version 140\n"
+"\n"
+"uniform mat4 u_projection;\n"
+"\n"
+"in vec3 i_position;\n"
+"in vec2 i_texcoords;\n"
+"\n"
+"out vec2 p_texcoords;\n"
+"\n"
+"void main (void) {\n"
+"	gl_Position = u_projection * vec4 (i_position, 1.0);\n"
+"	p_texcoords = i_texcoords;\n"
+"}\n";
+
+static const char *layer_fs_source =
+"#version 140\n"
+"\n"
+"uniform sampler2D u_texture;\n"
+"\n"
+"in vec2 p_texcoords;\n"
+"\n"
+"void main (void) {\n"
+"	gl_FragColor = texture (u_texture, p_texcoords);\n"
+"}\n";
+
+static const struct {
+	vec3f_t position;
+	vec2f_t texcoords;
+} layer_vbo_data[] = {
+	{ { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
+	{ { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
+	{ { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
+	{ { 1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
+};
+
+#define OFFSET(member_) \
+	((const GLvoid *) offsetof (typeof (layer_vbo_data[0]), member_))
+
+static void
+build_2d_glsl_state (hikaru_renderer_t *hr)
+{
+	char info[256];
+	GLuint vs, fs;
+	GLint status;
+
+	/* Create the GLSL program. */
+	vs = glCreateShader (GL_VERTEX_SHADER);
+	glShaderSource (vs, 1, (const GLchar **) &layer_vs_source, NULL);
+	glCompileShader (vs);
+	glGetShaderiv (vs, GL_COMPILE_STATUS, &status);
+	if (!status) {
+		glGetShaderInfoLog (vs, sizeof (info), NULL, info);
+		VK_ERROR ("could not compile GLSL shader: '%s'\n", info);
+		VK_ERROR ("source:\n%s\n", layer_vs_source);
+		glDeleteShader (vs);
+		VK_ASSERT (0);
+	}
+	VK_ASSERT_NO_GL_ERROR ();
+
+	fs = glCreateShader (GL_FRAGMENT_SHADER);
+	glShaderSource (fs, 1, (const GLchar **) &layer_fs_source, NULL);
+	glCompileShader (fs);
+	glGetShaderiv (fs, GL_COMPILE_STATUS, &status);
+	if (!status) {
+		glGetShaderInfoLog (fs, sizeof (info), NULL, info);
+		VK_ERROR ("could not compile GLSL shader: '%s'\n", info);
+		VK_ERROR ("source:\n%s\n", layer_fs_source);
+		glDeleteShader (fs);
+		VK_ASSERT (0);
+	}
+	VK_ASSERT_NO_GL_ERROR ();
+
+	hr->layers.program = glCreateProgram ();
+	glAttachShader (hr->layers.program, vs);
+	glAttachShader (hr->layers.program, fs);
+	glLinkProgram (hr->layers.program);
+	glGetProgramiv (hr->layers.program, GL_LINK_STATUS, &status);
+	if (status == GL_FALSE) {
+		glGetProgramInfoLog (hr->layers.program, sizeof (info), NULL, info);
+		VK_ERROR ("could not link GLSL program: '%s'\n", info);
+		VK_ERROR ("vs source:\n%s\n", layer_vs_source);
+		VK_ERROR ("fs source:\n%s\n", layer_fs_source);
+		glDeleteProgram (hr->layers.program);
+		VK_ASSERT (0);
+	}
+	VK_ASSERT_NO_GL_ERROR ();
+
+	hr->layers.locs.u_projection =
+		glGetAttribLocation (hr->layers.program, "u_projection");
+	VK_ASSERT (hr->layers.locs.u_projection != (GLuint) -1);
+
+	hr->layers.locs.u_texture =
+		glGetAttribLocation (hr->layers.program, "u_texture");
+	VK_ASSERT (hr->layers.locs.u_texture != (GLuint) -1);
+
+	hr->layers.locs.i_position =
+		glGetAttribLocation (hr->layers.program, "i_position");
+	VK_ASSERT (hr->layers.locs.i_position != (GLuint) -1);
+
+	hr->layers.locs.i_texcoords =
+		glGetAttribLocation (hr->layers.program, "i_texcoords");
+	VK_ASSERT (hr->layers.locs.i_texcoords != (GLuint) -1);
+
+	/* "If a shader object to be deleted is attached to a program object,
+	 * it will be flagged for deletion, but it will not be deleted until it
+	 * is no longer attached to any program object, for any rendering
+	 * context." */
+	glDeleteShader (vs);
+	glDeleteShader (fs);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	/* Create the VAO/VBO. */
+	glGenVertexArrays (1, &hr->layers.vao);
+	glBindVertexArray (hr->layers.vao);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glGenBuffers (1, &hr->layers.vbo);
+	glBindBuffer (GL_ARRAY_BUFFER, hr->layers.vbo);
+	glBufferData (GL_ARRAY_BUFFER,
+	              sizeof (layer_vbo_data), layer_vbo_data, GL_STATIC_DRAW);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glVertexAttribPointer (hr->layers.locs.i_position, 3, GL_FLOAT, GL_FALSE,
+	                       sizeof (layer_vbo_data[0]),
+	                       OFFSET (position));
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glVertexAttribPointer (hr->layers.locs.i_texcoords, 2, GL_FLOAT, GL_FALSE,
+	                       sizeof (layer_vbo_data[0]),
+	                       OFFSET (texcoords));
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glEnableVertexAttribArray (0);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glEnableVertexAttribArray (1);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glBindVertexArray (0);
+	VK_ASSERT_NO_GL_ERROR ();
+}
+
+#undef OFFSET
+
+static void
+destroy_2d_glsl_state (hikaru_renderer_t *hr)
+{
+	glBindBuffer (GL_ARRAY_BUFFER, 0);
+	glDeleteBuffers (1, &hr->layers.vbo);
+
+	glBindVertexArray (0);
+	glDeleteVertexArrays (1, &hr->layers.vao);
+
+	glUseProgram (0);
+	glDeleteProgram (hr->layers.program);
+}
+
 static void
 draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 {
-	void *data; 
+	mtx4x4f_t projection;
+	void *data;
 	GLuint id;
 
+	LOG ("drawing LAYER %s", get_layer_str (layer));
+
+	ortho (projection, 0.0f, 1.0f, 1.0f, 0.0f, -1.0f, 1.0f);
+
+	/* Setup the GLSL program. */
+	glUseProgram (hr->layers.program);
+	glUniformMatrix4fv (hr->layers.locs.u_projection, 1, GL_FALSE,
+	                    (const GLfloat *) projection);
+	glUniform1i (hr->layers.locs.u_texture, 0);
+
+
+	/* Upload the layer data to a new texture. */
 	glGenTextures (1, &id);
-	VK_ASSERT (id);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glActiveTexture (GL_TEXTURE0 + 0);
+	VK_ASSERT_NO_GL_ERROR ();
 
 	glBindTexture (GL_TEXTURE_2D, id);
+	VK_ASSERT_NO_GL_ERROR ();
 
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	VK_ASSERT_NO_GL_ERROR ();
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	VK_ASSERT_NO_GL_ERROR ();
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	VK_ASSERT_NO_GL_ERROR ();
 
 	data = vk_buffer_get_ptr (hr->gpu->fb,
 	                          layer->y0 * 4096 + layer->x0 * 4);
@@ -1118,23 +1348,22 @@ draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 		VK_ASSERT (0);
 	}
 	glPixelStorei (GL_UNPACK_ROW_LENGTH, 0);
-	glPixelStorei (GL_UNPACK_SKIP_ROWS, 0);
-	glPixelStorei (GL_UNPACK_SKIP_PIXELS, 0);
+	VK_ASSERT_NO_GL_ERROR ();
 
-	LOG ("drawing LAYER %s", get_layer_str (layer));
+	/* Draw. */
+	glBindVertexArray (hr->layers.vao);
+	VK_ASSERT_NO_GL_ERROR ();
 
-	glBegin (GL_TRIANGLE_STRIP);
-		glTexCoord2f (0.0f, 0.0f);
-		glVertex3f (0.0f, 0.0f, 0.0f);
-		glTexCoord2f (1.0f, 0.0f);
-		glVertex3f (1.0f, 0.0f, 0.0f);
-		glTexCoord2f (0.0f, 1.0f);
-		glVertex3f (0.0f, 1.0f, 0.0f);
-		glTexCoord2f (1.0f, 1.0f);
-		glVertex3f (1.0f, 1.0f, 0.0f);
-	glEnd ();
+	glDrawArrays (GL_TRIANGLE_STRIP, 0, 4);
+	VK_ASSERT_NO_GL_ERROR ();
 
+	glBindVertexArray (0);
+	glUseProgram (0);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	/* Get rid of the layer texture. */
 	glDeleteTextures (1, &id);
+	VK_ASSERT_NO_GL_ERROR ();
 }
 
 static void
@@ -1146,30 +1375,26 @@ draw_layers (hikaru_renderer_t *hr)
 	if (!LAYERS.enabled)
 		return;
 
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity ();
-	glOrtho (0.0f, 1.0f, 1.0f, 0.0f, -1.0f, 1.0f);
-
-	glMatrixMode (GL_MODELVIEW);
-	glLoadIdentity ();
-
-	glDisable (GL_CULL_FACE);
 	glDisable (GL_DEPTH_TEST);
-	glDisable (GL_LIGHTING);
+	VK_ASSERT_NO_GL_ERROR ();
 
-	glColor3f (1.0f, 1.0f, 1.0f);
+	glDisable (GL_CULL_FACE); /* fix the damn mesh instead */
+	VK_ASSERT_NO_GL_ERROR ();
+
 	glEnable (GL_BLEND);
+	VK_ASSERT_NO_GL_ERROR ();
+
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable (GL_TEXTURE_2D);
+	VK_ASSERT_NO_GL_ERROR ();
 
 	/* Only draw unit 0 for now. I think unit 1 is there only for
 	 * multi-monitor, which case we don't care about. */
 	layer = &LAYERS.layer[0][1];
-	if (layer->enabled && !hr->debug.flags[HR_DEBUG_NO_LAYER2])
+//	if (layer->enabled && !hr->debug.flags[HR_DEBUG_NO_LAYER2])
 		draw_layer (hr, layer);
 
 	layer = &LAYERS.layer[0][0];
-	if (layer->enabled && !hr->debug.flags[HR_DEBUG_NO_LAYER2])
+//	if (layer->enabled && !hr->debug.flags[HR_DEBUG_NO_LAYER2])
 		draw_layer (hr, layer);
 }
 
@@ -1196,8 +1421,12 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 
 	update_debug_flags (hr);
 
+	/* Note that "the pixel ownership test, the scissor test, dithering,
+	 * and the buffer writemasks affect the operation of glClear". */
 	glDepthMask (GL_TRUE);
 	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	VK_ASSERT_NO_GL_ERROR ();
 }
 
 static void
@@ -1205,10 +1434,16 @@ hikaru_renderer_end_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
+	VK_ASSERT_NO_GL_ERROR ();
+
 #if 0
 	draw_scene (hr);
+
+	VK_ASSERT_NO_GL_ERROR ();
 #endif
 	draw_layers (hr);
+
+	VK_ASSERT_NO_GL_ERROR ();
 
 	LOG (" ==== RENDSTATE STATISTICS ==== ");
 	LOG ("  vp  : %u", hr->num_vps);
@@ -1240,11 +1475,14 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 		for (i = 0; i < 8; i++)
 			free (hr->mesh_list[i]);
 
+		destroy_2d_glsl_state (hr);
+
 		vk_surface_destroy (&hr->textures.debug);
 		hikaru_renderer_invalidate_texcache (*renderer_, NULL);
 	}
 }
 
+#if 0
 static vk_surface_t *
 build_debug_surface (void)
 {
@@ -1259,6 +1497,7 @@ build_debug_surface (void)
 	vk_surface_commit (surface);
 	return surface;
 }
+#endif
 
 vk_renderer_t *
 hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
@@ -1282,6 +1521,8 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 	if (ret)
 		goto fail;
 
+	VK_ASSERT_NO_GL_ERROR ();
+
 	hr->vp_list  = (hikaru_viewport_t *) malloc (sizeof (hikaru_viewport_t) * MAX_VIEWPORTS);
 	hr->mv_list  = (hikaru_modelview_t *) malloc (sizeof (hikaru_modelview_t) * MAX_MODELVIEWS);
 	hr->mat_list = (hikaru_material_t *) malloc (sizeof (hikaru_material_t) * MAX_MATERIALS);
@@ -1299,12 +1540,17 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 
 	init_debug_flags (hr);
 
+#if 0
 	hr->textures.debug = build_debug_surface ();
 	if (!hr->textures.debug)
 		goto fail;
+#endif
 
 	glClearColor (0.0f, 0.0f, 0.0f, 1.0f);
-	glShadeModel (GL_SMOOTH);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	build_2d_glsl_state (hr);
+	VK_ASSERT_NO_GL_ERROR ();
 
 	return (vk_renderer_t *) hr;
 

@@ -99,6 +99,16 @@ typedef struct {
 	} textures;
 
 	struct {
+		GLuint program, vao, vbo;
+		struct {
+			GLuint u_projection;
+			GLuint u_texture;
+			GLuint i_position;
+			GLuint i_texcoords;
+		} locs;
+	} layers;
+
+	struct {
 		int32_t flags[HR_NUM_DEBUG_VARS];
 	} debug;
 
