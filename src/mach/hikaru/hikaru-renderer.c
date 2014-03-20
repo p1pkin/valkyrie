@@ -1149,7 +1149,10 @@ static const char *layer_fs_source =
 "in vec2 p_texcoords;\n"
 "\n"
 "void main (void) {\n"
-"	gl_FragColor = texture (u_texture, p_texcoords);\n"
+"	vec4 texel = texture (u_texture, p_texcoords);\n"
+"	if (texel.a > 0.0)\n"
+"		texel.a = 1.0;\n"
+"	gl_FragColor = texel;\n"
 "}\n";
 
 static const struct {
@@ -1381,10 +1384,7 @@ draw_layers (hikaru_renderer_t *hr)
 	glDisable (GL_CULL_FACE); /* fix the damn mesh instead */
 	VK_ASSERT_NO_GL_ERROR ();
 
-	glEnable (GL_BLEND);
-	VK_ASSERT_NO_GL_ERROR ();
-
-	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable (GL_BLEND);
 	VK_ASSERT_NO_GL_ERROR ();
 
 	/* Only draw unit 0 for now. I think unit 1 is there only for
