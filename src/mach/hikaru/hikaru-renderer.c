@@ -1147,11 +1147,11 @@ draw_layers (hikaru_renderer_t *hr)
 	/* Only draw unit 0 for now. I think unit 1 is there only for
 	 * multi-monitor, which case we don't care about. */
 	layer = &LAYERS.layer[0][1];
-	if (!layer->enabled || !(hr->debug.flags[HR_DEBUG_NO_LAYER2]))
+	if (layer->enabled && !hr->debug.flags[HR_DEBUG_NO_LAYER2])
 		draw_layer (hr, layer);
 
 	layer = &LAYERS.layer[0][0];
-	if (!layer->enabled || !(hr->debug.flags[HR_DEBUG_NO_LAYER1]))
+	if (layer->enabled && !hr->debug.flags[HR_DEBUG_NO_LAYER2])
 		draw_layer (hr, layer);
 }
 
