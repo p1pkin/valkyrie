@@ -99,6 +99,65 @@ update_debug_flags (hikaru_renderer_t *hr)
  Utils
 ****************************************************************************/
 
+static GLuint
+compile_shader (GLenum type, const char *src)
+{
+	char info[256];
+	GLuint id;
+	GLint status;
+
+	id = glCreateShader (type);
+	glShaderSource (id, 1, (const GLchar **) &src, NULL);
+	glCompileShader (id);
+	glGetShaderiv (id, GL_COMPILE_STATUS, &status);
+	if (!status) {
+		glGetShaderInfoLog (id, sizeof (info), NULL, info);
+		VK_ERROR ("could not compile GLSL shader: '%s'\n", info);
+		VK_ERROR ("source:\n%s\n", src);
+		glDeleteShader (id);
+		VK_ASSERT (0);
+	}
+	return id;
+}
+
+static GLuint
+compile_program (const char *vs_src, const char *fs_src)
+{
+	char info[256];
+	GLuint id, vs, fs;
+	GLint status;
+
+	vs = compile_shader (GL_VERTEX_SHADER, vs_src);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	fs = compile_shader (GL_FRAGMENT_SHADER, fs_src);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	id = glCreateProgram ();
+	glAttachShader (id, vs);
+	glAttachShader (id, fs);
+	glLinkProgram (id);
+	glGetProgramiv (id, GL_LINK_STATUS, &status);
+	if (status == GL_FALSE) {
+		glGetProgramInfoLog (id, sizeof (info), NULL, info);
+		VK_ERROR ("could not link GLSL program: '%s'\n", info);
+		VK_ERROR ("vs source:\n%s\n", vs_src);
+		VK_ERROR ("fs source:\n%s\n", fs_src);
+		glDeleteProgram (id);
+		VK_ASSERT (0);
+	}
+
+	/* "If a shader object to be deleted is attached to a program object,
+	 * it will be flagged for deletion, but it will not be deleted until it
+	 * is no longer attached to any program object, for any rendering
+	 * context." */
+	glDeleteShader (vs);
+	glDeleteShader (fs);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	return id;
+}
+
 static void
 ortho (mtx4x4f_t proj, float l, float r, float b, float t, float n, float f)
 {
@@ -1171,50 +1230,8 @@ static const struct {
 static void
 build_2d_glsl_state (hikaru_renderer_t *hr)
 {
-	char info[256];
-	GLuint vs, fs;
-	GLint status;
-
 	/* Create the GLSL program. */
-	vs = glCreateShader (GL_VERTEX_SHADER);
-	glShaderSource (vs, 1, (const GLchar **) &layer_vs_source, NULL);
-	glCompileShader (vs);
-	glGetShaderiv (vs, GL_COMPILE_STATUS, &status);
-	if (!status) {
-		glGetShaderInfoLog (vs, sizeof (info), NULL, info);
-		VK_ERROR ("could not compile GLSL shader: '%s'\n", info);
-		VK_ERROR ("source:\n%s\n", layer_vs_source);
-		glDeleteShader (vs);
-		VK_ASSERT (0);
-	}
-	VK_ASSERT_NO_GL_ERROR ();
-
-	fs = glCreateShader (GL_FRAGMENT_SHADER);
-	glShaderSource (fs, 1, (const GLchar **) &layer_fs_source, NULL);
-	glCompileShader (fs);
-	glGetShaderiv (fs, GL_COMPILE_STATUS, &status);
-	if (!status) {
-		glGetShaderInfoLog (fs, sizeof (info), NULL, info);
-		VK_ERROR ("could not compile GLSL shader: '%s'\n", info);
-		VK_ERROR ("source:\n%s\n", layer_fs_source);
-		glDeleteShader (fs);
-		VK_ASSERT (0);
-	}
-	VK_ASSERT_NO_GL_ERROR ();
-
-	hr->layers.program = glCreateProgram ();
-	glAttachShader (hr->layers.program, vs);
-	glAttachShader (hr->layers.program, fs);
-	glLinkProgram (hr->layers.program);
-	glGetProgramiv (hr->layers.program, GL_LINK_STATUS, &status);
-	if (status == GL_FALSE) {
-		glGetProgramInfoLog (hr->layers.program, sizeof (info), NULL, info);
-		VK_ERROR ("could not link GLSL program: '%s'\n", info);
-		VK_ERROR ("vs source:\n%s\n", layer_vs_source);
-		VK_ERROR ("fs source:\n%s\n", layer_fs_source);
-		glDeleteProgram (hr->layers.program);
-		VK_ASSERT (0);
-	}
+	hr->layers.program = compile_program (layer_vs_source, layer_fs_source);
 	VK_ASSERT_NO_GL_ERROR ();
 
 	hr->layers.locs.u_projection =
@@ -1232,14 +1249,6 @@ build_2d_glsl_state (hikaru_renderer_t *hr)
 	hr->layers.locs.i_texcoords =
 		glGetAttribLocation (hr->layers.program, "i_texcoords");
 	VK_ASSERT (hr->layers.locs.i_texcoords != (GLuint) -1);
-
-	/* "If a shader object to be deleted is attached to a program object,
-	 * it will be flagged for deletion, but it will not be deleted until it
-	 * is no longer attached to any program object, for any rendering
-	 * context." */
-	glDeleteShader (vs);
-	glDeleteShader (fs);
-	VK_ASSERT_NO_GL_ERROR ();
 
 	/* Create the VAO/VBO. */
 	glGenVertexArrays (1, &hr->layers.vao);
