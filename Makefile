@@ -3,8 +3,8 @@ LD := gcc
 
 DEFS := -DVK_HAVE_HIKARU
 
-PKG_CFLAGS := `pkg-config --cflags gl glew sdl jansson`
-PKG_LDFLAGS := `pkg-config --libs gl glew sdl jansson`
+PKG_CFLAGS := `pkg-config --cflags gl glew sdl2 jansson`
+PKG_LDFLAGS := `pkg-config --libs gl glew sdl2 jansson`
 
 COMMON_FLAGS = $(DEFS) -I src -I /usr/include/json -Wall -Wno-strict-aliasing -Wno-format -Wno-unused-local-typedefs
 
