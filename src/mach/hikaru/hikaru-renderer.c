@@ -99,6 +99,8 @@ update_debug_flags (hikaru_renderer_t *hr)
  State
 ****************************************************************************/
 
+#if 0
+
 static bool
 is_viewport_set (hikaru_viewport_t *vp)
 {
@@ -525,9 +527,13 @@ disable:
 	glDisable (GL_LIGHTING);
 }
 
+#endif
+
 /****************************************************************************
  Meshes
 ****************************************************************************/
+
+#if 0
 
 #define VK_COPY_VEC2F(dst_, src_) \
 	do { \
@@ -681,6 +687,7 @@ add_triangle (hikaru_renderer_t *hr)
 		hr->push.num_tris += 1;
 	}
 }
+#endif
 
 void
 hikaru_renderer_push_vertices (vk_renderer_t *rend,
@@ -688,6 +695,7 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
                                uint32_t flags,
                                unsigned num)
 {
+#if 0
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 	unsigned i;
 
@@ -766,7 +774,10 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 		hr->push.tmp[2].info.full = v[0].info.full;
 		add_triangle (hr);
 	}
+#endif
 }
+
+#if 0
 
 #define OFFSET(member_) \
 	((const GLvoid *) offsetof (hikaru_vertex_t, member_))
@@ -923,11 +934,13 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	mesh->num = hr->total_meshes++;
 	print_rendstate (hr, mesh, "U");
 }
+#endif
 
 void
 hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
                             bool is_static)
 {
+#if 0
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 	hikaru_gpu_t *gpu = hr->gpu;
 	unsigned polytype = POLY.type;
@@ -954,11 +967,13 @@ hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
 	/* Clear the push buffer. */
 	hr->push.num_verts = 0;
 	hr->push.num_tris = 0;
+#endif
 }
 
 void
 hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr)
 {
+#if 0
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 
 	VK_ASSERT (hr);
@@ -972,8 +987,10 @@ hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr)
 	hikaru_mesh_upload_pushed_data (hr, hr->meshes.current);
 
 	hr->meshes.current = NULL;
+#endif
 }
 
+#if 0
 static void
 draw_meshes_for_polytype (hikaru_renderer_t *hr, int polytype)
 {
@@ -1049,6 +1066,7 @@ draw_scene (hikaru_renderer_t *hr)
 
 	glDepthMask (GL_TRUE);
 }
+#endif
 
 /****************************************************************************
  2D
@@ -1187,7 +1205,9 @@ hikaru_renderer_end_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 
+#if 0
 	draw_scene (hr);
+#endif
 	draw_layers (hr);
 
 	LOG (" ==== RENDSTATE STATISTICS ==== ");
