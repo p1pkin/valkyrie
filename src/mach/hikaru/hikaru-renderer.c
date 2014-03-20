@@ -1218,10 +1218,10 @@ static const struct {
 	vec3f_t position;
 	vec2f_t texcoords;
 } layer_vbo_data[] = {
-	{ { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
 	{ { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f } },
-	{ { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
+	{ { 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f } },
 	{ { 1.0f, 1.0f, 0.0f }, { 1.0f, 1.0f } },
+	{ { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f } },
 };
 
 #define OFFSET(member_) \
@@ -1388,9 +1388,6 @@ draw_layers (hikaru_renderer_t *hr)
 		return;
 
 	glDisable (GL_DEPTH_TEST);
-	VK_ASSERT_NO_GL_ERROR ();
-
-	glDisable (GL_CULL_FACE); /* fix the damn mesh instead */
 	VK_ASSERT_NO_GL_ERROR ();
 
 	glDisable (GL_BLEND);
