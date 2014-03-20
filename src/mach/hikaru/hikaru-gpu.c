@@ -567,11 +567,13 @@ hikaru_gpu_raise_irq (hikaru_gpu_t *gpu, uint32_t _15, uint32_t _1A)
  *
  *			See PH:@0C01A124, PH:@0C01A142.
  *
- * 1A0001B8  RW		Unknown Control
+ * 1A0001B8  RW		Draw directly
  *
- *			-------- -------- -------- ------??
+ *			-------- -------- -------- ------21
  *
- *			Bitfield or not? See PH:@0C01A184, PH:@0C01A18A.
+ *			n = layer n is drawn directly if 1, blended with
+ *			    the 3D framebuffer (according to commands 181 and
+ *			    781) if 0.
  *
  * 1A0001BC  RW		Unknown Control
  *
@@ -607,7 +609,9 @@ hikaru_gpu_fill_layer_info (hikaru_gpu_t *gpu)
 				&LAYERS.layer[unit][bank-2];
 	
 			/* Is the layer enabled? */
-			layer->enabled = REG1AUNIT (unit, 0x34) >> (bank - 2);
+			layer->enabled =
+				(REG1AUNIT (unit, 0x34) >> (bank - 2)) &
+			        (REG1AUNIT (unit, 0x38) >> (bank - 2));
 	
 			/* Get the layer format. */
 			format = (REG1AUNIT (unit, 0x30) >> (bank - 1)) & 1;
