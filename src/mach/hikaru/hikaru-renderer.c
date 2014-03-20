@@ -1215,11 +1215,11 @@ build_2d_glsl_state (hikaru_renderer_t *hr)
 	VK_ASSERT_NO_GL_ERROR ();
 
 	hr->layers.locs.u_projection =
-		glGetAttribLocation (hr->layers.program, "u_projection");
+		glGetUniformLocation (hr->layers.program, "u_projection");
 	VK_ASSERT (hr->layers.locs.u_projection != (GLuint) -1);
 
 	hr->layers.locs.u_texture =
-		glGetAttribLocation (hr->layers.program, "u_texture");
+		glGetUniformLocation (hr->layers.program, "u_texture");
 	VK_ASSERT (hr->layers.locs.u_texture != (GLuint) -1);
 
 	hr->layers.locs.i_position =
@@ -1390,11 +1390,11 @@ draw_layers (hikaru_renderer_t *hr)
 	/* Only draw unit 0 for now. I think unit 1 is there only for
 	 * multi-monitor, which case we don't care about. */
 	layer = &LAYERS.layer[0][1];
-//	if (layer->enabled && !hr->debug.flags[HR_DEBUG_NO_LAYER2])
+	if (layer->enabled && !hr->debug.flags[HR_DEBUG_NO_LAYER2])
 		draw_layer (hr, layer);
 
 	layer = &LAYERS.layer[0][0];
-//	if (layer->enabled && !hr->debug.flags[HR_DEBUG_NO_LAYER2])
+	if (layer->enabled && !hr->debug.flags[HR_DEBUG_NO_LAYER2])
 		draw_layer (hr, layer);
 }
 
