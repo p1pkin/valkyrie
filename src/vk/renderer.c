@@ -34,7 +34,7 @@ vk_renderer_begin_frame (vk_renderer_t *renderer)
 		renderer->begin_frame (renderer);
 }
 
-static uint32_t clock;
+static uint32_t clock = 0;
 
 void
 vk_renderer_end_frame (vk_renderer_t *renderer)
@@ -43,9 +43,11 @@ vk_renderer_end_frame (vk_renderer_t *renderer)
 	uint32_t temp, delta;
 	float fps;
 
+	VK_ASSERT (renderer);
+
 	if (renderer->end_frame)
 		renderer->end_frame (renderer);
-	SDL_GL_SwapBuffers ();
+	SDL_GL_SwapWindow (renderer->window);
 
 	temp = SDL_GetTicks ();
 	delta = temp - clock;
@@ -56,27 +58,20 @@ vk_renderer_end_frame (vk_renderer_t *renderer)
 		fps = 1000.0f / delta;
 
 	sprintf (title, "Valkyrie (%4.1f FPS) [%s]", fps, renderer->message);
-	SDL_WM_SetCaption (title, "Valkyrie");
+	SDL_SetWindowTitle (renderer->window, title);
 }
 
 int
 vk_renderer_init (vk_renderer_t *renderer)
 {
-	const SDL_VideoInfo *info;
+	VK_ASSERT (renderer);
+	VK_ASSERT (renderer->width);
+	VK_ASSERT (renderer->height);
 
 	if (SDL_Init (SDL_INIT_VIDEO | SDL_INIT_TIMER)) {
 		VK_ERROR ("could not initialize SDL: '%s'", SDL_GetError ());
 		return -1;
 	}
-
-	info = SDL_GetVideoInfo ();
-	if (!info) {
-		VK_ERROR ("could not query SDL video info: '%s'", SDL_GetError ());
-		return -1;
-	}
-
-	/* We set the framebuffer always to RGBA32 (the actual component
-	 * order depends on what OpenGL provides. */
 
 	SDL_GL_SetAttribute (SDL_GL_RED_SIZE,   8);
 	SDL_GL_SetAttribute (SDL_GL_GREEN_SIZE, 8);
@@ -85,15 +80,33 @@ vk_renderer_init (vk_renderer_t *renderer)
 	SDL_GL_SetAttribute (SDL_GL_DEPTH_SIZE, 16);
 	SDL_GL_SetAttribute (SDL_GL_DOUBLEBUFFER, 1);
 
-	if (!SDL_SetVideoMode (renderer->width, renderer->height, 32, SDL_OPENGL)) {
-		VK_ERROR ("could not set video mode: '%s'", SDL_GetError ());
+	SDL_GL_SetAttribute (SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+	SDL_GL_SetAttribute (SDL_GL_CONTEXT_MINOR_VERSION, 1);
+	SDL_GL_SetAttribute (SDL_GL_CONTEXT_FLAGS,
+	                     SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG |
+	                     SDL_GL_CONTEXT_DEBUG_FLAG);
+	SDL_GL_SetAttribute (SDL_GL_CONTEXT_PROFILE_MASK,
+	                     SDL_GL_CONTEXT_PROFILE_CORE);
+
+	renderer->window = SDL_CreateWindow ("Valkyrie",
+	                                     SDL_WINDOWPOS_CENTERED,
+	                                     SDL_WINDOWPOS_CENTERED,
+	                                     renderer->width, renderer->height,
+	                                     SDL_WINDOW_OPENGL);
+	if (!renderer->window) {
+		VK_ERROR ("could not create SDL window: '%s'", SDL_GetError ());
 		return -1;
 	}
 
-	SDL_WM_SetCaption ("Valkyrie", "Valkyrie");
+	renderer->gl_context = SDL_GL_CreateContext (renderer->window);
+	if (!renderer->gl_context) {
+		VK_ERROR ("could not create GL context: '%s'", SDL_GetError ());
+		return -1;
+	}
 
-	clock = SDL_GetTicks ();
+	SDL_GL_SetSwapInterval (0);
 
+	glewExperimental = GL_TRUE;
 	if (glewInit () != GLEW_OK) {
 		VK_ERROR ("could not initialize glew");
 		return -1;
@@ -104,16 +117,12 @@ vk_renderer_init (vk_renderer_t *renderer)
 	VK_LOG ("renderer: GL version   = %s", glGetString (GL_VERSION));
 	VK_LOG ("renderer: GLSL version = %s", glGetString (GL_SHADING_LANGUAGE_VERSION));
 
-	/* Set the GL viewport (and scissor) size */
 	glViewport (0, 0, renderer->width, renderer->height);
 
-	/* Set an orthographic projection matrix */
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity ();
-
-	/* Set an identity modelview matrix */
-	glMatrixMode (GL_MODELVIEW);
-	glLoadIdentity ();
+	/* The SDL initialization sequence does not clear the (harmless,
+	 * hopefully) GL errors it may cause. Let's do it here so we can
+	 * catch more serious errors later. */
+	vk_renderer_clear_gl_errors ();
 
 	return 0;
 }

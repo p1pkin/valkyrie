@@ -23,9 +23,15 @@
 
 #include "vk/core.h"
 
+#define VK_ASSERT_NO_GL_ERROR() \
+	VK_ASSERT (glGetError () == GL_NO_ERROR)
+
 typedef struct vk_renderer_t vk_renderer_t;
 
 struct vk_renderer_t {
+	SDL_Window *window;
+	SDL_GLContext *gl_context;
+
 	unsigned width;
 	unsigned height;
 	char message[256];
