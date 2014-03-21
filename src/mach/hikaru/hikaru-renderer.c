@@ -386,6 +386,8 @@ upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	if (hr->meshes.variant.full == variant.full)
 		return;
 
+	hr->meshes.variant.full = variant.full;
+
 	destroy_program (hr->meshes.program);
 	VK_ASSERT_NO_GL_ERROR ();
 
