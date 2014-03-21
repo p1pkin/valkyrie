@@ -45,6 +45,35 @@ enum {
 	HR_NUM_DEBUG_VARS
 };
 
+typedef union {
+	struct {
+		uint32_t has_texture		: 1;
+		uint32_t has_lighting		: 1;
+		uint32_t has_phong		: 1;
+
+		uint32_t has_light0		: 1;
+		uint32_t light0_type		: 2;
+		uint32_t light0_att_type	: 3;
+		uint32_t has_light0_specular	: 1;
+
+		uint32_t has_light1		: 1;
+		uint32_t light1_type		: 2;
+		uint32_t light1_att_type	: 3;
+		uint32_t has_light1_specular	: 1;
+
+		uint32_t has_light2		: 1;
+		uint32_t light2_type		: 2;
+		uint32_t light2_att_type	: 3;
+		uint32_t has_light2_specular	: 1;
+
+		uint32_t has_light3		: 1;
+		uint32_t light3_type		: 2;
+		uint32_t light3_att_type	: 3;
+		uint32_t has_light3_specular	: 1;
+	};
+	uint32_t full;
+} hikaru_glsl_variant_t;
+
 typedef struct {
 	GLuint			vbo;
 	uint32_t		num_tris;
@@ -92,6 +121,25 @@ typedef struct {
 
 	struct {
 		hikaru_mesh_t		*current;
+
+		hikaru_glsl_variant_t	variant;
+		GLuint			program;
+		GLuint			vao;
+
+		struct {
+			GLuint		u_projection;
+			GLuint		u_modelview;
+			GLuint		u_normal;
+			GLuint		u_texture;
+
+			GLuint		i_position;
+			GLuint		i_normal;
+			GLuint		i_texcoords;
+			GLuint		i_diffuse;
+			GLuint		i_ambient;
+			GLuint		i_specular;
+			GLuint		i_unknown;
+		} locs;
 	} meshes;
 
 	struct {

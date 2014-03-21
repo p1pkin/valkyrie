@@ -183,13 +183,19 @@ get_vertex_str (hikaru_vertex_t *v)
 	                v->info.ppivot, v->info.winding);
 
 	tmp += sprintf (tmp, "(X: %5.3f %5.3f %5.3f) ",
-	                v->pos[0], v->pos[1], v->pos[2]);
-	tmp += sprintf (tmp, "(C: %5.3f %5.3f %5.3f %5.3f) ",
-	                v->col[0], v->col[1], v->col[2], v->col[3]);
+	                v->position[0], v->position[1], v->position[2]);
 	tmp += sprintf (tmp, "(N: %5.3f %5.3f %5.3f) ",
-	                v->nrm[0], v->nrm[1], v->nrm[2]);
+	                v->normal[0], v->normal[1], v->normal[2]);
+	tmp += sprintf (tmp, "(Cd: %5.3f %5.3f %5.3f | %5.3f) ",
+	                v->diffuse[0], v->diffuse[1], v->diffuse[2], v->diffuse[3]);
+	tmp += sprintf (tmp, "(Ca: %5.3f %5.3f %5.3f) ",
+	                v->ambient[0], v->ambient[1], v->ambient[2]);
+	tmp += sprintf (tmp, "(Cs: %5.3f %5.3f %5.3f | %5.3f) ",
+	                v->specular[0], v->specular[1], v->specular[2], v->specular[3]);
+	tmp += sprintf (tmp, "(Cu: %5.3f %5.3f %5.3f) ",
+	                v->unknown[0], v->unknown[1], v->unknown[2]);
 	tmp += sprintf (tmp, "(T: %5.3f %5.3f) ",
-	                v->txc[0], v->txc[1]);
+	                v->texcoords[0], v->texcoords[1]);
 
 	return out;
 }

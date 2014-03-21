@@ -23,6 +23,11 @@
 #include "mach/hikaru/hikaru-renderer.h"
 #include "mach/hikaru/hikaru-renderer-private.h"
 
+#define VP0	VP.scratch
+#define MAT0	MAT.scratch
+#define TEX0	TEX.scratch
+#define LS0	LIT.scratchset
+
 #define MAX_VIEWPORTS	4096
 #define MAX_MODELVIEWS	4096
 #define MAX_MATERIALS	4096
@@ -31,6 +36,10 @@
 #define MAX_MESHES	16384
 
 #define INV255	(1.0f / 255.0f)
+
+/****************************************************************************
+ Debug
+****************************************************************************/
 
 static const struct {
 	int32_t min, max;
@@ -159,6 +168,15 @@ compile_program (const char *vs_src, const char *fs_src)
 }
 
 static void
+destroy_program (GLuint program)
+{
+	if (program) {
+		glUseProgram (0);
+		glDeleteProgram (program);
+	}
+}
+
+static void
 ortho (mtx4x4f_t proj, float l, float r, float b, float t, float n, float f)
 {
 	proj[0][0] = 2.0f / (r - l);
@@ -206,138 +224,68 @@ frustum (mtx4x4f_t proj, float l, float r, float b, float t, float n, float f)
 	proj[3][3] = 0.0f;
 }
 
+static void
+translate (mtx4x4f_t m, float x, float y, float z)
+{
+	m[3][0] += m[0][0] * x + m[1][0] * y + m[2][0] * z;
+	m[3][1] += m[0][1] * x + m[1][1] * y + m[2][1] * z;
+	m[3][2] += m[0][2] * x + m[1][2] * y + m[2][2] * z;
+	m[3][3] += m[0][3] * x + m[1][3] * y + m[2][3] * z;
+}
+
 /****************************************************************************
  State
 ****************************************************************************/
 
-#if 0
+static const char *mesh_vs_source =
+"#version 140\n"
+"\n"
+"%s\n" /* definitions */
+"\n"
+"uniform mat4 u_projection;\n"
+"uniform mat4 u_modelview;\n"
+"uniform mat3 u_normal;\n"
+"\n"
+"in vec3 i_position;\n"
+"in vec3 i_normal;\n"
+"in vec2 i_texcoords;\n"
+"in vec4 i_diffuse;\n"
+"in vec3 i_ambient;\n"
+"in vec4 i_specular;\n"
+"in vec3 i_unknown;\n"
+"\n"
+"out vec3 p_position;\n"
+"out vec3 p_normal;\n"
+"out vec2 p_texcoords;\n"
+"out vec4 p_diffuse;\n"
+"out vec3 p_ambient;\n"
+"out vec4 p_specular;\n"
+"out vec3 p_unknown;\n"
+"\n"
+"void main (void) {\n"
+"	gl_Position = u_projection * u_modelview * vec4 (i_position, 1.0);\n"
+"	p_diffuse = i_diffuse;\n"
+"	p_texcoords = i_texcoords;\n"
+"}\n";
 
-static bool
-is_viewport_set (hikaru_viewport_t *vp)
-{
-	return true; // vp && (vp->flags & 0x27) == 0x27;
-}
-
-static bool
-is_viewport_valid (hikaru_viewport_t *vp)
-{
-	if (!is_viewport_set (vp))
-		return false;
-
-	if (!ispositive (vp->clip.l) || !ispositive (vp->clip.r) ||
-	    !ispositive (vp->clip.b) || !ispositive (vp->clip.t) ||
-	    !ispositive (vp->clip.f) || !ispositive (vp->clip.n))
-		return false;
-
-	if ((vp->clip.l >= vp->clip.r) ||
-	    (vp->clip.b >= vp->clip.t) ||
-	    (vp->clip.n >= vp->clip.f))
-		return false;
-
-	if (!ispositive (vp->offset.x) || (vp->offset.x >= 640.0f) ||
-	    !ispositive (vp->offset.y) || (vp->offset.y >= 480.0f))
-		return false;
-
-	return true;
-}
-
-static void
-upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
-{
-	hikaru_viewport_t *vp =
-		(mesh->vp_index == ~0) ? NULL : &hr->vp_list[mesh->vp_index];
-
-	const float h = vp->clip.t - vp->clip.b;
-	const float w = vp->clip.r - vp->clip.l;
-	const float hh_at_n = (h / 2.0f) * (vp->clip.n / vp->clip.f);
-	const float hw_at_n = hh_at_n * (w / h);
-	const float dcx = vp->offset.x - (w / 2.0f);
-	const float dcy = vp->offset.y - (h / 2.0f);
-
-	LOG ("vp  = %s : [w=%f h=%f dcx=%f dcy=%f]",
-	     get_viewport_str (vp), w, h, dcx, dcy);
-
-	if (!is_viewport_valid (vp))
-		VK_ERROR ("invalid viewport [%s]", get_viewport_str (vp));
-
-	glMatrixMode (GL_PROJECTION);
-	glLoadIdentity ();
-	glFrustum (-hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, 1e5);
-	/* XXX scissor */
-	glTranslatef (dcx, -dcy, 0.0f);
-}
-
-static void
-upload_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, unsigned i)
-{
-	unsigned index = mesh->mv_index + i;
-	hikaru_modelview_t *mv =
-		(mesh->mv_index == ~0) ? NULL : &hr->mv_list[index];
-
-	LOG ("uploading mv at index [%u] %u\n", mesh->mv_index, index);
-
-	if (!mv)
-		return;
-
-	LOG ("mv  = %s", get_modelview_str (mv));
-
-	glMatrixMode (GL_MODELVIEW);
-	glLoadMatrixf ((GLfloat *) &mv->mtx[0][0]);
-}
-
-static bool
-is_material_set (hikaru_material_t *mat)
-{
-	return true; // mat && (mat->flags & 0xEF) == 0xEF;
-}
-
-static bool
-is_texhead_set (hikaru_texhead_t *th)
-{
-	return true; // th && (th->flags & 7) == 7;
-}
-
-static void
-upload_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
-{
-	hikaru_material_t *mat =
-		(mesh->mat_index == ~0) ? NULL : &hr->mat_list[mesh->mat_index];
-	hikaru_texhead_t *th =
-		(mesh->tex_index == ~0) ? NULL : &hr->tex_list[mesh->tex_index];
-	bool has_texture = mat->has_texture && !hr->debug.flags[HR_DEBUG_NO_TEXTURES];
-
-	if (!is_material_set (mat)) {
-		VK_ERROR ("attempting to upload unset material");
-		has_texture = false;
-	} else
-		LOG ("mat = %s", get_material_str (mat));
-
-	if (!is_texhead_set (th)) {
-		VK_ERROR ("attempting to upload unset texhead");
-		has_texture = false;
-	} else
-		LOG ("tex = %s", get_texhead_str (th));
-
-	if (has_texture) {
-		vk_surface_t *surface;
-
-		surface = hr->debug.flags[HR_DEBUG_USE_DEBUG_TEXTURE] ?
-		          NULL : hikaru_renderer_decode_texture (&hr->base, th);
-
-		if (!surface)
-			surface = hr->textures.debug;
-
-		vk_surface_bind (surface);
-		glEnable (GL_TEXTURE_2D);
-	} else
-		glDisable (GL_TEXTURE_2D);
-}
-
-static bool
-is_light_set (hikaru_light_t *lit)
-{
-	return true; // lit && (lit->flags & 0x1F) == 0x1F;
-}
+static const char *mesh_fs_source =
+"#version 140\n"
+"\n"
+"%s\n" /* definitions */
+"\n"
+"uniform sampler2D u_texture;\n"
+"\n"
+"in vec3 p_position;\n"
+"in vec3 p_normal;\n"
+"in vec2 p_texcoords;\n"
+"in vec4 p_diffuse;\n"
+"in vec3 p_ambient;\n"
+"in vec4 p_specular;\n"
+"in vec3 p_unknown;\n"
+"\n"
+"void main (void) {\n"
+"	gl_FragColor = p_diffuse;\n"
+"}\n";
 
 static hikaru_light_att_t
 get_light_attenuation_type (hikaru_light_t *lit)
@@ -362,13 +310,246 @@ get_light_type (hikaru_light_t *lit)
 	return HIKARU_LIGHT_TYPE_DIRECTIONAL;
 }
 
+static hikaru_glsl_variant_t
+get_glsl_variant (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+{
+	hikaru_material_t *mat	= &hr->mat_list[mesh->mat_index];
+	hikaru_lightset_t *ls	= &hr->ls_list[mesh->ls_index];
+	hikaru_glsl_variant_t variant;
+
+	VK_ASSERT (mat);
+	VK_ASSERT (ls);
+
+	variant.has_texture		= mat->has_texture &&
+	                        	  !hr->debug.flags[HR_DEBUG_NO_TEXTURES];
+
+	variant.has_lighting		= ls->mask != 0xF &&
+	                        	  mat->shading_mode != 0 &&
+	                                  !hr->debug.flags[HR_DEBUG_NO_LIGHTING];
+
+	variant.has_phong		= ls->mask != 0xF &&
+	                                  mat->shading_mode == 2 &&
+	                                  !hr->debug.flags[HR_DEBUG_NO_LIGHTING];
+
+	variant.has_light0		= !(ls->mask & (1 << 0));
+	variant.light0_type		= get_light_type (&ls->lights[0]);
+	variant.light0_att_type		= get_light_attenuation_type (&ls->lights[0]);
+	variant.has_light0_specular	= ls->lights[0].has_specular;
+
+	variant.has_light1		= !(ls->mask & (1 << 1));
+	variant.light1_type		= get_light_type (&ls->lights[1]);
+	variant.light1_att_type		= get_light_attenuation_type (&ls->lights[1]);
+	variant.has_light1_specular	= ls->lights[1].has_specular;
+
+	variant.has_light2		= !(ls->mask & (1 << 2));
+	variant.light2_type		= get_light_type (&ls->lights[2]);
+	variant.light2_att_type		= get_light_attenuation_type (&ls->lights[2]);
+	variant.has_light2_specular	= ls->lights[2].has_specular;
+
+	variant.has_light3		= !(ls->mask & (1 << 3));
+	variant.light3_type		= get_light_type (&ls->lights[3]);
+	variant.light3_att_type		= get_light_attenuation_type (&ls->lights[3]);
+	variant.has_light3_specular	= ls->lights[3].has_specular;
+
+	return variant;
+}
+
+static void
+upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+{
+	static const char *definitions_template =
+	"#define HAS_TEXTURE %d\n"
+	"#define HAS_LIGHTING %d\n"
+	"#define HAS_PHONG %d\n"
+	"#define HAS_LIGHT0 %d\n"
+	"#define LIGHT0_TYPE %d\n"
+	"#define LIGHT0_ATT_TYPE %d\n"
+	"#define HAS_LIGHT0_SPECULAR %d\n"
+	"#define HAS_LIGHT1 %d\n"
+	"#define LIGHT1_TYPE %d\n"
+	"#define LIGHT1_ATT_TYPE %d\n"
+	"#define HAS_LIGHT1_SPECULAR %d\n"
+	"#define HAS_LIGHT2 %d\n"
+	"#define LIGHT2_TYPE %d\n"
+	"#define LIGHT2_ATT_TYPE %d\n"
+	"#define HAS_LIGHT2_SPECULAR %d\n"
+	"#define HAS_LIGHT3 %d\n"
+	"#define LIGHT3_TYPE %d\n"
+	"#define LIGHT3_ATT_TYPE %d\n"
+	"#define HAS_LIGHT3_SPECULAR %d\n";
+
+	hikaru_glsl_variant_t variant;
+	char *definitions, *vs_source, *fs_source;
+	int ret;
+
+	variant = get_glsl_variant (hr, mesh);
+	if (hr->meshes.variant.full == variant.full)
+		return;
+
+	destroy_program (hr->meshes.program);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	ret = asprintf (&definitions, definitions_template,
+	                variant.has_texture,
+	                variant.has_lighting,
+	                variant.has_phong,
+	                variant.has_light0,
+	                variant.light0_type,
+	                variant.light0_att_type,
+	                variant.has_light0_specular,
+	                variant.has_light1,
+	                variant.light1_type,
+	                variant.light1_att_type,
+	                variant.has_light1_specular,
+	                variant.has_light2,
+	                variant.light2_type,
+	                variant.light2_att_type,
+	                variant.has_light2_specular,
+	                variant.has_light3,
+	                variant.light3_type,
+	                variant.light3_att_type,
+	                variant.has_light3_specular);
+	VK_ASSERT (ret >= 0);
+
+	ret = asprintf (&vs_source, mesh_vs_source, definitions);
+	VK_ASSERT (ret >= 0);
+
+	ret = asprintf (&fs_source, mesh_fs_source, definitions);
+	VK_ASSERT (ret >= 0);
+
+	hr->meshes.variant = variant;
+	hr->meshes.program = compile_program (vs_source, fs_source);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glUseProgram (hr->meshes.program);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	hr->meshes.locs.u_projection =
+		glGetUniformLocation (hr->meshes.program, "u_projection");
+	hr->meshes.locs.u_modelview =
+		glGetUniformLocation (hr->meshes.program, "u_modelview");
+	hr->meshes.locs.u_normal =
+		glGetUniformLocation (hr->meshes.program, "u_normal");
+	hr->meshes.locs.u_texture =
+		glGetUniformLocation (hr->meshes.program, "u_texture");
+	VK_ASSERT_NO_GL_ERROR ();
+
+	hr->meshes.locs.i_position =
+		glGetAttribLocation (hr->meshes.program, "i_position");
+	hr->meshes.locs.i_normal =
+		glGetAttribLocation (hr->meshes.program, "i_normal");
+	hr->meshes.locs.i_texcoords =
+		glGetAttribLocation (hr->meshes.program, "i_texcoords");
+	hr->meshes.locs.i_diffuse =
+		glGetAttribLocation (hr->meshes.program, "i_diffuse");
+	hr->meshes.locs.i_ambient =
+		glGetAttribLocation (hr->meshes.program, "i_ambient");
+	hr->meshes.locs.i_specular =
+		glGetAttribLocation (hr->meshes.program, "i_specular");
+	hr->meshes.locs.i_unknown =
+		glGetAttribLocation (hr->meshes.program, "i_unknown");
+	VK_ASSERT_NO_GL_ERROR ();
+
+	free (definitions);
+	free (vs_source);
+	free (fs_source);
+}
+
+static void
+destroy_3d_glsl_state (hikaru_renderer_t *hr)
+{
+	destroy_program (hr->meshes.program);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	if (hr->meshes.vao) {
+		glBindVertexArray (0);
+		glDeleteVertexArrays (1, &hr->meshes.vao);
+	}
+}
+
+static void
+upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+{
+	hikaru_viewport_t *vp = &hr->vp_list[mesh->vp_index];
+	const float h = vp->clip.t - vp->clip.b;
+	const float w = vp->clip.r - vp->clip.l;
+	const float hh_at_n = (h / 2.0f) * (vp->clip.n / vp->clip.f);
+	const float hw_at_n = hh_at_n * (w / h);
+	const float dcx = vp->offset.x - (w / 2.0f);
+	const float dcy = vp->offset.y - (h / 2.0f);
+	mtx4x4f_t projection;
+
+	VK_ASSERT (mesh->vp_index != ~0);
+
+	if (!ispositive (vp->clip.l) || !ispositive (vp->clip.r) ||
+	    !ispositive (vp->clip.b) || !ispositive (vp->clip.t) ||
+	    !ispositive (vp->clip.f) || !ispositive (vp->clip.n)) {
+		VK_ERROR ("non-positive viewport clipping planes: %s",
+		          get_viewport_str (vp));
+		/* continue anyway */
+	}
+
+	if ((vp->clip.l >= vp->clip.r) ||
+	    (vp->clip.b >= vp->clip.t) ||
+	    (vp->clip.n >= vp->clip.f)) {
+		VK_ERROR ("inverted viewport clipping planes: %s",
+		          get_viewport_str (vp));
+		/* continue anyway */
+	}
+
+	if (!ispositive (vp->offset.x) || (vp->offset.x >= 640.0f) ||
+	    !ispositive (vp->offset.y) || (vp->offset.y >= 480.0f)) {
+		VK_ERROR ("invalid viewport offset: %s",
+		          get_viewport_str (vp));
+		/* continue anyway */
+	}
+
+	LOG ("vp  = %s : [w=%f h=%f dcx=%f dcy=%f]",
+	     get_viewport_str (vp), w, h, dcx, dcy);
+
+	frustum (projection, -hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, 1e5);
+	translate (projection, dcx, -dcy, 0.0f);
+
+	glUniformMatrix4fv (hr->meshes.locs.u_projection, 1, GL_FALSE,
+	                    (const GLfloat *) projection);
+}
+
+static void
+upload_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, unsigned i)
+{
+	hikaru_modelview_t *mv = &hr->mv_list[mesh->mv_index + i];
+
+	VK_ASSERT (mesh->mv_index != ~0);
+
+	LOG ("mv  = [%u+%u] %s", mesh->mv_index, i, get_modelview_str (mv));
+
+	glUniformMatrix4fv (hr->meshes.locs.u_modelview, 1, GL_FALSE,
+	                    (const GLfloat *) mv->mtx);
+}
+
+static void
+upload_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+{
+	hikaru_material_t *mat = &hr->mat_list[mesh->mat_index];
+	hikaru_texhead_t *th = &hr->tex_list[mesh->tex_index];
+	bool has_texture;
+
+	VK_ASSERT (mesh->mat_index != ~0);
+	VK_ASSERT (mesh->tex_index != ~0);
+
+	has_texture = mat->has_texture && !hr->debug.flags[HR_DEBUG_NO_TEXTURES];
+
+	/* TODO decode the texture and upload the uniform ith glUniform1i. */
+	(void) mat;
+	(void) th;
+	(void) has_texture;
+}
+
+#if 0
 static void
 get_light_attenuation (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 {
 	float min, max;
-
-	/* XXX OpenGL fixed-function attenuation model can't represent most
-	 * Hikaru light models... */
 
 	switch (get_light_attenuation_type (lit)) {
 	case HIKARU_LIGHT_ATT_LINEAR:
@@ -501,10 +682,12 @@ get_material_specular (hikaru_renderer_t *hr, hikaru_material_t *mat, float *out
 		out[3] = mat->specular[3] * INV255 * 128.0f;
 	}
 }
+#endif
 
 static void
 upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
+#if 0
 	hikaru_material_t *mat = &hr->mat_list[mesh->mat_index];
 	hikaru_lightset_t *ls = &hr->ls_list[mesh->ls_index];
 	GLfloat tmp[4];
@@ -636,15 +819,12 @@ upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 disable:
 	glDisable (GL_LIGHTING);
-}
-
 #endif
+}
 
 /****************************************************************************
  Meshes
 ****************************************************************************/
-
-#if 0
 
 #define VK_COPY_VEC2F(dst_, src_) \
 	do { \
@@ -671,89 +851,30 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_material_t *mat = &MAT.scratch;
-	hikaru_viewport_t *vp = &VP.scratch;
-	float base_alpha = POLY.alpha;
-	float mat_alpha = mat->diffuse[3] * INV255;
-	float vertex_alpha = src->info.alpha * INV255;
+	unsigned i;
 	float alpha;
 
-	switch (POLY.type) {
-	case HIKARU_POLYTYPE_OPAQUE:
-	case HIKARU_POLYTYPE_TRANSPARENT:
-	default:
-		alpha = 1.0f;
-		break;
-	case HIKARU_POLYTYPE_TRANSLUCENT:
-		alpha = base_alpha * vertex_alpha;
-		alpha = clampf (alpha, 0, 1);
-		break;
-	}
-	dst->col[3] = alpha;
+	for (i = 0; i < 4; i++)
+		dst->diffuse[i] = mat->diffuse[i] * INV255;
 
-	if (is_material_set (mat)) {
-		switch (hr->debug.flags[HR_DEBUG_SELECT_BASE_COLOR]) {
-		case 0:
-			dst->col[0] = mat->diffuse[0] * INV255;
-			dst->col[1] = mat->diffuse[1] * INV255;
-			dst->col[2] = mat->diffuse[2] * INV255;
-			break;
-		case 1:
-			dst->col[0] = mat->ambient[0] * INV255;
-			dst->col[1] = mat->ambient[1] * INV255;
-			dst->col[2] = mat->ambient[2] * INV255;
-			break;
-		case 2:
-			dst->col[0] = mat->specular[0] * INV255;
-			dst->col[1] = mat->specular[1] * INV255;
-			dst->col[2] = mat->specular[2] * INV255;
-			break;
-		case 3:
-			dst->col[0] = mat->unknown[0] * INV255;
-			dst->col[1] = mat->unknown[1] * INV255;
-			dst->col[2] = mat->unknown[2] * INV255;
-			break;
-		case 4:
-			dst->col[0] = base_alpha;
-			dst->col[1] = base_alpha;
-			dst->col[2] = base_alpha;
-			dst->col[3] = 1.0f;
-			break;
-		case 5:
-			dst->col[0] = mat_alpha;
-			dst->col[1] = mat_alpha;
-			dst->col[2] = mat_alpha;
-			dst->col[3] = 1.0f;
-			break;
-		case 6:
-			dst->col[0] = vertex_alpha;
-			dst->col[1] = vertex_alpha;
-			dst->col[2] = vertex_alpha;
-			dst->col[3] = 1.0f;
-			break;
-		case 7:
-			dst->col[0] = alpha;
-			dst->col[1] = alpha;
-			dst->col[2] = alpha;
-			dst->col[3] = 1.0f;
-			break;
-		case 8:
-			dst->col[0] = vp->color.ambient[0] * INV255;
-			dst->col[1] = vp->color.ambient[1] * INV255;
-			dst->col[2] = vp->color.ambient[2] * INV255;
-			dst->col[3] = 1.0f;
-			break;
-		case 9:
-			dst->col[0] = vp->color.clear[0] * INV255;
-			dst->col[1] = vp->color.clear[1] * INV255;
-			dst->col[2] = vp->color.clear[2] * INV255;
-			dst->col[3] = 1.0f;
-			break;
-		}
-	} else {
-		dst->col[0] = 1.0f;
-		dst->col[1] = 1.0f;
-		dst->col[2] = 1.0f;
+	for (i = 0; i < 3; i++)
+		dst->ambient[i] = mat->ambient[i] * INV255;
+
+	for (i = 0; i < 4; i++)
+		dst->specular[i] = mat->specular[i] * INV255;
+
+	for (i = 0; i < 3; i++)
+		dst->unknown[i] = mat->unknown[i] * INV255;
+
+	/* Patch diffuse alpha depending on poly type. */
+	alpha = 1.0f;
+	if (POLY.type == HIKARU_POLYTYPE_TRANSLUCENT) {
+		float p_alpha = POLY.alpha;
+		//float m_alpha = mat->diffuse[3] * INV255;
+		float v_alpha = src->info.alpha * INV255;
+		alpha = clampf (p_alpha * v_alpha, 0.0f, 1.0f);
 	}
+	dst->diffuse[3] = alpha;
 }
 
 static void
@@ -768,13 +889,8 @@ copy_texcoords (hikaru_renderer_t *hr,
 	if (th->format == HIKARU_FORMAT_ABGR1111)
 		h *= 2;
 
-	if (is_texhead_set (th)) {
-		dst->txc[0] = src->txc[0] / w;
-		dst->txc[1] = src->txc[1] / h;
-	} else {
-		dst->txc[0] = 0.0f;
-		dst->txc[1] = 0.0f;
-	}
+	dst->texcoords[0] = src->texcoords[0] / w;
+	dst->texcoords[1] = src->texcoords[1] / h;
 }
 
 static void
@@ -798,7 +914,6 @@ add_triangle (hikaru_renderer_t *hr)
 		hr->push.num_tris += 1;
 	}
 }
-#endif
 
 void
 hikaru_renderer_push_vertices (vk_renderer_t *rend,
@@ -806,7 +921,6 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
                                uint32_t flags,
                                unsigned num)
 {
-#if 0
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 	unsigned i;
 
@@ -840,7 +954,7 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 			memset ((void *) &hr->push.tmp[2], 0, sizeof (hikaru_vertex_t));
 
 			/* Set the position, colors and alpha. */
-			VK_COPY_VEC3F (hr->push.tmp[2].pos, v->pos);
+			VK_COPY_VEC3F (hr->push.tmp[2].position, v->position);
 			copy_colors (hr, &hr->push.tmp[2], v);
 
 			/* Account for the added vertex. */
@@ -849,16 +963,8 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 		}
 
 		/* Set the normal. */
-		if (flags & HR_PUSH_NRM) {
-			VK_COPY_VEC3F (hr->push.tmp[2].nrm, v->nrm);
-
-			/* DEBUG: overwrite the color with the normals. */
-			if (hr->debug.flags[HR_DEBUG_DRAW_NORMALS]) {
-				hr->push.tmp[2].col[0] = (v->nrm[0] * 0.5f) + 0.5f;
-				hr->push.tmp[2].col[1] = (v->nrm[1] * 0.5f) + 0.5f;
-				hr->push.tmp[2].col[2] = (v->nrm[2] * 0.5f) + 0.5f;
-			}
-		}
+		if (flags & HR_PUSH_NRM)
+			VK_COPY_VEC3F (hr->push.tmp[2].normal, v->normal);
 
 		/* Set the texcoords. */
 		if (flags & HR_PUSH_TXC)
@@ -885,77 +991,7 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 		hr->push.tmp[2].info.full = v[0].info.full;
 		add_triangle (hr);
 	}
-#endif
 }
-
-#if 0
-
-#define OFFSET(member_) \
-	((const GLvoid *) offsetof (hikaru_vertex_t, member_))
-
-static void
-hikaru_mesh_upload_pushed_data (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
-{
-	VK_ASSERT (mesh);
-	VK_ASSERT (mesh->vbo);
-
-	mesh->num_tris = hr->push.num_tris;
-
-	glBindBuffer (GL_ARRAY_BUFFER, mesh->vbo);
-	glBufferData (GL_ARRAY_BUFFER, sizeof (hikaru_vertex_t) * mesh->num_tris * 3,
-	              (const GLvoid *) hr->push.all, GL_DYNAMIC_DRAW);
-}
-
-static void
-print_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, char *prefix);
-
-static void
-draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
-{
-	unsigned i;
-
-	VK_ASSERT (mesh);
-	VK_ASSERT (mesh->vbo);
-
-	LOG ("==== DRAWING MESH @%p (#vertices=%u #instances=%u) ====",
-	     mesh, mesh->num_tris * 3, mesh->num_instances);
-
-	print_rendstate (hr, mesh, "D");
-
-	upload_viewport (hr, mesh);
-	upload_material_texhead (hr, mesh);
-	upload_lightset (hr, mesh);
-
-	glBindBuffer (GL_ARRAY_BUFFER, mesh->vbo);
-
-	glVertexPointer (3, GL_FLOAT, sizeof (hikaru_vertex_t), OFFSET (pos));
-	glNormalPointer (GL_FLOAT, sizeof (hikaru_vertex_t), OFFSET (nrm));
-	glColorPointer (4, GL_FLOAT,  sizeof (hikaru_vertex_t), OFFSET (col));
-	glTexCoordPointer (2, GL_FLOAT,  sizeof (hikaru_vertex_t), OFFSET (txc));
-
-	glEnableClientState (GL_VERTEX_ARRAY);
-	glEnableClientState (GL_NORMAL_ARRAY);
-	glEnableClientState (GL_COLOR_ARRAY);
-	glEnableClientState (GL_TEXTURE_COORD_ARRAY);
-
-	if (hr->debug.flags[HR_DEBUG_NO_INSTANCING]) {
-		unsigned i = MIN2 (hr->debug.flags[HR_DEBUG_SELECT_INSTANCE],
-		                   mesh->num_instances - 1);
-		upload_modelview (hr, mesh, i);
-		glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
-	} else {
-		for (i = 0; i < mesh->num_instances; i++) {
-			VK_LOG ("drawing instance %u/%u", i, mesh->num_instances);
-			upload_modelview (hr, mesh, i);
-			glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
-		}
-	}
-}
-
-#define VP0	VP.scratch
-#define MAT0	MAT.scratch
-#define TEX0	TEX.scratch
-#define LS0	LIT.scratchset
 
 static void
 print_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, char *prefix)
@@ -1045,13 +1081,106 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	mesh->num = hr->total_meshes++;
 	print_rendstate (hr, mesh, "U");
 }
-#endif
+
+#define OFFSET(member_) \
+	((const GLvoid *) offsetof (hikaru_vertex_t, member_))
+
+#define VAP(loc_, num_, type_, member_) \
+	if (loc_ != (GLuint) -1) { \
+		glVertexAttribPointer (loc_, num_, type_, GL_FALSE, \
+		                       sizeof (hikaru_vertex_t), \
+		                       OFFSET (member_)); \
+		VK_ASSERT_NO_GL_ERROR (); \
+		\
+		glEnableVertexAttribArray (loc_); \
+		VK_ASSERT_NO_GL_ERROR (); \
+	}
+
+static void
+draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+{
+	unsigned i;
+
+	VK_ASSERT (mesh);
+	VK_ASSERT (mesh->vbo);
+
+	LOG ("==== DRAWING MESH @%p (#vertices=%u #instances=%u) ====",
+	     mesh, mesh->num_tris * 3, mesh->num_instances);
+
+	print_rendstate (hr, mesh, "D");
+
+	glBindVertexArray (hr->meshes.vao);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glBindBuffer (GL_ARRAY_BUFFER, mesh->vbo);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	upload_glsl_program (hr, mesh);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	upload_viewport (hr, mesh);
+	upload_material_texhead (hr, mesh);
+	upload_lightset (hr, mesh);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	/* We must do it here since locs are computed in upload_glsl_program. */
+	VAP (hr->meshes.locs.i_position,  3, GL_FLOAT, position);
+	VAP (hr->meshes.locs.i_normal,    3, GL_FLOAT, normal);
+	VAP (hr->meshes.locs.i_diffuse,   4, GL_FLOAT, diffuse);
+	VAP (hr->meshes.locs.i_ambient,   3, GL_FLOAT, ambient);
+	VAP (hr->meshes.locs.i_specular,  4, GL_FLOAT, specular);
+	VAP (hr->meshes.locs.i_unknown,   3, GL_FLOAT, unknown);
+	VAP (hr->meshes.locs.i_texcoords, 2, GL_FLOAT, texcoords);
+
+	if (hr->debug.flags[HR_DEBUG_NO_INSTANCING]) {
+		unsigned i = MIN2 (hr->debug.flags[HR_DEBUG_SELECT_INSTANCE],
+		                   mesh->num_instances - 1);
+		upload_modelview (hr, mesh, i);
+		glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
+	} else {
+		for (i = 0; i < mesh->num_instances; i++) {
+			upload_modelview (hr, mesh, i);
+			glDrawArrays (GL_TRIANGLES, 0, mesh->num_tris * 3);
+		}
+	}
+
+	glBindVertexArray (0);
+}
+
+#undef OFFSET
+
+static void
+upload_vertex_data (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
+{
+	VK_ASSERT (mesh);
+
+	mesh->num_tris = hr->push.num_tris;
+
+	/* Generate the VAO if required. */
+	if (!hr->meshes.vao) {
+		glGenVertexArrays (1, &hr->meshes.vao);
+		VK_ASSERT_NO_GL_ERROR ();
+	}
+
+	/* Bind the VAO. */
+	glBindVertexArray (hr->meshes.vao);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	/* Generate the mesh VBO. */
+	glGenBuffers (1, &mesh->vbo);
+
+	/* Upload the vertex data to the VBO. */
+	glBindBuffer (GL_ARRAY_BUFFER, mesh->vbo);
+	glBufferData (GL_ARRAY_BUFFER,
+	              sizeof (hikaru_vertex_t) * mesh->num_tris * 3,
+	              (const GLvoid *) hr->push.all, GL_DYNAMIC_DRAW);
+	VK_ASSERT_NO_GL_ERROR ();
+}
 
 void
 hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
                             bool is_static)
 {
-#if 0
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 	hikaru_gpu_t *gpu = hr->gpu;
 	unsigned polytype = POLY.type;
@@ -1067,24 +1196,19 @@ hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
 	mesh = &hr->mesh_list[polytype][hr->num_meshes[polytype]++];
 	VK_ASSERT (hr->num_meshes[polytype] < MAX_MESHES);
 
-	glGenBuffers (1, &mesh->vbo);
-	VK_ASSERT (mesh->vbo);
-
-	mesh->addr[0] = addr;
-
+	/* Make the mesh current and set the rendering state. */
 	hr->meshes.current = mesh;
 	update_and_set_rendstate (hr, mesh);
+	mesh->addr[0] = addr;
 
 	/* Clear the push buffer. */
 	hr->push.num_verts = 0;
 	hr->push.num_tris = 0;
-#endif
 }
 
 void
 hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr)
 {
-#if 0
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 
 	VK_ASSERT (hr);
@@ -1094,14 +1218,14 @@ hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr)
 
 	VK_ASSERT (hr->meshes.current);
 
+	/* Upload the pushed vertex data. */
+	upload_vertex_data (hr, hr->meshes.current);
 	hr->meshes.current->addr[1] = addr;
-	hikaru_mesh_upload_pushed_data (hr, hr->meshes.current);
 
+	/* Make sure there is no current mesh bound. */
 	hr->meshes.current = NULL;
-#endif
 }
 
-#if 0
 static void
 draw_meshes_for_polytype (hikaru_renderer_t *hr, int polytype)
 {
@@ -1177,7 +1301,6 @@ draw_scene (hikaru_renderer_t *hr)
 
 	glDepthMask (GL_TRUE);
 }
-#endif
 
 /****************************************************************************
  2D
@@ -1209,8 +1332,6 @@ static const char *layer_fs_source =
 "\n"
 "void main (void) {\n"
 "	vec4 texel = texture (u_texture, p_texcoords);\n"
-"	if (texel.a > 0.0)\n"
-"		texel.a = 1.0;\n"
 "	gl_FragColor = texel;\n"
 "}\n";
 
@@ -1264,17 +1385,13 @@ build_2d_glsl_state (hikaru_renderer_t *hr)
 	glVertexAttribPointer (hr->layers.locs.i_position, 3, GL_FLOAT, GL_FALSE,
 	                       sizeof (layer_vbo_data[0]),
 	                       OFFSET (position));
-	VK_ASSERT_NO_GL_ERROR ();
-
 	glVertexAttribPointer (hr->layers.locs.i_texcoords, 2, GL_FLOAT, GL_FALSE,
 	                       sizeof (layer_vbo_data[0]),
 	                       OFFSET (texcoords));
 	VK_ASSERT_NO_GL_ERROR ();
 
-	glEnableVertexAttribArray (0);
-	VK_ASSERT_NO_GL_ERROR ();
-
-	glEnableVertexAttribArray (1);
+	glEnableVertexAttribArray (hr->layers.locs.i_position);
+	glEnableVertexAttribArray (hr->layers.locs.i_texcoords);
 	VK_ASSERT_NO_GL_ERROR ();
 
 	glBindVertexArray (0);
@@ -1292,8 +1409,7 @@ destroy_2d_glsl_state (hikaru_renderer_t *hr)
 	glBindVertexArray (0);
 	glDeleteVertexArrays (1, &hr->layers.vao);
 
-	glUseProgram (0);
-	glDeleteProgram (hr->layers.program);
+	destroy_program (hr->layers.program);
 }
 
 static void
@@ -1390,7 +1506,7 @@ draw_layers (hikaru_renderer_t *hr)
 	glDisable (GL_DEPTH_TEST);
 	VK_ASSERT_NO_GL_ERROR ();
 
-	glDisable (GL_BLEND);
+	glEnable (GL_BLEND);
 	VK_ASSERT_NO_GL_ERROR ();
 
 	/* Only draw unit 0 for now. I think unit 1 is there only for
@@ -1413,6 +1529,8 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
 	unsigned i;
+
+	hr->meshes.variant.full = ~0;
 
 	hr->num_vps = 0;
 	hr->num_mvs = 0;
@@ -1442,13 +1560,10 @@ hikaru_renderer_end_frame (vk_renderer_t *renderer)
 
 	VK_ASSERT_NO_GL_ERROR ();
 
-#if 0
 	draw_scene (hr);
-
 	VK_ASSERT_NO_GL_ERROR ();
-#endif
-	draw_layers (hr);
 
+	draw_layers (hr);
 	VK_ASSERT_NO_GL_ERROR ();
 
 	LOG (" ==== RENDSTATE STATISTICS ==== ");
@@ -1481,6 +1596,7 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 		for (i = 0; i < 8; i++)
 			free (hr->mesh_list[i]);
 
+		destroy_3d_glsl_state (hr);
 		destroy_2d_glsl_state (hr);
 
 		vk_surface_destroy (&hr->textures.debug);
