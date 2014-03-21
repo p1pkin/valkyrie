@@ -20,6 +20,8 @@
 
 #include "vk/renderer.h"
 
+/* TODO change API to avoid leaking the SDL window and GL context. */
+
 void
 vk_renderer_clear_gl_errors (void)
 {
