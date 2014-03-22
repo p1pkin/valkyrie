@@ -130,6 +130,14 @@ typedef struct {
 			GLuint		u_projection;
 			GLuint		u_modelview;
 			GLuint		u_normal;
+			struct {
+				GLuint	position;
+				GLuint	direction;
+				GLuint	diffuse;
+				GLuint	specular;
+				GLuint	extents;
+			} u_lights[4];
+			GLuint		u_ambient;
 			GLuint		u_texture;
 
 			GLuint		i_position;
@@ -151,8 +159,6 @@ typedef struct {
 		struct {
 			GLuint u_projection;
 			GLuint u_texture;
-			GLuint i_position;
-			GLuint i_texcoords;
 		} locs;
 	} layers;
 

@@ -108,6 +108,21 @@ update_debug_flags (hikaru_renderer_t *hr)
  Utils
 ****************************************************************************/
 
+static void
+print_uniforms (GLuint program)
+{
+	GLchar id[256];
+	GLint count, loc, size, i;
+	GLenum type;
+
+	glGetProgramiv (program, GL_ACTIVE_UNIFORMS, &count);
+	for (i = 0; i < count; i++) {
+		glGetActiveUniform (program, i, sizeof (id), NULL, &size, &type, id);
+		loc = glGetUniformLocation (program, id);
+		VK_LOG ("uniform %u : %s <size %d>", loc, id, size);
+	}
+}
+
 static GLuint
 compile_shader (GLenum type, const char *src)
 {
@@ -238,54 +253,114 @@ translate (mtx4x4f_t m, float x, float y, float z)
 ****************************************************************************/
 
 static const char *mesh_vs_source =
-"#version 140\n"
-"\n"
-"%s\n" /* definitions */
-"\n"
-"uniform mat4 u_projection;\n"
-"uniform mat4 u_modelview;\n"
-"uniform mat3 u_normal;\n"
-"\n"
-"in vec3 i_position;\n"
-"in vec3 i_normal;\n"
-"in vec2 i_texcoords;\n"
-"in vec4 i_diffuse;\n"
-"in vec3 i_ambient;\n"
-"in vec4 i_specular;\n"
-"in vec3 i_unknown;\n"
-"\n"
-"out vec3 p_position;\n"
-"out vec3 p_normal;\n"
-"out vec2 p_texcoords;\n"
-"out vec4 p_diffuse;\n"
-"out vec3 p_ambient;\n"
-"out vec4 p_specular;\n"
-"out vec3 p_unknown;\n"
-"\n"
-"void main (void) {\n"
-"	gl_Position = u_projection * u_modelview * vec4 (i_position, 1.0);\n"
-"	p_diffuse = i_diffuse;\n"
-"	p_texcoords = i_texcoords;\n"
-"}\n";
+"#version 140									\n \
+										\n \
+%s										\n \
+										\n \
+uniform mat4 u_projection;							\n \
+uniform mat4 u_modelview;							\n \
+uniform mat3 u_normal;								\n \
+										\n \
+in vec4 i_diffuse;								\n \
+in vec4 i_specular;								\n \
+in vec3 i_position;								\n \
+in vec3 i_normal;								\n \
+in vec3 i_ambient;								\n \
+in vec3 i_unknown;								\n \
+in vec2 i_texcoords;								\n \
+										\n \
+out vec4 p_position;								\n \
+out vec3 p_normal;								\n \
+out vec4 p_diffuse;								\n \
+out vec4 p_specular;								\n \
+out vec3 p_ambient;								\n \
+out vec2 p_texcoords;								\n \
+										\n \
+void main (void) {								\n \
+	p_position = u_modelview * vec4 (i_position, 1.0);			\n \
+	gl_Position = u_projection * p_position;				\n \
+										\n \
+	mat3 normal_matrix = mat3 (transpose (inverse (u_modelview)));		\n \
+	p_normal = normalize (normal_matrix * i_normal);			\n \
+										\n \
+	p_diffuse = i_diffuse;							\n \
+	p_ambient = i_ambient;							\n \
+	p_specular = i_specular;						\n \
+	p_texcoords = i_texcoords;						\n \
+}";
 
 static const char *mesh_fs_source =
-"#version 140\n"
-"\n"
-"%s\n" /* definitions */
-"\n"
-"uniform sampler2D u_texture;\n"
-"\n"
-"in vec3 p_position;\n"
-"in vec3 p_normal;\n"
-"in vec2 p_texcoords;\n"
-"in vec4 p_diffuse;\n"
-"in vec3 p_ambient;\n"
-"in vec4 p_specular;\n"
-"in vec3 p_unknown;\n"
-"\n"
-"void main (void) {\n"
-"	gl_FragColor = p_diffuse;\n"
-"}\n";
+"#version 140									\n \
+										\n \
+%s										\n \
+										\n \
+struct light_t {								\n \
+	vec3 position;								\n \
+	vec3 direction;								\n \
+	vec3 diffuse;								\n \
+	vec3 specular;								\n \
+	vec2 extents;								\n \
+};										\n \
+										\n \
+uniform light_t		u_lights[4];						\n \
+uniform vec3		u_ambient;						\n \
+uniform sampler2D	u_texture;						\n \
+										\n \
+in vec4 p_position;								\n \
+in vec3 p_normal;								\n \
+in vec4 p_diffuse;								\n \
+in vec4 p_specular;								\n \
+in vec3 p_ambient;								\n \
+in vec2 p_texcoords;								\n \
+										\n \
+void main (void) {								\n \
+	vec4 color = vec4 (0.0, 0.0, 0.0, 0.0);					\n \
+	vec3 light_delta, light_direction;					\n \
+	float light_distance, attenuation, intensity;				\n \
+										\n \
+#if HAS_LIGHT0									\n \
+	light_delta = u_lights[0].position - p_position.xyz;			\n \
+	light_distance = length (light_delta);					\n \
+	light_direction = normalize (light_delta);				\n \
+	attenuation = u_lights[0].extents.x * (light_distance + u_lights[0].extents.y);	\n \
+	attenuation = clamp (attenuation, 0.0, 1.0);				\n \
+										\n \
+	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
+	color += attenuation * intensity * p_diffuse * vec4 (u_lights[0].diffuse, 1.0);			\n \
+#endif										\n \
+										\n \
+#if HAS_LIGHT1									\n \
+	light_delta = u_lights[1].position - p_position.xyz;			\n \
+	light_distance = length (light_delta);					\n \
+	light_direction = normalize (light_delta);				\n \
+	attenuation = u_lights[1].extents.x * (light_distance + u_lights[1].extents.y);	\n \
+	attenuation = clamp (attenuation, 0.0, 1.0);				\n \
+	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
+	color += attenuation * intensity * p_diffuse * vec4 (u_lights[1].diffuse, 1.0);			\n \
+#endif										\n \
+										\n \
+#if HAS_LIGHT2									\n \
+	light_delta = u_lights[2].position - p_position.xyz;			\n \
+	light_distance = length (light_delta);					\n \
+	light_direction = normalize (light_delta);				\n \
+	attenuation = u_lights[2].extents.x * (light_distance + u_lights[2].extents.y);	\n \
+	attenuation = clamp (attenuation, 0.0, 1.0);				\n \
+	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
+	color += attenuation * intensity * p_diffuse * vec4 (u_lights[2].diffuse, 1.0);			\n \
+#endif										\n \
+										\n \
+#if HAS_LIGHT3									\n \
+	light_delta = u_lights[3].position - p_position.xyz;			\n \
+	light_distance = length (light_delta);					\n \
+	light_direction = normalize (light_delta);				\n \
+	attenuation = u_lights[3].extents.x * (light_distance + u_lights[3].extents.y);	\n \
+	attenuation = clamp (attenuation, 0.0, 1.0);				\n \
+	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
+	color += attenuation * intensity * p_diffuse * vec4 (u_lights[3].diffuse, 1.0);			\n \
+#endif										\n \
+										\n \
+	gl_FragColor = color;							\n \
+}";
 
 static hikaru_light_att_t
 get_light_attenuation_type (hikaru_light_t *lit)
@@ -324,12 +399,16 @@ get_glsl_variant (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	                        	  !hr->debug.flags[HR_DEBUG_NO_TEXTURES];
 
 	variant.has_lighting		= ls->mask != 0xF &&
-	                        	  mat->shading_mode != 0 &&
+//	                        	  mat->shading_mode != 0 &&
 	                                  !hr->debug.flags[HR_DEBUG_NO_LIGHTING];
 
 	variant.has_phong		= ls->mask != 0xF &&
 	                                  mat->shading_mode == 2 &&
 	                                  !hr->debug.flags[HR_DEBUG_NO_LIGHTING];
+
+//		if (hr->debug.flags[HR_DEBUG_SELECT_ATT_TYPE] >= 0 &&
+//		    hr->debug.flags[HR_DEBUG_SELECT_ATT_TYPE] != get_light_attenuation_type (lt))
+//			continue;
 
 	variant.has_light0		= !(ls->mask & (1 << 0));
 	variant.light0_type		= get_light_type (&ls->lights[0]);
@@ -380,11 +459,18 @@ upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	hikaru_glsl_variant_t variant;
 	char *definitions, *vs_source, *fs_source;
-	int ret;
+	int ret, i;
+
+	if (hr->meshes.program) {
+		glUseProgram (hr->meshes.program);
+		return;
+	}
 
 	variant = get_glsl_variant (hr, mesh);
 	if (hr->meshes.variant.full == variant.full)
 		return;
+
+	VK_LOG ("compiling shader for variant %X", variant.full);
 
 	hr->meshes.variant.full = variant.full;
 
@@ -423,6 +509,11 @@ upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	hr->meshes.program = compile_program (vs_source, fs_source);
 	VK_ASSERT_NO_GL_ERROR ();
 
+	if (0) {
+		print_uniforms (hr->meshes.program);
+		VK_ASSERT_NO_GL_ERROR ();
+	}
+
 	glUseProgram (hr->meshes.program);
 	VK_ASSERT_NO_GL_ERROR ();
 
@@ -432,6 +523,27 @@ upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		glGetUniformLocation (hr->meshes.program, "u_modelview");
 	hr->meshes.locs.u_normal =
 		glGetUniformLocation (hr->meshes.program, "u_normal");
+	for (i = 0; i < 4; i++) {
+		char temp[64];
+
+		sprintf (temp, "u_lights[%d].position", i);
+		hr->meshes.locs.u_lights[i].position =
+			glGetUniformLocation (hr->meshes.program, temp);
+		sprintf (temp, "u_lights[%d].direction", i);
+		hr->meshes.locs.u_lights[i].direction =
+			glGetUniformLocation (hr->meshes.program, temp);
+		sprintf (temp, "u_lights[%d].diffuse", i);
+		hr->meshes.locs.u_lights[i].diffuse =
+			glGetUniformLocation (hr->meshes.program, temp);
+		sprintf (temp, "u_lights[%d].specular", i);
+		hr->meshes.locs.u_lights[i].specular =
+			glGetUniformLocation (hr->meshes.program, temp);
+		sprintf (temp, "u_lights[%d].extents", i);
+		hr->meshes.locs.u_lights[i].extents =
+			glGetUniformLocation (hr->meshes.program, temp);
+	}
+	hr->meshes.locs.u_ambient =
+		glGetUniformLocation (hr->meshes.program, "u_ambient");
 	hr->meshes.locs.u_texture =
 		glGetUniformLocation (hr->meshes.program, "u_texture");
 	VK_ASSERT_NO_GL_ERROR ();
@@ -547,59 +659,6 @@ upload_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	(void) has_texture;
 }
 
-#if 0
-static void
-get_light_attenuation (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
-{
-	float min, max;
-
-	switch (get_light_attenuation_type (lit)) {
-	case HIKARU_LIGHT_ATT_LINEAR:
-		/*
-		 * [0] = 1 / (min - max)
-		 * [1] = -max
-		 */
-		VK_ASSERT (lit->attenuation[0] < 0.0f);
-		VK_ASSERT (lit->attenuation[1] < 0.0f);
-
-		max = -lit->attenuation[1];
-		min = 1.0f / lit->attenuation[0] + max;
-		VK_ASSERT (min <= max);
-		break;
-	case HIKARU_LIGHT_ATT_SQUARE:
-		/*
-		 * [0] = 1 / (min**2 - max**2)
-		 * [1] = -max**2
-		 */
-		VK_ASSERT (lit->attenuation[0] < 0.0f);
-		VK_ASSERT (lit->attenuation[1] < 0.0f);
-
-		max = -lit->attenuation[1];
-		min = 1.0f / lit->attenuation[0] + max;
-		max = sqrtf (max);
-		min = sqrtf (min);
-		VK_ASSERT (min <= max);
-		break;
-	case HIKARU_LIGHT_ATT_INVLINEAR:
-	case HIKARU_LIGHT_ATT_INVSQUARE:
-	default:
-		min = 0.0f;
-		max = 1.0f;
-		break;
-	case HIKARU_LIGHT_ATT_INF:
-		out[0] = 1.0f;
-		out[1] = 0.0f;
-		out[2] = 0.0f;
-		return;
-	}
-
-	/* This drastically reduces the light within the max-radius, but
-	 * guarantees that the attenuation is exactly 0.1 at max. */
-	out[0] = 0.0f;
-	out[1] = 1.0f / (0.1 * max);
-	out[2] = 0.0f;
-}
-
 static void
 get_light_ambient (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, float *out)
 {
@@ -619,10 +678,6 @@ get_light_ambient (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, float *out)
 static void
 get_light_diffuse (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 {
-	/* NOTE: the index uploaded with the diffuse color may be related
-	 * to the table uploaded by instruction 194 (which may contain alpha
-	 * values, or alpha ramps, or something...) */
-
 	if (hr->debug.flags[HR_DEBUG_NO_DIFFUSE])
 		out[0] = out[1] = out[2] = 0.0f;
 	else {
@@ -647,181 +702,55 @@ get_light_specular (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 }
 
 static void
-get_material_diffuse (hikaru_renderer_t *hr, hikaru_material_t *mat, float *out)
-{
-	if (hr->debug.flags[HR_DEBUG_NO_DIFFUSE]) {
-		out[0] = out[1] = out[2] = 0.0f;
-	} else {
-		out[0] = mat->diffuse[0] * INV255;
-		out[1] = mat->diffuse[1] * INV255;
-		out[2] = mat->diffuse[2] * INV255;
-	}
-	out[3] = 1.0f;
-}
-
-static void
-get_material_ambient (hikaru_renderer_t *hr, hikaru_material_t *mat, float *out)
-{
-	if (hr->debug.flags[HR_DEBUG_NO_AMBIENT]) {
-		out[0] = out[1] = out[2] = 0.0f;
-	} else {
-		out[0] = mat->ambient[0] * INV255;
-		out[1] = mat->ambient[1] * INV255;
-		out[2] = mat->ambient[2] * INV255;
-	}
-	out[3] = 1.0f;
-}
-
-static void
-get_material_specular (hikaru_renderer_t *hr, hikaru_material_t *mat, float *out)
-{
-	if (hr->debug.flags[HR_DEBUG_NO_SPECULAR]) {
-		out[0] = out[1] = out[2] = out[3] = 0.0f;
-	} else {
-		out[0] = mat->specular[0] * INV255;
-		out[1] = mat->specular[1] * INV255;
-		out[2] = mat->specular[2] * INV255;
-		out[3] = mat->specular[3] * INV255 * 128.0f;
-	}
-}
-#endif
-
-static void
 upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-#if 0
 	hikaru_material_t *mat = &hr->mat_list[mesh->mat_index];
 	hikaru_lightset_t *ls = &hr->ls_list[mesh->ls_index];
-	GLfloat tmp[4];
-	unsigned i, n;
+	float tmp[4];
+	unsigned i;
 
-	if (hr->debug.flags[HR_DEBUG_NO_LIGHTING])
-		goto disable;
+	VK_ASSERT (mesh->mat_index != ~0);
+	VK_ASSERT (mesh->ls_index != ~0);
 
-	if (mesh->ls_index >= MAX_LIGHTSETS) {
-		VK_ERROR ("attempting to upload NULL lightset!");
-		goto disable;
-	}
-
-	if (mesh->mat_index >= MAX_MATERIALS) {
-		VK_ERROR ("attempting to upload lightset with NULL material!");
-		goto disable;
-	}
-
-	if (!ls->set) {
-		VK_ERROR ("attempting to use unset lightset!");
-		goto disable;
-	}
+	LOG ("lightset = %s", get_lightset_str (ls));
 
 	if (ls->mask == 0xF) {
-		VK_ERROR ("attempting to use lightset with no light!");
-		goto disable;
+		VK_ERROR ("uploading lightset with no light, skipping");
+		return;
 	}
 
-	/* If the material is unset, treat it as shading_mode is 1; that way
-	 * we can actually check lighting in the viewer. */
-	if (is_material_set (mat) && mat->shading_mode == 0)
-		goto disable;
-
-	/* Lights are positioned according to the scene, irrespective of
-	 * the modelview matrix. */
-	glEnable (GL_LIGHTING);
+	if (hr->debug.flags[HR_DEBUG_NO_LIGHTING] || mat->shading_mode == 0)
+		return;
 
 	get_light_ambient (hr, mesh, tmp);
-	glLightModelfv (GL_LIGHT_MODEL_AMBIENT, tmp);
+	glUniform3fv (hr->meshes.locs.u_ambient, 1, (const GLfloat *) tmp);
+	VK_ASSERT_NO_GL_ERROR ();
 
-	/* For each of the four lights in the current lightset */
 	for (i = 0; i < 4; i++) {
-		hikaru_light_t *lt;
+		hikaru_light_t *lt = &ls->lights[i];
 
 		if (ls->mask & (1 << i))
 			continue;
 
-		lt = &ls->lights[i];
-		if (!is_light_set (lt)) {
-			VK_ERROR ("attempting to use unset light!");
-			continue;
-		}
+		glUniform3fv (hr->meshes.locs.u_lights[i].position, 1,
+		              lt->position);
+		VK_ASSERT_NO_GL_ERROR ();
 
-		LOG ("light%u = enabled, %s", i, get_light_str (lt));
-
-		n = GL_LIGHT0 + i;
-
-		if ((hr->debug.flags[HR_DEBUG_SELECT_ATT_TYPE] < 0) ||
-		    (hr->debug.flags[HR_DEBUG_SELECT_ATT_TYPE] == get_light_attenuation_type (lt)))
-			glEnable (n);
-		else
-			glDisable (n);
+		glUniform3fv (hr->meshes.locs.u_lights[i].direction, 1,
+		              lt->direction);
+		VK_ASSERT_NO_GL_ERROR ();
 
 		get_light_diffuse (hr, lt, tmp);
-		glLightfv (n, GL_DIFFUSE, tmp);
+		glUniform3fv (hr->meshes.locs.u_lights[i].diffuse, 1, tmp);
+		VK_ASSERT_NO_GL_ERROR ();
+
 		get_light_specular (hr, lt, tmp);
-		glLightfv (n, GL_SPECULAR, tmp);
+		glUniform3fv (hr->meshes.locs.u_lights[i].specular, 1, tmp);
+		VK_ASSERT_NO_GL_ERROR ();
 
-		glMatrixMode (GL_MODELVIEW);
-		glPushMatrix ();
-		glLoadIdentity ();
-
-		switch (get_light_type (lt)) {
-		case HIKARU_LIGHT_TYPE_DIRECTIONAL:
-			tmp[0] = lt->direction[0];
-			tmp[1] = lt->direction[1];
-			tmp[2] = lt->direction[2];
-			tmp[3] = 0.0f;
-			glLightfv (n, GL_POSITION, tmp);
-			break;
-		case HIKARU_LIGHT_TYPE_POSITIONAL:
-			tmp[0] = lt->position[0];
-			tmp[1] = lt->position[1];
-			tmp[2] = lt->position[2];
-			tmp[3] = 1.0f;
-			glLightfv (n, GL_POSITION, tmp);
-			break;
-		case HIKARU_LIGHT_TYPE_SPOT:
-			tmp[0] = lt->position[0];
-			tmp[1] = lt->position[1];
-			tmp[2] = lt->position[2];
-			tmp[3] = 1.0f;
-			glLightfv (n, GL_POSITION, tmp);
-
-			tmp[0] = lt->direction[0];
-			tmp[1] = lt->direction[1];
-			tmp[2] = lt->direction[2];
-			tmp[3] = 1.0f;
-			glLightfv (n, GL_SPOT_DIRECTION, tmp);
-
-			/* TODO figure out how these are specified. */
-			glLightf (n, GL_SPOT_CUTOFF, 45.0f);
-			glLightf (n, GL_SPOT_EXPONENT, 32.0f);
-			break;
-		default:
-			VK_ASSERT (!"unreachable");
-		}
-
-		glPopMatrix ();
-
-		get_light_attenuation (hr, lt, tmp);
-		glLightf (n, GL_CONSTANT_ATTENUATION, tmp[0]);
-		glLightf (n, GL_LINEAR_ATTENUATION, tmp[1]);
-		glLightf (n, GL_QUADRATIC_ATTENUATION, tmp[2]);
+		glUniform2fv (hr->meshes.locs.u_lights[i].extents, 1,
+		              lt->attenuation);
 	}
-
-	/* We upload the material properties here, as we don't store all
-	 * of them in the vertex_t yet (we will when we upgrade the renderer
-	 * to GL 3.0 and GLSL). */
-
-	get_material_diffuse (hr, mat, tmp);
-	glMaterialfv (GL_FRONT_AND_BACK, GL_DIFFUSE, tmp);
-	get_material_ambient (hr, mat, tmp);
-	glMaterialfv (GL_FRONT_AND_BACK, GL_AMBIENT, tmp);
-	get_material_specular (hr, mat, tmp);
-	glMaterialfv (GL_FRONT_AND_BACK, GL_SPECULAR, tmp);
-	glMaterialf (GL_FRONT_AND_BACK, GL_SHININESS, tmp[3]);
-	return;
-
-disable:
-	glDisable (GL_LIGHTING);
-#endif
 }
 
 /****************************************************************************
@@ -1313,10 +1242,12 @@ draw_scene (hikaru_renderer_t *hr)
 static const char *layer_vs_source =
 "#version 140\n"
 "\n"
+"#extension GL_ARB_explicit_attrib_location : require\n"
+"\n"
 "uniform mat4 u_projection;\n"
 "\n"
-"in vec3 i_position;\n"
-"in vec2 i_texcoords;\n"
+"layout(location = 0) in vec3 i_position;\n"
+"layout(location = 1) in vec2 i_texcoords;\n"
 "\n"
 "out vec2 p_texcoords;\n"
 "\n"
@@ -1365,14 +1296,6 @@ build_2d_glsl_state (hikaru_renderer_t *hr)
 		glGetUniformLocation (hr->layers.program, "u_texture");
 	VK_ASSERT (hr->layers.locs.u_texture != (GLuint) -1);
 
-	hr->layers.locs.i_position =
-		glGetAttribLocation (hr->layers.program, "i_position");
-	VK_ASSERT (hr->layers.locs.i_position != (GLuint) -1);
-
-	hr->layers.locs.i_texcoords =
-		glGetAttribLocation (hr->layers.program, "i_texcoords");
-	VK_ASSERT (hr->layers.locs.i_texcoords != (GLuint) -1);
-
 	/* Create the VAO/VBO. */
 	glGenVertexArrays (1, &hr->layers.vao);
 	glBindVertexArray (hr->layers.vao);
@@ -1384,16 +1307,16 @@ build_2d_glsl_state (hikaru_renderer_t *hr)
 	              sizeof (layer_vbo_data), layer_vbo_data, GL_STATIC_DRAW);
 	VK_ASSERT_NO_GL_ERROR ();
 
-	glVertexAttribPointer (hr->layers.locs.i_position, 3, GL_FLOAT, GL_FALSE,
+	glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE,
 	                       sizeof (layer_vbo_data[0]),
 	                       OFFSET (position));
-	glVertexAttribPointer (hr->layers.locs.i_texcoords, 2, GL_FLOAT, GL_FALSE,
+	glVertexAttribPointer (1, 2, GL_FLOAT, GL_FALSE,
 	                       sizeof (layer_vbo_data[0]),
 	                       OFFSET (texcoords));
 	VK_ASSERT_NO_GL_ERROR ();
 
-	glEnableVertexAttribArray (hr->layers.locs.i_position);
-	glEnableVertexAttribArray (hr->layers.locs.i_texcoords);
+	glEnableVertexAttribArray (0);
+	glEnableVertexAttribArray (1);
 	VK_ASSERT_NO_GL_ERROR ();
 
 	glBindVertexArray (0);
