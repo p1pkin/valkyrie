@@ -327,26 +327,25 @@ apply_light (inout vec4 color, in light_t light, in int type, in int att_type)	\
 		distance = length (delta);					\n \
 		light_direction = normalize (delta);				\n \
 	}									\n \
+										\n \
 	attenuation = 1.0;							\n \
-	if (att_type == 0) {							\n \
-		float a = light.extents.x * (light.extents.y + distance);	\n \
-		attenuation = clamp (a, 0.0, 1.0);				\n \
-	} else if (att_type == 1) {						\n \
-		float a = light.extents.x * (light.extents.y + distance*distance); \n \
-		attenuation = clamp (a, 0.0, 1.0);				\n \
-	} else if (att_type == 2) {						\n \
-		float a = light.extents.x * (light.extents.y + 1 / distance);	\n \
-		attenuation = clamp (a, 0.0, 1.0);				\n \
-	} else if (att_type == 3) {						\n \
-		float a = light.extents.x * (light.extents.y + 1 / (distance*distance)); \n \
-		attenuation = clamp (a, 0.0, 1.0);				\n \
-	}									\n \
+	if (att_type == 0)							\n \
+		attenuation = light.extents.x * (light.extents.y + distance);	\n \
+	else if (att_type == 1)							\n \
+		attenuation = light.extents.x * (light.extents.y + distance*distance); \n \
+	else if (att_type == 2)							\n \
+		attenuation = light.extents.x * (light.extents.y + 1 / distance);	\n \
+	else if (att_type == 3)							\n \
+		attenuation = light.extents.x * (light.extents.y + 1 / (distance*distance)); \n \
+	attenuation = clamp (attenuation, 0.0, 1.0);				\n \
+										\n \
 	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
 	if (type == 2) {							\n \
 		vec3 spot_direction = normalize (light.direction);		\n \
 		if (dot (spot_direction, light_direction) < 0.95)		\n \
 			intensity = 0.0;					\n \
 	}									\n \
+										\n \
 	color += attenuation * intensity *					\n \
 		 p_diffuse * vec4 (light.diffuse, 1.0);				\n \
 }										\n \
