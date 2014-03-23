@@ -41,6 +41,7 @@ enum {
 	HR_DEBUG_NO_DIFFUSE,
 	HR_DEBUG_NO_SPECULAR,
 	HR_DEBUG_SELECT_ATT_TYPE,
+	HR_DEBUG_NO_FOG,
 
 	HR_NUM_DEBUG_VARS
 };
@@ -70,6 +71,8 @@ typedef union {
 		uint32_t light3_type		: 2;
 		uint32_t light3_att_type	: 3;
 		uint32_t has_light3_specular	: 1;
+
+		uint32_t has_fog		: 1;
 	};
 	uint32_t full;
 } hikaru_glsl_variant_t;
@@ -144,6 +147,8 @@ typedef struct {
 			} u_lights[4];
 			GLuint		u_ambient;
 			GLuint		u_texture;
+			GLuint		u_fog;
+			GLuint		u_fog_color;
 
 			GLuint		i_position;
 			GLuint		i_normal;

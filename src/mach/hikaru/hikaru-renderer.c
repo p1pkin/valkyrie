@@ -66,6 +66,7 @@ static const struct {
 	[HR_DEBUG_NO_DIFFUSE]		= {  0, 1, SDLK_d, false, "NO DIFFUSE" },
 	[HR_DEBUG_NO_SPECULAR]		= {  0, 1, SDLK_s, false, "NO SPECULAR" },
 	[HR_DEBUG_SELECT_ATT_TYPE]	= { -1, 4, SDLK_z,  true, "SELECT ATT TYPE" },
+	[HR_DEBUG_NO_FOG]		= {  0, 1, SDLK_g, false, "NO FOG" },
 };
 
 static void
@@ -484,6 +485,8 @@ struct light_t {								\n \
 uniform light_t		u_lights[4];						\n \
 uniform vec3		u_ambient;						\n \
 uniform sampler2D	u_texture;						\n \
+uniform vec2		u_fog;							\n \
+uniform vec3		u_fog_color;						\n \
 										\n \
 in vec4 p_position;								\n \
 in vec3 p_normal;								\n \
@@ -537,7 +540,7 @@ apply_light (inout vec4 diffuse, inout vec3 specular, in light_t light, in int t
 void										\n \
 main (void)									\n \
 {										\n \
-	vec4 texel;								\n \
+	vec4 texel, color;							\n \
 										\n \
 #if HAS_TEXTURE									\n \
 	texel = texture (u_texture, p_texcoords);				\n \
@@ -563,12 +566,18 @@ main (void)									\n \
 	apply_light (diffuse, specular, u_lights[3], LIGHT3_TYPE, LIGHT3_ATT_TYPE, HAS_LIGHT3_SPECULAR);		\n \
 #endif										\n \
 										\n \
-	gl_FragColor = (vec4 (ambient, 0.0) + diffuse) * texel +		\n \
-                       vec4 (specular, 0.0);					\n \
+	color = (vec4 (ambient, 0.0) + diffuse) * texel + vec4 (specular, 0.0);	\n \
 #else										\n \
-	gl_FragColor = p_diffuse * texel;					\n \
+	color = p_diffuse * texel;						\n \
 #endif										\n \
 										\n \
+#if HAS_FOG									\n \
+	float z = gl_FragCoord.z / gl_FragCoord.w;				\n \
+	float a = clamp (u_fog[0] * (z - u_fog[1]), 0.0, 1.0);			\n \
+	gl_FragColor = mix (color, vec4 (u_fog_color, 1.0), a);			\n \
+#else										\n \
+	gl_FragColor = color;							\n \
+#endif										\n \
 }";
 
 static hikaru_light_att_t
@@ -597,10 +606,12 @@ get_light_type (hikaru_light_t *lit)
 static hikaru_glsl_variant_t
 get_glsl_variant (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
+	hikaru_viewport_t *vp   = &hr->vp_list[mesh->vp_index];
 	hikaru_material_t *mat	= &hr->mat_list[mesh->mat_index];
 	hikaru_lightset_t *ls	= &hr->ls_list[mesh->ls_index];
 	hikaru_glsl_variant_t variant;
 
+	VK_ASSERT (vp);
 	VK_ASSERT (mat);
 	VK_ASSERT (ls);
 
@@ -639,6 +650,10 @@ get_glsl_variant (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	variant.light3_att_type		= get_light_attenuation_type (&ls->lights[3]);
 	variant.has_light3_specular	= ls->lights[3].has_specular;
 
+	variant.has_fog			= !hr->debug.flags[HR_DEBUG_NO_FOG] &&
+					  !vp->depth.q_enabled &&
+					  mat->depth_blend == 0;
+
 	return variant;
 }
 
@@ -672,7 +687,8 @@ upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	"#define HAS_LIGHT3 %d\n"
 	"#define LIGHT3_TYPE %d\n"
 	"#define LIGHT3_ATT_TYPE %d\n"
-	"#define HAS_LIGHT3_SPECULAR %d\n";
+	"#define HAS_LIGHT3_SPECULAR %d\n"
+	"#define HAS_FOG %d\n";
 
 	hikaru_glsl_variant_t variant;
 	char *definitions, *vs_source, *fs_source;
@@ -715,7 +731,8 @@ upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	                variant.has_light3,
 	                variant.light3_type,
 	                variant.light3_att_type,
-	                variant.has_light3_specular);
+	                variant.has_light3_specular,
+	                variant.has_fog);
 	VK_ASSERT (ret >= 0);
 
 	ret = asprintf (&vs_source, mesh_vs_source, definitions);
@@ -776,6 +793,10 @@ update_locations:
 		glGetUniformLocation (hr->meshes.program, "u_ambient");
 	hr->meshes.locs.u_texture =
 		glGetUniformLocation (hr->meshes.program, "u_texture");
+	hr->meshes.locs.u_fog =
+		glGetUniformLocation (hr->meshes.program, "u_fog");
+	hr->meshes.locs.u_fog_color =
+		glGetUniformLocation (hr->meshes.program, "u_fog_color");
 	VK_ASSERT_NO_GL_ERROR ();
 
 	hr->meshes.locs.i_position =
@@ -852,6 +873,20 @@ upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	glUniformMatrix4fv (hr->meshes.locs.u_projection, 1, GL_FALSE,
 	                    (const GLfloat *) projection);
+
+	{
+		vec2f_t fog;
+		vec3f_t fog_color;
+
+		fog[0] = vp->depth.density;
+		fog[1] = vp->depth.bias;
+		glUniform2fv (hr->meshes.locs.u_fog, 1, fog);
+
+		fog_color[0] = vp->depth.mask[0] * INV255;
+		fog_color[1] = vp->depth.mask[1] * INV255;
+		fog_color[2] = vp->depth.mask[2] * INV255;
+		glUniform3fv (hr->meshes.locs.u_fog_color, 1, fog_color);
+	}
 }
 
 static void
