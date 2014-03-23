@@ -1799,12 +1799,12 @@ get_lightset_index (uint32_t *inst)
  * For attenuation type 2, P and Q are:
  *
  *  P = (FR4 * FR5) / (FR4 - FR5)
- *  Q = 1.0f / |FR5|
+ *  Q = -1.0f / |FR5|
  *
  * For attenuation type 3, P and Q are:
  *
  *  P = (FR4**2 * FR5**2) / (FR5**2 - FR4**2)
- *  Q = 1.0 / |FR5**2|
+ *  Q = -1.0 / |FR5**2|
  */
 
 I (0x061)
