@@ -356,8 +356,7 @@ main (void)									\n \
 	vec3 light_direction, spot_direction;					\n \
 	float light_distance, attenuation, intensity;				\n \
 										\n \
-//	vec4 color = vec4 (u_ambient * p_ambient, 0.0);				\n \
-	vec4 color = vec4 (0.0);						\n \
+	vec4 color = vec4 (u_ambient * p_ambient, 0.0);				\n \
 										\n \
 #if HAS_LIGHT0									\n \
 	apply_light (color, u_lights[0], LIGHT0_TYPE, LIGHT0_ATT_TYPE);		\n \
@@ -705,7 +704,6 @@ get_light_ambient (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, float *out)
 		out[1] = vp->color.ambient[1] * INV255;
 		out[2] = vp->color.ambient[2] * INV255;
 	}
-	out[3] = 1.0f;
 }
 
 static void
