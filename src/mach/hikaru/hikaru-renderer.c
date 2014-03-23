@@ -449,6 +449,14 @@ get_glsl_variant (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	return variant;
 }
 
+#define MAX_PROGRAMS	256
+
+static struct {
+	hikaru_glsl_variant_t variant;
+	GLuint program;
+} program_cache[MAX_PROGRAMS];
+unsigned num_programs;
+
 static void
 upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
@@ -477,21 +485,23 @@ upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	char *definitions, *vs_source, *fs_source;
 	int ret, i;
 
-	if (hr->meshes.program) {
-		glUseProgram (hr->meshes.program);
-		return;
-	}
-
 	variant = get_glsl_variant (hr, mesh);
 	if (hr->meshes.variant.full == variant.full)
 		return;
 
-	VK_LOG ("compiling shader for variant %X", variant.full);
-
 	hr->meshes.variant.full = variant.full;
 
-	destroy_program (hr->meshes.program);
-	VK_ASSERT_NO_GL_ERROR ();
+	for (i = 0; i < num_programs; i++) {
+		if (program_cache[i].variant.full == variant.full) {
+			hr->meshes.program = program_cache[i].program;
+			goto update_locations;
+		}
+	}
+
+	VK_LOG ("compiling shader for variant %X", variant.full);
+
+//	destroy_program (hr->meshes.program);
+//	VK_ASSERT_NO_GL_ERROR ();
 
 	ret = asprintf (&definitions, definitions_template,
 	                variant.has_texture,
@@ -525,10 +535,21 @@ upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	hr->meshes.program = compile_program (vs_source, fs_source);
 	VK_ASSERT_NO_GL_ERROR ();
 
+	free (definitions);
+	free (vs_source);
+	free (fs_source);
+
 	if (0) {
 		print_uniforms (hr->meshes.program);
 		VK_ASSERT_NO_GL_ERROR ();
 	}
+
+	program_cache[num_programs].variant.full = variant.full;
+	program_cache[num_programs].program = hr->meshes.program;
+	num_programs++;
+	VK_ASSERT (num_programs < MAX_PROGRAMS);
+
+update_locations:
 
 	glUseProgram (hr->meshes.program);
 	VK_ASSERT_NO_GL_ERROR ();
@@ -579,10 +600,6 @@ upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	hr->meshes.locs.i_unknown =
 		glGetAttribLocation (hr->meshes.program, "i_unknown");
 	VK_ASSERT_NO_GL_ERROR ();
-
-	free (definitions);
-	free (vs_source);
-	free (fs_source);
 }
 
 static void
@@ -1600,6 +1617,9 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 		if (!hr->mesh_list[i])
 			goto fail;
 	}
+
+	memset ((void *) program_cache, 0, sizeof (program_cache));
+	num_programs = 0;
 
 	init_debug_flags (hr);
 
