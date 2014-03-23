@@ -729,21 +729,17 @@ decode_clip_xy (uint32_t c)
  *
  * 621	Viewport: Set Depth Queue
  *
- *	-------- ---TT-DU -------o oooooooo
+ *	-------- ---TT-DW -------o oooooooo
  *	AAAAAAAA BBBBBBBB GGGGGGGG RRRRRRRR
  *	PPPPPPPP PPPPPPPP PPPPPPPP PPPPPPPP
  *	QQQQQQQQ QQQQQQQQ QQQQQQQQ QQQQQQQQ
  *
- * T = Depth queue type
- * D = Disable (R, G, B, A are ignored)
- * U = Unknown
- * R, G, B, A = Color
- * P = Depth queue density
- *
- *	if T = 0, P = (1 / |depth queue end - depth queue start|), else it
- *	is P = |depth queue density|
- *
- * Q = near / depth queue start
+ * W = Disable depth writes
+ * D = Disable fog
+ * T = Unknown
+ * R, G, B, A = Fog color
+ * P = Fog density
+ * Q = Fog offset
  *
  * See PH:@0C0159C4, PH:@0C015A02, PH:@0C015A3E.
  */
