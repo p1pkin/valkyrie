@@ -320,7 +320,7 @@ apply_light (inout vec4 color, in light_t light, in int type, in int att_type)	\
 	float distance, attenuation, intensity;					\n \
 										\n \
 	if (type == 0) {							\n \
-		light_direction = light.direction;				\n \
+		light_direction = normalize (light.direction);			\n \
 		distance = 0.0;							\n \
 	} else {								\n \
 		vec3 delta = light.position - p_position.xyz;			\n \
