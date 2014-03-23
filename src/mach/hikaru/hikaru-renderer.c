@@ -329,15 +329,17 @@ apply_light (inout vec4 color, in light_t light, in int type, in int att_type)	\
 	}									\n \
 	attenuation = 1.0;							\n \
 	if (att_type == 0) {							\n \
-		float a = light.extents.x * (distance + light.extents.y);	\n \
+		float a = light.extents.x * (light.extents.y + distance);	\n \
 		attenuation = clamp (a, 0.0, 1.0);				\n \
 	} else if (att_type == 1) {						\n \
-		float a = light.extents.x * (distance*distance + light.extents.y); \n \
+		float a = light.extents.x * (light.extents.y + distance*distance); \n \
 		attenuation = clamp (a, 0.0, 1.0);				\n \
 	} else if (att_type == 2) {						\n \
-		attenuation = 0.0;						\n \
+		float a = light.extents.x * (light.extents.y - 1 / distance);	\n \
+		attenuation = clamp (a, 0.0, 1.0);				\n \
 	} else if (att_type == 3) {						\n \
-		attenuation = 0.0;						\n \
+		float a = light.extents.x * (light.extents.y - 1 / (distance*distance)); \n \
+		attenuation = clamp (a, 0.0, 1.0);				\n \
 	}									\n \
 	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
 	if (type == 2) {							\n \
