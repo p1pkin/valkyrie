@@ -716,7 +716,6 @@ get_light_diffuse (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 		out[1] = lit->diffuse[1] * INV255;
 		out[2] = lit->diffuse[2] * INV255;
 	}
-	out[3] = 1.0f;
 }
 
 static void
@@ -729,7 +728,6 @@ get_light_specular (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 		out[1] = lit->specular[1] * INV255;
 		out[2] = lit->specular[2] * INV255;
 	}
-	out[3] = 1.0f;
 }
 
 static void
