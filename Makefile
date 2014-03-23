@@ -27,8 +27,7 @@ VK_OBJ := \
 	src/vk/machine.o \
 	src/vk/games.o \
 	src/vk/input.o \
-	src/vk/renderer.o \
-	src/vk/surface.o \
+	src/vk/renderer.o
 
 SH4_OBJ := \
 	src/cpu/sh/sh4.o

@@ -20,7 +20,6 @@
 #define __HIKARU_GPU_PRIVATE_H__
 
 #include "vk/device.h"
-#include "vk/surface.h"
 
 #define NUM_VIEWPORTS	8
 #define NUM_MODELVIEWS	256
