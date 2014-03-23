@@ -333,7 +333,7 @@ apply_light (inout vec4 color, in light_t light, in int type, in int att_type)	\
 		attenuation = clamp (a, 0.0, 1.0);				\n \
 	} else if (att_type == 1) {						\n \
 		float a = light.extents.x * (distance*distance + light.extents.y); \n \
-		attenuation = clamp (sqrt (a), 0.0, 1.0);			\n \
+		attenuation = clamp (a, 0.0, 1.0);				\n \
 	} else if (att_type == 2) {						\n \
 		attenuation = 0.0;						\n \
 	} else if (att_type == 3) {						\n \
