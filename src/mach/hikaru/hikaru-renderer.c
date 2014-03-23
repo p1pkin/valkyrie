@@ -321,22 +321,20 @@ apply_light (inout vec4 color, in light_t light, in int type, in int att_type, i
 										\n \
 	if (type == 0) {							\n \
 		light_direction = normalize (light.direction);			\n \
-		distance = 0.0;							\n \
+		distance = 0.001;						\n \
 	} else {								\n \
 		vec3 delta = light.position - p_position.xyz;			\n \
 		distance = length (delta);					\n \
 		light_direction = normalize (delta);				\n \
 	}									\n \
 										\n \
-	attenuation = 1.0;							\n \
-	if (att_type == 0)							\n \
-		attenuation = light.extents.x * (light.extents.y + distance);	\n \
-	else if (att_type == 1)							\n \
-		attenuation = light.extents.x * (light.extents.y + distance*distance); \n \
+	if (att_type == 1)							\n \
+		distance = distance*distance;					\n \
 	else if (att_type == 2)							\n \
-		attenuation = light.extents.x * (light.extents.y + 1 / distance);	\n \
+		distance = 1.0 / distance;					\n \
 	else if (att_type == 3)							\n \
-		attenuation = light.extents.x * (light.extents.y + 1 / (distance*distance)); \n \
+		distance = 1.0 / (distance*distance);				\n \
+	attenuation = light.extents.x * (light.extents.y + distance);		\n \
 	attenuation = clamp (attenuation, 0.0, 1.0);				\n \
 										\n \
 	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
@@ -361,9 +359,6 @@ void										\n \
 main (void)									\n \
 {										\n \
 #if HAS_LIGHTING								\n \
-	vec3 light_direction, spot_direction;					\n \
-	float light_distance, attenuation, intensity;				\n \
-										\n \
 	vec4 color = vec4 (u_ambient * p_ambient, 0.0);				\n \
 										\n \
 #if HAS_LIGHT0									\n \
