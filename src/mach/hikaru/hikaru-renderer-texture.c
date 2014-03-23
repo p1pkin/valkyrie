@@ -18,259 +18,6 @@
 
 #include "mach/hikaru/hikaru-renderer-private.h"
 
-static void
-get_sizes (uint32_t *w, uint32_t *h, hikaru_texhead_t *th)
-{
-	*w = 16 << th->logw;
-	*h = 16 << th->logh;
-}
-
-static void
-get_wrap_modes (int *wrap_u, int *wrap_v, hikaru_texhead_t *th)
-{
-	*wrap_u = *wrap_v = -1;
-
-	if (th->wrapu == 0)
-		*wrap_u = GL_CLAMP;
-	else if (th->repeatu == 0)
-		*wrap_u = GL_REPEAT;
-	else
-		*wrap_u = GL_MIRRORED_REPEAT;
-
-	if (th->wrapv == 0)
-		*wrap_v = GL_CLAMP;
-	else if (th->repeatv == 0)
-		*wrap_v = GL_REPEAT;
-	else
-		*wrap_v = GL_MIRRORED_REPEAT;
-}
-
-uint32_t
-abgr1111_to_rgba4444 (uint8_t pixel)
-{
-	static const uint32_t table[16] = {
-		0x0000, 0xF000, 0x0F00, 0xFF00,
-		0x00F0, 0xF0F0, 0x0FF0, 0xFFF0,
-		0x000F, 0xF00F, 0x0F0F, 0xFF0F,
-		0x00FF, 0xF0FF, 0x0FFF, 0xFFFF,
-	};
-
-	return table[pixel & 15];
-}
-
-static const struct {                                                           
-        uint32_t bit_in, bit_out;                                               
-} d_to_t[] = {                                                                  
-	{ 0x000001, 0x000001 },
-	{ 0x000800, 0x000002 },
-	{ 0x000002, 0x000004 },
-	{ 0x001000, 0x000008 },
-	{ 0x000004, 0x000010 },
-	{ 0x002000, 0x000020 },
-	{ 0x000008, 0x000040 },
-	{ 0x004000, 0x000080 },
-	{ 0x000010, 0x000100 },
-	{ 0x008000, 0x000200 },
-	{ 0x000020, 0x000400 },
-	{ 0x010000, 0x000800 },
-	{ 0x000040, 0x001000 },
-	{ 0x020000, 0x002000 },
-	{ 0x000080, 0x004000 },
-	{ 0x040000, 0x008000 },
-	{ 0x000100, 0x010000 },
-	{ 0x080000, 0x020000 },
-	{ 0x000200, 0x040000 },
-	{ 0x100000, 0x080000 },
-	{ 0x000400, 0x100000 },
-};
-
-static uint32_t
-twiddle_offs (uint32_t offs)
-{
-	uint32_t toffs = 0, i;
-	for (i = 0; i < 21; i++) {
-		if (offs & d_to_t[i].bit_in)
-			toffs |= d_to_t[i].bit_out;
-	}
-	return toffs;
-}
-
-uint16_t
-abgr1555_to_rgba5551 (uint16_t c)
-{
-	uint16_t r, g, b, a;
-
-	r = (c >>  0) & 0x1F;
-	g = (c >>  5) & 0x1F;
-	b = (c >> 10) & 0x1F;
-	a = (c >> 15) & 1;
-
-	return (r << 11) | (g << 6) | (b << 1) | a;
-}
-
-uint16_t
-abgr4444_to_rgba4444 (uint16_t c)
-{
-	uint16_t r, g, b, a;
-
-	r = (c >>  0) & 0xF;
-	g = (c >>  4) & 0xF;
-	b = (c >>  8) & 0xF;
-	a = (c >> 12) & 0xF;
-
-	return (r << 12) | (g << 8) | (b << 4) | a;
-}
-
-uint32_t
-a8_to_rgba8888 (uint32_t a)
-{
-	a &= 0xFF;
-	return (a << 24) | (a << 16) | (a << 8) | a;
-}
-
-static vk_surface_t *
-decode_texhead_rgba1111 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
-{
-	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
-	uint32_t w, h, basex, basey, x, y;
-	int wrap_u, wrap_v;
-	vk_surface_t *surface;
-
-	get_sizes (&w, &h, texhead);
-	get_wrap_modes (&wrap_u, &wrap_v, texhead);
-	get_texhead_coords (&basex, &basey, texhead); 
-
-	surface = vk_surface_new (w, h*2, VK_SURFACE_FORMAT_RGBA4444, wrap_u, wrap_v);
-	if (!surface)
-		return NULL;
-
-	for (y = 0; y < h; y ++) {
-		for (x = 0; x < w; x += 4) {
-			uint32_t offs = (basey + y) * 4096 + (basex + x);
-			uint32_t texels = vk_buffer_get (texram, 4, offs);
-			vk_surface_put16 (surface, x + 0, y*2 + 0,
-			                  abgr1111_to_rgba4444 (texels >> 28));
-			vk_surface_put16 (surface, x + 1, y*2 + 0,
-			                  abgr1111_to_rgba4444 (texels >> 24));
-			vk_surface_put16 (surface, x + 0, y*2 + 1,
-			                  abgr1111_to_rgba4444 (texels >> 20));
-			vk_surface_put16 (surface, x + 1, y*2 + 1,
-			                  abgr1111_to_rgba4444 (texels >> 16));
-			vk_surface_put16 (surface, x + 2, y*2 + 0,
-			                  abgr1111_to_rgba4444 (texels >> 12));
-			vk_surface_put16 (surface, x + 3, y*2 + 0,
-			                  abgr1111_to_rgba4444 (texels >>  8));
-			vk_surface_put16 (surface, x + 2, y*2 + 1,
-			                  abgr1111_to_rgba4444 (texels >>  4));
-			vk_surface_put16 (surface, x + 3, y*2 + 1,
-			                  abgr1111_to_rgba4444 (texels >>  0));
-		}
-	}
-	return surface;
-}
-
-static vk_surface_t *
-decode_texhead_abgr1555 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
-{
-	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
-	uint32_t w, h, basex, basey, x, y;
-	int wrap_u, wrap_v;
-	vk_surface_t *surface;
-
-	get_sizes (&w, &h, texhead);
-	get_wrap_modes (&wrap_u, &wrap_v, texhead);
-	get_texhead_coords (&basex, &basey, texhead); 
-
-	surface = vk_surface_new (w, h, VK_SURFACE_FORMAT_RGBA5551, wrap_u, wrap_v);
-	if (!surface)
-		return NULL;
-
-	for (y = 0; y < h; y++) {
-		for (x = 0; x < w; x++) {
-			uint32_t offs  = (basey + y) * 2048 + (basex + x);
-			uint16_t texel;
-			if (hr->debug.flags[HR_DEBUG_DETWIDDLE_TEXTURES]) {
-				texel = bswap16 (vk_buffer_get (texram, 2, twiddle_offs (offs) * 2));
-				vk_surface_put16 (surface, x, y, abgr1555_to_rgba5551 (texel));
-			} else {
-				texel = vk_buffer_get (texram, 2, offs * 2);
-				vk_surface_put16 (surface, x ^ 1, y, abgr1555_to_rgba5551 (texel));
-			}
-		}
-	}
-	return surface;
-}
-
-static vk_surface_t *
-decode_texhead_abgr4444 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
-{
-	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
-	uint32_t w, h, basex, basey, x, y;
-	int wrap_u, wrap_v;
-	vk_surface_t *surface;
-
-	get_sizes (&w, &h, texhead);
-	get_wrap_modes (&wrap_u, &wrap_v, texhead);
-	get_texhead_coords (&basex, &basey, texhead); 
-
-	surface = vk_surface_new (w, h, VK_SURFACE_FORMAT_RGBA4444, wrap_u, wrap_v);
-	if (!surface)
-		return NULL;
-
-	for (y = 0; y < h; y++) {
-		for (x = 0; x < w; x++) {
-			uint32_t offs  = (basey + y) * 2048 + (basex + x);
-			uint16_t texel;
-			if (hr->debug.flags[HR_DEBUG_DETWIDDLE_TEXTURES]) {
-				texel = bswap16 (vk_buffer_get (texram, 2, twiddle_offs (offs) * 2));
-				vk_surface_put16 (surface, x, y, abgr4444_to_rgba4444 (texel));
-			} else {
-				texel = vk_buffer_get (texram, 2, offs * 2);
-				vk_surface_put16 (surface, x ^ 1, y, abgr4444_to_rgba4444 (texel));
-			}
-		}
-	}
-	return surface;
-}
-
-static vk_surface_t *
-decode_texhead_a8 (hikaru_renderer_t *hr, hikaru_texhead_t *texhead)
-{
-	vk_buffer_t *texram = hr->gpu->texram[texhead->bank];
-	uint32_t w, h, basex, basey, x, y;
-	int wrap_u, wrap_v;
-	vk_surface_t *surface;
-
-	get_sizes (&w, &h, texhead);
-	get_wrap_modes (&wrap_u, &wrap_v, texhead);
-	get_texhead_coords (&basex, &basey, texhead); 
-
-	w /= 2;
-
-	surface = vk_surface_new (w * 4, h, VK_SURFACE_FORMAT_RGBA8888, wrap_u, wrap_v);
-	if (!surface)
-		return NULL;
-
-	for (y = 0; y < h; y++) {
-		uint32_t base = (basey + y) * 4096 + basex * 2;
-		for (x = 0; x < w; x++) {
-			uint32_t offs = base + x * 4;
-			uint32_t texels = vk_buffer_get (texram, 4, offs);
-			vk_surface_put32 (surface, 4*x+0, y, a8_to_rgba8888 (texels >> 24));
-			vk_surface_put32 (surface, 4*x+1, y, a8_to_rgba8888 (texels >> 16));
-			vk_surface_put32 (surface, 4*x+2, y, a8_to_rgba8888 (texels >> 8));
-			vk_surface_put32 (surface, 4*x+3, y, a8_to_rgba8888 (texels));
-		}
-	}
-	return surface;
-}
-
-static struct {
-	hikaru_texhead_t	texhead;
-	vk_surface_t		*surface;
-} texcache[2][0x40][0x80];
-static bool is_texcache_clear[2] = { false, false };
-
 static bool
 is_texhead_eq (hikaru_renderer_t *hr,
                hikaru_texhead_t *a, hikaru_texhead_t *b)
@@ -284,127 +31,163 @@ is_texhead_eq (hikaru_renderer_t *hr,
 }
 
 static void
-dump_texhead (hikaru_renderer_t *hr,
-              hikaru_texhead_t *texhead,
-              vk_surface_t *surface)
+destroy_texture (hikaru_texture_t *tex)
 {
-	static unsigned num = 0;
-
-	vk_machine_t *mach = ((vk_device_t *) hr->gpu)->mach;
-	char path[256];
-	FILE *fp;
-
-	sprintf (path, "texheads/%s-texhead%u-%02X-%02X-%ux%u-%u.bin",
-	         mach->game->name, num,
-	         texhead->slotx, texhead->sloty,
-	         16 << texhead->logw, 16 << texhead->logh,
-	         texhead->format);
-	fp = fopen (path, "wb");
-	if (!fp)
-		return;
-
-	vk_surface_dump (surface, path);
-
-	fclose (fp);
-	num += 1;
+	if (tex->id) {
+		glDeleteTextures (1, &tex->id);
+		VK_ASSERT_NO_GL_ERROR ();
+	}
+	memset ((void *) tex, 0, sizeof (hikaru_texture_t));
 }
 
-vk_surface_t *
-hikaru_renderer_decode_texture (vk_renderer_t *rend,
-                                hikaru_texhead_t *texhead)
+static GLuint
+upload_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th)
 {
-	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
-	hikaru_texhead_t *cached;
-	vk_surface_t *surface = NULL;
-	uint32_t bank, slotx, sloty, realx, realy;
+	vk_buffer_t *texram = hr->gpu->texram[th->bank];
+	uint8_t *data = texram->ptr;
+	uint32_t w, h, basex, basey;
+	GLuint id;
 
-	VK_ASSERT (hr);
+	w = 16 << th->logw;
+	h = 16 << th->logh;
 
-	bank  = texhead->bank;
-	slotx = texhead->slotx;
-	sloty = texhead->sloty;
+	get_texhead_coords (&basex, &basey, th);
 
-	/* Handle invalid slots here. */
+	VK_LOG ("TEXTURE texhead=%s base=(%u,%u)", get_texhead_str (th), basex, basey);
+
+	glGenTextures (1, &id);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glActiveTexture (GL_TEXTURE0 + 0);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glBindTexture (GL_TEXTURE_2D, id);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
+	                 (th->wrapu == 0) ? GL_CLAMP_TO_EDGE :
+	                 (th->repeatu == 0) ? GL_REPEAT : GL_MIRRORED_REPEAT);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_WRAP_T,
+	                 (th->wrapv == 0) ? GL_CLAMP_TO_EDGE :
+	                 (th->repeatv == 0) ? GL_REPEAT : GL_MIRRORED_REPEAT);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	glPixelStorei (GL_UNPACK_ALIGNMENT, 1);
+	switch (th->format) {
+	case HIKARU_FORMAT_ABGR1555:
+		glPixelStorei (GL_UNPACK_ROW_LENGTH, 2048);
+		glPixelStorei (GL_UNPACK_SKIP_ROWS, basey);
+		glPixelStorei (GL_UNPACK_SKIP_PIXELS, basex);
+		VK_ASSERT_NO_GL_ERROR ();
+
+		glTexImage2D (GL_TEXTURE_2D, 0,
+		              GL_RGB5_A1,
+		              w, h, 0,
+		              GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV,
+		              data);
+		VK_ASSERT_NO_GL_ERROR ();
+		break;
+	case HIKARU_FORMAT_ABGR4444:
+		glPixelStorei (GL_UNPACK_ROW_LENGTH, 2048);
+		glPixelStorei (GL_UNPACK_SKIP_ROWS, basey);
+		glPixelStorei (GL_UNPACK_SKIP_PIXELS, basex);
+		VK_ASSERT_NO_GL_ERROR ();
+
+		glTexImage2D (GL_TEXTURE_2D, 0,
+		              GL_RGBA4,
+		              w, h, 0,
+		              GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4_REV,
+		              data);
+		VK_ASSERT_NO_GL_ERROR ();
+		break;
+	default:
+		goto fail;
+	}
+
+	glPixelStorei (GL_UNPACK_ROW_LENGTH, 0);
+	glPixelStorei (GL_UNPACK_SKIP_ROWS, 0);
+	glPixelStorei (GL_UNPACK_SKIP_PIXELS, 0);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	return id;
+
+fail:
+	return 0;
+}
+
+hikaru_texture_t *
+hikaru_renderer_get_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th)
+{
+	hikaru_texture_t *cached;
+	uint32_t bank, slotx, sloty;
+	GLuint id;
+
+	bank  = th->bank;
+	slotx = th->slotx;
+	sloty = th->sloty;
+
 	if (slotx < 0x80 || sloty < 0xC0)
 		return NULL;
 
-	realx = slotx - 0x80;
-	realy = sloty - 0xC0;
+	slotx -= 0x80;
+	sloty -= 0xC0;
 
-	/* Lookup the texhead in the cache. */
-	cached = &texcache[bank][realy][realx].texhead;
-	if (is_texhead_eq (hr, texhead, cached)) {
-		surface = texcache[bank][realy][realx].surface;
-		if (surface)
-			return surface;
+	cached = &hr->textures.cache[bank][sloty][slotx];
+	if (is_texhead_eq (hr, th, &cached->th))
+		return cached;
+
+	destroy_texture (cached);
+
+	id = upload_texture (hr, th);
+	if (!id) {
+		destroy_texture (cached);
+		return NULL;
 	}
 
-	/* Texhead not cached, decode it. */
-	switch (texhead->format) {
-	case HIKARU_FORMAT_ABGR1555:
-		surface = decode_texhead_abgr1555 (hr, texhead);
-		break;
-	case HIKARU_FORMAT_ABGR4444:
-		surface = decode_texhead_abgr4444 (hr, texhead);
-		break;
-	case HIKARU_FORMAT_ABGR1111:
-		surface = decode_texhead_rgba1111 (hr, texhead);
-		break;
-	case HIKARU_FORMAT_ALPHA8:
-		surface = decode_texhead_a8 (hr, texhead);
-		break;
-	default:
-		VK_ASSERT (0);
-		break;
-	}
+	cached->th = *th;
+	cached->id = id;
 
-	if (surface && hr->debug.flags[HR_DEBUG_DUMP_TEXTURES])
-		dump_texhead (hr, texhead, surface);
-
-	/* Cache the decoded texhead. */
-	texcache[bank][realy][realx].texhead = *texhead;
-	texcache[bank][realy][realx].surface = surface;
-	is_texcache_clear[bank] = false;
-
-	/* Upload the surface to the GL. */
-	vk_surface_commit (surface);
-	return surface;
+	hr->textures.is_clear[bank] = false;
+	return cached;
 }
 
 static void
-clear_texture_cache_bank (hikaru_renderer_t *hr, unsigned bank)
+clear_texcache_bank (hikaru_renderer_t *hr, unsigned bank)
 {
 	unsigned x, y;
 
-	if (is_texcache_clear[bank])
+	if (hr->textures.is_clear[bank])
 		return;
-	is_texcache_clear[bank] = true;
+	hr->textures.is_clear[bank] = true;
 
 	/* Free all allocated surfaces. */
 	for (y = 0; y < 0x40; y++)
 		for (x = 0; x < 0x80; x++)
-			vk_surface_destroy (&texcache[bank][y][x].surface);
+			destroy_texture (&hr->textures.cache[bank][y][x]);
 
 	/* Zero out the cache itself, to avoid spurious hits. Note that
 	 * texture RAM origin is (80,C0), so (slotx, sloty) will never match
 	 * a zeroed out cache entries. */
-	memset ((void *) &texcache[bank], 0, sizeof (texcache[bank]));
+	memset ((void *) &hr->textures.cache[bank], 0, sizeof (hr->textures.cache[bank]));
 }
 
 void
-hikaru_renderer_invalidate_texcache (vk_renderer_t *rend,
-                                     hikaru_texhead_t *th)
+hikaru_renderer_invalidate_texcache (vk_renderer_t *rend, hikaru_texhead_t *th)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 
 	VK_ASSERT (hr);
 
 	if (th == NULL) {
-		/* Clear everything. */
-		clear_texture_cache_bank (hr, 0);
-		clear_texture_cache_bank (hr, 1);
-	} else {
-		/* Simplest approach possible, clear the whole bank. */
-		clear_texture_cache_bank (hr, th->bank);
-	}
+		clear_texcache_bank (hr, 0);
+		clear_texcache_bank (hr, 1);
+	} else
+		clear_texcache_bank (hr, th->bank);
 }

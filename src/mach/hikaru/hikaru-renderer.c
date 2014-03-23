@@ -358,8 +358,16 @@ apply_light (inout vec4 color, in light_t light, in int type, in int att_type, i
 void										\n \
 main (void)									\n \
 {										\n \
+	vec4 color, texel;							\n \
+										\n \
+#if HAS_TEXTURE									\n \
+	texel = texture (u_texture, p_texcoords);				\n \
+#else										\n \
+	texel = vec4 (0.0);							\n \
+#endif										\n \
+										\n \
 #if HAS_LIGHTING								\n \
-	vec4 color = vec4 (u_ambient * p_ambient, 0.0);				\n \
+	color = vec4 (u_ambient * p_ambient, 0.0);				\n \
 										\n \
 #if HAS_LIGHT0									\n \
 	apply_light (color, u_lights[0], LIGHT0_TYPE, LIGHT0_ATT_TYPE, HAS_LIGHT0_SPECULAR);		\n \
@@ -373,11 +381,11 @@ main (void)									\n \
 #if HAS_LIGHT3									\n \
 	apply_light (color, u_lights[3], LIGHT3_TYPE, LIGHT3_ATT_TYPE, HAS_LIGHT3_SPECULAR);		\n \
 #endif										\n \
-										\n \
-	gl_FragColor = color;							\n \
 #else										\n \
-	gl_FragColor = p_diffuse;						\n \
+	color = p_diffuse;							\n \
 #endif										\n \
+										\n \
+	gl_FragColor = color + texel;						\n \
 }";
 
 static hikaru_light_att_t
@@ -676,22 +684,33 @@ upload_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, unsigned i)
 	                    (const GLfloat *) mv->mtx);
 }
 
+hikaru_texture_t *
+hikaru_renderer_get_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th);
+
 static void
 upload_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_material_t *mat = &hr->mat_list[mesh->mat_index];
 	hikaru_texhead_t *th = &hr->tex_list[mesh->tex_index];
-	bool has_texture;
 
 	VK_ASSERT (mesh->mat_index != ~0);
 	VK_ASSERT (mesh->tex_index != ~0);
 
-	has_texture = mat->has_texture && !hr->debug.flags[HR_DEBUG_NO_TEXTURES];
+	if (mat->has_texture && !hr->debug.flags[HR_DEBUG_NO_TEXTURES]) {
+		hikaru_texture_t *tex;
 
-	/* TODO decode the texture and upload the uniform ith glUniform1i. */
-	(void) mat;
-	(void) th;
-	(void) has_texture;
+		tex = hikaru_renderer_get_texture (hr, th);
+		if (tex) {
+			glActiveTexture (GL_TEXTURE0 + 0);
+			VK_ASSERT_NO_GL_ERROR ();
+
+			glBindTexture (GL_TEXTURE_2D, tex->id);
+			VK_ASSERT_NO_GL_ERROR ();
+
+			glUniform1i (hr->meshes.locs.u_texture, 0);
+			VK_ASSERT_NO_GL_ERROR ();
+		}
+	}
 }
 
 static void
@@ -1556,27 +1575,9 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 		destroy_3d_glsl_state (hr);
 		destroy_2d_glsl_state (hr);
 
-		vk_surface_destroy (&hr->textures.debug);
 		hikaru_renderer_invalidate_texcache (*renderer_, NULL);
 	}
 }
-
-#if 0
-static vk_surface_t *
-build_debug_surface (void)
-{
-	/* Build a colorful 2x2 checkerboard surface */
-	vk_surface_t *surface = vk_surface_new (2, 2, VK_SURFACE_FORMAT_RGBA4444, -1, -1);
-	if (!surface)
-		return NULL;
-	vk_surface_put16 (surface, 0, 0, 0xF00F);
-	vk_surface_put16 (surface, 0, 1, 0x0F0F);
-	vk_surface_put16 (surface, 1, 0, 0x00FF);
-	vk_surface_put16 (surface, 1, 1, 0xFFFF);
-	vk_surface_commit (surface);
-	return surface;
-}
-#endif
 
 vk_renderer_t *
 hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
@@ -1621,12 +1622,6 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 	num_programs = 0;
 
 	init_debug_flags (hr);
-
-#if 0
-	hr->textures.debug = build_debug_surface ();
-	if (!hr->textures.debug)
-		goto fail;
-#endif
 
 	glClearColor (0.0f, 0.0f, 0.0f, 1.0f);
 	VK_ASSERT_NO_GL_ERROR ();

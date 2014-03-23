@@ -523,7 +523,5 @@ void hikaru_renderer_push_vertices (vk_renderer_t *rend,
 
 void		 hikaru_renderer_invalidate_texcache (vk_renderer_t *rend,
 		                                      hikaru_texhead_t *th);
-vk_surface_t	*hikaru_renderer_decode_texture (vk_renderer_t *rend,
-		                                 hikaru_texhead_t *th);
 
 #endif /* __HIKARU_GPU_PRIVATE_H__ */

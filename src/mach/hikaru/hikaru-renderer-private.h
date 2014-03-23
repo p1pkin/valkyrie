@@ -75,6 +75,11 @@ typedef union {
 } hikaru_glsl_variant_t;
 
 typedef struct {
+	GLuint id;
+	hikaru_texhead_t th;
+} hikaru_texture_t;
+
+typedef struct {
 	GLuint			vbo;
 	uint32_t		num_tris;
 	uint32_t		addr[2];
@@ -151,7 +156,8 @@ typedef struct {
 	} meshes;
 
 	struct {
-		vk_surface_t *debug;
+		hikaru_texture_t cache[2][0x40][0x80];
+		bool is_clear[2];
 	} textures;
 
 	struct {
