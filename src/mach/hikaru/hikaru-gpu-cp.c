@@ -2206,7 +2206,7 @@ D (0x103)
  *
  * They appear to have a common 32-bit header:
  *
- *	AAAAAAAA C---x--- uuuSTTTo oooootpW
+ *	AAAAAAAA C---2x-- uuuSTTTo oooootpW
  *
  * A = Vertex alpha
  *
@@ -2214,9 +2214,13 @@ D (0x103)
  *
  *     Disables face culling for this mesh.
  *
+ * 2 = 2-sided
+ *
+ *     Used in PHARRIER (the big SEGA text).
+ *
  * x = Unknown
  *
- *	Used in PHARRIER (the big SEGA text).
+ *     No idea (use in PHARRIER for the player' shoulder lights).
  *
  * u = Unknown
  *
@@ -2225,7 +2229,7 @@ D (0x103)
  * S = Unknown
  *
  *     Seemingly used for shadows in AIRTRIX (attract mode) and for edges of
- *     flames/smoke in BRAVEFF.
+ *     flames/smoke in BRAVEFF (inter mesh linking? anim/modelview selection?)
  *
  * T = Triangle
  *

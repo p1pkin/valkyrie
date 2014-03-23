@@ -438,10 +438,11 @@ typedef union {
 		uint32_t tricap		: 3; /* 0x00000E00 */
 		uint32_t unknown1	: 1; /* 0x00001000 */
 		uint32_t unknown2	: 3; /* 0x0000E000 */
+		uint32_t		: 2;
+		uint32_t unknown3	: 1; /* 0x00040000 */
+		uint32_t twosided	: 1; /* 0x00080000 */
 		uint32_t		: 3;
-		uint32_t unknown3	: 1; /* 0x00080000 */
-		uint32_t		: 3;
-		uint32_t unknown4	: 1; /* 0x00800000 */
+		uint32_t nocull		: 1; /* 0x00800000 */
 		uint32_t alpha		: 8; /* 0xFF000000 */
 	};
 	uint32_t full;
