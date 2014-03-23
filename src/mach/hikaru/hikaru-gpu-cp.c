@@ -2014,18 +2014,17 @@ I (0x043)
 
 	if (!(inst[0] & 0x1000))
 		LIT.base = index;
-	else {
-		index += LIT.base;
-		if (index >= NUM_LIGHTSETS) {
-			VK_ERROR ("CP: lightset recall index exceeds MAX (%u >= %u), skipping",
-			          index, NUM_LIGHTSETS);
-			return;
-		}
 
-		LIT.scratchset = LIT.sets[index];
-		LIT.scratchset.mask = (inst[0] >> 24) & 0xF;
-		LIT.scratchset.uploaded = 1;
+	index += LIT.base;
+	if (index >= NUM_LIGHTSETS) {
+		VK_ERROR ("CP: lightset recall index exceeds MAX (%u >= %u), skipping",
+		          index, NUM_LIGHTSETS);
+		return;
 	}
+
+	LIT.scratchset = LIT.sets[index];
+	LIT.scratchset.mask = (inst[0] >> 24) & 0xF;
+	LIT.scratchset.uploaded = 1;
 }
 
 D (0x043)
