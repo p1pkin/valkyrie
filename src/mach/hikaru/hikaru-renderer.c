@@ -353,6 +353,7 @@ upload_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th)
 	return id;
 
 fail:
+	glDeleteTextures (1, &id);
 	return 0;
 }
 
