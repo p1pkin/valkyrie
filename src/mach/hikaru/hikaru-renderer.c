@@ -374,7 +374,7 @@ main (void)									\n \
 										\n \
 	gl_FragColor = color;							\n \
 #else										\n \
-	gl_FragColor = u_diffuse;						\n \
+	gl_FragColor = p_diffuse;						\n \
 #endif										\n \
 }";
 
