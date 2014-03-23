@@ -313,53 +313,69 @@ in vec4 p_specular;								\n \
 in vec3 p_ambient;								\n \
 in vec2 p_texcoords;								\n \
 										\n \
-void main (void) {								\n \
-	vec4 color = vec4 (0.0, 0.0, 0.0, 0.0);					\n \
-	vec3 light_delta, light_direction;					\n \
+void										\n \
+apply_light (inout vec4 color, in light_t light, in int type, in int att_type)	\n \
+{										\n \
+	vec3 light_direction;							\n \
+	float distance, attenuation, intensity;					\n \
+										\n \
+	if (type == 0) {							\n \
+		light_direction = light.direction;				\n \
+		distance = 0.0;							\n \
+	} else {								\n \
+		vec3 delta = light.position - p_position.xyz;			\n \
+		distance = length (delta);					\n \
+		light_direction = normalize (delta);				\n \
+	}									\n \
+	attenuation = 1.0;							\n \
+	if (att_type == 0) {							\n \
+		float a = light.extents.x * (distance + light.extents.y);	\n \
+		attenuation = clamp (a, 0.0, 1.0);				\n \
+	} else if (att_type == 1) {						\n \
+		float a = light.extents.x * (distance*distance + light.extents.y); \n \
+		attenuation = clamp (sqrt (a), 0.0, 1.0);			\n \
+	} else if (att_type == 2) {						\n \
+		attenuation = 0.0;						\n \
+	} else if (att_type == 3) {						\n \
+		attenuation = 0.0;						\n \
+	}									\n \
+	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
+	if (type == 2) {							\n \
+		vec3 spot_direction = normalize (light.direction);		\n \
+		if (dot (spot_direction, light_direction) < 0.95)		\n \
+			intensity = 0.0;					\n \
+	}									\n \
+	color += attenuation * intensity *					\n \
+		 p_diffuse * vec4 (light.diffuse, 1.0);				\n \
+}										\n \
+										\n \
+void										\n \
+main (void)									\n \
+{										\n \
+#if HAS_LIGHTING								\n \
+	vec3 light_direction, spot_direction;					\n \
 	float light_distance, attenuation, intensity;				\n \
 										\n \
+//	vec4 color = vec4 (u_ambient * p_ambient, 0.0);				\n \
+	vec4 color = vec4 (0.0);						\n \
+										\n \
 #if HAS_LIGHT0									\n \
-	light_delta = u_lights[0].position - p_position.xyz;			\n \
-	light_distance = length (light_delta);					\n \
-	light_direction = normalize (light_delta);				\n \
-	attenuation = u_lights[0].extents.x * (light_distance + u_lights[0].extents.y);	\n \
-	attenuation = clamp (attenuation, 0.0, 1.0);				\n \
-										\n \
-	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
-	color += attenuation * intensity * p_diffuse * vec4 (u_lights[0].diffuse, 1.0);			\n \
+	apply_light (color, u_lights[0], LIGHT0_TYPE, LIGHT0_ATT_TYPE);		\n \
 #endif										\n \
-										\n \
 #if HAS_LIGHT1									\n \
-	light_delta = u_lights[1].position - p_position.xyz;			\n \
-	light_distance = length (light_delta);					\n \
-	light_direction = normalize (light_delta);				\n \
-	attenuation = u_lights[1].extents.x * (light_distance + u_lights[1].extents.y);	\n \
-	attenuation = clamp (attenuation, 0.0, 1.0);				\n \
-	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
-	color += attenuation * intensity * p_diffuse * vec4 (u_lights[1].diffuse, 1.0);			\n \
+	apply_light (color, u_lights[1], LIGHT1_TYPE, LIGHT1_ATT_TYPE);		\n \
 #endif										\n \
-										\n \
 #if HAS_LIGHT2									\n \
-	light_delta = u_lights[2].position - p_position.xyz;			\n \
-	light_distance = length (light_delta);					\n \
-	light_direction = normalize (light_delta);				\n \
-	attenuation = u_lights[2].extents.x * (light_distance + u_lights[2].extents.y);	\n \
-	attenuation = clamp (attenuation, 0.0, 1.0);				\n \
-	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
-	color += attenuation * intensity * p_diffuse * vec4 (u_lights[2].diffuse, 1.0);			\n \
+	apply_light (color, u_lights[2], LIGHT2_TYPE, LIGHT2_ATT_TYPE);		\n \
 #endif										\n \
-										\n \
 #if HAS_LIGHT3									\n \
-	light_delta = u_lights[3].position - p_position.xyz;			\n \
-	light_distance = length (light_delta);					\n \
-	light_direction = normalize (light_delta);				\n \
-	attenuation = u_lights[3].extents.x * (light_distance + u_lights[3].extents.y);	\n \
-	attenuation = clamp (attenuation, 0.0, 1.0);				\n \
-	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
-	color += attenuation * intensity * p_diffuse * vec4 (u_lights[3].diffuse, 1.0);			\n \
+	apply_light (color, u_lights[3], LIGHT3_TYPE, LIGHT3_ATT_TYPE);		\n \
 #endif										\n \
 										\n \
 	gl_FragColor = color;							\n \
+#else										\n \
+	gl_FragColor = u_diffuse;						\n \
+#endif										\n \
 }";
 
 static hikaru_light_att_t
