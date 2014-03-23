@@ -492,7 +492,7 @@ in vec3 p_ambient;								\n \
 in vec2 p_texcoords;								\n \
 										\n \
 void										\n \
-apply_light (inout vec4 color, in light_t light, in int type, in int att_type, in int has_specular) \n \
+apply_light (inout vec4 diffuse, inout vec3 specular, in light_t light, in int type, in int att_type, in int has_specular) \n \
 {										\n \
 	vec3 light_direction;							\n \
 	float distance, attenuation, intensity;					\n \
@@ -522,48 +522,52 @@ apply_light (inout vec4 color, in light_t light, in int type, in int att_type, i
 			intensity = 0.0;					\n \
 	}									\n \
 										\n \
-	color += attenuation * intensity *					\n \
+	diffuse += attenuation * intensity *					\n \
 		 p_diffuse * vec4 (light.diffuse, 1.0);				\n \
 										\n \
 	if (has_specular != 0) {								\n \
 		vec3 view_direction = normalize (-p_position.xyz);				\n \
 		vec3 reflect_direction = normalize (-reflect (light_direction, p_normal));	\n \
 		float angle = max (dot (view_direction, reflect_direction), 0.0);		\n \
-		color.rgb += p_specular.rgb * light.specular * pow (angle, p_specular.a);		\n \
+		specular += p_specular.rgb * light.specular * pow (angle, p_specular.a);	\n \
 	}											\n \
 }										\n \
 										\n \
 void										\n \
 main (void)									\n \
 {										\n \
-	vec4 color, texel;							\n \
+	vec4 texel;								\n \
 										\n \
 #if HAS_TEXTURE									\n \
 	texel = texture (u_texture, p_texcoords);				\n \
 #else										\n \
-	texel = vec4 (0.0);							\n \
+	texel = vec4 (1.0);							\n \
 #endif										\n \
 										\n \
 #if HAS_LIGHTING								\n \
-	color = vec4 (u_ambient * p_ambient, 0.0);				\n \
+	vec4 diffuse  = vec4 (0.0);						\n \
+	vec3 specular = vec3 (0.0);						\n \
+	vec3 ambient  = u_ambient * p_ambient;					\n \
 										\n \
 #if HAS_LIGHT0									\n \
-	apply_light (color, u_lights[0], LIGHT0_TYPE, LIGHT0_ATT_TYPE, HAS_LIGHT0_SPECULAR);		\n \
+	apply_light (diffuse, specular, u_lights[0], LIGHT0_TYPE, LIGHT0_ATT_TYPE, HAS_LIGHT0_SPECULAR);		\n \
 #endif										\n \
 #if HAS_LIGHT1									\n \
-	apply_light (color, u_lights[1], LIGHT1_TYPE, LIGHT1_ATT_TYPE, HAS_LIGHT1_SPECULAR);		\n \
+	apply_light (diffuse, specular, u_lights[1], LIGHT1_TYPE, LIGHT1_ATT_TYPE, HAS_LIGHT1_SPECULAR);		\n \
 #endif										\n \
 #if HAS_LIGHT2									\n \
-	apply_light (color, u_lights[2], LIGHT2_TYPE, LIGHT2_ATT_TYPE, HAS_LIGHT2_SPECULAR);		\n \
+	apply_light (diffuse, specular, u_lights[2], LIGHT2_TYPE, LIGHT2_ATT_TYPE, HAS_LIGHT2_SPECULAR);		\n \
 #endif										\n \
 #if HAS_LIGHT3									\n \
-	apply_light (color, u_lights[3], LIGHT3_TYPE, LIGHT3_ATT_TYPE, HAS_LIGHT3_SPECULAR);		\n \
-#endif										\n \
-#else										\n \
-	color = p_diffuse;							\n \
+	apply_light (diffuse, specular, u_lights[3], LIGHT3_TYPE, LIGHT3_ATT_TYPE, HAS_LIGHT3_SPECULAR);		\n \
 #endif										\n \
 										\n \
-	gl_FragColor = color + texel;						\n \
+	gl_FragColor = (vec4 (ambient, 0.0) + diffuse) * texel +		\n \
+                       vec4 (specular, 0.0);					\n \
+#else										\n \
+	gl_FragColor = p_diffuse * texel;					\n \
+#endif										\n \
+										\n \
 }";
 
 static hikaru_light_att_t
