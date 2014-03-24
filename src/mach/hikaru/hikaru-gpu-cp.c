@@ -1217,7 +1217,7 @@ get_material_index (uint32_t *inst)
 	return (inst[0] >> 16) & (NUM_MATERIALS - 1);
 }
 
-/* 091	Material: Set Primary Color
+/* 091	Material: Set Diffuse
  *
  *	-------- -------- -------o oooooooo
  *	AAAAAAAA BBBBBBBB GGGGGGGG RRRRRRRR
@@ -1225,7 +1225,7 @@ get_material_index (uint32_t *inst)
  * See PH:@0C0CF742.
  *
  *
- * 291	Material: Set Secondary Color
+ * 291	Material: Set Ambient
  *
  *	-------- -------- -------o oooooooo
  *	-------- BBBBBBBB GGGGGGGG RRRRRRRR
@@ -1233,7 +1233,7 @@ get_material_index (uint32_t *inst)
  * See PH:@0C0CF742.
  *
  *
- * 491	Material: Set Shininess
+ * 491	Material: Set Specular/Shininess
  *
  *	-------- -------- -------o oooooooo
  *	SSSSSSSS BBBBBBBB GGGGGGGG RRRRRRRR
@@ -1243,7 +1243,7 @@ get_material_index (uint32_t *inst)
  * See PH:@0C0CF798, PH:@0C01782C.
  *
  *
- * 691	Material: Set Material Color
+ * 691	Material: Set Unknown
  *
  *	RRRRRRRR RRRRRRRR -------o oooooooo
  *	BBBBBBBB BBBBBBBB GGGGGGGG GGGGGGGG
@@ -1304,24 +1304,26 @@ D (0x091)
 {
 	switch ((inst[0] >> 8) & 15) {
 	case 0:
+		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
+	
+		DISASM ("mat: set diffuse [%08X]", inst[1]);
+		break;
 	case 2:
 		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
 	
-		DISASM ("mat: set color %u [%08X]",
-		        (inst[0] >> 9) & 1, inst[1]);
+		DISASM ("mat: set ambient [%08X]", inst[1]);
 		break;
 	case 4:
 		UNHANDLED |= !!(inst[0] & 0xFFFFF800);
 	
-		DISASM ("mat: set shininess [%X %X]",
-		        inst[1] >> 24, inst[1] & 0xFFFFFF);
+		DISASM ("mat: set specular [%X]", inst[1]);
 		break;
 
 	case 6:
 		UNHANDLED |= !!(inst[0] & 0x0000F800);
 	
-		DISASM ("mat: set material [%X %X %X]",
-		        inst[0] >> 16, inst[1] & 0xFFFF, inst[1] >> 16);
+		DISASM ("mat: set unknown [%X %X %X]",
+		        inst[0] >> 16, inst[1] >> 16, inst[1] & 0xFFFF);
 		break;
 	case 0xA:
 	case 0xC:
