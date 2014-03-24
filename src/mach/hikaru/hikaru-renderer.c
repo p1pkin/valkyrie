@@ -1116,7 +1116,7 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 	hikaru_gpu_t *gpu = hr->gpu;
-	unsigned i, vp_index = gpu->current_vp_index;
+	unsigned i, vp_index = VP0.depth.func;
 
 	VK_ASSERT (hr);
 	VK_ASSERT (v);
@@ -1381,7 +1381,7 @@ hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 	hikaru_gpu_t *gpu = hr->gpu;
-	unsigned vp_index = gpu->current_vp_index;
+	unsigned vp_index = VP0.depth.func;
 	unsigned polytype = POLY.type;
 	unsigned mesh_index = hr->num_meshes[vp_index][polytype];
 	hikaru_mesh_t *mesh;
@@ -1480,7 +1480,7 @@ draw_scene (hikaru_renderer_t *hr)
 	unsigned vpi, i;
 
 	glEnable (GL_DEPTH_TEST);
-	glDepthFunc (GL_ALWAYS);
+	glDepthFunc (GL_LEQUAL);
 
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -1499,6 +1499,7 @@ draw_scene (hikaru_renderer_t *hr)
 	}
 
 	for (vpi = 0; vpi < 7; vpi++) {
+		glDepthMask (GL_TRUE);
 		glClear (GL_DEPTH_BUFFER_BIT);
 		for (i = 0; i < NUMELEM (sorted_polytypes); i++)
 			draw_meshes_for_polytype (hr, vpi, sorted_polytypes[i]);

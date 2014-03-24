@@ -960,7 +960,6 @@ I (0x003)
 		VK_ASSERT (0);
 		break;
 	}
-	gpu->current_vp_index = get_viewport_index (inst);
 	vp->uploaded = 1;
 }
 

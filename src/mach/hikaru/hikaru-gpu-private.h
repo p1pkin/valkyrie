@@ -394,8 +394,6 @@ typedef struct {
 		uint32_t log_cp		: 1;
 	} debug;
 
-	uint32_t current_vp_index;
-
 } hikaru_gpu_t;
 
 #define REG15(addr_)	(*(uint32_t *) &gpu->regs._15[(addr_) & 0xFF])
