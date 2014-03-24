@@ -830,10 +830,11 @@ upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	hikaru_viewport_t *vp = &hr->vp_list[mesh->vp_index];
 	const float h = vp->clip.t - vp->clip.b;
 	const float w = vp->clip.r - vp->clip.l;
-	const float hh_at_n = (h / 2.0f) * (vp->clip.n / vp->clip.f);
+	const float n_over_f = vp->clip.n / vp->clip.f;
+	const float hh_at_n = (h / 2.0f) * n_over_f;
 	const float hw_at_n = hh_at_n * (w / h);
-	const float dcx = vp->offset.x - (w / 2.0f);
-	const float dcy = vp->offset.y - (h / 2.0f);
+	const float dcx = (vp->offset.x - (w / 2.0f)) * n_over_f;
+	const float dcy = (vp->offset.y - (h / 2.0f)) * n_over_f;
 	mtx4x4f_t projection;
 
 	VK_ASSERT (mesh->vp_index != ~0);
