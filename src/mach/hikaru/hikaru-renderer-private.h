@@ -26,6 +26,7 @@ enum {
 	HR_DEBUG_NO_LAYER1,
 	HR_DEBUG_NO_LAYER2,
 	HR_DEBUG_NO_3D,
+	HR_DEBUG_SELECT_VIEWPORT,
 	HR_DEBUG_SELECT_CULLFACE,
 	HR_DEBUG_SELECT_BASE_COLOR,
 	HR_DEBUG_NO_TEXTURES,
@@ -117,8 +118,8 @@ typedef struct {
 	hikaru_lightset_t	*ls_list;
 	uint32_t		 num_lss;
 
-	hikaru_mesh_t		*mesh_list[8];
-	uint32_t		 num_meshes[8];
+	hikaru_mesh_t		*mesh_list[8][8];
+	uint32_t		 num_meshes[8][8];
 	uint32_t		 total_meshes;
 
 	struct {

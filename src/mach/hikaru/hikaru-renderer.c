@@ -51,6 +51,7 @@ static const struct {
 	[HR_DEBUG_NO_LAYER1]		= {  0, 1, SDLK_1, false, "NO LAYER1" },
 	[HR_DEBUG_NO_LAYER2]		= {  0, 1, SDLK_2, false, "NO LAYER2" },
 	[HR_DEBUG_NO_3D]		= {  0, 1, SDLK_3, false, "NO 3D" },
+	[HR_DEBUG_SELECT_VIEWPORT]	= { -1, 7, SDLK_v, false, "SELECT VIEWPORT" },
 	[HR_DEBUG_SELECT_BASE_COLOR]	= {  0, 9, SDLK_c,  true, "SELECT BASE COLOR" },
 	[HR_DEBUG_SELECT_CULLFACE]	= { -1, 1, SDLK_f,  true, "SELECT CULLFACE" },
 	[HR_DEBUG_NO_TEXTURES]		= {  0, 1, SDLK_t, false, "NO TEXTURES" },
@@ -1119,7 +1120,8 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
                                unsigned num)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
-	unsigned i;
+	hikaru_gpu_t *gpu = hr->gpu;
+	unsigned i, vp_index = gpu->current_vp_index;
 
 	VK_ASSERT (hr);
 	VK_ASSERT (v);
@@ -1127,6 +1129,10 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 	VK_ASSERT (v->info.tricap == 0 || v->info.tricap == 7);
 
 	if (hr->debug.flags[HR_DEBUG_NO_3D])
+		return;
+
+	if (hr->debug.flags[HR_DEBUG_SELECT_VIEWPORT] >= 0 &&
+	    hr->debug.flags[HR_DEBUG_SELECT_VIEWPORT] != vp_index)
 		return;
 
 	switch (num) {
@@ -1380,7 +1386,9 @@ hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) rend;
 	hikaru_gpu_t *gpu = hr->gpu;
+	unsigned vp_index = gpu->current_vp_index;
 	unsigned polytype = POLY.type;
+	unsigned mesh_index = hr->num_meshes[vp_index][polytype];
 	hikaru_mesh_t *mesh;
 
 	VK_ASSERT (hr);
@@ -1390,8 +1398,10 @@ hikaru_renderer_begin_mesh (vk_renderer_t *rend, uint32_t addr,
 		return;
 
 	/* Create a new mesh. */
-	mesh = &hr->mesh_list[polytype][hr->num_meshes[polytype]++];
-	VK_ASSERT (hr->num_meshes[polytype] < MAX_MESHES);
+	mesh = &hr->mesh_list[vp_index][polytype][mesh_index++];
+	VK_ASSERT (mesh_index < MAX_MESHES);
+
+	hr->num_meshes[vp_index][polytype] = mesh_index;
 
 	/* Make the mesh current and set the rendering state. */
 	hr->meshes.current = mesh;
@@ -1424,10 +1434,10 @@ hikaru_renderer_end_mesh (vk_renderer_t *rend, uint32_t addr)
 }
 
 static void
-draw_meshes_for_polytype (hikaru_renderer_t *hr, int polytype)
+draw_meshes_for_polytype (hikaru_renderer_t *hr, unsigned vpi, int polytype)
 {
-	hikaru_mesh_t *meshes = hr->mesh_list[polytype];
-	unsigned num = hr->num_meshes[polytype];
+	hikaru_mesh_t *meshes = hr->mesh_list[vpi][polytype];
+	unsigned num = hr->num_meshes[vpi][polytype];
 	int j;
 
 	if (hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] >= 0 &&
@@ -1472,10 +1482,10 @@ draw_scene (hikaru_renderer_t *hr)
 		HIKARU_POLYTYPE_TRANSLUCENT,
 		HIKARU_POLYTYPE_TRANSPARENT,
 	};
-	unsigned i;
+	unsigned vpi, i;
 
 	glEnable (GL_DEPTH_TEST);
-	glDepthFunc (GL_LESS);
+	glDepthFunc (GL_ALWAYS);
 
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -1493,8 +1503,11 @@ draw_scene (hikaru_renderer_t *hr)
 		break;
 	}
 
-	for (i = 0; i < NUMELEM (sorted_polytypes); i++)
-		draw_meshes_for_polytype (hr, sorted_polytypes[i]);
+	for (vpi = 0; vpi < 7; vpi++) {
+		glClear (GL_DEPTH_BUFFER_BIT);
+		for (i = 0; i < NUMELEM (sorted_polytypes); i++)
+			draw_meshes_for_polytype (hr, vpi, sorted_polytypes[i]);
+	}
 
 	glDepthMask (GL_TRUE);
 }
@@ -1719,7 +1732,7 @@ static void
 hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 {
 	hikaru_renderer_t *hr = (hikaru_renderer_t *) renderer;
-	unsigned i;
+	unsigned vpi, i;
 
 	hr->meshes.variant.full = ~0;
 
@@ -1730,8 +1743,9 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 	hr->num_texs = 0;
 	hr->num_lss = 0;
 
-	for (i = 0; i < 8; i++)
-		hr->num_meshes[i] = 0;
+	for (vpi = 0; vpi < 8; vpi++)
+		for (i = 0; i < 8; i++)
+			hr->num_meshes[vpi][i] = 0;
 	hr->total_meshes = 0;
 
 	update_debug_flags (hr);
@@ -1776,7 +1790,7 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 {
 	if (renderer_) {
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
-		unsigned i;
+		unsigned vpi, i;
 
 		free (hr->vp_list);
 		free (hr->mv_list);
@@ -1784,8 +1798,9 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 		free (hr->tex_list);
 		free (hr->ls_list);
 
-		for (i = 0; i < 8; i++)
-			free (hr->mesh_list[i]);
+		for (vpi = 0; vpi < 8; vpi++)
+			for (i = 0; i < 8; i++)
+				free (hr->mesh_list[vpi][i]);
 
 		destroy_3d_glsl_state (hr);
 		destroy_2d_glsl_state (hr);
@@ -1798,7 +1813,7 @@ vk_renderer_t *
 hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 {
 	hikaru_renderer_t *hr;
-	int i, ret;
+	int vpi, i, ret;
 
 	hr = ALLOC (hikaru_renderer_t);
 	if (!hr)
@@ -1827,10 +1842,13 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 	    !hr->mat_list || !hr->tex_list || !hr->ls_list)
 		goto fail;
 
-	for (i = 0; i < 8; i++) {
-		hr->mesh_list[i] = (hikaru_mesh_t *) malloc (sizeof (hikaru_mesh_t) * MAX_MESHES);
-		if (!hr->mesh_list[i])
-			goto fail;
+	for (vpi = 0; vpi < 8; vpi++) {
+		for (i = 0; i < 8; i++) {
+			hr->mesh_list[vpi][i] =
+				(hikaru_mesh_t *) malloc (sizeof (hikaru_mesh_t) * MAX_MESHES);
+			if (!hr->mesh_list[vpi][i])
+				goto fail;
+		}
 	}
 
 	memset ((void *) program_cache, 0, sizeof (program_cache));
