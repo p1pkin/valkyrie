@@ -44,30 +44,28 @@
 static const struct {
 	int32_t min, max;
 	uint32_t key;
-	bool print;
-	char name[32];
 } debug_controls[] = {
-	[HR_DEBUG_LOG]			= {  0, 1,     ~0, false, "LOG" },
-	[HR_DEBUG_NO_LAYER1]		= {  0, 1, SDLK_1, false, "NO LAYER1" },
-	[HR_DEBUG_NO_LAYER2]		= {  0, 1, SDLK_2, false, "NO LAYER2" },
-	[HR_DEBUG_NO_3D]		= {  0, 1, SDLK_3, false, "NO 3D" },
-	[HR_DEBUG_SELECT_VIEWPORT]	= { -1, 7, SDLK_v, false, "SELECT VIEWPORT" },
-	[HR_DEBUG_SELECT_BASE_COLOR]	= {  0, 9, SDLK_c,  true, "SELECT BASE COLOR" },
-	[HR_DEBUG_SELECT_CULLFACE]	= { -1, 1, SDLK_f,  true, "SELECT CULLFACE" },
-	[HR_DEBUG_NO_TEXTURES]		= {  0, 1, SDLK_t, false, "NO TEXTURES" },
-	[HR_DEBUG_USE_DEBUG_TEXTURE]	= {  0, 1, SDLK_y, false, "USE DEBUG TEXTURE" },
-	[HR_DEBUG_DUMP_TEXTURES]	= {  0, 1,     ~0, false, "DUMP TEXTURES" },
-	[HR_DEBUG_DETWIDDLE_TEXTURES]	= {  0, 1, SDLK_u, false, "DETWIDDLE TEXTURES" },
-	[HR_DEBUG_SELECT_POLYTYPE]	= { -1, 7, SDLK_p,  true, "SELECT POLYTYPE" },
-	[HR_DEBUG_NO_INSTANCING]	= {  0, 1, SDLK_i, false, "NO INSTANCING" },
-	[HR_DEBUG_SELECT_INSTANCE]	= {  0, 3, SDLK_j, false, "" },
-	[HR_DEBUG_DRAW_NORMALS]		= {  0, 1, SDLK_n, false, "DRAW NORMALS" },
-	[HR_DEBUG_NO_LIGHTING]		= {  0, 1, SDLK_l, false, "NO LIGHTING" },
-	[HR_DEBUG_NO_AMBIENT]		= {  0, 1, SDLK_a, false, "NO AMBIENT" },
-	[HR_DEBUG_NO_DIFFUSE]		= {  0, 1, SDLK_d, false, "NO DIFFUSE" },
-	[HR_DEBUG_NO_SPECULAR]		= {  0, 1, SDLK_s, false, "NO SPECULAR" },
-	[HR_DEBUG_SELECT_ATT_TYPE]	= { -1, 4, SDLK_z,  true, "SELECT ATT TYPE" },
-	[HR_DEBUG_NO_FOG]		= {  0, 1, SDLK_g, false, "NO FOG" },
+	[HR_DEBUG_LOG]			= {  0, 1,     ~0 },
+	[HR_DEBUG_NO_LAYER1]		= {  0, 1, SDLK_1 },
+	[HR_DEBUG_NO_LAYER2]		= {  0, 1, SDLK_2 },
+	[HR_DEBUG_NO_3D]		= {  0, 1, SDLK_3 },
+	[HR_DEBUG_SELECT_VIEWPORT]	= { -1, 7, SDLK_v },
+	[HR_DEBUG_SELECT_BASE_COLOR]	= {  0, 9, SDLK_c },
+	[HR_DEBUG_SELECT_CULLFACE]	= { -1, 1, SDLK_f },
+	[HR_DEBUG_NO_TEXTURES]		= {  0, 1, SDLK_t },
+	[HR_DEBUG_USE_DEBUG_TEXTURE]	= {  0, 1, SDLK_y },
+	[HR_DEBUG_DUMP_TEXTURES]	= {  0, 1,     ~0 },
+	[HR_DEBUG_DETWIDDLE_TEXTURES]	= {  0, 1, SDLK_u },
+	[HR_DEBUG_SELECT_POLYTYPE]	= { -1, 7, SDLK_p },
+	[HR_DEBUG_NO_INSTANCING]	= {  0, 1, SDLK_i },
+	[HR_DEBUG_SELECT_INSTANCE]	= {  0, 3, SDLK_j }, 
+	[HR_DEBUG_DRAW_NORMALS]		= {  0, 1, SDLK_n },
+	[HR_DEBUG_NO_LIGHTING]		= {  0, 1, SDLK_l },
+	[HR_DEBUG_NO_AMBIENT]		= {  0, 1, SDLK_a },
+	[HR_DEBUG_NO_DIFFUSE]		= {  0, 1, SDLK_d },
+	[HR_DEBUG_NO_SPECULAR]		= {  0, 1, SDLK_s },
+	[HR_DEBUG_SELECT_ATT_TYPE]	= { -1, 4, SDLK_z },
+	[HR_DEBUG_NO_FOG]		= {  0, 1, SDLK_g },
 };
 
 static void
@@ -98,9 +96,6 @@ update_debug_flags (hikaru_renderer_t *hr)
 				hikaru_renderer_invalidate_texcache (&hr->base, NULL);
 			if (hr->debug.flags[i] > debug_controls[i].max)
 				hr->debug.flags[i] = debug_controls[i].min;
-			if (debug_controls[i].print)
-				VK_LOG ("HR DEBUG: '%s' = %d\n",
-				        debug_controls[i].name, hr->debug.flags[i]);
 		}
 		msg += sprintf (msg, "%d|", hr->debug.flags[i]);
 	}
