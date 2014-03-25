@@ -751,7 +751,7 @@ copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, unsigned size,
 {
 	hikaru_t *hikaru = (hikaru_t *) gpu->base.mach;
 	unsigned level, level_w, level_h, size_copied;
-	uint32_t dstx, dsty;
+	uint32_t dstx, dsty, bank = texhead->bank;
 	vk_buffer_t *srcbuf;
 
 	if ((bus_addr >> 24) == 0x48)
@@ -778,7 +778,7 @@ copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, unsigned size,
 			break;
 		}
 
-		copy_level (srcbuf, gpu->texram[texhead->bank], bus_offs,
+		copy_level (srcbuf, gpu->texram[bank], bus_offs,
 		            dstx, dsty, level_w, level_h);
 
 		/* Update the number of transferred bytes. */
@@ -787,6 +787,7 @@ copy_texture (hikaru_gpu_t *gpu, uint32_t bus_addr, unsigned size,
 		/* Update the destination coords for the next level. */
 		dstx += (2048 - dstx) / 2;
 		dsty += (1024 - dsty) / 2;
+		bank ^= 1;
 
 		/* Update the level depth and sizes. */
 		level_w >>= 1;
