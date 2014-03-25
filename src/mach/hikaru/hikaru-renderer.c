@@ -274,6 +274,8 @@ destroy_texture (hikaru_texture_t *tex)
 static GLuint
 upload_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th)
 {
+	static const GLint a8_swizzle[4] = { GL_RED, GL_RED, GL_RED, GL_RED };
+
 	vk_buffer_t *texram = hr->gpu->texram[th->bank];
 	uint8_t *data = texram->ptr;
 	uint32_t w, h, basex, basey;
@@ -283,8 +285,6 @@ upload_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th)
 	h = 16 << th->logh;
 
 	get_texhead_coords (&basex, &basey, th);
-
-	VK_LOG ("TEXTURE texhead=%s base=(%u,%u)", get_texhead_str (th), basex, basey);
 
 	glGenTextures (1, &id);
 	VK_ASSERT_NO_GL_ERROR ();
@@ -336,6 +336,23 @@ upload_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th)
 		              w, h, 0,
 		              GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4_REV,
 		              data);
+		VK_ASSERT_NO_GL_ERROR ();
+		break;
+	case HIKARU_FORMAT_ALPHA8:
+		glPixelStorei (GL_UNPACK_ROW_LENGTH, 4096);
+		glPixelStorei (GL_UNPACK_SKIP_ROWS, basey);
+		glPixelStorei (GL_UNPACK_SKIP_PIXELS, basex * 2);
+		VK_ASSERT_NO_GL_ERROR ();
+
+		glTexImage2D (GL_TEXTURE_2D, 0,
+		              GL_R8,
+		              w * 2, h, 0,
+		              GL_RED, GL_UNSIGNED_BYTE,
+		              data);
+		VK_ASSERT_NO_GL_ERROR ();
+
+		glTexParameteriv (GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA,
+		                  a8_swizzle);
 		VK_ASSERT_NO_GL_ERROR ();
 		break;
 	default:
