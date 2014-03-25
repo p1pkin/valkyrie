@@ -158,6 +158,7 @@ typedef struct {
 			GLuint		i_ambient;
 			GLuint		i_specular;
 			GLuint		i_unknown;
+			GLuint		i_alpha;
 		} locs;
 	} meshes;
 

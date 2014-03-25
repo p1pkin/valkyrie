@@ -99,7 +99,7 @@ typedef struct {
 } hikaru_modelview_t;
 
 typedef struct {
-	vec4b_t diffuse;
+	vec3b_t diffuse;
 	vec3b_t ambient;
 	vec4b_t specular;
 	vec3s_t unknown;
@@ -453,7 +453,8 @@ typedef struct {
 	uint32_t padding0;
 	vec3f_t normal;
 	uint32_t padding1;
-	vec4f_t diffuse;
+	vec3f_t diffuse;
+	float alpha;
 	vec3f_t ambient;
 	uint32_t padding2;
 	vec4f_t specular;

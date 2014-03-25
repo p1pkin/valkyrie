@@ -437,20 +437,22 @@ uniform mat4 u_projection;							\n \
 uniform mat4 u_modelview;							\n \
 uniform mat3 u_normal;								\n \
 										\n \
-in vec4 i_diffuse;								\n \
+in vec3 i_diffuse;								\n \
 in vec4 i_specular;								\n \
 in vec3 i_position;								\n \
 in vec3 i_normal;								\n \
 in vec3 i_ambient;								\n \
 in vec3 i_unknown;								\n \
 in vec2 i_texcoords;								\n \
+in float i_alpha;								\n \
 										\n \
 out vec4 p_position;								\n \
 out vec3 p_normal;								\n \
-out vec4 p_diffuse;								\n \
+out vec3 p_diffuse;								\n \
 out vec4 p_specular;								\n \
 out vec3 p_ambient;								\n \
 out vec2 p_texcoords;								\n \
+out float p_alpha;								\n \
 										\n \
 void main (void) {								\n \
 	p_position = u_modelview * vec4 (i_position, 1.0);			\n \
@@ -463,6 +465,7 @@ void main (void) {								\n \
 	p_ambient = i_ambient;							\n \
 	p_specular = i_specular;						\n \
 	p_texcoords = i_texcoords;						\n \
+	p_alpha = i_alpha;							\n \
 }";
 
 static const char *mesh_fs_source =
@@ -486,13 +489,14 @@ uniform vec3		u_fog_color;						\n \
 										\n \
 in vec4 p_position;								\n \
 in vec3 p_normal;								\n \
-in vec4 p_diffuse;								\n \
+in vec3 p_diffuse;								\n \
 in vec4 p_specular;								\n \
 in vec3 p_ambient;								\n \
 in vec2 p_texcoords;								\n \
+in float p_alpha;								\n \
 										\n \
 void										\n \
-apply_light (inout vec4 diffuse, inout vec3 specular, in light_t light, in int type, in int att_type, in int has_specular) \n \
+apply_light (inout vec3 diffuse, inout vec3 specular, in light_t light, in int type, in int att_type, in int has_specular) \n \
 {										\n \
 	vec3 light_direction;							\n \
 	float distance, attenuation, intensity;					\n \
@@ -522,8 +526,7 @@ apply_light (inout vec4 diffuse, inout vec3 specular, in light_t light, in int t
 			intensity = 0.0;					\n \
 	}									\n \
 										\n \
-	diffuse += attenuation * intensity *					\n \
-		 p_diffuse * vec4 (light.diffuse, 1.0);				\n \
+	diffuse += attenuation * intensity * p_diffuse * light.diffuse;		\n \
 										\n \
 	if (has_specular != 0) {								\n \
 		vec3 view_direction = normalize (-p_position.xyz);				\n \
@@ -545,7 +548,7 @@ main (void)									\n \
 #endif										\n \
 										\n \
 #if HAS_LIGHTING								\n \
-	vec4 diffuse  = vec4 (0.0);						\n \
+	vec3 diffuse  = vec3 (0.0);						\n \
 	vec3 specular = vec3 (0.0);						\n \
 	vec3 ambient  = u_ambient * p_ambient;					\n \
 										\n \
@@ -562,9 +565,9 @@ main (void)									\n \
 	apply_light (diffuse, specular, u_lights[3], LIGHT3_TYPE, LIGHT3_ATT_TYPE, HAS_LIGHT3_SPECULAR);		\n \
 #endif										\n \
 										\n \
-	color = (vec4 (ambient, 0.0) + diffuse) * texel + vec4 (specular, 0.0);	\n \
+	color = vec4 (ambient +  diffuse, p_alpha) * texel + vec4 (specular, 0.0);	\n \
 #else										\n \
-	color = p_diffuse * texel;						\n \
+	color = vec4 (p_ambient, p_alpha) * texel;				\n \
 #endif										\n \
 										\n \
 #if HAS_FOG									\n \
@@ -809,6 +812,8 @@ update_locations:
 		glGetAttribLocation (hr->meshes.program, "i_specular");
 	hr->meshes.locs.i_unknown =
 		glGetAttribLocation (hr->meshes.program, "i_unknown");
+	hr->meshes.locs.i_alpha =
+		glGetAttribLocation (hr->meshes.program, "i_alpha");
 	VK_ASSERT_NO_GL_ERROR ();
 }
 
@@ -1045,10 +1050,10 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 {
 	hikaru_gpu_t *gpu = hr->gpu;
 	hikaru_material_t *mat = &MAT.scratch;
-	unsigned i;
 	float alpha;
+	unsigned i;
 
-	for (i = 0; i < 4; i++)
+	for (i = 0; i < 3; i++)
 		dst->diffuse[i] = mat->diffuse[i] * INV255;
 
 	for (i = 0; i < 3; i++)
@@ -1060,15 +1065,16 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 	for (i = 0; i < 3; i++)
 		dst->unknown[i] = mat->unknown[i] * INV255;
 
-	/* Patch diffuse alpha depending on poly type. */
+	/* Patch diffuse alpha depending on poly type. NOTE: transparent
+	 * polygons also have an alpha, with unknown meaning (it seems to have
+	 * opposite sign w.r.t. translucent alpha though). */
 	alpha = 1.0f;
 	if (POLY.type == HIKARU_POLYTYPE_TRANSLUCENT) {
 		float p_alpha = POLY.alpha;
-		//float m_alpha = mat->diffuse[3] * INV255;
 		float v_alpha = src->info.alpha * INV255;
 		alpha = clampf (p_alpha * v_alpha, 0.0f, 1.0f);
 	}
-	dst->diffuse[3] = alpha;
+	dst->alpha = alpha;
 }
 
 static void
@@ -1325,11 +1331,12 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	/* We must do it here since locs are computed in upload_glsl_program. */
 	VAP (hr->meshes.locs.i_position,  3, GL_FLOAT, position);
 	VAP (hr->meshes.locs.i_normal,    3, GL_FLOAT, normal);
-	VAP (hr->meshes.locs.i_diffuse,   4, GL_FLOAT, diffuse);
+	VAP (hr->meshes.locs.i_diffuse,   3, GL_FLOAT, diffuse);
 	VAP (hr->meshes.locs.i_ambient,   3, GL_FLOAT, ambient);
 	VAP (hr->meshes.locs.i_specular,  4, GL_FLOAT, specular);
 	VAP (hr->meshes.locs.i_unknown,   3, GL_FLOAT, unknown);
 	VAP (hr->meshes.locs.i_texcoords, 2, GL_FLOAT, texcoords);
+	VAP (hr->meshes.locs.i_alpha,     1, GL_FLOAT, alpha);
 
 	if (hr->debug.flags[HR_DEBUG_NO_INSTANCING]) {
 		unsigned i = MIN2 (hr->debug.flags[HR_DEBUG_SELECT_INSTANCE],
