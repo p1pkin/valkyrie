@@ -618,7 +618,7 @@ get_glsl_variant (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	                        	  !hr->debug.flags[HR_DEBUG_NO_TEXTURES];
 
 	variant.has_lighting		= ls->mask != 0xF &&
-//	                        	  mat->shading_mode != 0 &&
+	                        	  mat->shading_mode != 0 &&
 	                                  !hr->debug.flags[HR_DEBUG_NO_LIGHTING];
 
 	variant.has_phong		= ls->mask != 0xF &&
