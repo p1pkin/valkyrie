@@ -994,7 +994,9 @@ upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	unsigned i;
 
 	VK_ASSERT (mesh->mat_index != ~0);
-	VK_ASSERT (mesh->ls_index != ~0);
+
+	if (!hr->meshes.variant.has_lighting)
+		return;
 
 	LOG ("lightset = %s", get_lightset_str (ls));
 
@@ -1002,9 +1004,6 @@ upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		VK_ERROR ("uploading lightset with no light, skipping");
 		return;
 	}
-
-	if (hr->debug.flags[HR_DEBUG_NO_LIGHTING] || mat->shading_mode == 0)
-		return;
 
 	get_light_ambient (hr, mesh, tmp);
 	glUniform3fv (hr->meshes.locs.u_ambient, 1, (const GLfloat *) tmp);
