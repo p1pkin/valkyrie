@@ -624,21 +624,20 @@ get_glsl_variant (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_viewport_t *vp   = &hr->vp_list[mesh->vp_index];
 	hikaru_material_t *mat	= &hr->mat_list[mesh->mat_index];
-	hikaru_lightset_t *ls	= &hr->ls_list[mesh->ls_index];
+	hikaru_lightset_t *ls	= (mesh->ls_index == ~0) ? NULL : &hr->ls_list[mesh->ls_index];
 	hikaru_glsl_variant_t variant;
 
-	VK_ASSERT (vp);
-	VK_ASSERT (mat);
-	VK_ASSERT (ls);
+	VK_ASSERT (mesh->vp_index != ~0);
+	VK_ASSERT (mesh->mat_index != ~0);
 
 	variant.has_texture		= mat->has_texture &&
 	                        	  !hr->debug.flags[HR_DEBUG_NO_TEXTURES];
 
-	variant.has_lighting		= ls->mask != 0xF &&
+	variant.has_lighting		= ls && ls->mask != 0xF &&
 	                        	  mat->shading_mode != 0 &&
 	                                  !hr->debug.flags[HR_DEBUG_NO_LIGHTING];
 
-	variant.has_phong		= ls->mask != 0xF &&
+	variant.has_phong		= ls && ls->mask != 0xF &&
 	                                  mat->shading_mode == 2 &&
 	                                  !hr->debug.flags[HR_DEBUG_NO_LIGHTING];
 
@@ -646,25 +645,25 @@ get_glsl_variant (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 //		    hr->debug.flags[HR_DEBUG_SELECT_ATT_TYPE] != get_light_attenuation_type (lt))
 //			continue;
 
-	variant.has_light0		= !(ls->mask & (1 << 0));
-	variant.light0_type		= get_light_type (&ls->lights[0]);
-	variant.light0_att_type		= get_light_attenuation_type (&ls->lights[0]);
-	variant.has_light0_specular	= ls->lights[0].has_specular;
+	variant.has_light0		= variant.has_lighting && !(ls->mask & (1 << 0));
+	variant.light0_type		= variant.has_lighting && get_light_type (&ls->lights[0]);
+	variant.light0_att_type		= variant.has_lighting && get_light_attenuation_type (&ls->lights[0]);
+	variant.has_light0_specular	= variant.has_lighting && ls->lights[0].has_specular;
 
-	variant.has_light1		= !(ls->mask & (1 << 1));
-	variant.light1_type		= get_light_type (&ls->lights[1]);
-	variant.light1_att_type		= get_light_attenuation_type (&ls->lights[1]);
-	variant.has_light1_specular	= ls->lights[1].has_specular;
+	variant.has_light1		= variant.has_lighting && !(ls->mask & (1 << 1));
+	variant.light1_type		= variant.has_lighting && get_light_type (&ls->lights[1]);
+	variant.light1_att_type		= variant.has_lighting && get_light_attenuation_type (&ls->lights[1]);
+	variant.has_light1_specular	= variant.has_lighting && ls->lights[1].has_specular;
 
-	variant.has_light2		= !(ls->mask & (1 << 2));
-	variant.light2_type		= get_light_type (&ls->lights[2]);
-	variant.light2_att_type		= get_light_attenuation_type (&ls->lights[2]);
-	variant.has_light2_specular	= ls->lights[2].has_specular;
+	variant.has_light2		= variant.has_lighting && !(ls->mask & (1 << 2));
+	variant.light2_type		= variant.has_lighting && get_light_type (&ls->lights[2]);
+	variant.light2_att_type		= variant.has_lighting && get_light_attenuation_type (&ls->lights[2]);
+	variant.has_light2_specular	= variant.has_lighting && ls->lights[2].has_specular;
 
-	variant.has_light3		= !(ls->mask & (1 << 3));
-	variant.light3_type		= get_light_type (&ls->lights[3]);
-	variant.light3_att_type		= get_light_attenuation_type (&ls->lights[3]);
-	variant.has_light3_specular	= ls->lights[3].has_specular;
+	variant.has_light3		= variant.has_lighting && !(ls->mask & (1 << 3));
+	variant.light3_type		= variant.has_lighting && get_light_type (&ls->lights[3]);
+	variant.light3_att_type		= variant.has_lighting && get_light_attenuation_type (&ls->lights[3]);
+	variant.has_light3_specular	= variant.has_lighting && ls->lights[3].has_specular;
 
 	variant.has_fog			= !hr->debug.flags[HR_DEBUG_NO_FOG] &&
 					  !vp->depth.q_enabled &&
