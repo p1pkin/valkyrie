@@ -34,5 +34,6 @@ void		 hikaru_gpu_vblank_out (vk_device_t *dev);
 void		 hikaru_gpu_vblank_in (vk_device_t *dev);
 void		 hikaru_gpu_hblank_in (vk_device_t *dev, unsigned line);
 const char	*hikaru_gpu_get_debug_str (vk_device_t *dev);
+bool		 hikaru_gpu_is_texram_twiddled (vk_device_t *dev);
 
 #endif /* __VK_HKGPU_H__ */

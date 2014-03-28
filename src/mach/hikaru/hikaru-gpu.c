@@ -1195,6 +1195,14 @@ hikaru_gpu_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val)
  Interface
 ****************************************************************************/
 
+bool
+hikaru_gpu_is_texram_twiddled (vk_device_t *dev)
+{
+	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
+
+	return REG15 (0x8C) == 0x02020202;
+}
+
 static void
 hikaru_gpu_reset (vk_device_t *dev, vk_reset_type_t type)
 {

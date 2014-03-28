@@ -20,6 +20,7 @@
 
 #include "mach/hikaru/hikaru.h"
 #include "mach/hikaru/hikaru-memctl.h"
+#include "mach/hikaru/hikaru-gpu.h"
 #include "cpu/sh/sh4.h"
 
 /*
@@ -517,6 +518,59 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 	return 0;
 }
 
+static const struct {
+	uint32_t bit_in, bit_out;
+} d_to_t[] = {
+	{ 0x000001, 0x000001 },
+	{ 0x000800, 0x000002 },
+	{ 0x000002, 0x000004 },
+	{ 0x001000, 0x000008 },
+	{ 0x000004, 0x000010 },
+	{ 0x002000, 0x000020 },
+	{ 0x000008, 0x000040 },
+	{ 0x004000, 0x000080 },
+	{ 0x000010, 0x000100 },
+	{ 0x008000, 0x000200 },
+	{ 0x000020, 0x000400 },
+	{ 0x010000, 0x000800 },
+	{ 0x000040, 0x001000 },
+	{ 0x020000, 0x002000 },
+	{ 0x000080, 0x004000 },
+	{ 0x040000, 0x008000 },
+	{ 0x000100, 0x010000 },
+	{ 0x080000, 0x020000 },
+	{ 0x000200, 0x040000 },
+	{ 0x100000, 0x080000 },
+	{ 0x000400, 0x100000 },
+};
+
+static uint32_t
+twiddle_offs (uint32_t offs)
+{
+	uint32_t toffs = 0, i;
+	for (i = 0; i < NUMELEM (d_to_t); i++) {
+		if (offs & d_to_t[i].bit_out)
+			toffs |= d_to_t[i].bit_in;
+	}
+	return toffs;
+}
+
+static void
+texram_put (hikaru_t *hikaru, uint32_t bank, uint32_t size, uint32_t offs, uint64_t val)
+{
+	if (hikaru_gpu_is_texram_twiddled (hikaru->gpu)) 
+		vk_buffer_put (hikaru->texram[bank], size, offs, val);
+	else {
+		uint32_t toffs_lo = twiddle_offs ((offs + 0) >> 1) << 1;
+		uint32_t toffs_hi = twiddle_offs ((offs + 2) >> 1) << 1;
+
+		VK_ASSERT (size == 4);
+
+		vk_buffer_put (hikaru->texram[bank], 2, toffs_lo, val);
+		vk_buffer_put (hikaru->texram[bank], 2, toffs_hi, val >> 16);
+	}
+}
+
 static int
 memctl_bus_put (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, uint64_t val)
 {
@@ -527,10 +581,10 @@ memctl_bus_put (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, uint6
 
 	if (bus_addr >= 0x04000000 && bus_addr <= 0x043FFFFF) {
 		/* TEXRAM Bank 0 */
-		vk_buffer_put (hikaru->texram[0], size, offs, val);
+		texram_put (hikaru, 0, size, offs, val);
 	} else if (bus_addr >= 0x06000000 && bus_addr <= 0x063FFFFF) {
 		/* TEXRAM Bank 1 */
-		vk_buffer_put (hikaru->texram[1], size, offs, val);
+		texram_put (hikaru, 1, size, offs, val);
 	} else if (bus_addr >= 0x0A000000 && bus_addr <= 0x0AFFFFFF) {
 		/* Unknown */
 		log = true;
