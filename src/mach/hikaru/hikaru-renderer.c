@@ -724,9 +724,6 @@ upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	VK_LOG ("compiling shader for variant %X", variant.full);
 
-//	destroy_program (hr->meshes.program);
-//	VK_ASSERT_NO_GL_ERROR ();
-
 	ret = asprintf (&definitions, definitions_template,
 	                variant.has_texture,
 	                variant.has_lighting,
