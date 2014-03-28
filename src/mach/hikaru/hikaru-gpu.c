@@ -1116,7 +1116,6 @@ hikaru_gpu_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val)
 		case 0x38 ... 0x54:
 		case 0x70 ... 0x78:
 		case 0x80:
-		case 0x8C:
 		case 0x90:
 		case 0x94:
 		case 0x98:
@@ -1133,6 +1132,9 @@ hikaru_gpu_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val)
 			REG15 (addr) &= val;
 			hikaru_gpu_update_irq_status (gpu);
 			return 0;
+		case 0x8C: /* TEXRAM twiddling mode */
+			VK_ASSERT (val == 0x01010101 || val == 0x02020202);
+			break;
 		default:
 			return -1;
 		}
