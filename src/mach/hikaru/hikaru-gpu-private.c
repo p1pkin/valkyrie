@@ -186,8 +186,8 @@ get_vertex_str (hikaru_vertex_t *v)
 	                v->position[0], v->position[1], v->position[2]);
 	tmp += sprintf (tmp, "(N: %5.3f %5.3f %5.3f) ",
 	                v->normal[0], v->normal[1], v->normal[2]);
-	tmp += sprintf (tmp, "(Cd: %5.3f %5.3f %5.3f | %5.3f) ",
-	                v->diffuse[0], v->diffuse[1], v->diffuse[2], v->diffuse[3]);
+	tmp += sprintf (tmp, "(Cd: %5.3f %5.3f %5.3f) ",
+	                v->diffuse[0], v->diffuse[1], v->diffuse[2]);
 	tmp += sprintf (tmp, "(Ca: %5.3f %5.3f %5.3f) ",
 	                v->ambient[0], v->ambient[1], v->ambient[2]);
 	tmp += sprintf (tmp, "(Cs: %5.3f %5.3f %5.3f | %5.3f) ",
