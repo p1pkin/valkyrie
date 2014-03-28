@@ -729,7 +729,7 @@ hikaru_gpu_fill_layer_info (hikaru_gpu_t *gpu)
  */
 
 static void
-copy_level (vk_buffer_t *srcbuf, vk_buffer_t *dstbuf, uint32_t bus_addr,
+copy_level (vk_buffer_t *srcbuf, vk_buffer_t *texram, uint32_t bus_addr,
             unsigned x0, unsigned y0, unsigned w, unsigned h)
 {
 	uint32_t offs;
@@ -740,7 +740,7 @@ copy_level (vk_buffer_t *srcbuf, vk_buffer_t *dstbuf, uint32_t bus_addr,
 		for (x = 0; x < w; x++, offs += 2) {
 			uint32_t temp = (y0 + y) * 4096 + (x0 + x) * 2;
 			uint32_t texel = vk_buffer_get (srcbuf, 2, offs);
-			vk_buffer_put (dstbuf, 2, temp, texel);
+			vk_buffer_put (texram, 2, temp ^ 2, texel);
 		}
 	}
 }

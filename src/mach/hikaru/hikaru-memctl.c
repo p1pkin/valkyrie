@@ -566,8 +566,8 @@ texram_put (hikaru_t *hikaru, uint32_t bank, uint32_t size, uint32_t offs, uint6
 
 		VK_ASSERT (size == 4);
 
-		vk_buffer_put (hikaru->texram[bank], 2, toffs_lo, val);
-		vk_buffer_put (hikaru->texram[bank], 2, toffs_hi, val >> 16);
+		vk_buffer_put (hikaru->texram[bank], 2, toffs_lo, bswap16 (val));
+		vk_buffer_put (hikaru->texram[bank], 2, toffs_hi, bswap16 (val >> 16));
 	}
 }
 
