@@ -276,15 +276,15 @@ upload_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th)
 {
 	static const GLint a8_swizzle[4] = { GL_RED, GL_RED, GL_RED, GL_RED };
 
-	vk_buffer_t *texram = hr->gpu->texram[th->bank];
-	uint8_t *data = texram->ptr;
-	uint32_t w, h, basex, basey;
+	uint32_t w, h, num_levels, level, basex, basey, bank;
 	GLuint id;
 
 	w = 16 << th->logw;
 	h = 16 << th->logh;
+	num_levels = MIN2 (th->logw, th->logh) + 4;
 
 	get_texhead_coords (&basex, &basey, th);
+	bank = th->bank;
 
 	glGenTextures (1, &id);
 	VK_ASSERT_NO_GL_ERROR ();
@@ -304,59 +304,73 @@ upload_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th)
 	VK_ASSERT_NO_GL_ERROR ();
 
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	VK_ASSERT_NO_GL_ERROR ();
 
-	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, num_levels - 1);
 	VK_ASSERT_NO_GL_ERROR ();
 
 	glPixelStorei (GL_UNPACK_ALIGNMENT, 1);
-	switch (th->format) {
-	case HIKARU_FORMAT_ABGR1555:
-		glPixelStorei (GL_UNPACK_ROW_LENGTH, 2048);
-		glPixelStorei (GL_UNPACK_SKIP_ROWS, basey);
-		glPixelStorei (GL_UNPACK_SKIP_PIXELS, basex);
-		VK_ASSERT_NO_GL_ERROR ();
+	VK_ASSERT_NO_GL_ERROR ();
 
-		glTexImage2D (GL_TEXTURE_2D, 0,
-		              GL_RGB5_A1,
-		              w, h, 0,
-		              GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV,
-		              data);
-		VK_ASSERT_NO_GL_ERROR ();
-		break;
-	case HIKARU_FORMAT_ABGR4444:
-		glPixelStorei (GL_UNPACK_ROW_LENGTH, 2048);
-		glPixelStorei (GL_UNPACK_SKIP_ROWS, basey);
-		glPixelStorei (GL_UNPACK_SKIP_PIXELS, basex);
-		VK_ASSERT_NO_GL_ERROR ();
+	for (level = 0; level < num_levels; level++) {
+		void *data = (void *) hr->gpu->texram[bank]->ptr;
 
-		glTexImage2D (GL_TEXTURE_2D, 0,
-		              GL_RGBA4,
-		              w, h, 0,
-		              GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4_REV,
-		              data);
-		VK_ASSERT_NO_GL_ERROR ();
-		break;
-	case HIKARU_FORMAT_ALPHA8:
-		glPixelStorei (GL_UNPACK_ROW_LENGTH, 4096);
-		glPixelStorei (GL_UNPACK_SKIP_ROWS, basey);
-		glPixelStorei (GL_UNPACK_SKIP_PIXELS, basex * 2);
-		VK_ASSERT_NO_GL_ERROR ();
+		switch (th->format) {
+		case HIKARU_FORMAT_ABGR1555:
+			glPixelStorei (GL_UNPACK_ROW_LENGTH, 2048);
+			glPixelStorei (GL_UNPACK_SKIP_ROWS, basey);
+			glPixelStorei (GL_UNPACK_SKIP_PIXELS, basex);
+			VK_ASSERT_NO_GL_ERROR ();
+	
+			glTexImage2D (GL_TEXTURE_2D, level,
+			              GL_RGB5_A1,
+			              w, h, 0,
+			              GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV,
+			              data);
+			VK_ASSERT_NO_GL_ERROR ();
+			break;
+		case HIKARU_FORMAT_ABGR4444:
+			glPixelStorei (GL_UNPACK_ROW_LENGTH, 2048);
+			glPixelStorei (GL_UNPACK_SKIP_ROWS, basey);
+			glPixelStorei (GL_UNPACK_SKIP_PIXELS, basex);
+			VK_ASSERT_NO_GL_ERROR ();
+	
+			glTexImage2D (GL_TEXTURE_2D, level,
+			              GL_RGBA4,
+			              w, h, 0,
+			              GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4_REV,
+			              data);
+			VK_ASSERT_NO_GL_ERROR ();
+			break;
+		case HIKARU_FORMAT_ALPHA8:
+			glPixelStorei (GL_UNPACK_ROW_LENGTH, 4096);
+			glPixelStorei (GL_UNPACK_SKIP_ROWS, basey);
+			glPixelStorei (GL_UNPACK_SKIP_PIXELS, basex * 2);
+			VK_ASSERT_NO_GL_ERROR ();
+	
+			glTexImage2D (GL_TEXTURE_2D, level,
+			              GL_R8,
+			              w * 2, h, 0,
+			              GL_RED, GL_UNSIGNED_BYTE,
+			              data);
+			VK_ASSERT_NO_GL_ERROR ();
+	
+			glTexParameteriv (GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA,
+			                  a8_swizzle);
+			VK_ASSERT_NO_GL_ERROR ();
+			break;
+		default:
+			goto fail;
+		}
 
-		glTexImage2D (GL_TEXTURE_2D, 0,
-		              GL_R8,
-		              w * 2, h, 0,
-		              GL_RED, GL_UNSIGNED_BYTE,
-		              data);
-		VK_ASSERT_NO_GL_ERROR ();
+		w >>= 1;
+		h >>= 1;
+		VK_ASSERT (w && h);
 
-		glTexParameteriv (GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA,
-		                  a8_swizzle);
-		VK_ASSERT_NO_GL_ERROR ();
-		break;
-	default:
-		goto fail;
+		basex += (2048 - basex) / 2;
+		basey += (1024 - basey) / 2;
+		bank ^= 1;
 	}
 
 	glPixelStorei (GL_UNPACK_ROW_LENGTH, 0);
@@ -367,7 +381,14 @@ upload_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th)
 	return id;
 
 fail:
+	glPixelStorei (GL_UNPACK_ROW_LENGTH, 0);
+	glPixelStorei (GL_UNPACK_SKIP_ROWS, 0);
+	glPixelStorei (GL_UNPACK_SKIP_PIXELS, 0);
+	VK_ASSERT_NO_GL_ERROR ();
+
 	glDeleteTextures (1, &id);
+	VK_ASSERT_NO_GL_ERROR ();
+
 	return 0;
 }
 
