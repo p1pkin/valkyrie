@@ -30,6 +30,24 @@
 
 #define MAX_VERTICES_PER_MESH	16384
 
+enum {
+	_15_IRQ_IDMA	= (1 << 0),
+	_15_IRQ_VBLANK	= (1 << 1),
+	_15_IRQ_DONE	= (1 << 2),
+	_15_IRQ_UNK3	= (1 << 3),
+	_15_IRQ_UNK4	= (1 << 4),
+	_15_IRQ_UNK5	= (1 << 5),
+	_15_IRQ_UNK6	= (1 << 6),
+	_15_IRQ_1A	= (1 << 7)
+};
+
+enum {
+	_1A_IRQ_UNK0	= (1 << 0),
+	_1A_IRQ_VBLANK	= (1 << 1),
+	_1A_IRQ_DONE	= (1 << 2),
+	_1A_IRQ_UNK3	= (1 << 3)
+};
+
 /* Used for both texheads and layers */
 enum {
 	HIKARU_FORMAT_ABGR1555 = 0,
@@ -469,24 +487,6 @@ typedef struct {
 /****************************************************************************
  Definitions
 ****************************************************************************/
-
-typedef enum {
-	_15_IRQ_IDMA	= (1 << 0),
-	_15_IRQ_VBLANK	= (1 << 1),
-	_15_IRQ_DONE	= (1 << 2),
-	_15_IRQ_UNK3	= (1 << 3),
-	_15_IRQ_UNK4	= (1 << 4),
-	_15_IRQ_UNK5	= (1 << 5),
-	_15_IRQ_UNK6	= (1 << 6),
-	_15_IRQ_1A	= (1 << 7)
-} _15_irq_t;
-
-typedef enum {
-	_1A_IRQ_UNK0	= (1 << 0),
-	_1A_IRQ_VBLANK	= (1 << 1),
-	_1A_IRQ_DONE	= (1 << 2),
-	_1A_IRQ_UNK3	= (1 << 3)
-} _1a_irq_t;
 
 /* hikaru-gpu-private.c */
 void get_texhead_coords (uint32_t *, uint32_t *, hikaru_texhead_t *);
