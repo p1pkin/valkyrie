@@ -45,27 +45,30 @@ using the ones provided by the games as they are leads to a far too close
 far clipping plane. Use 'p' to toggle a standard 90 degree FOV projection and
 see things (affects all games).
 
-Implement viewports, urgently.
+Implement viewports properly, urgently.
 
-Implement swizzled textures at TEXRAM-write time (BRAVEFF).
+Fix alpha ordering, urgently.
 
 Fix instanced rendering; there is no linking system, just odd matrices.
-
-Implement proper light attenuation, requires GLSL.
 
 Figure out where the spotlight angles are (194 is the best candidate).
 
 Implement framebuffer blending (instructions 781, 181; PHARRIER).
 
-Implement mipmap transfers in IDMA (using the L-layout seen in BRAVEFF).
+Figure out the effect of mesh LOD on texturing (normally, and SGNASCAR),
+disable mipmaps when appropriate (instruction 0C1 maybe).
 
-Figure out the effect of mesh LOD on texturing (SGNASCAR).
-
-Implement fogging (see instruction 691).
+Fix fogging.
 
 Implement alpha testing (used in BRAVEFF, instruction 154).
 
 Implement proper model caching using VBOs.
+
+Compute the normal matrix in upload_modelvew().
+
+Make use of explicit uniform locations, where available.
+
+Fix texture wrap/repeat (BRAVEFF, AIRTRIX do not work properly yet.)
 
 
 AIRTRIX

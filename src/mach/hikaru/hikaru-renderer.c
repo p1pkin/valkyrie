@@ -16,8 +16,6 @@
  * along with Valkyrie.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-/* XXX implement mesh caching. requires storing color/texhead/vertices. */
-
 #include "vk/input.h"
 
 #include "mach/hikaru/hikaru-renderer.h"
