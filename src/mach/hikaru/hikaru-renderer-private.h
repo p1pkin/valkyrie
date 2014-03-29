@@ -150,15 +150,6 @@ typedef struct {
 			GLuint		u_texture;
 			GLuint		u_fog;
 			GLuint		u_fog_color;
-
-			GLuint		i_position;
-			GLuint		i_normal;
-			GLuint		i_texcoords;
-			GLuint		i_diffuse;
-			GLuint		i_ambient;
-			GLuint		i_specular;
-			GLuint		i_unknown;
-			GLuint		i_alpha;
 		} locs;
 	} meshes;
 

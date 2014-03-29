@@ -473,20 +473,22 @@ hikaru_renderer_invalidate_texcache (vk_renderer_t *rend, hikaru_texhead_t *th)
 static const char *mesh_vs_source =
 "#version 140									\n \
 										\n \
+#extension GL_ARB_explicit_attrib_location : require				\n \
+										\n \
 %s										\n \
 										\n \
 uniform mat4 u_projection;							\n \
 uniform mat4 u_modelview;							\n \
 uniform mat3 u_normal;								\n \
 										\n \
-in vec3 i_diffuse;								\n \
-in vec4 i_specular;								\n \
-in vec3 i_position;								\n \
-in vec3 i_normal;								\n \
-in vec3 i_ambient;								\n \
-in vec3 i_unknown;								\n \
-in vec2 i_texcoords;								\n \
-in float i_alpha;								\n \
+layout(location = 0) in vec3 i_position;					\n \
+layout(location = 1) in vec3 i_normal;						\n \
+layout(location = 2) in vec3 i_diffuse;						\n \
+layout(location = 3) in vec3 i_ambient;						\n \
+layout(location = 4) in vec4 i_specular;					\n \
+layout(location = 5) in vec3 i_unknown;						\n \
+layout(location = 6) in vec2 i_texcoords;					\n \
+layout(location = 7) in float i_alpha;						\n \
 										\n \
 out vec4 p_position;								\n \
 out vec3 p_normal;								\n \
@@ -834,24 +836,6 @@ update_locations:
 		glGetUniformLocation (hr->meshes.program, "u_fog");
 	hr->meshes.locs.u_fog_color =
 		glGetUniformLocation (hr->meshes.program, "u_fog_color");
-	VK_ASSERT_NO_GL_ERROR ();
-
-	hr->meshes.locs.i_position =
-		glGetAttribLocation (hr->meshes.program, "i_position");
-	hr->meshes.locs.i_normal =
-		glGetAttribLocation (hr->meshes.program, "i_normal");
-	hr->meshes.locs.i_texcoords =
-		glGetAttribLocation (hr->meshes.program, "i_texcoords");
-	hr->meshes.locs.i_diffuse =
-		glGetAttribLocation (hr->meshes.program, "i_diffuse");
-	hr->meshes.locs.i_ambient =
-		glGetAttribLocation (hr->meshes.program, "i_ambient");
-	hr->meshes.locs.i_specular =
-		glGetAttribLocation (hr->meshes.program, "i_specular");
-	hr->meshes.locs.i_unknown =
-		glGetAttribLocation (hr->meshes.program, "i_unknown");
-	hr->meshes.locs.i_alpha =
-		glGetAttribLocation (hr->meshes.program, "i_alpha");
 	VK_ASSERT_NO_GL_ERROR ();
 }
 
@@ -1358,14 +1342,14 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	VK_ASSERT_NO_GL_ERROR ();
 
 	/* We must do it here since locs are computed in upload_glsl_program. */
-	VAP (hr->meshes.locs.i_position,  3, GL_FLOAT, position);
-	VAP (hr->meshes.locs.i_normal,    3, GL_FLOAT, normal);
-	VAP (hr->meshes.locs.i_diffuse,   3, GL_FLOAT, diffuse);
-	VAP (hr->meshes.locs.i_ambient,   3, GL_FLOAT, ambient);
-	VAP (hr->meshes.locs.i_specular,  4, GL_FLOAT, specular);
-	VAP (hr->meshes.locs.i_unknown,   3, GL_FLOAT, unknown);
-	VAP (hr->meshes.locs.i_texcoords, 2, GL_FLOAT, texcoords);
-	VAP (hr->meshes.locs.i_alpha,     1, GL_FLOAT, alpha);
+	VAP (0, 3, GL_FLOAT, position);
+	VAP (1, 3, GL_FLOAT, normal);
+	VAP (2, 3, GL_FLOAT, diffuse);
+	VAP (3, 3, GL_FLOAT, ambient);
+	VAP (4, 4, GL_FLOAT, specular);
+	VAP (5, 3, GL_FLOAT, unknown);
+	VAP (6, 2, GL_FLOAT, texcoords);
+	VAP (7, 1, GL_FLOAT, alpha);
 
 	if (hr->debug.flags[HR_DEBUG_NO_INSTANCING]) {
 		unsigned i = MIN2 (hr->debug.flags[HR_DEBUG_SELECT_INSTANCE],
