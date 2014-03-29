@@ -1007,12 +1007,9 @@ get_light_specular (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 static void
 upload_lightset (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_material_t *mat = &hr->mat_list[mesh->mat_index];
 	hikaru_lightset_t *ls = &hr->ls_list[mesh->ls_index];
 	float tmp[4];
 	unsigned i;
-
-	VK_ASSERT (mesh->mat_index != ~0);
 
 	if (!hr->meshes.variant.has_lighting)
 		return;
