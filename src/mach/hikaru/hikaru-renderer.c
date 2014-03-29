@@ -1083,16 +1083,16 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 	unsigned i;
 
 	for (i = 0; i < 3; i++)
-		dst->diffuse[i] = mat->diffuse[i] * INV255;
+		dst->body.diffuse[i] = mat->diffuse[i] * INV255;
 
 	for (i = 0; i < 3; i++)
-		dst->ambient[i] = mat->ambient[i] * INV255;
+		dst->body.ambient[i] = mat->ambient[i] * INV255;
 
 	for (i = 0; i < 4; i++)
-		dst->specular[i] = mat->specular[i] * INV255;
+		dst->body.specular[i] = mat->specular[i] * INV255;
 
 	for (i = 0; i < 3; i++)
-		dst->unknown[i] = mat->unknown[i] * INV255;
+		dst->body.unknown[i] = mat->unknown[i] * INV255;
 
 	/* Patch diffuse alpha depending on poly type. NOTE: transparent
 	 * polygons also have an alpha, with unknown meaning (it seems to have
@@ -1103,7 +1103,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 		float v_alpha = src->info.alpha * INV255;
 		alpha = clampf (p_alpha * v_alpha, 0.0f, 1.0f);
 	}
-	dst->alpha = alpha;
+	dst->body.alpha = alpha;
 }
 
 static void
@@ -1118,8 +1118,8 @@ copy_texcoords (hikaru_renderer_t *hr,
 	if (th->format == HIKARU_FORMAT_ABGR1111)
 		h *= 2;
 
-	dst->texcoords[0] = src->texcoords[0] / w;
-	dst->texcoords[1] = src->texcoords[1] / h;
+	dst->body.texcoords[0] = src->body.texcoords[0] / w;
+	dst->body.texcoords[1] = src->body.texcoords[1] / h;
 }
 
 static void
@@ -1127,18 +1127,18 @@ add_triangle (hikaru_renderer_t *hr)
 {
 	if (hr->push.num_verts >= 3) {
 		uint32_t index = hr->push.num_tris * 3;
-		hikaru_vertex_t *dst = &hr->push.all[index];
+		hikaru_vertex_body_t *dst = &hr->push.all[index];
 
 		VK_ASSERT ((index + 2) < MAX_VERTICES_PER_MESH);
 
 		if (hr->push.tmp[2].info.winding) {
-			dst[0] = hr->push.tmp[0];
-			dst[1] = hr->push.tmp[2];
-			dst[2] = hr->push.tmp[1];
+			dst[0] = hr->push.tmp[0].body;
+			dst[1] = hr->push.tmp[2].body;
+			dst[2] = hr->push.tmp[1].body;
 		} else {
-			dst[0] = hr->push.tmp[0];
-			dst[1] = hr->push.tmp[1];
-			dst[2] = hr->push.tmp[2];
+			dst[0] = hr->push.tmp[0].body;
+			dst[1] = hr->push.tmp[1].body;
+			dst[2] = hr->push.tmp[2].body;
 		}
 		hr->push.num_tris += 1;
 	}
@@ -1188,7 +1188,7 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 			memset ((void *) &hr->push.tmp[2], 0, sizeof (hikaru_vertex_t));
 
 			/* Set the position, colors and alpha. */
-			VK_COPY_VEC3F (hr->push.tmp[2].position, v->position);
+			VK_COPY_VEC3F (hr->push.tmp[2].body.position, v->body.position);
 			copy_colors (hr, &hr->push.tmp[2], v);
 
 			/* Account for the added vertex. */
@@ -1198,7 +1198,7 @@ hikaru_renderer_push_vertices (vk_renderer_t *rend,
 
 		/* Set the normal. */
 		if (flags & HR_PUSH_NRM)
-			VK_COPY_VEC3F (hr->push.tmp[2].normal, v->normal);
+			VK_COPY_VEC3F (hr->push.tmp[2].body.normal, v->body.normal);
 
 		/* Set the texcoords. */
 		if (flags & HR_PUSH_TXC)
@@ -1317,12 +1317,12 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 }
 
 #define OFFSET(member_) \
-	((const GLvoid *) offsetof (hikaru_vertex_t, member_))
+	((const GLvoid *) offsetof (hikaru_vertex_body_t, member_))
 
 #define VAP(loc_, num_, type_, member_) \
 	if (loc_ != (GLuint) -1) { \
 		glVertexAttribPointer (loc_, num_, type_, GL_FALSE, \
-		                       sizeof (hikaru_vertex_t), \
+		                       sizeof (hikaru_vertex_body_t), \
 		                       OFFSET (member_)); \
 		VK_ASSERT_NO_GL_ERROR (); \
 		\
@@ -1407,7 +1407,7 @@ upload_vertex_data (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	/* Upload the vertex data to the VBO. */
 	glBindBuffer (GL_ARRAY_BUFFER, mesh->vbo);
 	glBufferData (GL_ARRAY_BUFFER,
-	              sizeof (hikaru_vertex_t) * mesh->num_tris * 3,
+	              sizeof (hikaru_vertex_body_t) * mesh->num_tris * 3,
 	              (const GLvoid *) hr->push.all, GL_DYNAMIC_DRAW);
 	VK_ASSERT_NO_GL_ERROR ();
 }

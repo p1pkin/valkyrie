@@ -183,19 +183,19 @@ get_vertex_str (hikaru_vertex_t *v)
 	                v->info.ppivot, v->info.winding);
 
 	tmp += sprintf (tmp, "(X: %5.3f %5.3f %5.3f) ",
-	                v->position[0], v->position[1], v->position[2]);
+	                v->body.position[0], v->body.position[1], v->body.position[2]);
 	tmp += sprintf (tmp, "(N: %5.3f %5.3f %5.3f) ",
-	                v->normal[0], v->normal[1], v->normal[2]);
+	                v->body.normal[0], v->body.normal[1], v->body.normal[2]);
 	tmp += sprintf (tmp, "(Cd: %5.3f %5.3f %5.3f) ",
-	                v->diffuse[0], v->diffuse[1], v->diffuse[2]);
+	                v->body.diffuse[0], v->body.diffuse[1], v->body.diffuse[2]);
 	tmp += sprintf (tmp, "(Ca: %5.3f %5.3f %5.3f) ",
-	                v->ambient[0], v->ambient[1], v->ambient[2]);
+	                v->body.ambient[0], v->body.ambient[1], v->body.ambient[2]);
 	tmp += sprintf (tmp, "(Cs: %5.3f %5.3f %5.3f | %5.3f) ",
-	                v->specular[0], v->specular[1], v->specular[2], v->specular[3]);
+	                v->body.specular[0], v->body.specular[1], v->body.specular[2], v->body.specular[3]);
 	tmp += sprintf (tmp, "(Cu: %5.3f %5.3f %5.3f) ",
-	                v->unknown[0], v->unknown[1], v->unknown[2]);
+	                v->body.unknown[0], v->body.unknown[1], v->body.unknown[2]);
 	tmp += sprintf (tmp, "(T: %5.3f %5.3f) ",
-	                v->texcoords[0], v->texcoords[1]);
+	                v->body.texcoords[0], v->body.texcoords[1]);
 
 	return out;
 }

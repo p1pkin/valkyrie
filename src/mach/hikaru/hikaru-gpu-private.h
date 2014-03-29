@@ -466,7 +466,6 @@ typedef union {
 } hikaru_vertex_info_t;
 
 typedef struct {
-	hikaru_vertex_info_t info;
 	vec3f_t position;
 	uint32_t padding0;
 	vec3f_t normal;
@@ -480,6 +479,11 @@ typedef struct {
 	uint32_t padding3;
 	vec2f_t texcoords;
 	uint32_t padding4[2];
+} hikaru_vertex_body_t;
+
+typedef struct {
+	hikaru_vertex_info_t info;
+	hikaru_vertex_body_t body;
 } hikaru_vertex_t;
 
 #pragma pack(pop)

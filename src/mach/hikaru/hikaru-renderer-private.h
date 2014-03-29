@@ -124,8 +124,8 @@ typedef struct {
 
 	struct {
 		unsigned		num_verts, num_tris;
-		hikaru_vertex_t	tmp[4];
-		hikaru_vertex_t	all[MAX_VERTICES_PER_MESH];
+		hikaru_vertex_t		tmp[4];
+		hikaru_vertex_body_t	all[MAX_VERTICES_PER_MESH];
 	} push;
 
 	struct {

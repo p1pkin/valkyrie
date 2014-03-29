@@ -2304,13 +2304,13 @@ I (0x12C)
 
 	VK_ASSERT (POLY.static_mesh_precision > 0.0f);
 
-	v.position[0] = (int16_t)(inst[1] >> 16) * POLY.static_mesh_precision;
-	v.position[1] = (int16_t)(inst[2] >> 16) * POLY.static_mesh_precision;
-	v.position[2] = (int16_t)(inst[3] >> 16) * POLY.static_mesh_precision;
+	v.body.position[0] = (int16_t)(inst[1] >> 16) * POLY.static_mesh_precision;
+	v.body.position[1] = (int16_t)(inst[2] >> 16) * POLY.static_mesh_precision;
+	v.body.position[2] = (int16_t)(inst[3] >> 16) * POLY.static_mesh_precision;
 
-	v.normal[0] = (int16_t)((inst[1] & 0x3FF) << 6) / 16384.0f;
-	v.normal[1] = (int16_t)((inst[2] & 0x3FF) << 6) / 16384.0f;
-	v.normal[2] = (int16_t)((inst[3] & 0x3FF) << 6) / 16384.0f;
+	v.body.normal[0] = (int16_t)((inst[1] & 0x3FF) << 6) / 16384.0f;
+	v.body.normal[1] = (int16_t)((inst[2] & 0x3FF) << 6) / 16384.0f;
+	v.body.normal[2] = (int16_t)((inst[3] & 0x3FF) << 6) / 16384.0f;
 
 	hikaru_renderer_push_vertices (HR, &v, HR_PUSH_POS | HR_PUSH_NRM, 1);
 }
@@ -2328,9 +2328,9 @@ I (0x1AC)
 
 	v.info.full = inst[0];
 
-	v.position[0] = *(float *) &inst[1];
-	v.position[1] = *(float *) &inst[2];
-	v.position[2] = *(float *) &inst[3];
+	v.body.position[0] = *(float *) &inst[1];
+	v.body.position[1] = *(float *) &inst[2];
+	v.body.position[2] = *(float *) &inst[3];
 
 	hikaru_renderer_push_vertices (HR, &v, HR_PUSH_POS, 1);
 }
@@ -2348,16 +2348,16 @@ I (0x1B8)
 
 	v.info.full = inst[0];
 
-	v.position[0] = *(float *) &inst[1];
-	v.position[1] = *(float *) &inst[2];
-	v.position[2] = *(float *) &inst[3];
+	v.body.position[0] = *(float *) &inst[1];
+	v.body.position[1] = *(float *) &inst[2];
+	v.body.position[2] = *(float *) &inst[3];
 
-	v.normal[0] = *(float *) &inst[5];
-	v.normal[1] = *(float *) &inst[6];
-	v.normal[2] = *(float *) &inst[7];
+	v.body.normal[0] = *(float *) &inst[5];
+	v.body.normal[1] = *(float *) &inst[6];
+	v.body.normal[2] = *(float *) &inst[7];
 
-	v.texcoords[0] = ((int16_t) inst[4]) / 16.0f;
-	v.texcoords[1] = ((int16_t) (inst[4] >> 16)) / 16.0f;
+	v.body.texcoords[0] = ((int16_t) inst[4]) / 16.0f;
+	v.body.texcoords[1] = ((int16_t) (inst[4] >> 16)) / 16.0f;
 
 	hikaru_renderer_push_vertices (HR, &v, HR_PUSH_POS | HR_PUSH_NRM | HR_PUSH_TXC, 1);
 }
@@ -2390,8 +2390,8 @@ I (0x0E8)
 	for (i = 0; i < 3; i++) {
 		vs[i].info.full = inst[0];
 
-		vs[i].texcoords[0] = ((int16_t) inst[i+1]) / 16.0f;
-		vs[i].texcoords[1] = ((int16_t) (inst[i+1] >> 16)) / 16.0f;
+		vs[i].body.texcoords[0] = ((int16_t) inst[i+1]) / 16.0f;
+		vs[i].body.texcoords[1] = ((int16_t) (inst[i+1] >> 16)) / 16.0f;
 	}
 
 	hikaru_renderer_push_vertices (HR, &vs[0], HR_PUSH_TXC, 3);
@@ -2419,8 +2419,8 @@ I (0x158)
 
 	v.info.full = inst[0];
 
-	v.texcoords[0] = ((int16_t) inst[1]) / 16.0f;
-	v.texcoords[1] = ((int16_t) (inst[1] >> 16)) / 16.0f;
+	v.body.texcoords[0] = ((int16_t) inst[1]) / 16.0f;
+	v.body.texcoords[1] = ((int16_t) (inst[1] >> 16)) / 16.0f;
 
 	hikaru_renderer_push_vertices (HR, &v, HR_PUSH_TXC, 1);
 }
