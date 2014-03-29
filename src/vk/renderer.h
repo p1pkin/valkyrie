@@ -24,7 +24,32 @@
 #include "vk/core.h"
 
 #define VK_ASSERT_NO_GL_ERROR() \
-	VK_ASSERT (glGetError () == GL_NO_ERROR)
+	do { \
+		GLenum error = glGetError (); \
+		char *msg = NULL; \
+		switch (error) { \
+		case GL_INVALID_ENUM: \
+			msg = "invalid enum"; \
+			break; \
+		case GL_INVALID_VALUE: \
+			msg = "invalid value"; \
+			break; \
+		case GL_INVALID_OPERATION: \
+			msg = "invalid operation"; \
+			break; \
+		case GL_INVALID_FRAMEBUFFER_OPERATION: \
+			msg = "invalid fb operation"; \
+			break; \
+		case GL_OUT_OF_MEMORY: \
+			msg = "out of memory"; \
+			break; \
+		default: \
+			break; \
+		} \
+		if (msg) \
+			VK_ERROR ("GL ERROR: %s", msg); \
+		VK_ASSERT (error == GL_NO_ERROR); \
+	} while (0)
 
 typedef struct vk_renderer_t vk_renderer_t;
 
