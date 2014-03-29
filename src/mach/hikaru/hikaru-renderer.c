@@ -37,6 +37,9 @@
 
 #define INV255	(1.0f / 255.0f)
 
+#define isnonnegative(x_) \
+	(isfinite(x_) && (x_) >= 0.0)
+
 /****************************************************************************
  Debug
 ****************************************************************************/
@@ -879,9 +882,9 @@ upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	VK_ASSERT (mesh->vp_index != ~0);
 
-	if (!ispositive (vp->clip.l) || !ispositive (vp->clip.r) ||
-	    !ispositive (vp->clip.b) || !ispositive (vp->clip.t) ||
-	    !ispositive (vp->clip.f) || !ispositive (vp->clip.n)) {
+	if (!isnonnegative (vp->clip.l) || !isnonnegative (vp->clip.r) ||
+	    !isnonnegative (vp->clip.b) || !isnonnegative (vp->clip.t) ||
+	    !isnonnegative (vp->clip.f) || !isnonnegative (vp->clip.n)) {
 		VK_ERROR ("non-positive viewport clipping planes: %s",
 		          get_viewport_str (vp));
 		/* continue anyway */
@@ -895,8 +898,8 @@ upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		/* continue anyway */
 	}
 
-	if (!ispositive (vp->offset.x) || (vp->offset.x >= 640.0f) ||
-	    !ispositive (vp->offset.y) || (vp->offset.y >= 480.0f)) {
+	if (!isnonnegative (vp->offset.x) || (vp->offset.x >= 640.0f) ||
+	    !isnonnegative (vp->offset.y) || (vp->offset.y >= 480.0f)) {
 		VK_ERROR ("invalid viewport offset: %s",
 		          get_viewport_str (vp));
 		/* continue anyway */

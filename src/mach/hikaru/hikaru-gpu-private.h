@@ -488,9 +488,6 @@ typedef enum {
 	_1A_IRQ_UNK3	= (1 << 3)
 } _1a_irq_t;
 
-#define ispositive(x_) \
-	(isfinite(x_) && (x_) >= 0.0)
-
 /* hikaru-gpu-private.c */
 void get_texhead_coords (uint32_t *, uint32_t *, hikaru_texhead_t *);
 const char *get_viewport_str (hikaru_viewport_t *);
