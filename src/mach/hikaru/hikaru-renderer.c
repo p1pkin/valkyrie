@@ -896,7 +896,7 @@ upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	glUniformMatrix4fv (hr->meshes.locs.u_projection, 1, GL_FALSE,
 	                    (const GLfloat *) projection);
 
-	{
+	if (hr->meshes.variant.has_fog) {
 		vec2f_t fog;
 		vec3f_t fog_color;
 
