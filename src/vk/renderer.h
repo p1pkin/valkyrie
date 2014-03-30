@@ -23,6 +23,9 @@
 
 #include "vk/core.h"
 
+#ifdef NDEBUG
+#define VK_ASSERT_NO_GL_ERROR()
+#else
 #define VK_ASSERT_NO_GL_ERROR() \
 	do { \
 		GLenum error = glGetError (); \
@@ -50,6 +53,7 @@
 			VK_ERROR ("GL ERROR: %s", msg); \
 		VK_ASSERT (error == GL_NO_ERROR); \
 	} while (0)
+#endif
 
 typedef struct vk_renderer_t vk_renderer_t;
 
