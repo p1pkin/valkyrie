@@ -302,6 +302,10 @@ upload_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th)
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	VK_ASSERT_NO_GL_ERROR ();
 
+	/* XXX hack to make textures slightly less blurry. */
+	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_LOD_BIAS, -1);
+	VK_ASSERT_NO_GL_ERROR ();
+
 	glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, num_levels - 1);
 	VK_ASSERT_NO_GL_ERROR ();
 
