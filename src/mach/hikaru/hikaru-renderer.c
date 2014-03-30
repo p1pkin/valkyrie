@@ -1065,16 +1065,16 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 	unsigned i;
 
 	for (i = 0; i < 3; i++)
-		dst->body.diffuse[i] = mat->diffuse[i] * INV255;
+		dst->body.diffuse[i] = mat->diffuse[i];
 
 	for (i = 0; i < 3; i++)
-		dst->body.ambient[i] = mat->ambient[i] * INV255;
+		dst->body.ambient[i] = mat->ambient[i];
 
 	for (i = 0; i < 4; i++)
-		dst->body.specular[i] = mat->specular[i] * INV255;
+		dst->body.specular[i] = mat->specular[i];
 
 	for (i = 0; i < 3; i++)
-		dst->body.unknown[i] = mat->unknown[i] * INV255;
+		dst->body.unknown[i] = mat->unknown[i];
 
 	/* Patch diffuse alpha depending on poly type. NOTE: transparent
 	 * polygons also have an alpha, with unknown meaning (it seems to have
@@ -1085,7 +1085,7 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 		float v_alpha = src->info.alpha * INV255;
 		alpha = clampf (p_alpha * v_alpha, 0.0f, 1.0f);
 	}
-	dst->body.alpha = alpha;
+	dst->body.alpha = (uint8_t) (alpha * 255.0f);
 }
 
 static void
@@ -1301,9 +1301,9 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 #define OFFSET(member_) \
 	((const GLvoid *) offsetof (hikaru_vertex_body_t, member_))
 
-#define VAP(loc_, num_, type_, member_) \
+#define VAP(loc_, num_, type_, member_, normalize_) \
 	if (loc_ != (GLuint) -1) { \
-		glVertexAttribPointer (loc_, num_, type_, GL_FALSE, \
+		glVertexAttribPointer (loc_, num_, type_, normalize_, \
 		                       sizeof (hikaru_vertex_body_t), \
 		                       OFFSET (member_)); \
 		VK_ASSERT_NO_GL_ERROR (); \
@@ -1340,14 +1340,14 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	VK_ASSERT_NO_GL_ERROR ();
 
 	/* We must do it here since locs are computed in upload_glsl_program. */
-	VAP (0, 3, GL_FLOAT, position);
-	VAP (1, 3, GL_FLOAT, normal);
-	VAP (2, 3, GL_FLOAT, diffuse);
-	VAP (3, 3, GL_FLOAT, ambient);
-	VAP (4, 4, GL_FLOAT, specular);
-	VAP (5, 3, GL_FLOAT, unknown);
-	VAP (6, 2, GL_FLOAT, texcoords);
-	VAP (7, 1, GL_FLOAT, alpha);
+	VAP (0, 3, GL_FLOAT,          position,  GL_FALSE);
+	VAP (1, 3, GL_FLOAT,          normal,    GL_FALSE);
+	VAP (2, 3, GL_UNSIGNED_BYTE,  diffuse,   GL_TRUE);
+	VAP (3, 3, GL_UNSIGNED_BYTE,  ambient,   GL_TRUE);
+	VAP (4, 4, GL_UNSIGNED_BYTE,  specular,  GL_TRUE);
+	VAP (5, 3, GL_UNSIGNED_SHORT, unknown,   GL_TRUE);
+	VAP (6, 2, GL_FLOAT,          texcoords, GL_FALSE);
+	VAP (7, 1, GL_UNSIGNED_BYTE,  alpha,     GL_TRUE);
 
 	if (hr->debug.flags[HR_DEBUG_NO_INSTANCING]) {
 		unsigned i = MIN2 (hr->debug.flags[HR_DEBUG_SELECT_INSTANCE],

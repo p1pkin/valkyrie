@@ -466,19 +466,17 @@ typedef union {
 } hikaru_vertex_info_t;
 
 typedef struct {
-	vec3f_t position;
-	uint32_t padding0;
-	vec3f_t normal;
-	uint32_t padding1;
-	vec3f_t diffuse;
-	float alpha;
-	vec3f_t ambient;
+	vec3f_t position;	/* 0x00 */
+	vec3b_t diffuse;	/* 0x0C */
+	uint8_t alpha;		/* 0x0F */
+	vec3f_t normal;		/* 0x10 */
+	vec3b_t ambient;	/* 0x1C */
+	uint8_t padding3;
+	vec2f_t texcoords;	/* 0x20 */
+	vec4b_t specular;	/* 0x28 */
 	uint32_t padding2;
-	vec4f_t specular;
-	vec4f_t unknown;
-	uint32_t padding3;
-	vec2f_t texcoords;
-	uint32_t padding4[2];
+	vec3s_t unknown;	/* 0x30 */
+	uint16_t padding4;
 } hikaru_vertex_body_t;
 
 typedef struct {
