@@ -1487,6 +1487,9 @@ draw_scene (hikaru_renderer_t *hr)
 	};
 	unsigned vpi, i;
 
+	if (hr->debug.flags[HR_DEBUG_NO_3D])
+		return;
+
 	glEnable (GL_DEPTH_TEST);
 	glDepthFunc (GL_LEQUAL);
 
