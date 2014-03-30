@@ -1445,11 +1445,14 @@ draw_meshes_for_polytype (hikaru_renderer_t *hr, unsigned vpi, int polytype)
 	unsigned num = hr->num_meshes[vpi][polytype];
 	int j;
 
+	if (num == 0)
+		return;
+
 	if (hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] >= 0 &&
 	    hr->debug.flags[HR_DEBUG_SELECT_POLYTYPE] != polytype)
 		goto destroy_meshes;
 
-	LOG (" ==== DRAWING POLYTYPE %d ====", polytype);
+	LOG (" ==== DRAWING VP %u, POLYTYPE %d ====", vpi, polytype);
 
 	switch (polytype) {
 	case HIKARU_POLYTYPE_TRANSPARENT:
@@ -1511,7 +1514,7 @@ draw_scene (hikaru_renderer_t *hr)
 		break;
 	}
 
-	for (vpi = 0; vpi < 7; vpi++) {
+	for (vpi = 0; vpi < 8; vpi++) {
 		glDepthMask (GL_TRUE);
 		glClear (GL_DEPTH_BUFFER_BIT);
 		for (i = 0; i < NUMELEM (sorted_polytypes); i++)
