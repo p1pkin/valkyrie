@@ -51,21 +51,16 @@ static const struct {
 	[HR_DEBUG_NO_LAYER2]		= {  0, 1, SDLK_2 },
 	[HR_DEBUG_NO_3D]		= {  0, 1, SDLK_3 },
 	[HR_DEBUG_SELECT_VIEWPORT]	= { -1, 7, SDLK_v },
-	[HR_DEBUG_SELECT_BASE_COLOR]	= {  0, 9, SDLK_c },
 	[HR_DEBUG_SELECT_CULLFACE]	= { -1, 1, SDLK_f },
 	[HR_DEBUG_NO_TEXTURES]		= {  0, 1, SDLK_t },
 	[HR_DEBUG_NO_MIPMAPS]		= {  0, 1, SDLK_u },
-	[HR_DEBUG_USE_DEBUG_TEXTURE]	= {  0, 1, SDLK_y },
-	[HR_DEBUG_DUMP_TEXTURES]	= {  0, 1,     ~0 },
 	[HR_DEBUG_SELECT_POLYTYPE]	= { -1, 7, SDLK_p },
 	[HR_DEBUG_NO_INSTANCING]	= {  0, 1, SDLK_i },
 	[HR_DEBUG_SELECT_INSTANCE]	= {  0, 3, SDLK_j }, 
-	[HR_DEBUG_DRAW_NORMALS]		= {  0, 1, SDLK_n },
 	[HR_DEBUG_NO_LIGHTING]		= {  0, 1, SDLK_l },
 	[HR_DEBUG_NO_AMBIENT]		= {  0, 1, SDLK_a },
 	[HR_DEBUG_NO_DIFFUSE]		= {  0, 1, SDLK_d },
 	[HR_DEBUG_NO_SPECULAR]		= {  0, 1, SDLK_s },
-	[HR_DEBUG_SELECT_ATT_TYPE]	= { -1, 4, SDLK_z },
 	[HR_DEBUG_NO_FOG]		= {  0, 1, SDLK_g },
 };
 
@@ -79,8 +74,6 @@ init_debug_flags (hikaru_renderer_t *hr)
 
 	hr->debug.flags[HR_DEBUG_LOG] =
 		vk_util_get_bool_option ("HR_LOG", false) ? 1 : 0;
-	hr->debug.flags[HR_DEBUG_DUMP_TEXTURES] =
-		vk_util_get_bool_option ("HR_DUMP_TEXTURES", false) ? 1 : 0;
 }
 
 static void
@@ -665,10 +658,6 @@ get_glsl_variant (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	variant.has_phong		= ls && ls->mask != 0xF &&
 	                                  mat->shading_mode == 2 &&
 	                                  !hr->debug.flags[HR_DEBUG_NO_LIGHTING];
-
-//		if (hr->debug.flags[HR_DEBUG_SELECT_ATT_TYPE] >= 0 &&
-//		    hr->debug.flags[HR_DEBUG_SELECT_ATT_TYPE] != get_light_attenuation_type (lt))
-//			continue;
 
 	variant.has_light0		= variant.has_lighting && !(ls->mask & (1 << 0));
 	variant.light0_type		= variant.has_lighting && get_light_type (&ls->lights[0]);
