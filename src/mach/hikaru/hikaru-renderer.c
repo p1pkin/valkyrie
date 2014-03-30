@@ -265,6 +265,52 @@ destroy_texture (hikaru_texture_t *tex)
 	memset ((void *) tex, 0, sizeof (hikaru_texture_t));
 }
 
+static uint16_t
+abgr1111_to_rgba4444 (uint32_t texel)
+{
+	static const uint16_t table[16] = {
+		0x0000, 0xF000, 0x0F00, 0xFF00,
+		0x00F0, 0xF0F0, 0x0FF0, 0xFFF0,
+		0x000F, 0xF00F, 0x0F0F, 0xFF0F,
+		0x00FF, 0xF0FF, 0x0FFF, 0xFFFF,
+	};
+	return table[texel & 15];
+}
+
+#define PUT16(x, y, t) \
+	*(uint16_t *) &(data[(y)*w*2 + (x)*2]) = (t)
+
+static void *
+decode_texture_abgr1111 (vk_buffer_t *texram,
+                         uint32_t w, uint32_t h,
+                         uint32_t basex, uint32_t basey)
+{
+	uint32_t x, y;
+	uint8_t *data;
+
+	data = (uint8_t *) malloc (w * (h * 2) * 2);
+	if (!data)
+		return NULL;
+
+	for (y = 0; y < h; y++) {
+		for (x = 0; x < w; x += 4) {
+			uint32_t offs = (basey + y) * 4096 + (basex + x);
+			uint32_t texels = vk_buffer_get (texram, 4, offs);
+			PUT16 (x + 0, y*2 + 0, abgr1111_to_rgba4444 (texels >> 28));
+			PUT16 (x + 1, y*2 + 0, abgr1111_to_rgba4444 (texels >> 24));
+			PUT16 (x + 0, y*2 + 1, abgr1111_to_rgba4444 (texels >> 20));
+			PUT16 (x + 1, y*2 + 1, abgr1111_to_rgba4444 (texels >> 16));
+			PUT16 (x + 2, y*2 + 0, abgr1111_to_rgba4444 (texels >> 12));
+			PUT16 (x + 3, y*2 + 0, abgr1111_to_rgba4444 (texels >> 8));
+			PUT16 (x + 2, y*2 + 1, abgr1111_to_rgba4444 (texels >> 4));
+			PUT16 (x + 3, y*2 + 1, abgr1111_to_rgba4444 (texels >> 0));
+		}
+	}
+	return (void *) data;
+}
+
+#undef PUT16
+
 static GLuint
 upload_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th)
 {
@@ -358,6 +404,21 @@ upload_texture (hikaru_renderer_t *hr, hikaru_texhead_t *th)
 			glTexParameteriv (GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA,
 			                  a8_swizzle);
 			VK_ASSERT_NO_GL_ERROR ();
+			break;
+		case HIKARU_FORMAT_ABGR1111:
+			data = decode_texture_abgr1111 (hr->gpu->texram[bank],
+			                                w, h, basex, basey);
+			if (!data)
+				goto fail;
+
+			glTexImage2D (GL_TEXTURE_2D, level,
+			              GL_RGBA4,
+			              w, h * 2, 0,
+			              GL_RGBA, GL_UNSIGNED_SHORT_4_4_4_4_REV,
+			              data);
+			VK_ASSERT_NO_GL_ERROR ();
+
+			free (data);
 			break;
 		default:
 			goto fail;
