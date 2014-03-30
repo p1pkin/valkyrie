@@ -647,8 +647,10 @@ get_glsl_variant (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	VK_ASSERT (mesh->vp_index != ~0);
 	VK_ASSERT (mesh->mat_index != ~0);
+	VK_ASSERT (mesh->tex_index != ~0);
 
-	variant.has_texture		= mat->has_texture &&
+	variant.has_texture		= mesh->tex_index != ~0 &&
+	                                  mat->has_texture &&
 	                        	  !hr->debug.flags[HR_DEBUG_NO_TEXTURES];
 
 	variant.has_lighting		= ls && ls->mask != 0xF &&
@@ -916,27 +918,23 @@ upload_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, unsigned i)
 static void
 upload_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
-	hikaru_material_t *mat = &hr->mat_list[mesh->mat_index];
-	hikaru_texhead_t *th = &hr->tex_list[mesh->tex_index];
+	hikaru_texture_t *tex;
 
-	VK_ASSERT (mesh->mat_index != ~0);
-	VK_ASSERT (mesh->tex_index != ~0);
+	if (!hr->meshes.variant.has_texture)
+		return;
 
-	if (mat->has_texture && !hr->debug.flags[HR_DEBUG_NO_TEXTURES]) {
-		hikaru_texture_t *tex;
+	tex = get_texture (hr, &hr->tex_list[mesh->tex_index]);
+	if (!tex)
+		return;
 
-		tex = get_texture (hr, th);
-		if (tex) {
-			glActiveTexture (GL_TEXTURE0 + 0);
-			VK_ASSERT_NO_GL_ERROR ();
+	glActiveTexture (GL_TEXTURE0 + 0);
+	VK_ASSERT_NO_GL_ERROR ();
 
-			glBindTexture (GL_TEXTURE_2D, tex->id);
-			VK_ASSERT_NO_GL_ERROR ();
+	glBindTexture (GL_TEXTURE_2D, tex->id);
+	VK_ASSERT_NO_GL_ERROR ();
 
-			glUniform1i (hr->meshes.locs.u_texture, 0);
-			VK_ASSERT_NO_GL_ERROR ();
-		}
-	}
+	glUniform1i (hr->meshes.locs.u_texture, 0);
+	VK_ASSERT_NO_GL_ERROR ();
 }
 
 static void
