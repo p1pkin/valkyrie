@@ -16,10 +16,9 @@
  * along with Valkyrie.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __VK_SH4_H__
-#define __VK_SH4_H__
+#ifndef __SH4_H__
+#define __SH4_H__
 
-#include "vk/types.h"
 #include "vk/core.h"
 #include "vk/buffer.h"
 #include "vk/cpu.h"
@@ -193,4 +192,4 @@ void		 sh4_set_porta_handlers (vk_cpu_t *cpu,
 		                         int (* get)(sh4_t *ctx, uint16_t *val),
 		                         int (* put)(sh4_t *ctx, uint16_t val));
 
-#endif /* __VK_SH4_H__ */
+#endif /* __SH4_H__ */
