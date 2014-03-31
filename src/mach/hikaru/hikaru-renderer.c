@@ -707,12 +707,26 @@ get_glsl_variant (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_viewport_t *vp   = &hr->vp_list[mesh->vp_index];
 	hikaru_material_t *mat	= &hr->mat_list[mesh->mat_index];
-	hikaru_lightset_t *ls	= (mesh->ls_index == ~0) ? NULL : &hr->ls_list[mesh->ls_index];
+	hikaru_lightset_t *ls	= &hr->ls_list[mesh->ls_index];
 	hikaru_glsl_variant_t variant;
 
 	VK_ASSERT (mesh->vp_index != ~0);
-	VK_ASSERT (mesh->mat_index != ~0);
-	VK_ASSERT (mesh->tex_index != ~0);
+
+	variant.full = 0;
+
+	if (mesh->mat_index == ~0) {
+		VK_ERROR ("no material.");
+		return variant;
+	}
+	if (mesh->tex_index == ~0) {
+		VK_ERROR ("no texhead.");
+		return variant;
+	}
+	if (mesh->ls_index == ~0) {
+		VK_ERROR ("no lightset.");
+		ls = NULL;
+		/* continue */
+	}
 
 	variant.has_texture		= mesh->tex_index != ~0 &&
 	                                  mat->has_texture &&
