@@ -510,7 +510,7 @@ memctl_bus_get (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, void 
 		set_ptr (val, size, 0xFFFFFFFF);
 		log = true;
 	} else {
-		VK_CPU_ERROR (hikaru->sh_current, "MEMCTL W%u %08X = %X", size * 8, bus_addr, val);
+		VK_CPU_ERROR (hikaru->sh_current, "MEMCTL R%u %08X", size * 8, bus_addr);
 		return -1;
 	}
 	if (log)
@@ -610,11 +610,11 @@ memctl_bus_put (hikaru_memctl_t *memctl, unsigned size, uint32_t bus_addr, uint6
 		/* ROMBD EEPROM */
 		log = true;
 	} else {
-		VK_CPU_ERROR (hikaru->sh_current, "MEMCTL W%u %08X = %X", size * 8, bus_addr, val);
+		VK_CPU_ERROR (hikaru->sh_current, "MEMCTL W%u %08X = %lX", size * 8, bus_addr, val);
 		return -1;
 	}
 	if (log)
-		VK_CPU_LOG (hikaru->sh_current, "MEMCTL W%u %08X = %X", size * 8, bus_addr, val);
+		VK_CPU_LOG (hikaru->sh_current, "MEMCTL W%u %08X = %lX", size * 8, bus_addr, val);
 	return 0;
 }
 

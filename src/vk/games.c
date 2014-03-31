@@ -20,7 +20,7 @@
 #include "vk/games.h"
 #include "vk/buffer.h"
 
-static const int current_version = 1;
+static const unsigned current_version = 1;
 
 enum {
 	MODE_ALTERNATIVE,
@@ -327,7 +327,7 @@ vk_game_list_new (const char *path)
 		json_int_t value = json_integer_value (version);
 		if (current_version != (unsigned) value) {
 			VK_ERROR ("invalid game list version: found %u, expected %u",
-			          value, current_version);
+			          (unsigned) value, current_version);
 			goto fail;
 		}
 	} else {

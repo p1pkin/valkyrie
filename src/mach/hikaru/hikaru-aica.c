@@ -106,7 +106,7 @@ hikaru_aica_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val
 	hikaru_aica_t *aica = (hikaru_aica_t *) device;
 	uint32_t offs = addr & 0xFFFFFF;
 
-	VK_MACH_LOG (device->mach, "AICA/%c W%u @%08X = %X",
+	VK_MACH_LOG (device->mach, "AICA/%c W%u @%08X = %lX",
 	             aica->master ? 'M' : 'S', 8*size, offs, val);
 
 	switch (offs) {
@@ -126,7 +126,7 @@ hikaru_aica_put (vk_device_t *device, unsigned size, uint32_t addr, uint64_t val
 		vk_buffer_put (aica->ram, size, addr & 0x7FFFFF, val);
 		break;
 	default:
-		VK_MACH_ERROR (device->mach, "AICA unhandled W%u %08X = %X", size*8, addr, val);
+		VK_MACH_ERROR (device->mach, "AICA unhandled W%u %08X = %lX", size*8, addr, val);
 		return -1;
 	}
 	return 0;

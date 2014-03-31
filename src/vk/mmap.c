@@ -100,7 +100,7 @@ vk_mmap_put (vk_mmap_t *mmap, unsigned size, uint32_t addr, uint64_t data)
 		return -1;
 
 	if (region->flags & VK_REGION_LOG_WRITE)
-		VK_MACH_LOG (mmap->mach, "%s W%u %08X = %X", region->name, size * 8, addr, data);
+		VK_MACH_LOG (mmap->mach, "%s W%u %08X = %lX", region->name, size * 8, addr, data);
 
 	if (region->flags & VK_REGION_NOP)
 		return 0;

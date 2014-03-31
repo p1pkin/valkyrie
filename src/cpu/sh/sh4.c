@@ -612,7 +612,7 @@ sh4_ireg_get (sh4_t *ctx, unsigned size, uint32_t addr, void *val)
 static int
 sh4_ireg_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 {
-	VK_CPU_LOG (ctx, "IREG W%u %08X = %llX", size * 8, addr, val);
+	VK_CPU_LOG (ctx, "IREG W%u %08X = %lX", size * 8, addr, val);
 
 	switch (addr & 0xFFFFFF) {
 	case 0x900000 ... 0x90FFFF: /* BSC_SDRM2 */
@@ -881,7 +881,7 @@ sh4_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 	if (IS_ON_CHIP (addr))
 		ret = sh4_ireg_put (ctx, size, addr, val);
 	else if (addr >= 0xF0000000 && addr < 0xF8000000) {
-		VK_CPU_ABORT (ctx, "ONCHIP W%d @%08X = %llX", 8*size, addr, val);
+		VK_CPU_ABORT (ctx, "ONCHIP W%d @%08X = %lX", 8*size, addr, val);
 		return 0;
 	} else if (IS_STORE_QUEUE (addr))
 		ret = sh4_sq_put (ctx, size, addr, val);
@@ -889,7 +889,7 @@ sh4_put (sh4_t *ctx, unsigned size, uint32_t addr, uint64_t val)
 		ret = vk_cpu_put ((vk_cpu_t *) ctx, size, addr & ADDR_MASK, val);
 	/* TODO propagate to the caller to allow for memory exceptions */
 	if (ret)
-		VK_CPU_ERROR (ctx, "unhandled W%d @%08X = %llX", 8*size, addr, val);
+		VK_CPU_ERROR (ctx, "unhandled W%d @%08X = %lX", 8*size, addr, val);
 	return ret;
 }
 
