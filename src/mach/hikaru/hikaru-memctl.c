@@ -702,47 +702,49 @@ static int
 hikaru_memctl_exec (vk_device_t *dev, int cycles)
 {
 	hikaru_memctl_t *memctl = (hikaru_memctl_t *) dev;
-	uint32_t src, dst, len, ctl;
+	uint32_t src, dst, len, ctl, todo;
+
+	len = vk_buffer_get (memctl->regs, 4, 0x38);
+
+	if (!(len & 0x01000000))
+		return 0;
 
 	src = vk_buffer_get (memctl->regs, 4, 0x30);
 	dst = vk_buffer_get (memctl->regs, 4, 0x34);
-	len = vk_buffer_get (memctl->regs, 4, 0x38) & 0xFFFFFF;
-	ctl = vk_buffer_get (memctl->regs, 4, 0x38) >> 24;
+	ctl = len >> 24;
+	len = len & 0xFFFFFF;
 
 	/* DMA is running */
-	if (ctl & 1) {
-		int todo;
+	VK_LOG ("MEMCTL DMA: %08X -> %08X x %08X", src, dst, len);
 
-		VK_LOG ("MEMCTL DMA: %08X -> %08X x %08X", src, dst, len);
+	/* Assume one word per cycle */
+	todo = MIN2 ((int) len, cycles);
+	len -= todo;
 
-		/* Assume one word per cycle */
-		todo = MIN2 ((int) len, cycles);
-		len -= todo;
+	VK_ASSERT ((len & 0xFF000000) == 0);
 
-		VK_ASSERT ((len & 0xFF000000) == 0);
-
-		while (todo--) {
-			uint32_t tmp;
-			memctl_bus_get (memctl, 4, src & 0x7FFFFFFF, &tmp);
-			memctl_bus_put (memctl, 4, dst & 0x7FFFFFFF, tmp);
-			src += 4;
-			dst += 4;
-		}
-
-		/* Transfer completed */
-		if (len == 0) {
-			ctl = 0;
-			/* Set DMA done, clear error flags */
-			vk_buffer_put (memctl->regs, 2, 0x04, 0x1000);
-			/* Raise an IRQ */
-			hikaru_raise_memctl_irq (memctl->base.mach);
-		}
-
-		/* Write the values back */
-		vk_buffer_put (memctl->regs, 4, 0x30, src);
-		vk_buffer_put (memctl->regs, 4, 0x34, dst);
-		vk_buffer_put (memctl->regs, 4, 0x38, (ctl << 24) | len);
+	while (todo--) {
+		uint32_t tmp;
+		memctl_bus_get (memctl, 4, src & 0x7FFFFFFF, &tmp);
+		memctl_bus_put (memctl, 4, dst & 0x7FFFFFFF, tmp);
+		src += 4;
+		dst += 4;
 	}
+
+	/* Transfer completed */
+	if (len == 0) {
+		ctl = 0;
+		/* Set DMA done, clear error flags */
+		vk_buffer_put (memctl->regs, 2, 0x04, 0x1000);
+		/* Raise an IRQ */
+		hikaru_raise_memctl_irq (memctl->base.mach);
+	}
+
+	/* Write the values back */
+	vk_buffer_put (memctl->regs, 4, 0x30, src);
+	vk_buffer_put (memctl->regs, 4, 0x34, dst);
+	vk_buffer_put (memctl->regs, 4, 0x38, (ctl << 24) | len);
+
 	return 0;
 }
 
