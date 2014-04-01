@@ -962,7 +962,7 @@ hikaru_init (hikaru_t *hikaru)
 	    !hikaru->texram[0] || !hikaru->texram[1] ||
 	    !hikaru->aica_ram_m || !hikaru->aica_ram_s ||
 	    !hikaru->bram || !hikaru->mie_ram)
-		goto fail;
+		return -1;
 
 	vk_machine_register_buffer (mach, (void *) hikaru->ram_m);
 	vk_machine_register_buffer (mach, (void *) hikaru->ram_s);
@@ -993,11 +993,11 @@ hikaru_init (hikaru_t *hikaru)
 			vk_buffer_put (hikaru->bootrom, 2, 0x8E6, 0xE00F); /* MOV R0, 0xFFFFFFFF */
 		else {
 			VK_ERROR ("unknown BOOTROM version!");
-			goto fail;
+			return -1;
 		}
 
 		if (hikaru_set_rombd_config (hikaru))
-			goto fail;
+			return -1;
 	} else {
 		/* Create a mock bootrom */                                     
 		hikaru->bootrom = vk_buffer_le32_new (2*MB, 0);
@@ -1007,15 +1007,15 @@ hikaru_init (hikaru_t *hikaru)
 	hikaru->memctl_s = hikaru_memctl_new (mach, false);
 
 	if (!hikaru->memctl_m || !hikaru->memctl_s)
-		goto fail;
+		return -1;
 
 	hikaru->mscomm = hikaru_mscomm_new (mach);
 	if (!hikaru->mscomm)
-		goto fail;
+		return -1;
 
 	hikaru->mie = hikaru_mie_new (mach);
 	if (!hikaru->mie)
-		goto fail;
+		return -1;
 
 	hikaru->base.renderer = hikaru_renderer_new (hikaru->fb,
 	                                             hikaru->texram);
@@ -1024,7 +1024,7 @@ hikaru_init (hikaru_t *hikaru)
 	                              hikaru->texram, hikaru->base.renderer);
 
 	if (!hikaru->gpu || !hikaru->base.renderer)
-		goto fail;
+		return -1;
 
 	hikaru_renderer_set_gpu (hikaru->base.renderer, hikaru->gpu);
 
@@ -1032,19 +1032,19 @@ hikaru_init (hikaru_t *hikaru)
 	hikaru->aica_s = hikaru_aica_new (mach, hikaru->aica_ram_m, false);
 
 	if (!hikaru->aica_m || !hikaru->aica_s)
-		goto fail;
+		return -1;
 
 	hikaru->mmap_m = setup_master_mmap (hikaru);
 	hikaru->mmap_s = setup_slave_mmap (hikaru);
 
 	if (!hikaru->mmap_m || !hikaru->mmap_s)
-		goto fail;
+		return -1;
 
 	hikaru->sh_m = sh4_new (mach, hikaru->mmap_m, true, true);
 	hikaru->sh_s = sh4_new (mach, hikaru->mmap_s, false, true);
 
 	if (!hikaru->sh_m || !hikaru->sh_s)
-		goto fail;
+		return -1;
 
 	sh4_set_porta_handlers (hikaru->sh_m, porta_get_m, porta_put_m);
 	sh4_set_porta_handlers (hikaru->sh_s, porta_get_s, porta_put_s);
@@ -1052,10 +1052,6 @@ hikaru_init (hikaru_t *hikaru)
 	hikaru_install_game_patches (hikaru);
 
 	return 0;
-
-fail:
-	hikaru_destroy (&mach);
-	return -1;
 }
 
 struct vk_machine_t *
