@@ -26,9 +26,20 @@ vk_machine_destroy (vk_machine_t **mach_)
 {
 	if (mach_) {
 		vk_machine_t *mach = *mach_;
+		unsigned i;
 
+		VK_VECTOR_FOREACH (mach->buffers, i) {
+			vk_buffer_t *buf = *(vk_buffer_t **) &mach->buffers->data[i];
+			vk_buffer_destroy (&buf);
+		}
 		vk_vector_destroy (&mach->buffers);
+
+		VK_VECTOR_FOREACH (mach->devices, i) {
+			vk_device_t *dev = *(vk_device_t **) &mach->devices->data[i];
+			vk_device_destroy (&dev);
+		}
 		vk_vector_destroy (&mach->devices);
+
 		vk_vector_destroy (&mach->cpus);
 
 		mach->destroy (mach_);

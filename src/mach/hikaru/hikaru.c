@@ -932,28 +932,8 @@ hikaru_destroy (vk_machine_t **mach_)
 			/* dump everything we got before quitting */
 			hikaru_dump ((vk_machine_t *) hikaru);
 
-			vk_device_destroy (&hikaru->memctl_m);
-			vk_device_destroy (&hikaru->memctl_s);
-			vk_device_destroy (&hikaru->mscomm);
-			vk_device_destroy (&hikaru->mie);
-			vk_device_destroy (&hikaru->gpu);
-
-			vk_device_destroy ((vk_device_t **) &hikaru->sh_m);
-			vk_device_destroy ((vk_device_t **) &hikaru->sh_s);
-
 			vk_mmap_destroy (&hikaru->mmap_m);
 			vk_mmap_destroy (&hikaru->mmap_s);
-
-			vk_buffer_destroy (&hikaru->ram_m);
-			vk_buffer_destroy (&hikaru->ram_s);
-			vk_buffer_destroy (&hikaru->cmdram);
-			vk_buffer_destroy (&hikaru->fb);
-			vk_buffer_destroy (&hikaru->texram[0]);
-			vk_buffer_destroy (&hikaru->texram[1]);
-			vk_buffer_destroy (&hikaru->aica_ram_m);
-			vk_buffer_destroy (&hikaru->aica_ram_s);
-			vk_buffer_destroy (&hikaru->bram);
-			vk_buffer_destroy (&hikaru->mie_ram);
 		}
 		free (hikaru);
 		*mach_ = NULL;
