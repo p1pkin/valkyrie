@@ -128,8 +128,6 @@ static int
 load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 {
 	vk_state_t *state;
-	vk_buffer_t *buf;
-	vk_device_t *dev;
 	char *op;
 	unsigned i;
 	int ret = 0;
@@ -148,35 +146,37 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 	if (mode == VK_STATE_LOAD)
 		vk_machine_reset (mach, VK_RESET_TYPE_HARD);
 
-	for (i = 0; !ret && i < mach->buffers->used; i += sizeof (vk_buffer_t *)) {
-		buf = *((vk_buffer_t **) &mach->buffers->data[i]);
+	VK_VECTOR_FOREACH (mach->buffers, i) {
+		vk_buffer_t *buf = *(vk_buffer_t **) &mach->buffers->data[i];
 		ret = (mode == VK_STATE_LOAD) ?
 		      vk_buffer_load_state (buf, state) :
 		      vk_buffer_save_state (buf, state);
+		if (ret)
+			break;
 	}
-
 	if (ret) {
 		VK_ERROR ("%s state failed: cannot %s buffer", op, op);
 		goto fail;
 	}
 
-	for (i = 0; !ret && i < mach->devices->used; i += sizeof (vk_device_t *)) {
-		dev = *((vk_device_t **) &mach->devices->data[i]);
+	VK_VECTOR_FOREACH (mach->devices, i) {
+		vk_device_t *dev = *(vk_device_t **) &mach->devices->data[i];
 		if (mode == VK_STATE_LOAD) {
 			vk_device_reset (dev, VK_RESET_TYPE_HARD);
 			ret = vk_device_load_state (dev, state);
 		} else
 			ret = vk_device_save_state (dev, state);
+		if (ret)
+			break;
 	}
-
 	if (ret) {
 		VK_ERROR ("%s state failed: cannot %s device", op, op);
 		goto fail;
 	}
 
-	if (mode == VK_STATE_LOAD) {
+	if (mode == VK_STATE_LOAD)
 		ret = mach->load_state (mach, state);
-	} else
+	else
 		ret = mach->save_state (mach, state);
 	if (ret) {
 		VK_ERROR ("%s state failed; cannot %s machine", op, op);
