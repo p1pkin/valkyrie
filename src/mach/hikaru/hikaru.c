@@ -27,17 +27,17 @@
  * CPU			2 x Hitachi SH-4 @ 200 MHz
  * Graphic Engine	Sega Custom 3D 
  * Sound Engine		2 x ARM7 Yamaha AICA @ 45 MHz + ARM7, 64 channel ADPCM
- * Main Memory		64 MB [32 for master, 32 for slave]
- * Graphic Memory	28 MB [8 FB, 4 CMDRAM, 4+4 TEXRAM, 8 UNKNOWN]
+ * Main Memory		64 MB
+ * Graphic Memory	28 MB
  * Sound Memory		8 MB [per AICA board]
  * Media		ROM Board (max 352 MB)
  * Colors		24bit
  * Resolution		24 KHz 496x384, 31 KHz 640x480 
  * Shading		Flat, Linear, Phong
  * Lighting		Horizontal, Spot
- *			1024 lights per scene [= total LIGHTS]
- *			4 lights per polygon [= 1 LIGHTSET, 4 LIGHTS]
- *			8 window surfaces [viewports]. 
+ *			1024 lights per scene
+ *			4 lights per polygon
+ *			8 window surfaces
  * Effects		Fog, Depth Queueing, Stencil, Shadow, Motion blur
  * Others Capabilties	Bitmap Layer x 2
  *			Calendar [Note: AICA RTC]
@@ -54,15 +54,12 @@
  * 15,16,17S,18S = @0C000000 RAM (32 MB), Master RAM
  * 22,23,24S,25S = @16000000 RAM (32 MB), Slave RAM
  * 38 39S        = @14000000 RAM (4 MB), CMDRAM
- * 41            = @16000000 RAM (4 MB), Unknown, GPU-related
- * 42            = @16000000 RAM (4 MB), Unknown, GPU-related
- * 44,45S,46,47S = @1B000000 RAM (8 MB), TEXRAM
- * 91S,92S       = @0C000000 CMOS SRAM (64 KB), Backup RAM
+ * 41            = @16000000 RAM (4 MB), TEXRAM Bank 0
+ * 42            = @16000000 RAM (4 MB), TEXRAM Bank 1
+ * 44,45S,46,47S = @1B000000 RAM (8 MB), FB
+ * 33,34S,35,36S = @........ RAM (8 MB), Unknown (not tested by the RAM test)
+ * 91S,92S       = @00C00000 CMOS SRAM (64 KB), Backup RAM
  * 98            = @02800000 8 MB SDRAM (main AICA board)
- *
- * Not tested by the bootrom:
- *
- * 33,34S,35,36S = 8 MB; is it the framebuffer?
  *
  *
  * BIOSes
