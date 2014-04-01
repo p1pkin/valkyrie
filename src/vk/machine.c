@@ -20,6 +20,7 @@
 #include "vk/state.h"
 #include "vk/buffer.h"
 #include "vk/device.h"
+#include "vk/cpu.h"
 
 void
 vk_machine_destroy (vk_machine_t **mach_)
@@ -34,13 +35,17 @@ vk_machine_destroy (vk_machine_t **mach_)
 		}
 		vk_vector_destroy (&mach->buffers);
 
+		VK_VECTOR_FOREACH (mach->cpus, i) {
+			vk_cpu_t *cpu = *(vk_cpu_t **) &mach->cpus->data[i];
+			vk_mmap_destroy (&cpu->mmap);
+		}
+		vk_vector_destroy (&mach->cpus);
+
 		VK_VECTOR_FOREACH (mach->devices, i) {
 			vk_device_t *dev = *(vk_device_t **) &mach->devices->data[i];
 			vk_device_destroy (&dev);
 		}
 		vk_vector_destroy (&mach->devices);
-
-		vk_vector_destroy (&mach->cpus);
 
 		mach->destroy (mach_);
 	}

@@ -931,9 +931,6 @@ hikaru_destroy (vk_machine_t **mach_)
 
 			/* dump everything we got before quitting */
 			hikaru_dump ((vk_machine_t *) hikaru);
-
-			vk_mmap_destroy (&hikaru->mmap_m);
-			vk_mmap_destroy (&hikaru->mmap_s);
 		}
 		free (hikaru);
 		*mach_ = NULL;
