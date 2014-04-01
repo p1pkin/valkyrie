@@ -44,13 +44,10 @@ HIKARU_OBJ := \
 	src/mach/hikaru/hikaru-gpu-private.o \
 	src/mach/hikaru/hikaru-aica.o
 
-all: bin/valkyrie bin/hikaru-gpu-viewer bin/vkbswap
+all: bin/valkyrie bin/vkbswap
 
 bin/valkyrie: $(VK_OBJ) $(HIKARU_OBJ) src/vk/main.o
 	$(CC) $+ -o $@ $(CFLAGS) $(LDFLAGS) 
-
-bin/hikaru-gpu-viewer: $(VK_OBJ) $(HIKARU_OBJ) src/mach/hikaru/hikaru-gpu-viewer.o
-	$(CC) $+ -o $@ $(CFLAGS) $(LDFLAGS)
 
 bin/vkbswap: $(VK_OBJ) src/utils/bswap.o
 	$(CC) $+ -o $@ $(CFLAGS) $(LDFLAGS)
