@@ -986,10 +986,23 @@ upload_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, unsigned i)
 {
 	hikaru_modelview_t *mv = &hr->mv_list[mesh->mv_index + i];
 
-	VK_ASSERT (mesh->mv_index != ~0);
+	if (mesh->mv_index == ~0) {
+		static const hikaru_modelview_t identity_mv = {
+			.mtx = {
+				{ 1.0f, 0.0f, 0.0f, 0.0f },
+				{ 0.0f, 1.0f, 0.0f, 0.0f },
+				{ 0.0f, 0.0f, 1.0f, 0.0f },
+				{ 0.0f, 0.0f, 0.0f, 1.0f }
+			}
+		};
+
+		VK_ERROR ("attempting to draw with no modelview!");
+
+		/* Attempt to render something anyway. */
+		mv = (hikaru_modelview_t *) &identity_mv;
+	}
 
 	LOG ("mv  = [%u+%u] %s", mesh->mv_index, i, get_modelview_str (mv));
-
 	glUniformMatrix4fv (hr->meshes.locs.u_modelview, 1, GL_FALSE,
 	                    (const GLfloat *) mv->mtx);
 }
