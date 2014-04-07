@@ -966,6 +966,10 @@ upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	glUniformMatrix4fv (hr->meshes.locs.u_projection, 1, GL_FALSE,
 	                    (const GLfloat *) projection);
 
+	glScissor (vp->clip.l, vp->clip.b,
+	           vp->clip.r - vp->clip.l,
+	           vp->clip.t - vp->clip.b);
+
 	if (hr->meshes.variant.has_fog) {
 		vec2f_t fog;
 		vec3f_t fog_color;
@@ -1583,6 +1587,8 @@ draw_scene (hikaru_renderer_t *hr)
 	if (hr->debug.flags[HR_DEBUG_NO_3D])
 		return;
 
+	glEnable (GL_SCISSOR_TEST);
+
 	glEnable (GL_DEPTH_TEST);
 	glDepthFunc (GL_LEQUAL);
 
@@ -1610,6 +1616,9 @@ draw_scene (hikaru_renderer_t *hr)
 	}
 
 	glDepthMask (GL_TRUE);
+
+	glDisable (GL_SCISSOR_TEST);
+	glScissor (0, 0, 640, 480);
 }
 
 /****************************************************************************
