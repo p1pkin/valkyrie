@@ -405,7 +405,7 @@ rombd_get (hikaru_t *hikaru, unsigned size, uint32_t bus_addr, void *val)
 	 * indiscriminately from banks 10-1B (including the EEPROM bank!) to
 	 * figure out the EPROM format. We don't want spurious matches
 	 * (that is, 0 vs. 0) to affect the computation. */
-	set_ptr (val, size, rand ());
+	set_ptr (val, size, 0xDEADBEEFDEADBEEFull);
 
 	/* Nothing else to do if there's no actual ROM data */
 	if (!config->has_rom)
