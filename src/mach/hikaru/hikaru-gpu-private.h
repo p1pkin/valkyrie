@@ -30,23 +30,20 @@
 
 #define MAX_VERTICES_PER_MESH	16384
 
-enum {
-	_15_IRQ_IDMA	= (1 << 0),
-	_15_IRQ_VBLANK	= (1 << 1),
-	_15_IRQ_DONE	= (1 << 2),
-	_15_IRQ_UNK3	= (1 << 3),
-	_15_IRQ_UNK4	= (1 << 4),
-	_15_IRQ_UNK5	= (1 << 5),
-	_15_IRQ_UNK6	= (1 << 6),
-	_15_IRQ_1A	= (1 << 7)
-};
+/* PHARRIER includes some debug text providing names for (some of the) GPU
+ * IRQs. In particular, the menu at PH:@0C1D4E38 references both text (located
+ * at PH:@0C126DC4 and beyond) and pointers to counter/timer variables (located
+ * at PH:@0C27D0BC). These variables are updated through the function at
+ * @0C0CF020, which is conveniently called from the GPU IRQ handlers (stored at
+ * 0C000A04). Hence the connection. */
 
-enum {
-	_1A_IRQ_UNK0	= (1 << 0),
-	_1A_IRQ_VBLANK	= (1 << 1),
-	_1A_IRQ_DONE	= (1 << 2),
-	_1A_IRQ_UNK3	= (1 << 3)
-};
+#define GPU15_IRQ_IDMA_END		0x01
+#define GPU15_IRQ_POLY_OUT_END		0x02
+#define GPU15_IRQ_CMD_ANALYSIS_END	0x04
+#define GPU15_IRQ_GPU1A			0x80
+
+#define GPU1A_IRQ_VBLANK		0x02
+#define GPU1A_IRQ_PLOT_END		0x04
 
 /* Used for both texheads and layers */
 enum {

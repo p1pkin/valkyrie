@@ -899,7 +899,7 @@ hikaru_gpu_step_idma (hikaru_gpu_t *gpu)
 	/* If there are no more entries, stop */
 	if (REG15 (0x10) == 0) {
 		REG15 (0x14) = 0;
-		hikaru_gpu_raise_irq (gpu, _15_IRQ_IDMA, 0);
+		hikaru_gpu_raise_irq (gpu, GPU15_IRQ_IDMA_END, 0);
 	}
 }
 
@@ -1009,7 +1009,7 @@ hikaru_gpu_vblank_out (vk_device_t *dev)
 {
 	hikaru_gpu_t *gpu = (hikaru_gpu_t *) dev;
 
-	hikaru_gpu_raise_irq (gpu, _15_IRQ_VBLANK, _1A_IRQ_VBLANK);
+	hikaru_gpu_raise_irq (gpu, 0, GPU1A_IRQ_VBLANK);
 	hikaru_gpu_fill_layer_info (gpu);
 	hikaru_gpu_cp_vblank_out (gpu);
 }

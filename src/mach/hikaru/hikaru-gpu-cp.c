@@ -123,14 +123,17 @@ on_cp_end (hikaru_gpu_t *gpu)
 	REG15 (0x58) &= ~3;
 	REG1A (0x24) &= ~1;
 
-	/* Notify that GPU 15 is done and needs feeding */
-	hikaru_gpu_raise_irq (gpu, _15_IRQ_DONE, _1A_IRQ_DONE);
+	/* Notify that the GPUs are done and need feeding */
+	hikaru_gpu_raise_irq (gpu, GPU15_IRQ_CMD_ANALYSIS_END, GPU1A_IRQ_PLOT_END);
 }
 
 void
 hikaru_gpu_cp_vblank_in (hikaru_gpu_t *gpu)
 {
 	on_frame_begin (gpu);
+
+	/* Notify that the drawing is done */
+	hikaru_gpu_raise_irq (gpu, GPU15_IRQ_POLY_OUT_END, 0);
 }
 
 void
