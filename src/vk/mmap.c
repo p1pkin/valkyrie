@@ -71,7 +71,7 @@ vk_mmap_get (vk_mmap_t *mmap, unsigned size, uint32_t addr, void *data)
 		VK_MACH_LOG (mmap->mach, "%s R%u %08X", region->name, size * 8, addr);
 
 	if (region->flags & VK_REGION_NOP)
-		return set_ptr (data, size, random ());
+		return set_ptr (data, size, 0xDEADBEEFDEADBEEFull);
 
 	if (region->flags & VK_REGION_DIRECT) {
 		uint32_t offs = vk_region_offs (region, addr);
