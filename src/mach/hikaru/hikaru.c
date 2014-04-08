@@ -265,9 +265,11 @@ unk_m_get (vk_device_t *dev, unsigned size, uint32_t addr, void *val)
 
 	switch (addr) {
 	case 0x01000000:
+		hikaru->unk01000000_m ^= ~0ul;
 		*val16 = hikaru->unk01000000_m;
 		break;
 	case 0x01000100:
+		hikaru->unk01000100_m ^= ~0ul;
 		*val16 = hikaru->unk01000100_m;
 		break;
 	default:
@@ -647,9 +649,9 @@ setup_master_mmap (hikaru_t *hikaru)
 	                            hikaru->bram, "BRAM/M");
 	vk_mmap_add_region (mmap, region);
 
-	region = vk_region_nop_new (0x01000000, 0x010001FF, 0x1FF,
+	region = vk_region_mmio_new (0x01000000, 0x010001FF, 0x1FF,
 	                            VK_REGION_RW | VK_REGION_SIZE_ALL | VK_REGION_LOG_RW,
-	                            "UNK/M");
+	                            &unk_m, "UNK/M");
 	vk_mmap_add_region (mmap, region);
 
 	region = vk_region_mmio_new (0x02000000, 0x03FFFFFF, 0x01FFFFFF,
