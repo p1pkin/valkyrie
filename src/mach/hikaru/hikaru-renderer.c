@@ -296,14 +296,14 @@ decode_texture_abgr1111 (vk_buffer_t *texram,
 		for (x = 0; x < w; x += 4) {
 			uint32_t offs = (basey + y) * 4096 + (basex + x);
 			uint32_t texels = vk_buffer_get (texram, 4, offs);
-			PUT16 (x + 0, y*2 + 0, abgr1111_to_rgba4444 (texels >> 28));
-			PUT16 (x + 1, y*2 + 0, abgr1111_to_rgba4444 (texels >> 24));
-			PUT16 (x + 0, y*2 + 1, abgr1111_to_rgba4444 (texels >> 20));
-			PUT16 (x + 1, y*2 + 1, abgr1111_to_rgba4444 (texels >> 16));
-			PUT16 (x + 2, y*2 + 0, abgr1111_to_rgba4444 (texels >> 12));
-			PUT16 (x + 3, y*2 + 0, abgr1111_to_rgba4444 (texels >> 8));
-			PUT16 (x + 2, y*2 + 1, abgr1111_to_rgba4444 (texels >> 4));
-			PUT16 (x + 3, y*2 + 1, abgr1111_to_rgba4444 (texels >> 0));
+			PUT16 (x + 2, y*2 + 0, abgr1111_to_rgba4444 (texels >> 28));
+			PUT16 (x + 3, y*2 + 0, abgr1111_to_rgba4444 (texels >> 24));
+	      		PUT16 (x + 2, y*2 + 1, abgr1111_to_rgba4444 (texels >> 20));
+			PUT16 (x + 3, y*2 + 1, abgr1111_to_rgba4444 (texels >> 16));
+	      		PUT16 (x + 0, y*2 + 0, abgr1111_to_rgba4444 (texels >> 12));
+			PUT16 (x + 1, y*2 + 0, abgr1111_to_rgba4444 (texels >> 8));
+	      		PUT16 (x + 0, y*2 + 1, abgr1111_to_rgba4444 (texels >> 4));
+			PUT16 (x + 1, y*2 + 1, abgr1111_to_rgba4444 (texels >> 0));
 		}
 	}
 	return (void *) data;
