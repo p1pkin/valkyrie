@@ -139,7 +139,7 @@ vk_mmap_get (vk_mmap_t *mmap, unsigned size, uint32_t addr, void *data)
 	if (!region || !(region->flags & get_size_flag_for_size (size)))
 		return -1;
 
-	if (region->flags & VK_REGION_LOG_R && addr != 0x1A000018)
+	if (region->flags & VK_REGION_LOG_R)
 		VK_MACH_LOG (mmap->mach, "%s R%u %08X", region->name, size * 8, addr);
 
 	if (region->flags & VK_REGION_DIRECT) {
