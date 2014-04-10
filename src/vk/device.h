@@ -25,7 +25,6 @@ typedef struct vk_device_t vk_device_t;
 
 struct vk_device_t {
 	vk_machine_t *mach;
-	unsigned flags;
 
 	void	(* destroy)(vk_device_t **dev_);
 	void	(* reset)(vk_device_t *dev, vk_reset_type_t type);
