@@ -22,7 +22,6 @@ VK_OBJ := \
 	src/vk/vector.o \
 	src/vk/state.o \
 	src/vk/buffer.o \
-	src/vk/region.o \
 	src/vk/mmap.o \
 	src/vk/machine.o \
 	src/vk/games.o \
