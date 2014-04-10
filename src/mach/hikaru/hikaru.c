@@ -854,6 +854,9 @@ patch_braveff (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 	sh4_t *ctx = (sh4_t *) cpu;
 
 	switch (pc) {
+	case 0x0C0407D0:
+		R(3) = 0x0C06A620;
+		break;
 	case 0x0C0D522A:
 		T = 1;
 		break;
