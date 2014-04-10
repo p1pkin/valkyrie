@@ -118,24 +118,4 @@ vk_device_load_state (vk_device_t *dev, vk_state_t *state)
 	return 0;
 }
 
-static inline void
-vk_device_log (vk_device_t *device, const char *fmt, ...)
-{
-}
-
-static inline void
-vk_device_error (vk_device_t *device, const char *fmt, ...)
-{
-}
-
-static inline void
-vk_device_abort (vk_device_t *device)
-{
-}
-
-static inline void
-vk_device_assert (vk_device_t *device, bool cond)
-{
-}
-
 #endif /* __VK_DEVICE_H__ */
