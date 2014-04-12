@@ -826,6 +826,23 @@ patch_braveff (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 static uint32_t
 patch_pharrier (vk_cpu_t *cpu, uint32_t pc, uint32_t inst)
 {
+	if (0) {
+		/* Debug switches
+		 *
+		 * 0C21D4A8 00000003 Enable axis on top right
+		 * 0C21D4A8 00000007 CPU bar
+		 * 0C21D4A8 0000000F Date
+		 * 0C21D4A8 00000041 Char ball
+		 * 0C21D4A8 000000F0 World bounding boxes?
+		 * 0C21D4A8 00000F00 Light list + fog debug?
+		 * 0C21D4A8 00020000 Disable char + world
+		 * 0C21D4A8 00F00000 Switch between world and bounding boxes
+		 * 0C21D4A8 F0000000 Mod light?
+		 */
+		vk_cpu_put (cpu, 4, 0x0C21D4A8, 0xFFFFFFFF);
+		vk_cpu_put (cpu, 4, 0x0C21D4AC, 0xFFFFFFFF);
+	}
+
 	switch (pc) {
 	case 0x0C01C322:
 		/* Patches an AICA-related while (1) into a NOP */
