@@ -928,8 +928,8 @@ upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	const float n_over_f = vp->clip.n / vp->clip.f;
 	const float hh_at_n = (h / 2.0f) * n_over_f;
 	const float hw_at_n = hh_at_n * (w / h);
-	const float dcx = (vp->offset.x - (w / 2.0f)) * n_over_f;
-	const float dcy = (vp->offset.y - (h / 2.0f)) * n_over_f;
+	const float dcx = (vp->offset.x - (w / 2.0f));
+	const float dcy = (vp->offset.y - (h / 2.0f));
 	mtx4x4f_t projection;
 
 	VK_ASSERT (mesh->vp_index != ~0);
@@ -961,14 +961,15 @@ upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	     get_viewport_str (vp), w, h, dcx, dcy);
 
 	frustum (projection, -hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, 1e5);
-	translate (projection, dcx, -dcy, 0.0f);
+//	translate (projection, dcx, -dcy, 0.0f);
 
 	glUniformMatrix4fv (hr->meshes.locs.u_projection, 1, GL_FALSE,
 	                    (const GLfloat *) projection);
 
-	glScissor (vp->clip.l, vp->clip.b,
-	           vp->clip.r - vp->clip.l,
-	           vp->clip.t - vp->clip.b);
+	glViewport (vp->clip.l,
+	            vp->clip.b,
+	            vp->clip.r - vp->clip.l,
+	            vp->clip.t - vp->clip.b);
 
 	if (hr->meshes.variant.has_fog) {
 		vec2f_t fog;
@@ -1618,7 +1619,7 @@ draw_scene (hikaru_renderer_t *hr)
 	glDepthMask (GL_TRUE);
 
 	glDisable (GL_SCISSOR_TEST);
-	glScissor (0, 0, 640, 480);
+	glViewport (0, 0, 640, 480);
 }
 
 /****************************************************************************
