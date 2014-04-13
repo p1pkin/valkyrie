@@ -1350,13 +1350,15 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	/* Copy the per-instance modelviews from last to first. */
 	/* TODO optimize by setting MV.total to 0 (and fix the fallback). */
-	if (MV.total == 0) {
+	if (MV.total == ~0) {
 		LOG ("RENDSTATE adding no mvs %u/%u [#instances=%u]",
 		     hr->num_mvs, MAX_MODELVIEWS, hr->num_instances);
 
 		mesh->mv_index = hr->num_mvs - 1;
 		mesh->num_instances = hr->num_instances;
 	} else {
+		MV.total = 1;
+
 		mesh->mv_index = hr->num_mvs;
 		mesh->num_instances = MV.total;
 		hr->num_instances = MV.total;
