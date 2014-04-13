@@ -102,8 +102,6 @@ typedef struct {
 			uint32_t has_621	: 1;
 			uint32_t has_011	: 1;
 			uint32_t has_191	: 1;
-			uint32_t uploaded	: 1;
-			uint32_t dirty		: 1;
 		};
 		uint32_t flags;
 	};
@@ -168,8 +166,6 @@ typedef struct {
 			uint32_t has_881	: 1;
 			uint32_t has_A81	: 1;
 			uint32_t has_C81	: 1;
-			uint32_t uploaded	: 1;
-			uint32_t dirty		: 1;
 		};
 		uint32_t flags;
 	};
@@ -217,8 +213,6 @@ typedef struct {
 			uint32_t has_2C1	: 1;
 			uint32_t has_4C1	: 1;
 			uint32_t has_mipmap	: 1;
-			uint32_t uploaded	: 1;
-			uint32_t dirty		: 1;
 		};
 		uint32_t flags;
 	};
@@ -259,7 +253,6 @@ typedef struct {
 			uint32_t _051_index	: 4;
 			uint32_t _051_bit	: 1;
 			uint32_t has_specular	: 1;
-			uint32_t uploaded	: 1;
 		};
 		uint32_t flags;
 	};
@@ -271,8 +264,6 @@ typedef struct {
 		struct {
 			uint32_t set		: 1;
 			uint32_t mask		: 4;
-			uint32_t uploaded	: 1;
-			uint32_t dirty		: 1;
 		};
 		uint32_t flags;
 	};

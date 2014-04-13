@@ -76,28 +76,19 @@ on_frame_begin (hikaru_gpu_t *gpu)
 
 	VP.depth = 0;
 	VP.scratch.flags = 0;
-	VP.scratch.uploaded = 1;
-	VP.scratch.dirty = 1;
 
 	MV.depth = 0;
 	MV.total = 0;
 
 	MAT.base = 0;
 	MAT.scratch.flags = 0;
-	MAT.scratch.uploaded = 1;
-	MAT.scratch.dirty = 1;
 
 	TEX.base = 0;
 	TEX.scratch.flags = 0;
-	TEX.scratch.uploaded = 1;
-	TEX.scratch.dirty = 1;
 
 	LIT.base = 0;
 	LIT.scratch.flags = 0;
-	LIT.scratch.uploaded = 1;
 	LIT.scratchset.flags = 0;
-	LIT.scratchset.uploaded = 1;
-	LIT.scratchset.dirty = 1;
 }
 
 static void
@@ -789,7 +780,6 @@ I (0x021)
 		VK_ASSERT (0);
 		break;
 	}
-	vp->uploaded = 1;
 }
 
 D (0x021)
@@ -849,7 +839,6 @@ I (0x011)
 	vp->color.ambient[2] = inst[1] >> 16;
 
 	vp->has_011 = 1;
-	vp->uploaded = 1;
 }
 
 D (0x011)
@@ -885,7 +874,6 @@ I (0x191)
 	vp->color.clear[3] = ((inst[1] >> 24) & 1) ? 0xFF : 0;
 
 	vp->has_191 = 1;
-	vp->uploaded = 1;
 }
 
 D (0x191)
@@ -963,7 +951,6 @@ I (0x003)
 		VK_ASSERT (0);
 		break;
 	}
-	vp->uploaded = 1;
 }
 
 D (0x003)
@@ -1159,7 +1146,6 @@ I (0x161)
 			          PC, inst[0]);
 			break;
 		}
-		lit->uploaded = 1;
 		break;
 	default:
 		VK_ASSERT (0);
@@ -1299,7 +1285,6 @@ I (0x091)
 		VK_ASSERT (0);
 		break;
 	}
-	mat->uploaded = 1;
 }
 
 D (0x091)
@@ -1424,7 +1409,6 @@ I (0x081)
 		mat->has_C81 = 1;
 		break;
 	}
-	mat->uploaded = 1;
 }
 
 D (0x081)
@@ -1520,7 +1504,6 @@ I (0x083)
 		}
 
 		MAT.scratch = MAT.table[index];
-		MAT.scratch.uploaded = 1;
 	}
 }
 
@@ -1630,7 +1613,6 @@ I (0x0C1)
 		VK_ASSERT (0);
 		break;
 	}
-	th->uploaded = 1;
 }
 
 D (0x0C1)
@@ -1725,7 +1707,6 @@ I (0x0C3)
 		}
 
 		TEX.scratch = TEX.table[index];
-		TEX.scratch.uploaded = 1;
 	}
 }
 
@@ -1818,7 +1799,6 @@ I (0x061)
 	lit->has_061 = 1;
 	lit->has_position = 0;
 	lit->has_direction = 0;
-	lit->uploaded = 1;
 }
 
 D (0x061)
@@ -1874,7 +1854,6 @@ I (0x051)
 		VK_ASSERT (0);
 		break;
 	}
-	lit->uploaded = 1;
 }
 
 D (0x051)
@@ -2024,7 +2003,6 @@ I (0x043)
 
 	LIT.scratchset = LIT.sets[index];
 	LIT.scratchset.mask = (inst[0] >> 24) & 0xF;
-	LIT.scratchset.uploaded = 1;
 }
 
 D (0x043)

@@ -30,7 +30,7 @@
 #define MAX_MODELVIEWS	4096
 #define MAX_MATERIALS	4096
 #define MAX_TEXHEADS	4096
-#define MAX_LIGHTSETS	256
+#define MAX_LIGHTSETS	4096
 #define MAX_MESHES	16384
 
 #define INV255	(1.0f / 255.0f)
@@ -1314,7 +1314,6 @@ print_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, char *prefix)
 		     get_lightset_str (&hr->ls_list[mesh->ls_index]));
 }
 
-/* TODO check if more fine-grained uploaded tracking can help. */
 /* TODO check boundary conditions when nothing is uploaded in a frame. */
 /* TODO alpha threshold */
 static void
@@ -1323,30 +1322,21 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	hikaru_gpu_t *gpu = hr->gpu;
 	unsigned i;
 
-	if (VP0.uploaded) {
-		LOG ("RENDSTATE updating vp %u/%u", hr->num_vps, MAX_VIEWPORTS);
-		hr->vp_list[hr->num_vps++] = VP0;
-		VK_ASSERT (hr->num_vps < MAX_VIEWPORTS);
-		VP0.uploaded = 0;
-	}
-	if (MAT0.uploaded) {
-		LOG ("RENDSTATE updating mat %u/%u", hr->num_mats, MAX_MATERIALS);
-		hr->mat_list[hr->num_mats++] = MAT0;
-		VK_ASSERT (hr->num_mats < MAX_MATERIALS);
-		MAT0.uploaded = 0;
-	}
-	if (TEX0.uploaded) {
-		LOG ("RENDSTATE updating tex %u/%u", hr->num_texs, MAX_TEXHEADS);
-		hr->tex_list[hr->num_texs++] = TEX0;
-		VK_ASSERT (hr->num_texs < MAX_TEXHEADS);
-		TEX0.uploaded = 0;
-	}
-	if (LS0.uploaded) {
-		LOG ("RENDSTATE updating ls %u/%u", hr->num_lss, MAX_LIGHTSETS);
-		hr->ls_list[hr->num_lss++] = LS0;
-		VK_ASSERT (hr->num_lss < MAX_LIGHTSETS);
-		LS0.uploaded = 0;
-	}
+	LOG ("RENDSTATE updating vp %u/%u", hr->num_vps, MAX_VIEWPORTS);
+	hr->vp_list[hr->num_vps++] = VP0;
+	VK_ASSERT (hr->num_vps < MAX_VIEWPORTS);
+
+	LOG ("RENDSTATE updating mat %u/%u", hr->num_mats, MAX_MATERIALS);
+	hr->mat_list[hr->num_mats++] = MAT0;
+	VK_ASSERT (hr->num_mats < MAX_MATERIALS);
+
+	LOG ("RENDSTATE updating tex %u/%u", hr->num_texs, MAX_TEXHEADS);
+	hr->tex_list[hr->num_texs++] = TEX0;
+	VK_ASSERT (hr->num_texs < MAX_TEXHEADS);
+
+	LOG ("RENDSTATE updating ls %u/%u", hr->num_lss, MAX_LIGHTSETS);
+	hr->ls_list[hr->num_lss++] = LS0;
+	VK_ASSERT (hr->num_lss < MAX_LIGHTSETS);
 
 	/* Copy the per-instance modelviews from last to first. */
 	/* TODO optimize by setting MV.total to 0 (and fix the fallback). */
