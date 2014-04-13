@@ -1163,11 +1163,12 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 	 * polygons also have an alpha, with unknown meaning (it seems to have
 	 * opposite sign w.r.t. translucent alpha though). */
 	alpha = 1.0f;
-	if (POLY.type == HIKARU_POLYTYPE_TRANSLUCENT ||
-	    POLY.type == HIKARU_POLYTYPE_BACKGROUND) {
+	if (POLY.type == HIKARU_POLYTYPE_TRANSLUCENT) {
 		float p_alpha = POLY.alpha;
 		float v_alpha = src->info.alpha * INV255;
 		alpha = clampf (p_alpha * v_alpha, 0.0f, 1.0f);
+	} else if (POLY.type == HIKARU_POLYTYPE_BACKGROUND) {
+		alpha = 0.5f;
 	}
 	dst->body.alpha = (uint8_t) (alpha * 255.0f);
 }
