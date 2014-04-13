@@ -1163,7 +1163,8 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 	 * polygons also have an alpha, with unknown meaning (it seems to have
 	 * opposite sign w.r.t. translucent alpha though). */
 	alpha = 1.0f;
-	if (POLY.type == HIKARU_POLYTYPE_TRANSLUCENT) {
+	if (POLY.type == HIKARU_POLYTYPE_TRANSLUCENT ||
+	    POLY.type == HIKARU_POLYTYPE_BACKGROUND) {
 		float p_alpha = POLY.alpha;
 		float v_alpha = src->info.alpha * INV255;
 		alpha = clampf (p_alpha * v_alpha, 0.0f, 1.0f);
@@ -1541,6 +1542,7 @@ draw_meshes_for_polytype (hikaru_renderer_t *hr, unsigned vpi, int polytype)
 	switch (polytype) {
 	case HIKARU_POLYTYPE_TRANSPARENT:
 	case HIKARU_POLYTYPE_TRANSLUCENT:
+	case HIKARU_POLYTYPE_BACKGROUND:
 		glEnable (GL_BLEND);
 		glDepthMask (GL_FALSE);
 		break;
@@ -1574,10 +1576,21 @@ draw_scene (hikaru_renderer_t *hr)
 		HIKARU_POLYTYPE_TRANSLUCENT,
 		HIKARU_POLYTYPE_TRANSPARENT,
 	};
+	hikaru_gpu_t *gpu = hr->gpu;
 	unsigned vpi, i;
 
 	if (hr->debug.flags[HR_DEBUG_NO_3D])
 		return;
+
+	/* Note that "the pixel ownership test, the scissor test, dithering,
+	 * and the buffer writemasks affect the operation of glClear". */
+	glDepthMask (GL_TRUE);
+	glDisable (GL_SCISSOR_TEST);
+	glClearColor (gpu->fb_config.clear[0] * INV255,
+	              gpu->fb_config.clear[1] * INV255,
+	              gpu->fb_config.clear[2] * INV255,
+	              gpu->fb_config.clear[3] * INV255);
+	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glEnable (GL_SCISSOR_TEST);
 
@@ -1851,11 +1864,6 @@ hikaru_renderer_begin_frame (vk_renderer_t *renderer)
 
 	update_debug_flags (hr);
 
-	/* Note that "the pixel ownership test, the scissor test, dithering,
-	 * and the buffer writemasks affect the operation of glClear". */
-	glDepthMask (GL_TRUE);
-	glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 	VK_ASSERT_NO_GL_ERROR ();
 }
 
@@ -1957,7 +1965,6 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 
 	init_debug_flags (hr);
 
-	glClearColor (0.0f, 0.0f, 0.0f, 1.0f);
 	VK_ASSERT_NO_GL_ERROR ();
 
 	build_2d_glsl_state (hr);

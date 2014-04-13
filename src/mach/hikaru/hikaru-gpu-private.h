@@ -322,6 +322,7 @@ typedef struct {
 			};
 			uint32_t _781;
 		};
+		vec4b_t clear;
 	} fb_config;
 
 	struct {

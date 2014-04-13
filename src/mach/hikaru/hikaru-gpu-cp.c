@@ -873,6 +873,11 @@ I (0x191)
 	vp->color.clear[2] = (inst[1] >> 16) & 0xFF;
 	vp->color.clear[3] = ((inst[1] >> 24) & 1) ? 0xFF : 0;
 
+	gpu->fb_config.clear[0] = inst[1] & 0xFF;                   
+	gpu->fb_config.clear[1] = (inst[1] >> 8) & 0xFF;            
+	gpu->fb_config.clear[2] = (inst[1] >> 16) & 0xFF;           
+	gpu->fb_config.clear[3] = ((inst[1] >> 24) & 1) ? 0xFF : 0; 
+
 	vp->has_191 = 1;
 }
 
