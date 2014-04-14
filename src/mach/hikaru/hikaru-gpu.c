@@ -973,7 +973,7 @@ hikaru_gpu_begin_dma (hikaru_gpu_t *gpu)
 			uint32_t dst_offs = (dst_y + i) * 4096 + (dst_x + j) * 2;
 			uint16_t pixel;
 			pixel = vk_buffer_get (gpu->fb, 2, src_offs);
-			vk_buffer_put (gpu->fb, 2, dst_offs ^ 2, pixel);
+			vk_buffer_put (gpu->fb, 2, dst_offs, pixel);
 		}
 	}
 
