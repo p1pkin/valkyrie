@@ -1811,12 +1811,13 @@ static const char *layer_fs_source =
 "#version 140\n"
 "\n"
 "uniform sampler2D u_texture;\n"
+"uniform float u_texture_multiplier;\n"
 "\n"
 "in vec2 p_texcoords;\n"
 "\n"
 "void main (void) {\n"
 "	vec4 texel = texture (u_texture, p_texcoords);\n"
-"	gl_FragColor = texel;\n"
+"	gl_FragColor = u_texture_multiplier * texel;\n"
 "}\n";
 
 static const struct {
@@ -1846,6 +1847,10 @@ build_2d_glsl_state (hikaru_renderer_t *hr)
 	hr->layers.locs.u_texture =
 		glGetUniformLocation (hr->layers.program, "u_texture");
 	VK_ASSERT (hr->layers.locs.u_texture != (GLuint) -1);
+
+	hr->layers.locs.u_texture_multiplier =
+		glGetUniformLocation (hr->layers.program, "u_texture_multiplier");
+	VK_ASSERT (hr->layers.locs.u_texture_multiplier != (GLuint) -1);
 
 	/* Create the VAO/VBO. */
 	glGenVertexArrays (1, &hr->layers.vao);
@@ -1892,6 +1897,7 @@ static void
 draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 {
 	mtx4x4f_t projection;
+	float mult;
 	void *data;
 	GLuint id;
 
@@ -1938,6 +1944,8 @@ draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 		              640, 480, 0,
 		              GL_RGBA, GL_UNSIGNED_SHORT_1_5_5_5_REV,
 		              data);
+
+		mult = 1.0f;
 		break;
 	case HIKARU_FORMAT_A2BGR10:
 		glPixelStorei (GL_UNPACK_ROW_LENGTH, 1024);
@@ -1947,12 +1955,16 @@ draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 		              640, 480, 0,
 		              GL_RGBA, GL_UNSIGNED_INT_2_10_10_10_REV,
 		              data);
+
+		mult = 4.0f;
 		break;
 	default:
 		VK_ASSERT (0);
 	}
 	glPixelStorei (GL_UNPACK_ROW_LENGTH, 0);
 	VK_ASSERT_NO_GL_ERROR ();
+
+	glUniform1f (hr->layers.locs.u_texture_multiplier, mult);
 
 	/* Draw. */
 	glBindVertexArray (hr->layers.vao);

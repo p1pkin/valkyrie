@@ -157,6 +157,7 @@ typedef struct {
 		struct {
 			GLuint u_projection;
 			GLuint u_texture;
+			GLuint u_texture_multiplier;
 		} locs;
 	} layers;
 
