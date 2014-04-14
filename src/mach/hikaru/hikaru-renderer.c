@@ -618,7 +618,8 @@ apply_light (inout vec3 diffuse, inout vec3 specular, in light_t light, in int t
 	attenuation = light.extents.x * (light.extents.y + distance);		\n \
 	attenuation = clamp (attenuation, 0.0, 1.0);				\n \
 										\n \
-	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
+//	intensity = max (dot (p_normal, light_direction), 0.0);			\n \
+	intensity = abs (dot (p_normal, light_direction));			\n \
 	if (type == 2) {							\n \
 		vec3 spot_direction = normalize (light.direction);		\n \
 		if (dot (spot_direction, light_direction) < 0.95)		\n \
