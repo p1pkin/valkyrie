@@ -595,7 +595,12 @@ in vec2 p_texcoords;								\n \
 in float p_alpha;								\n \
 										\n \
 void										\n \
-apply_light (inout vec3 diffuse, inout vec3 specular, in light_t light, in int type, in int att_type, in int has_specular) \n \
+apply_light (inout vec3 diffuse,						\n \
+             inout vec3 specular,						\n \
+             in light_t light,							\n \
+             in int type,							\n \
+             in int att_type,							\n \
+             in int has_specular)						\n \
 {										\n \
 	vec3 light_direction;							\n \
 	float distance, attenuation, intensity;					\n \
