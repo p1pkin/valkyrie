@@ -51,7 +51,6 @@ static const struct {
 	[HR_DEBUG_NO_LAYER2]		= {  0, 1, SDLK_2 },
 	[HR_DEBUG_NO_3D]		= {  0, 1, SDLK_3 },
 	[HR_DEBUG_SELECT_VIEWPORT]	= { -1, 7, SDLK_v },
-	[HR_DEBUG_SELECT_CULLFACE]	= { -1, 1, SDLK_f },
 	[HR_DEBUG_NO_TEXTURES]		= {  0, 1, SDLK_t },
 	[HR_DEBUG_NO_MIPMAPS]		= {  0, 1, SDLK_u },
 	[HR_DEBUG_SELECT_POLYTYPE]	= { -1, 7, SDLK_p },
@@ -1198,7 +1197,19 @@ add_triangle (hikaru_renderer_t *hr)
 
 		VK_ASSERT ((index + 2) < MAX_VERTICES_PER_MESH);
 
-		if (hr->push.tmp[2].info.winding) {
+		if (hr->push.tmp[2].info.twosided &&
+		    !hr->push.tmp[2].info.nocull)
+			VK_ERROR ("got a vertex with culling and two-sided lighting!");
+
+		if (hr->push.tmp[2].info.nocull) {
+			dst[0] = hr->push.tmp[0].body;
+			dst[1] = hr->push.tmp[2].body;
+			dst[2] = hr->push.tmp[1].body;
+			dst[3] = hr->push.tmp[0].body;
+			dst[4] = hr->push.tmp[1].body;
+			dst[5] = hr->push.tmp[2].body;
+			hr->push.num_tris += 1;
+		} else if (hr->push.tmp[2].info.winding) {
 			dst[0] = hr->push.tmp[0].body;
 			dst[1] = hr->push.tmp[2].body;
 			dst[2] = hr->push.tmp[1].body;
@@ -1598,21 +1609,10 @@ draw_scene (hikaru_renderer_t *hr)
 	glEnable (GL_DEPTH_TEST);
 	glDepthFunc (GL_LEQUAL);
 
-	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable (GL_CULL_FACE);
+	glCullFace (GL_BACK);
 
-	switch (hr->debug.flags[HR_DEBUG_SELECT_CULLFACE]) {
-	case -1:
-		glDisable (GL_CULL_FACE);
-		break;
-	case 0:
-		glEnable (GL_CULL_FACE);
-		glCullFace (GL_BACK);
-		break;
-	case 1:
-		glEnable (GL_CULL_FACE);
-		glCullFace (GL_FRONT);
-		break;
-	}
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	for (vpi = 0; vpi < 8; vpi++) {
 		glDepthMask (GL_TRUE);
