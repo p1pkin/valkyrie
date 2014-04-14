@@ -693,6 +693,7 @@ out vec3 p_normal;								\n \
 out vec3 p_diffuse;								\n \
 out vec4 p_specular;								\n \
 out vec3 p_ambient;								\n \
+out vec3 p_unknown;								\n \
 out vec2 p_texcoords;								\n \
 out float p_alpha;								\n \
 										\n \
@@ -706,6 +707,7 @@ void main (void) {								\n \
 	p_diffuse = i_diffuse;							\n \
 	p_ambient = i_ambient;							\n \
 	p_specular = i_specular;						\n \
+	p_unknown = i_unknown;							\n \
 	p_texcoords = i_texcoords;						\n \
 	p_alpha = i_alpha;							\n \
 }";
@@ -734,6 +736,7 @@ in vec3 p_normal;								\n \
 in vec3 p_diffuse;								\n \
 in vec4 p_specular;								\n \
 in vec3 p_ambient;								\n \
+in vec3 p_unknown;								\n \
 in vec2 p_texcoords;								\n \
 in float p_alpha;								\n \
 										\n \
