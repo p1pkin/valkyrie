@@ -210,6 +210,13 @@ vk_mmap_destroy (vk_mmap_t **mmap_)
 	if (mmap_) {
 		vk_mmap_t *mmap = *mmap_;
 		if (mmap) {
+			uint32_t offs;
+
+			VK_VECTOR_FOREACH (mmap->regions, offs) {
+				region_t *region = (region_t *) &mmap->regions->data[offs];
+				free (region->name);
+			}
+
 			vk_vector_destroy (&mmap->regions);
 			mmap->mach = NULL;
 		}
