@@ -900,15 +900,11 @@ static void
 hikaru_destroy (vk_machine_t **mach_)
 {
 	if (mach_) {
-
 		hikaru_t *hikaru = (hikaru_t *) *mach_;
 		if (hikaru) {
-
 			/* dump everything we got before quitting */
 			hikaru_dump ((vk_machine_t *) hikaru);
 		}
-		free (hikaru);
-		*mach_ = NULL;
 	}
 }
 
