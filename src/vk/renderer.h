@@ -86,8 +86,12 @@ vk_renderer_reset (vk_renderer_t *renderer)
 static inline void
 vk_renderer_destroy (vk_renderer_t **renderer_)
 {
-	if (renderer_)
+	if (renderer_) {
 		(*renderer_)->destroy (renderer_);
+
+		free (*renderer_);
+		*renderer_ = NULL;
+	}
 }
 
 #endif /* __VK_REND_H__ */

@@ -29,6 +29,7 @@ vk_machine_destroy (vk_machine_t **mach_)
 		vk_machine_t *mach = *mach_;
 		unsigned i;
 
+		vk_renderer_destroy (&mach->renderer);
 		mach->destroy (mach_);
 
 		VK_VECTOR_FOREACH (mach->buffers, i) {
