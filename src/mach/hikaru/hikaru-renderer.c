@@ -1787,6 +1787,53 @@ draw_scene (hikaru_renderer_t *hr)
 	glViewport (0, 0, 640, 480);
 }
 
+static void
+destroy_3d_state (hikaru_renderer_t *hr)
+{
+	unsigned vpi, i;
+
+	free (hr->vp_list);
+	free (hr->mv_list);
+	free (hr->mat_list);
+	free (hr->tex_list);
+	free (hr->ls_list);
+
+	for (vpi = 0; vpi < 8; vpi++)
+		for (i = 0; i < 8; i++)
+			free (hr->mesh_list[vpi][i]);
+}
+
+static int
+build_3d_state (hikaru_renderer_t *hr)
+{
+	unsigned vpi, i;
+
+	hr->vp_list = (hikaru_viewport_t *)
+			malloc (sizeof (hikaru_viewport_t) * MAX_VIEWPORTS);
+	hr->mv_list = (hikaru_modelview_t *)
+			malloc (sizeof (hikaru_modelview_t) * MAX_MODELVIEWS);
+	hr->mat_list = (hikaru_material_t *)
+			malloc (sizeof (hikaru_material_t) * MAX_MATERIALS);
+	hr->tex_list = (hikaru_texhead_t *)
+			malloc (sizeof (hikaru_texhead_t) * MAX_TEXHEADS);
+	hr->ls_list = (hikaru_lightset_t *)
+			malloc (sizeof (hikaru_lightset_t) * MAX_LIGHTSETS);
+
+	if (!hr->vp_list || !hr->mv_list || !hr->mat_list || !hr->tex_list || !hr->ls_list)
+		return -1;
+
+	for (vpi = 0; vpi < 8; vpi++) {
+		for (i = 0; i < 8; i++) {
+			hr->mesh_list[vpi][i] =
+				(hikaru_mesh_t *) malloc (sizeof (hikaru_mesh_t) * MAX_MESHES);
+			if (!hr->mesh_list[vpi][i])
+				return -1;
+		}
+	}
+
+	return 0;
+}
+
 /****************************************************************************
  2D
 ****************************************************************************/
@@ -2072,18 +2119,8 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 {
 	if (renderer_) {
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
-		unsigned vpi, i;
 
-		free (hr->vp_list);
-		free (hr->mv_list);
-		free (hr->mat_list);
-		free (hr->tex_list);
-		free (hr->ls_list);
-
-		for (vpi = 0; vpi < 8; vpi++)
-			for (i = 0; i < 8; i++)
-				free (hr->mesh_list[vpi][i]);
-
+		destroy_3d_state (hr);
 		destroy_3d_glsl_state (hr);
 		destroy_2d_glsl_state (hr);
 
@@ -2095,7 +2132,7 @@ vk_renderer_t *
 hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 {
 	hikaru_renderer_t *hr;
-	int vpi, i, ret;
+	int ret;
 
 	hr = ALLOC (hikaru_renderer_t);
 	if (!hr)
@@ -2115,29 +2152,13 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 
 	VK_ASSERT_NO_GL_ERROR ();
 
-	hr->vp_list  = (hikaru_viewport_t *) malloc (sizeof (hikaru_viewport_t) * MAX_VIEWPORTS);
-	hr->mv_list  = (hikaru_modelview_t *) malloc (sizeof (hikaru_modelview_t) * MAX_MODELVIEWS);
-	hr->mat_list = (hikaru_material_t *) malloc (sizeof (hikaru_material_t) * MAX_MATERIALS);
-	hr->tex_list = (hikaru_texhead_t *) malloc (sizeof (hikaru_texhead_t) * MAX_TEXHEADS);
-	hr->ls_list  = (hikaru_lightset_t *) malloc (sizeof (hikaru_lightset_t) * MAX_LIGHTSETS);
-	if (!hr->vp_list || !hr->mv_list ||
-	    !hr->mat_list || !hr->tex_list || !hr->ls_list)
-		goto fail;
-
-	for (vpi = 0; vpi < 8; vpi++) {
-		for (i = 0; i < 8; i++) {
-			hr->mesh_list[vpi][i] =
-				(hikaru_mesh_t *) malloc (sizeof (hikaru_mesh_t) * MAX_MESHES);
-			if (!hr->mesh_list[vpi][i])
-				goto fail;
-		}
-	}
-
 	memset ((void *) program_cache, 0, sizeof (program_cache));
 	num_programs = 0;
 
 	init_debug_flags (hr);
 
+	if (build_3d_state (hr))
+		goto fail;
 	VK_ASSERT_NO_GL_ERROR ();
 
 	build_2d_glsl_state (hr);
