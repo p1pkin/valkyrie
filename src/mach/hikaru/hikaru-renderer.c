@@ -1878,6 +1878,15 @@ static const struct {
 #define OFFSET(member_) \
 	((const GLvoid *) offsetof (typeof (layer_vbo_data[0]), member_))
 
+static GLuint
+get_uniform_loc (GLuint program, GLuint id)
+{
+	GLuint loc = glGetUniformLocation (program, id);
+	VK_ASSERT_NO_GL_ERROR ();
+	VK_ASSERT (loc != (GLuint) -1);
+	return loc;
+}
+
 static int
 build_2d_state (hikaru_renderer_t *hr)
 {
@@ -1885,16 +1894,11 @@ build_2d_state (hikaru_renderer_t *hr)
 	hr->layers.program = compile_program (layer_vs_source, layer_fs_source);
 
 	hr->layers.locs.u_projection =
-		glGetUniformLocation (hr->layers.program, "u_projection");
-	VK_ASSERT (hr->layers.locs.u_projection != (GLuint) -1);
-
+		get_uniform_loc (hr->layers.program, "u_projection");
 	hr->layers.locs.u_texture =
-		glGetUniformLocation (hr->layers.program, "u_texture");
-	VK_ASSERT (hr->layers.locs.u_texture != (GLuint) -1);
-
+		get_uniform_loc (hr->layers.program, "u_texture");
 	hr->layers.locs.u_texture_multiplier =
-		glGetUniformLocation (hr->layers.program, "u_texture_multiplier");
-	VK_ASSERT (hr->layers.locs.u_texture_multiplier != (GLuint) -1);
+		get_uniform_loc (hr->layers.program, "u_texture_multiplier");
 
 	/* Create the VAO/VBO. */
 	glGenVertexArrays (1, &hr->layers.vao);
