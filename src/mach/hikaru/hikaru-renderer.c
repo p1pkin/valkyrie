@@ -1057,18 +1057,6 @@ update_locations:
 }
 
 static void
-destroy_3d_glsl_state (hikaru_renderer_t *hr)
-{
-	destroy_program (hr->meshes.program);
-	VK_ASSERT_NO_GL_ERROR ();
-
-	if (hr->meshes.vao) {
-		glBindVertexArray (0);
-		glDeleteVertexArrays (1, &hr->meshes.vao);
-	}
-}
-
-static void
 upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 {
 	hikaru_viewport_t *vp = &hr->vp_list[mesh->vp_index];
@@ -1800,6 +1788,14 @@ destroy_3d_state (hikaru_renderer_t *hr)
 	for (vpi = 0; vpi < 8; vpi++)
 		for (i = 0; i < 8; i++)
 			free (hr->mesh_list[vpi][i]);
+
+	destroy_program (hr->meshes.program);
+	VK_ASSERT_NO_GL_ERROR ();
+
+	if (hr->meshes.vao) {
+		glBindVertexArray (0);
+		glDeleteVertexArrays (1, &hr->meshes.vao);
+	}
 }
 
 static int
@@ -1882,8 +1878,8 @@ static const struct {
 #define OFFSET(member_) \
 	((const GLvoid *) offsetof (typeof (layer_vbo_data[0]), member_))
 
-static void
-build_2d_glsl_state (hikaru_renderer_t *hr)
+static int
+build_2d_state (hikaru_renderer_t *hr)
 {
 	/* Create the GLSL program. */
 	hr->layers.program = compile_program (layer_vs_source, layer_fs_source);
@@ -1925,12 +1921,14 @@ build_2d_glsl_state (hikaru_renderer_t *hr)
 
 	glBindVertexArray (0);
 	VK_ASSERT_NO_GL_ERROR ();
+
+	return 0;
 }
 
 #undef OFFSET
 
 static void
-destroy_2d_glsl_state (hikaru_renderer_t *hr)
+destroy_2d_state (hikaru_renderer_t *hr)
 {
 	glBindBuffer (GL_ARRAY_BUFFER, 0);
 	glDeleteBuffers (1, &hr->layers.vbo);
@@ -2119,8 +2117,7 @@ hikaru_renderer_destroy (vk_renderer_t **renderer_)
 		hikaru_renderer_t *hr = (hikaru_renderer_t *) *renderer_;
 
 		destroy_3d_state (hr);
-		destroy_3d_glsl_state (hr);
-		destroy_2d_glsl_state (hr);
+		destroy_2d_state (hr);
 
 		hikaru_renderer_invalidate_texcache (*renderer_, NULL);
 	}
@@ -2159,7 +2156,8 @@ hikaru_renderer_new (vk_buffer_t *fb, vk_buffer_t *texram[2])
 		goto fail;
 	VK_ASSERT_NO_GL_ERROR ();
 
-	build_2d_glsl_state (hr);
+	if (build_2d_state (hr))
+		goto fail;
 	VK_ASSERT_NO_GL_ERROR ();
 
 	return (vk_renderer_t *) hr;
