@@ -1000,7 +1000,6 @@ upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	hr->meshes.variant = variant;
 	hr->meshes.program = compile_program (vs_source, fs_source);
-	VK_ASSERT_NO_GL_ERROR ();
 
 	free (definitions);
 	free (vs_source);
@@ -1888,7 +1887,6 @@ build_2d_glsl_state (hikaru_renderer_t *hr)
 {
 	/* Create the GLSL program. */
 	hr->layers.program = compile_program (layer_vs_source, layer_fs_source);
-	VK_ASSERT_NO_GL_ERROR ();
 
 	hr->layers.locs.u_projection =
 		glGetUniformLocation (hr->layers.program, "u_projection");
