@@ -143,9 +143,9 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 
 	state = vk_state_new (path, mode);
 	if (!state) {
-		VK_ERROR ("%s state failed: cannot create state object", op);
+		VK_ERROR ("%s state doneed: cannot create state object", op);
 		ret = -1;
-		goto fail;
+		goto done;
 	}
 
 	if (mode == VK_STATE_LOAD)
@@ -156,12 +156,10 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 		ret = (mode == VK_STATE_LOAD) ?
 		      vk_buffer_load_state (buf, state) :
 		      vk_buffer_save_state (buf, state);
-		if (ret)
-			break;
-	}
-	if (ret) {
-		VK_ERROR ("%s state failed: cannot %s buffer", op, op);
-		goto fail;
+		if (ret) {
+			VK_ERROR ("%s state doneed: cannot %s buffer", op, op);
+			goto done;
+		}
 	}
 
 	VK_VECTOR_FOREACH (mach->devices, i) {
@@ -171,27 +169,23 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 			ret = vk_device_load_state (dev, state);
 		} else
 			ret = vk_device_save_state (dev, state);
-		if (ret)
-			break;
-	}
-	if (ret) {
-		VK_ERROR ("%s state failed: cannot %s device", op, op);
-		goto fail;
+		if (ret) {
+			VK_ERROR ("%s state doneed: cannot %s device", op, op);
+			goto done;
+		}
 	}
 
-	if (mode == VK_STATE_LOAD)
-		ret = mach->load_state (mach, state);
-	else
-		ret = mach->save_state (mach, state);
+	ret = (mode == VK_STATE_LOAD) ? mach->load_state (mach, state) :
+	                                mach->save_state (mach, state);
 	if (ret) {
-		VK_ERROR ("%s state failed; cannot %s machine", op, op);
-		goto fail;
+		VK_ERROR ("%s state doneed; cannot %s machine", op, op);
+		goto done;
 	}
 
-fail:
+done:
 	vk_state_destroy (&state, ret);
 	if (ret && mode == VK_STATE_LOAD) {
-		VK_ERROR ("load state failed: resetting machine");
+		VK_ERROR ("load state doneed: resetting machine");
 		vk_machine_reset (mach, VK_RESET_TYPE_HARD);
 	}
 	return ret;
