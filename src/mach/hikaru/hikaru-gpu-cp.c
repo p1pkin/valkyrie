@@ -1655,6 +1655,27 @@ D (0x0C1)
 	}
 }
 
+/* 0D1	Texhead: Set Panning
+ *
+ *	-------- ------MM -------o oooooooo
+ *	YYYYYYYY YYYYYYYY XXXXXXXX XXXXXXXX
+ *
+ * M = Mode? (0 disabled, 1&2 dunno)
+ * X, Y = Amount
+ */
+
+I (0x0D1)
+{
+}
+
+D (0x0D1)
+{
+	UNHANDLED |= !!(inst[0] & 0xFFFCF000);
+
+	DISASM ("tex: set panning [%X +%X +%X]",
+	        inst[0] >> 16, inst[1] & 0xFFFF, inst[1] >> 16);
+}
+
 /* 0C4	Commit Texhead
  *
  *	------nn nnnnnnnn ---uoooo oooooooo
@@ -2597,27 +2618,6 @@ D (0x1A1)
 	UNHANDLED |= (inst[3] != 0);
 
 	DISASM ("unk: set address [%08X %08X]", inst[1], inst[2]);
-}
-
-/* 0D1	Set Unknown
- *
- *	???????? ??????aa -----11o oooooooo
- *	bbbbbbbb bbbbbbbb cccccccc cccccccc
- *
- * These come in quartets. May be related to matrices. See PH:@0C015C3E. Note
- * that the values b and c here come from FPU computations, see PH:@0C0FF970.
- */
-
-I (0x0D1)
-{
-}
-
-D (0x0D1)
-{
-	UNHANDLED |= !!(inst[0] & 0xFFFCF000);
-
-	DISASM ("unk: unknown [%X %X %X]",
-	        inst[0] >> 16, inst[1] & 0xFFFF, inst[1] >> 16);
 }
 
 /****************************************************************************
