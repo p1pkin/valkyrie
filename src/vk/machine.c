@@ -164,11 +164,9 @@ load_save_state (vk_machine_t *mach, const char *path, uint32_t mode)
 
 	VK_VECTOR_FOREACH (mach->devices, i) {
 		vk_device_t *dev = *(vk_device_t **) &mach->devices->data[i];
-		if (mode == VK_STATE_LOAD) {
-			vk_device_reset (dev, VK_RESET_TYPE_HARD);
-			ret = vk_device_load_state (dev, state);
-		} else
-			ret = vk_device_save_state (dev, state);
+		ret = (mode == VK_STATE_LOAD) ?
+		      vk_device_load_state (dev, state) :
+		      vk_device_save_state (dev, state);
 		if (ret) {
 			VK_ERROR ("%s state doneed: cannot %s device", op, op);
 			goto done;
