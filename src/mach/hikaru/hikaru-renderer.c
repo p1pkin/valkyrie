@@ -1212,6 +1212,13 @@ get_light_specular (hikaru_renderer_t *hr, hikaru_light_t *lit, float *out)
 	if (!lit->has_specular || hr->debug.flags[HR_DEBUG_NO_SPECULAR])
 		out[0] = out[1] = out[2] = 0.0f;
 	else {
+		/* Make sure that specular enabled matches non-zero specular
+		 * colors. */
+		if (lit->specular[0] == 0.0f &&
+		    lit->specular[1] == 0.0f &&
+		    lit->specular[0] == 0.0f)
+			VK_ERROR ("light with specular enabled but no specular color!");
+
 		out[0] = lit->specular[0] * INV255;
 		out[1] = lit->specular[1] * INV255;
 		out[2] = lit->specular[2] * INV255;
