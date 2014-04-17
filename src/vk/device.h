@@ -56,7 +56,10 @@ static inline void
 vk_device_destroy (vk_device_t **dev_)
 {
 	if (dev_) {
-		(*dev_)->destroy (dev_);
+		if ((*dev_)->destroy)
+			(*dev_)->destroy (dev_);
+		free (*dev_);
+		*dev_ = NULL;
 	}
 }
 

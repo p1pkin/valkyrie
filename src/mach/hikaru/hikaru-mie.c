@@ -166,15 +166,6 @@ hikaru_mie_reset (vk_device_t *dev, vk_reset_type_t type)
 	mie->hack = vk_util_get_bool_option ("MIE_HACK", false);
 }
 
-static void
-hikaru_mie_destroy (vk_device_t **dev_)
-{
-	hikaru_mie_t *mie = (hikaru_mie_t *) *dev_;
-
-	free (mie);
-	*dev_ = NULL;
-}
-
 vk_device_t *
 hikaru_mie_new (vk_machine_t *mach)
 {
@@ -186,7 +177,7 @@ hikaru_mie_new (vk_machine_t *mach)
 	if (!mie)
 		return NULL;
 
-	dev->destroy	= hikaru_mie_destroy;
+	dev->destroy	= NULL;
 	dev->reset	= hikaru_mie_reset;
 	dev->exec	= NULL;
 	dev->get	= hikaru_mie_get;

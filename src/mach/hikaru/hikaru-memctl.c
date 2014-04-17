@@ -757,18 +757,6 @@ hikaru_memctl_reset (vk_device_t *dev, vk_reset_type_t type)
 	vk_buffer_put (memctl->regs, 4, 0x00, memctl->master ? 0 : 0xFFFFFFFF);
 }
 
-static void
-hikaru_memctl_destroy (vk_device_t **dev_)
-{
-	hikaru_memctl_t *memctl = (hikaru_memctl_t *) *dev_;
-
-	if (memctl)
-		vk_buffer_destroy (&memctl->regs);
-
-	free (memctl);
-	*dev_ = NULL;
-}
-
 vk_device_t *
 hikaru_memctl_new (vk_machine_t *mach, bool master)
 {
@@ -780,7 +768,7 @@ hikaru_memctl_new (vk_machine_t *mach, bool master)
 	if (!memctl)
 		return NULL;
 
-	dev->destroy	= hikaru_memctl_destroy;
+	dev->destroy	= NULL;
 	dev->reset	= hikaru_memctl_reset;
 	dev->exec	= hikaru_memctl_exec;
 	dev->get	= hikaru_memctl_get;

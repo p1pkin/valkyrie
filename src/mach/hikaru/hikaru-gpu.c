@@ -1265,15 +1265,6 @@ hikaru_gpu_load_state (vk_device_t *dev, vk_state_t *state)
 #undef SAVE
 #undef LOAD
 
-static void
-hikaru_gpu_destroy (vk_device_t **dev_)
-{
-	hikaru_gpu_t *gpu = (hikaru_gpu_t *) *dev_;
-
-	free (gpu);
-	*dev_ = NULL;
-}
-
 vk_device_t *
 hikaru_gpu_new (vk_machine_t *mach,
                 vk_buffer_t *cmdram,
@@ -1289,7 +1280,7 @@ hikaru_gpu_new (vk_machine_t *mach,
 	if (!gpu)
 		return NULL;
 
-	dev->destroy	= hikaru_gpu_destroy;
+	dev->destroy	= NULL;
 	dev->reset	= hikaru_gpu_reset;
 	dev->exec	= hikaru_gpu_exec;
 	dev->get	= hikaru_gpu_get;

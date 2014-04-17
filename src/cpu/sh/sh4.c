@@ -1434,17 +1434,6 @@ sh4_set_porta_handlers (vk_cpu_t *cpu,
 	ctx->porta.put = put;
 }
 
-static void
-sh4_destroy (vk_device_t **dev_)
-{
-	if (dev_) {
-		sh4_t *ctx = (sh4_t *) *dev_;
-		vk_buffer_destroy (&ctx->iregs);
-		free (ctx);
-		*dev_ = NULL;
-	}
-}
-
 vk_cpu_t *
 sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master, bool le)
 {
@@ -1459,7 +1448,7 @@ sh4_new (vk_machine_t *mach, vk_mmap_t *mmap, bool master, bool le)
 		goto fail;
 
 	dev->reset		= sh4_reset;
-	dev->destroy		= sh4_destroy;
+	dev->destroy		= NULL;
 	dev->load_state		= sh4_load_state;
 	dev->save_state		= sh4_save_state;
 

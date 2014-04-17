@@ -141,18 +141,6 @@ hikaru_aica_reset (vk_device_t *dev, vk_reset_type_t type)
 	aica->rtc[2] = 0;
 }
 
-static void
-hikaru_aica_destroy (vk_device_t **dev_)
-{
-	hikaru_aica_t *aica = (hikaru_aica_t *) *dev_;
-
-	if (aica)
-		vk_buffer_destroy (&aica->regs);
-
-	free (aica);
-	*dev_ = NULL;
-}
-
 vk_device_t *
 hikaru_aica_new (vk_machine_t *mach, vk_buffer_t *ram, bool master)
 {
@@ -164,7 +152,7 @@ hikaru_aica_new (vk_machine_t *mach, vk_buffer_t *ram, bool master)
 	if (!aica)
 		return NULL;
 
-	dev->destroy	= hikaru_aica_destroy;
+	dev->destroy	= NULL;
 	dev->reset	= hikaru_aica_reset;
 	dev->exec	= NULL;
 	dev->get	= hikaru_aica_get;
