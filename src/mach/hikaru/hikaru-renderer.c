@@ -843,7 +843,10 @@ get_light_attenuation_type (hikaru_light_t *lit)
 static hikaru_light_type_t
 get_light_type (hikaru_light_t *lit)
 {
-	VK_ASSERT (lit->has_direction || lit->has_position);
+	/* Violated by BRAVEFF, in the intro sequence; it recalls a lightset
+	 * at the wrong base, and poof. */
+	if (!lit->has_direction && !lit->has_position)
+		VK_ERROR ("recalling light with no direction nor position!");
 	if (get_light_attenuation_type (lit) == HIKARU_LIGHT_ATT_INF)
 		return HIKARU_LIGHT_TYPE_DIRECTIONAL;
 	else if (lit->has_direction && lit->has_position)
