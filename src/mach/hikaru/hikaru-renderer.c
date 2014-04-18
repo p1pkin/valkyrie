@@ -1341,8 +1341,8 @@ copy_texcoords (hikaru_renderer_t *hr,
 	if (th->format == HIKARU_FORMAT_ABGR1111)
 		h *= 2;
 
-	dst->body.texcoords[0] = src->body.texcoords[0] / w;
-	dst->body.texcoords[1] = src->body.texcoords[1] / h;
+	dst->body.texcoords[0] = (src->body.texcoords[0] + (0.5f * gpu->texoffset_x)) / w;
+	dst->body.texcoords[1] = (src->body.texcoords[1] + (0.5f * gpu->texoffset_y)) / h;
 }
 
 static void

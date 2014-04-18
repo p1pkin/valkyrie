@@ -325,6 +325,8 @@ typedef struct {
 		vec4b_t clear;
 	} fb_config;
 
+	uint16_t texoffset_x, texoffset_y;
+
 	struct {
 		uint32_t in_mesh	: 1;
 

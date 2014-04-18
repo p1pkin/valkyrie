@@ -1666,11 +1666,24 @@ D (0x0C1)
 
 I (0x0D1)
 {
+	switch (inst[0] >> 16) {
+	case 1:
+	case 2:
+		gpu->texoffset_x = inst[1] & 0xFFFF;
+		gpu->texoffset_y = inst[1] >> 16;
+		break;
+	default:
+		gpu->texoffset_x = 0;
+		gpu->texoffset_y = 0;
+		break;
+	}
 }
 
 D (0x0D1)
 {
 	UNHANDLED |= !!(inst[0] & 0xFFFCF000);
+	UNHANDLED |= !!(inst[1] & 0x80008000);
+	UNHANDLED |= ((inst[0] >> 16) == 3);
 
 	DISASM ("tex: set panning [%X +%X +%X]",
 	        inst[0] >> 16, inst[1] & 0xFFFF, inst[1] >> 16);
