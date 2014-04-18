@@ -130,11 +130,11 @@ vk_renderer_init (vk_renderer_t *renderer)
 	SDL_GL_GetAttribute (SDL_GL_MULTISAMPLEBUFFERS, &num_ms_buffers);
 	SDL_GL_GetAttribute (SDL_GL_MULTISAMPLESAMPLES, &num_samples);
 
-	VK_LOG ("renderer: GL vendor    = %s", glGetString (GL_VENDOR));
-	VK_LOG ("renderer: GL renderer  = %s", glGetString (GL_RENDERER));
-	VK_LOG ("renderer: GL version   = %s", glGetString (GL_VERSION));
-	VK_LOG ("renderer: GLSL version = %s", glGetString (GL_SHADING_LANGUAGE_VERSION));
-	VK_LOG ("renderer: %d samples on %d ms buffers", num_samples, num_ms_buffers);
+	VK_PRINT ("renderer: GL vendor    = %s", glGetString (GL_VENDOR));
+	VK_PRINT ("renderer: GL renderer  = %s", glGetString (GL_RENDERER));
+	VK_PRINT ("renderer: GL version   = %s", glGetString (GL_VERSION));
+	VK_PRINT ("renderer: GLSL version = %s", glGetString (GL_SHADING_LANGUAGE_VERSION));
+	VK_PRINT ("renderer: %d samples on %d ms buffers", num_samples, num_ms_buffers);
 
 	glViewport (0, 0, renderer->width, renderer->height);
 

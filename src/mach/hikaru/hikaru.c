@@ -893,7 +893,7 @@ hikaru_install_game_patches (hikaru_t *hikaru)
 		patched = false;
 
 	if (patched)
-		VK_LOG ("Installed patches for '%s'", game->name);
+		VK_PRINT ("Installed patches for '%s'", game->name);
 }
 
 static void
@@ -954,7 +954,7 @@ hikaru_init (hikaru_t *hikaru)
 		hikaru->maskrom 	= vk_game_get_section_data (game, "maskrom");
 
 		/* Patch theBOOTROM  EEPROM check. Allows games to load. */
-		VK_LOG ("patching BOOTROM");
+		VK_PRINT ("patching BOOTROM");
 
 		version = (char *) vk_buffer_get_ptr (hikaru->bootrom, 0xD4);
 		if (!strcmp (version, "SAMURAI BootROM Version 0.84") ||

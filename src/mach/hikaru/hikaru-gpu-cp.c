@@ -305,7 +305,7 @@ hikaru_gpu_cp_exec (hikaru_gpu_t *gpu, int cycles)
 
 		flags = insns[op].flags;
 		if (flags & FLAG_INVALID) {
-			VK_LOG ("CP @%08X: invalid instruction [%08X]", PC, *inst);
+			VK_ERROR ("CP @%08X: invalid instruction [%08X]", PC, *inst);
 			gpu->cp.is_running = false;
 			break;
 		}
