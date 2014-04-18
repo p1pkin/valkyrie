@@ -58,6 +58,8 @@
 # error "unhandled __BYTE_ORDER value"
 #endif
 
+extern unsigned vk_verbosity;
+
 typedef enum {
 	VK_SWAP_NONE	= 0,
 	VK_SWAP_BSWAP16	= (1 << 0),
@@ -258,13 +260,15 @@ signext_n_64 (const uint64_t in, const unsigned sign_bit)
 		typedef int static_assertion_failed[(!!(cond_))*2-1]; \
 	} while (0);
 
-/** Prints a formatted message to stdout */
+/** Prints a formatted message to stdout in DEBUG builds, and only if verbosity
+ * is non-zero */
 #ifdef NDEBUG
 #define VK_LOG(fmt_, args_...)
 #else
 #define VK_LOG(fmt_, args_...) \
 	do { \
-		fprintf (stdout, fmt_"\n", ##args_); \
+		if (vk_verbosity > 0) \
+			fprintf (stdout, fmt_"\n", ##args_); \
 	} while (0)
 #endif
 

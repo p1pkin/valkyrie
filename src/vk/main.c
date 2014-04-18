@@ -31,6 +31,8 @@
 #define VK_VERSION_MINOR 1
 #define VK_VERSION_MAJOR 0
 
+unsigned vk_verbosity = 0;
+
 static struct {
 	char rom_path[256];
 	char rom_name[256];
@@ -122,12 +124,13 @@ main_loop (vk_machine_t *mach, int num_frames)
 	}
 }
 
-static const char global_opts[] = "R:r:n:l:h?";
+static const char global_opts[] = "R:r:n:l:vh?";
 static const char global_help[] = "Usage: %s [options]\n"
 "	-R <path>	Path to the ROM directory\n"
 "	-r <string>	Name of the game to run\n"
 "	-n <num>	Only run for num frames\n"
 "	-l <num>	Load state num at startup\n"
+"	-v		Set verbosity (affects debug messages)\n"
 "	-h              Show this help\n";
 
 static void
@@ -162,6 +165,9 @@ parse_global_opts (int argc, char **argv)
 			break;
 		case 'l':
 			options.start_state = atoi (optarg);
+			break;
+		case 'v':
+			vk_verbosity = 1;
 			break;
 		default:
 			VK_ERROR ("unrecognized option '%c'", opt);
