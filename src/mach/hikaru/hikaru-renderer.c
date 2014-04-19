@@ -1037,8 +1037,6 @@ copy_colors (hikaru_renderer_t *hr, hikaru_vertex_t *dst, hikaru_vertex_t *src)
 		float p_alpha = POLY.alpha;
 		float v_alpha = src->info.alpha * INV255;
 		alpha = clampf (p_alpha * v_alpha, 0.0f, 1.0f);
-	} else if (POLY.type == HIKARU_POLYTYPE_BACKGROUND) {
-		alpha = 0.5f;
 	}
 	dst->body.alpha = (uint8_t) (alpha * 255.0f);
 }
@@ -1425,8 +1423,13 @@ draw_meshes_for_polytype (hikaru_renderer_t *hr, unsigned vpi, int polytype)
 	switch (polytype) {
 	case HIKARU_POLYTYPE_TRANSPARENT:
 	case HIKARU_POLYTYPE_TRANSLUCENT:
+		glEnable (GL_BLEND);
+		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glDepthMask (GL_FALSE);
+		break;
 	case HIKARU_POLYTYPE_BACKGROUND:
 		glEnable (GL_BLEND);
+		glBlendFunc (GL_SRC_COLOR, GL_ONE_MINUS_SRC_COLOR);
 		glDepthMask (GL_FALSE);
 		break;
 	default:
@@ -1482,8 +1485,6 @@ draw_scene (hikaru_renderer_t *hr)
 
 	glEnable (GL_CULL_FACE);
 	glCullFace (GL_BACK);
-
-	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	for (vpi = 0; vpi < 8; vpi++) {
 		glDepthMask (GL_TRUE);
@@ -1767,6 +1768,8 @@ draw_layers (hikaru_renderer_t *hr)
 
 	glEnable (GL_BLEND);
 	VK_ASSERT_NO_GL_ERROR ();
+
+	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	/* Only draw unit 0 for now. I think unit 1 is there only for
 	 * multi-monitor, which case we don't care about. */
