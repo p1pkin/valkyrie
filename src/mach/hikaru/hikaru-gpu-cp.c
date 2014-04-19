@@ -1352,7 +1352,7 @@ D (0x091)
  *
  *	0 = Unlit.
  *	1 = Gouraud.
- *	2 = Flat?
+ *	2 = Flat? (used for FX and some geometry in PHARRIER).
  *
  * z = Depth blend (fog)
  *
@@ -1366,7 +1366,7 @@ D (0x091)
  *
  * h = Highlight mode
  *
- *	Apparently unused.
+ *	Used for the player character in PHARRIER.
  *
  * See PH:@0C0CF700.
  *
@@ -1541,9 +1541,9 @@ get_texhead_index (uint32_t *inst)
 
 /* 0C1	Texhead: Set Bias
  *
- *	----VVVV VVVV--MM -------o oooooooo
+ *	----BBBB AAAA--MM -------o oooooooo
  *
- * V = Unknown value.
+ * A, B = Unknown values.
  * M = Unknown mode.
  *
  *	Mode 0 is used frequently with values 0 and FF.
@@ -1555,9 +1555,11 @@ get_texhead_index (uint32_t *inst)
  *
  * 2C1	Texhead: Set Format/Size
  *
- *	UUUFFFrr wwHHHWWW uu-----o oooooooo
+ *	UUUFFFrr wwHHHWWW ba-----o oooooooo
  *
- * U = Unknown
+ * a = In SGNASCAR it is 1 for hi-res LODs, 0 for lo-res LODs.
+ *
+ * b = Extensively used in PHARRIER.
  *
  * F = Format
  *
