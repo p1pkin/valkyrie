@@ -60,7 +60,7 @@ static const struct {
 	[HR_DEBUG_NO_AMBIENT]		= {  0, 1, SDLK_a },
 	[HR_DEBUG_NO_DIFFUSE]		= {  0, 1, SDLK_d },
 	[HR_DEBUG_NO_SPECULAR]		= {  0, 1, SDLK_s },
-	[HR_DEBUG_NO_FOG]		= {  0, 1, SDLK_g },
+	[HR_DEBUG_FOG]			= {  0, 1, SDLK_g },
 };
 
 static void
@@ -603,7 +603,7 @@ get_glsl_variant (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 
 	variant.has_fog		= !vp->depth.q_enabled &&
 				  mat->depth_blend == 0 &&
-	                          !hr->debug.flags[HR_DEBUG_NO_FOG];
+	                          hr->debug.flags[HR_DEBUG_FOG];
 
 	if (!variant.has_lighting)
 		return variant;
