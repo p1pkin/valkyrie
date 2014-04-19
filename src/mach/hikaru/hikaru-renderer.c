@@ -883,13 +883,11 @@ upload_material_texhead (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		return;
 
 	tex = get_texture (hr, &hr->tex_list[mesh->tex_index]);
-	if (!tex)
-		return;
 
 	glActiveTexture (GL_TEXTURE0 + 0);
 	VK_ASSERT_NO_GL_ERROR ();
 
-	glBindTexture (GL_TEXTURE_2D, tex->id);
+	glBindTexture (GL_TEXTURE_2D, tex ? tex->id : 0);
 	VK_ASSERT_NO_GL_ERROR ();
 
 	glUniform1i (hr->meshes.locs.u_texture, 0);
