@@ -95,293 +95,6 @@ update_debug_flags (hikaru_renderer_t *hr)
 }
 
 /****************************************************************************
- Utils
-****************************************************************************/
-
-static void
-print_uniforms (GLuint program)
-{
-	GLchar id[256];
-	GLint count, loc, size, i;
-	GLenum type;
-
-	glGetProgramiv (program, GL_ACTIVE_UNIFORMS, &count);
-	for (i = 0; i < count; i++) {
-		glGetActiveUniform (program, i, sizeof (id), NULL, &size, &type, id);
-		loc = glGetUniformLocation (program, id);
-		VK_LOG ("uniform %u : %s <size %d>", loc, id, size);
-	}
-}
-
-static GLuint
-compile_shader (GLenum type, const char *src)
-{
-	char info[256];
-	GLuint id;
-	GLint status;
-
-	id = glCreateShader (type);
-	glShaderSource (id, 1, (const GLchar **) &src, NULL);
-	glCompileShader (id);
-	glGetShaderiv (id, GL_COMPILE_STATUS, &status);
-	if (!status) {
-		glGetShaderInfoLog (id, sizeof (info), NULL, info);
-		VK_ERROR ("could not compile GLSL shader: '%s'\n", info);
-		VK_ERROR ("source:\n%s\n", src);
-		glDeleteShader (id);
-		VK_ASSERT (0);
-	}
-	return id;
-}
-
-static GLuint
-compile_program (const char *vs_src, const char *fs_src)
-{
-	char info[256];
-	GLuint id, vs, fs;
-	GLint status;
-
-	vs = compile_shader (GL_VERTEX_SHADER, vs_src);
-	VK_ASSERT_NO_GL_ERROR ();
-
-	fs = compile_shader (GL_FRAGMENT_SHADER, fs_src);
-	VK_ASSERT_NO_GL_ERROR ();
-
-	id = glCreateProgram ();
-	glAttachShader (id, vs);
-	glAttachShader (id, fs);
-	glLinkProgram (id);
-	glGetProgramiv (id, GL_LINK_STATUS, &status);
-	if (status == GL_FALSE) {
-		glGetProgramInfoLog (id, sizeof (info), NULL, info);
-		VK_ERROR ("could not link GLSL program: '%s'\n", info);
-		VK_ERROR ("vs source:\n%s\n", vs_src);
-		VK_ERROR ("fs source:\n%s\n", fs_src);
-		glDeleteProgram (id);
-		VK_ASSERT (0);
-	}
-
-	/* "If a shader object to be deleted is attached to a program object,
-	 * it will be flagged for deletion, but it will not be deleted until it
-	 * is no longer attached to any program object, for any rendering
-	 * context." */
-	glDeleteShader (vs);
-	glDeleteShader (fs);
-	VK_ASSERT_NO_GL_ERROR ();
-
-	return id;
-}
-
-static void
-destroy_program (GLuint program)
-{
-	if (program) {
-		glUseProgram (0);
-		glDeleteProgram (program);
-	}
-}
-
-static void
-ortho (mtx4x4f_t proj, float l, float r, float b, float t, float n, float f)
-{
-	proj[0][0] = 2.0f / (r - l);
-	proj[1][0] = 0.0f;
-	proj[2][0] = 0.0f;
-	proj[3][0] = - (r + l) / (r - l);
-
-	proj[0][1] = 0.0f;
-	proj[1][1] = 2.0f / (t - b);
-	proj[2][1] = 0.0f;
-	proj[3][1] = - (t + b) / (t - b);
-
-	proj[0][2] = 0.0f;
-	proj[1][2] = 0.0f;
-	proj[2][2] = -2.0f / (f - n);
-	proj[3][2] = - (f + n) / (f - n);
-
-	proj[0][3] = 0.0f;
-	proj[1][3] = 0.0f;
-	proj[2][3] = 0.0f;
-	proj[3][3] = 1.0f;
-}
-
-static void
-frustum (mtx4x4f_t proj, float l, float r, float b, float t, float n, float f)
-{
-	proj[0][0] = (2.0f * n) / (r - l);
-	proj[1][0] = 0.0f;
-	proj[2][0] = (r + l) / (r - l);
-	proj[3][0] = 0.0f;
-
-	proj[0][1] = 0.0f;
-	proj[1][1] = (2.0f * n) / (t - b);
-	proj[2][1] = (t + b) / (t - b);
-	proj[3][1] = 0.0f;
-
-	proj[0][2] = 0.0f;
-	proj[1][2] = 0.0f;
-	proj[2][2] = - (f + n) / (f - n);
-	proj[3][2] = - (2.0f * f * n) / (f - n);
-
-	proj[0][3] = 0.0f;
-	proj[1][3] = 0.0f;
-	proj[2][3] = -1.0f;
-	proj[3][3] = 0.0f;
-}
-
-bool
-invert (mtx4x4f_t dst, mtx4x4f_t src)
-{
-	float *s = (float *) src, *d = (float *) dst;
-	float inv[16];
-	float det;
-	int i;
-
-	inv[0] = s[5]  * s[10] * s[15] - 
-			 s[5]  * s[11] * s[14] - 
-			 s[9]  * s[6]  * s[15] + 
-			 s[9]  * s[7]  * s[14] +
-			 s[13] * s[6]  * s[11] - 
-			 s[13] * s[7]  * s[10];
-
-	inv[4] = -s[4]  * s[10] * s[15] + 
-			  s[4]  * s[11] * s[14] + 
-			  s[8]  * s[6]  * s[15] - 
-			  s[8]  * s[7]  * s[14] - 
-			  s[12] * s[6]  * s[11] + 
-			  s[12] * s[7]  * s[10];
-
-	inv[8] = s[4]  * s[9] * s[15] - 
-			 s[4]  * s[11] * s[13] - 
-			 s[8]  * s[5] * s[15] + 
-			 s[8]  * s[7] * s[13] + 
-			 s[12] * s[5] * s[11] - 
-			 s[12] * s[7] * s[9];
-
-	inv[12] = -s[4]  * s[9] * s[14] + 
-			   s[4]  * s[10] * s[13] +
-			   s[8]  * s[5] * s[14] - 
-			   s[8]  * s[6] * s[13] - 
-			   s[12] * s[5] * s[10] + 
-			   s[12] * s[6] * s[9];
-
-	inv[1] = -s[1]  * s[10] * s[15] + 
-			  s[1]  * s[11] * s[14] + 
-			  s[9]  * s[2] * s[15] - 
-			  s[9]  * s[3] * s[14] - 
-			  s[13] * s[2] * s[11] + 
-			  s[13] * s[3] * s[10];
-
-	inv[5] = s[0]  * s[10] * s[15] - 
-			 s[0]  * s[11] * s[14] - 
-			 s[8]  * s[2] * s[15] + 
-			 s[8]  * s[3] * s[14] + 
-			 s[12] * s[2] * s[11] - 
-			 s[12] * s[3] * s[10];
-
-	inv[9] = -s[0]  * s[9] * s[15] + 
-			  s[0]  * s[11] * s[13] + 
-			  s[8]  * s[1] * s[15] - 
-			  s[8]  * s[3] * s[13] - 
-			  s[12] * s[1] * s[11] + 
-			  s[12] * s[3] * s[9];
-
-	inv[13] = s[0]  * s[9] * s[14] - 
-			  s[0]  * s[10] * s[13] - 
-			  s[8]  * s[1] * s[14] + 
-			  s[8]  * s[2] * s[13] + 
-			  s[12] * s[1] * s[10] - 
-			  s[12] * s[2] * s[9];
-
-	inv[2] = s[1]  * s[6] * s[15] - 
-			 s[1]  * s[7] * s[14] - 
-			 s[5]  * s[2] * s[15] + 
-			 s[5]  * s[3] * s[14] + 
-			 s[13] * s[2] * s[7] - 
-			 s[13] * s[3] * s[6];
-
-	inv[6] = -s[0]  * s[6] * s[15] + 
-			  s[0]  * s[7] * s[14] + 
-			  s[4]  * s[2] * s[15] - 
-			  s[4]  * s[3] * s[14] - 
-			  s[12] * s[2] * s[7] + 
-			  s[12] * s[3] * s[6];
-
-	inv[10] = s[0]  * s[5] * s[15] - 
-			  s[0]  * s[7] * s[13] - 
-			  s[4]  * s[1] * s[15] + 
-			  s[4]  * s[3] * s[13] + 
-			  s[12] * s[1] * s[7] - 
-			  s[12] * s[3] * s[5];
-
-	inv[14] = -s[0]  * s[5] * s[14] + 
-			   s[0]  * s[6] * s[13] + 
-			   s[4]  * s[1] * s[14] - 
-			   s[4]  * s[2] * s[13] - 
-			   s[12] * s[1] * s[6] + 
-			   s[12] * s[2] * s[5];
-
-	inv[3] = -s[1] * s[6] * s[11] + 
-			  s[1] * s[7] * s[10] + 
-			  s[5] * s[2] * s[11] - 
-			  s[5] * s[3] * s[10] - 
-			  s[9] * s[2] * s[7] + 
-			  s[9] * s[3] * s[6];
-
-	inv[7] = s[0] * s[6] * s[11] - 
-			 s[0] * s[7] * s[10] - 
-			 s[4] * s[2] * s[11] + 
-			 s[4] * s[3] * s[10] + 
-			 s[8] * s[2] * s[7] - 
-			 s[8] * s[3] * s[6];
-
-	inv[11] = -s[0] * s[5] * s[11] + 
-			   s[0] * s[7] * s[9] + 
-			   s[4] * s[1] * s[11] - 
-			   s[4] * s[3] * s[9] - 
-			   s[8] * s[1] * s[7] + 
-			   s[8] * s[3] * s[5];
-
-	inv[15] = s[0] * s[5] * s[10] - 
-			  s[0] * s[6] * s[9] - 
-			  s[4] * s[1] * s[10] + 
-			  s[4] * s[2] * s[9] + 
-			  s[8] * s[1] * s[6] - 
-			  s[8] * s[2] * s[5];
-
-	det = s[0] * inv[0] +
-	      s[1] * inv[4] +
-	      s[2] * inv[8] +
-	      s[3] * inv[12];
-	if (det == 0)
-		return false;
-
-	det = 1.0 / det;
-	for (i = 0; i < 16; i++)
-		d[i] = inv[i] * det;
-
-	return true;
-}
-
-static void
-transpose_3x3 (mtx3x3f_t dst, mtx4x4f_t src)
-{
-	unsigned i, j;
-	for (i = 0; i < 3; i++)
-		for (j = 0; j < 3; j++)
-			dst[i][j] = src[j][i];
-}
-
-static void
-translate (mtx4x4f_t m, float x, float y, float z)
-{
-	m[3][0] += m[0][0] * x + m[1][0] * y + m[2][0] * z;
-	m[3][1] += m[0][1] * x + m[1][1] * y + m[2][1] * z;
-	m[3][2] += m[0][2] * x + m[1][2] * y + m[2][2] * z;
-	m[3][3] += m[0][3] * x + m[1][3] * y + m[2][3] * z;
-}
-
-/****************************************************************************
  Textures
 ****************************************************************************/
 
@@ -1002,14 +715,14 @@ upload_glsl_program (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	VK_ASSERT (ret >= 0);
 
 	hr->meshes.variant = variant;
-	hr->meshes.program = compile_program (vs_source, fs_source);
+	hr->meshes.program = vk_renderer_compile_program (vs_source, fs_source);
 
 	free (definitions);
 	free (vs_source);
 	free (fs_source);
 
 	if (0) {
-		print_uniforms (hr->meshes.program);
+		vk_renderer_print_uniforms (hr->meshes.program);
 		VK_ASSERT_NO_GL_ERROR ();
 	}
 
@@ -1100,8 +813,11 @@ upload_viewport (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	LOG ("vp  = %s : [w=%f h=%f dcx=%f dcy=%f]",
 	     get_viewport_str (vp), w, h, dcx, dcy);
 
-	frustum (projection, -hw_at_n, hw_at_n, -hh_at_n, hh_at_n, vp->clip.n, 1e5);
-//	translate (projection, dcx, -dcy, 0.0f);
+	vk_renderer_frustum (projection,
+	                     -hw_at_n, hw_at_n,
+	                     -hh_at_n, hh_at_n,
+	                     vp->clip.n, 1e5);
+//	vk_renderer_translate (projection, dcx, -dcy, 0.0f);
 
 	glUniformMatrix4fv (hr->meshes.locs.u_projection, 1, GL_FALSE,
 	                    (const GLfloat *) projection);
@@ -1130,7 +846,6 @@ static void
 upload_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, unsigned i)
 {
 	hikaru_modelview_t *mv = &hr->mv_list[mesh->mv_index + i];
-	mtx4x4f_t inverse_mv;
 	mtx3x3f_t normal;
 
 	if (mesh->mv_index == ~0) {
@@ -1149,8 +864,7 @@ upload_modelview (hikaru_renderer_t *hr, hikaru_mesh_t *mesh, unsigned i)
 		mv = (hikaru_modelview_t *) &identity_mv;
 	}
 
-	invert (inverse_mv, mv->mtx);
-	transpose_3x3 (normal, inverse_mv);
+	vk_renderer_compute_normal_matrix (normal, mv->mtx);
 
 	LOG ("mv  = [%u+%u] %s", mesh->mv_index, i, get_modelview_str (mv));
 	glUniformMatrix4fv (hr->meshes.locs.u_modelview, 1, GL_FALSE,
@@ -1799,7 +1513,7 @@ destroy_3d_state (hikaru_renderer_t *hr)
 		for (i = 0; i < 8; i++)
 			free (hr->mesh_list[vpi][i]);
 
-	destroy_program (hr->meshes.program);
+	vk_renderer_destroy_program (hr->meshes.program);
 	VK_ASSERT_NO_GL_ERROR ();
 
 	if (hr->meshes.vao) {
@@ -1892,7 +1606,8 @@ static int
 build_2d_state (hikaru_renderer_t *hr)
 {
 	/* Create the GLSL program. */
-	hr->layers.program = compile_program (layer_vs_source, layer_fs_source);
+	hr->layers.program =
+		vk_renderer_compile_program (layer_vs_source, layer_fs_source);
 
 	hr->layers.locs.u_projection =
 		glGetUniformLocation (hr->layers.program, "u_projection");
@@ -1946,7 +1661,7 @@ destroy_2d_state (hikaru_renderer_t *hr)
 	glBindVertexArray (0);
 	glDeleteVertexArrays (1, &hr->layers.vao);
 
-	destroy_program (hr->layers.program);
+	vk_renderer_destroy_program (hr->layers.program);
 }
 
 static void
@@ -1959,7 +1674,7 @@ draw_layer (hikaru_renderer_t *hr, hikaru_layer_t *layer)
 
 	LOG ("drawing LAYER %s", get_layer_str (layer));
 
-	ortho (projection, 0.0f, 1.0f, 1.0f, 0.0f, -1.0f, 1.0f);
+	vk_renderer_ortho (projection, 0.0f, 1.0f, 1.0f, 0.0f, -1.0f, 1.0f);
 
 	/* Setup the GLSL program. */
 	glUseProgram (hr->layers.program);

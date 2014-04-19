@@ -94,5 +94,14 @@ vk_renderer_destroy (vk_renderer_t **renderer_)
 	}
 }
 
+GLuint	vk_renderer_compile_program (const char *vs_src, const char *fs_src);
+void	vk_renderer_destroy_program (GLuint program);
+void	vk_renderer_print_uniforms (GLuint program);
+
+void	vk_renderer_ortho (mtx4x4f_t proj, float l, float r, float b, float t, float n, float f);
+void	vk_renderer_frustum (mtx4x4f_t proj, float l, float r, float b, float t, float n, float f);
+bool	vk_renderer_compute_normal_matrix (mtx3x3f_t dst, mtx4x4f_t src);
+void	vk_renderer_translate (mtx4x4f_t m, float x, float y, float z);
+
 #endif /* __VK_REND_H__ */
 
