@@ -832,7 +832,7 @@ process_idma_entry (hikaru_gpu_t *gpu, uint32_t entry[4])
 	if (texhead.format != HIKARU_FORMAT_ABGR1555 &&
 	    texhead.format != HIKARU_FORMAT_ABGR4444 &&
 	    texhead.format != HIKARU_FORMAT_ABGR1111 &&
-	    texhead.format != HIKARU_FORMAT_ALPHA8) {
+	    texhead.format != HIKARU_FORMAT_LA8) {
 		VK_ERROR ("GPU IDMA: unknown texhead format: %s",
 		          get_texhead_str (&texhead));
 		/* continue anyway */
