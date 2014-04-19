@@ -2063,29 +2063,27 @@ D (0x043)
  * data to the transformation/rasterization pipeline.
  */
 
-/* 101	Mesh: Set Unknown (Set Light Unknown?)
+/* 101	Mesh: Set Unknown
  *
- *	----nnuu uuuuuuuu ----000o oooooooo
+ *	-----UUU UUUUUUUU -------o oooooooo
  *
- * n, u = Unknown
- *
- * 3FF is exactly the number of lights... Perhaps 'set sunlight'?
+ * U = Unknown
  *
  * See @0C008040, PH:@0C016418, PH:@0C016446.
  *
  *
  * 301	Mesh: Set Unknown
  *
- *	-------- unnnnnnn ----oooo oooooooo
+ *	-------- UNNNNNNN -------o oooooooo
  *
- * u, n = Unknown, n != 1
+ * U, N = Unknown (N != 1)
  *
  *
  * 501	Mesh: Set Unknown                                                             
  *                                                                             
- *	-------- ---ppppp -----oo oooooooo
+ *	-------- ---PPPPP -------o oooooooo
  *                                                                             
- * p = Param, unknown.                                                         
+ * P = Unknown parameter.
  *                                                                             
  * Used by the BOOTROM.                                                        
  *                                                                             
@@ -2129,9 +2127,9 @@ D (0x101)
 
 	switch ((inst[0] >> 8) & 0xF) {
 	case 1:
-		UNHANDLED |= !!(inst[0] & 0xF000F000);
+		UNHANDLED |= !!(inst[0] & 0xF800F000);
 
-		DISASM ("mesh: set unknown [%u]", (inst[0] >> 16) & 0x3FF);
+		DISASM ("mesh: set unknown [%u]", inst[0] >> 16);
 		break;
 	case 3:
 		UNHANDLED |= !!(inst[0] & 0xFF00F000);
