@@ -2105,10 +2105,12 @@ I (0x101)
 
 	switch ((inst[0] >> 8) & 0xF) {
 	case 1:
+		gpu->_101 = inst[0] >> 16;
 		break;
 	case 3:
 		break;
 	case 5:
+		gpu->_501 = inst[0] >> 16;
 		break;
 	case 9:
 		log = (inst[0] >> 16) & 0xFF;
