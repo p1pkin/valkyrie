@@ -2063,11 +2063,11 @@ D (0x043)
  * data to the transformation/rasterization pipeline.
  */
 
-/* 101	Mesh: Set Unknown
+/* 101	Mesh: Set Depth Bias
  *
- *	-----UUU UUUUUUUU -------o oooooooo
+ *	-----BBB BBBBBBBB -------o oooooooo
  *
- * U = Unknown
+ * B = Bias
  *
  * See @0C008040, PH:@0C016418, PH:@0C016446.
  *
@@ -2105,7 +2105,7 @@ I (0x101)
 
 	switch ((inst[0] >> 8) & 0xF) {
 	case 1:
-		gpu->_101 = inst[0] >> 16;
+		gpu->depth_bias = inst[0] >> 16;
 		break;
 	case 3:
 		break;
@@ -2131,7 +2131,7 @@ D (0x101)
 	case 1:
 		UNHANDLED |= !!(inst[0] & 0xF800F000);
 
-		DISASM ("mesh: set unknown [%u]", inst[0] >> 16);
+		DISASM ("mesh: set depth bias [%u]", inst[0] >> 16);
 		break;
 	case 3:
 		UNHANDLED |= !!(inst[0] & 0xFF00F000);

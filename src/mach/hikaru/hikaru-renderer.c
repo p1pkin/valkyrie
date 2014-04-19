@@ -1244,6 +1244,8 @@ update_and_set_rendstate (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 		MV.depth = 0;
 	}
 
+	mesh->depth_bias = gpu->depth_bias;
+
 	mesh->vp_index = hr->num_vps - 1;
 	mesh->mat_index = hr->num_mats - 1;
 	mesh->tex_index = hr->num_texs - 1;
@@ -1303,6 +1305,8 @@ draw_mesh (hikaru_renderer_t *hr, hikaru_mesh_t *mesh)
 	VAP (5, 3, GL_UNSIGNED_SHORT, unknown,   GL_TRUE);
 	VAP (6, 2, GL_FLOAT,          texcoords, GL_FALSE);
 	VAP (7, 1, GL_UNSIGNED_BYTE,  alpha,     GL_TRUE);
+
+	glPolygonOffset (0.0f, -mesh->depth_bias);
 
 	if (hr->debug.flags[HR_DEBUG_NO_INSTANCING]) {
 		unsigned i = MIN2 (hr->debug.flags[HR_DEBUG_SELECT_INSTANCE],
@@ -1424,15 +1428,18 @@ draw_meshes_for_polytype (hikaru_renderer_t *hr, unsigned vpi, int polytype)
 		glEnable (GL_BLEND);
 		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glDepthMask (GL_FALSE);
+		glEnable (GL_POLYGON_OFFSET_FILL);
 		break;
 	case HIKARU_POLYTYPE_BACKGROUND:
 		glEnable (GL_BLEND);
 		glBlendFunc (GL_SRC_COLOR, GL_ONE_MINUS_SRC_COLOR);
 		glDepthMask (GL_FALSE);
+		glDisable (GL_POLYGON_OFFSET_FILL);
 		break;
 	default:
 		glDisable (GL_BLEND);
 		glDepthMask (GL_TRUE);
+		glDisable (GL_POLYGON_OFFSET_FILL);
 		break;
 	}
 	
@@ -1768,6 +1775,8 @@ draw_layers (hikaru_renderer_t *hr)
 	VK_ASSERT_NO_GL_ERROR ();
 
 	glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glDisable (GL_POLYGON_OFFSET_FILL);
 
 	/* Only draw unit 0 for now. I think unit 1 is there only for
 	 * multi-monitor, which case we don't care about. */

@@ -325,7 +325,8 @@ typedef struct {
 		vec4b_t clear;
 	} fb_config;
 
-	uint16_t _101, _501;
+	uint16_t depth_bias;
+	uint16_t _501;
 	uint16_t texoffset_x, texoffset_y;
 
 	struct {

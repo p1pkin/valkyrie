@@ -88,6 +88,7 @@ typedef struct {
 	uint32_t		tex_index;
 	uint32_t		ls_index;
 	float			alpha_thresh[2];
+	float			depth_bias;
 	uint32_t		num;
 } hikaru_mesh_t;
 
