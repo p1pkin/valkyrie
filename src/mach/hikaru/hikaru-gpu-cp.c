@@ -1011,19 +1011,19 @@ norm_vec4 (vec4f_t v)
 
 /* 161	Set Matrix Vector
  *
- *	-------- ----UPNN -WW----o oooooooo
+ *	-------- ----MPNN --U----o oooooooo
  *	XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX
  *	YYYYYYYY YYYYYYYY YYYYYYYY YYYYYYYY
  *	ZZZZZZZZ ZZZZZZZZ ZZZZZZZZ ZZZZZZZZ
  *
- * U = Unknown
+ * M = Multiply with previous?
  *
  * P = Push
  *
  *	Pushes the uploaded modelview matrix in the modelview stack. Used
  *	for instanced drawing.
  *
- * W = Unknown
+ * U = Unknown
  *
  * N = Column index
  *
